@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-editorial_hub}
+      POSTGRES_USER: ${POSTGRES_USER:-editorial}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5480:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U editorial -d editorial_hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8050:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-editorial}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-editorial_hub}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/sa-key.json
+      BQ_PROJECT: ${BQ_PROJECT:-graphite-data}
+      BQ_DATASET: ${BQ_DATASET:-graphite_bi_sandbox}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:4050"]'}
+      SPREADSHEET_ID: ${SPREADSHEET_ID:-}
+      MASTER_TRACKER_ID: ${MASTER_TRACKER_ID:-}
+      AI_MONITORING_ID: ${AI_MONITORING_ID:-}
+    volumes:
+      - ./backend/app:/app/app
+      - ./sa-key.json:/app/sa-key.json:ro
+      - ./data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4050:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8050}
+    volumes:
+      - ./frontend/src:/app/src
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

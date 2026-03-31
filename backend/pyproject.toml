@@ -1,0 +1,38 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]  # sys.path manipulation before imports is intentional in scripts
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = false
+no_strict_optional = true
+
+[[tool.mypy.overrides]]
+module = "app.services.migration_service"
+ignore_errors = true  # Complex migration script with SQLAlchemy dynamic queries
+
+[[tool.mypy.overrides]]
+module = "app.services.bigquery_sync"
+ignore_errors = true  # Dynamic model dispatch with untyped SQLAlchemy results
+
+[[tool.mypy.overrides]]
+module = "seed_data"
+ignore_errors = true  # Seed script with dynamic DB access patterns
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

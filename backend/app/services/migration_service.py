@@ -1,0 +1,2134 @@
+"""Google Sheets migration service — reads live spreadsheet data and upserts into PostgreSQL."""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+from dataclasses import dataclass, field
+from datetime import date, datetime
+
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.models import (
+    AIMonitoringRecord,
+    AuditLog,
+    CapacityProjection,
+    Client,
+    CumulativeMetric,
+    DeliverableMonthly,
+    DeliveryTemplate,
+    EngagementRule,
+    GoalsVsDelivery,
+    ModelAssumption,
+    ProductionHistory,
+    SurferAPIUsage,
+    TeamMember,
+)
+
+logger = logging.getLogger(__name__)
+
+SPREADSHEET_ID = settings.spreadsheet_id
+MASTER_TRACKER_ID = settings.master_tracker_id
+AI_MONITORING_ID = settings.ai_monitoring_id
+
+# Human-readable descriptions for known sheets
+SHEET_DESCRIPTIONS: dict[str, str] = {
+    "Editorial SOW overview": "Client SOW contracts — status, dates, cadence, article counts",
+    "Delivered vs Invoiced v2": "Monthly article delivery and invoicing tracker per client",
+    "ET CP 2026 [V11 Mar 2026]": "Editorial team capacity plan — pod assignments and projections",
+    "Model Assumptions": "Model parameters — categorisation rules, ramp-up periods, capacity targets",
+    "Editorial Operating Model": "Monthly production history per client — actuals and projections",
+    "Delivery Schedules": "Delivery template schedules by SOW size — invoicing and article targets",
+    "Editorial Engagement Requirements": "The 10 Commandments — rules for editorial engagement success",
+    "Meta Calendar Month Deliveries": "Meta client monthly delivery targets — BMG, Manus, RL, AI",
+    "AI Monitoring - Data": "Writer AI monitoring scan results — FULL PASS / PARTIAL PASS / REVIEW/REWRITE per article",
+    "AI Monitoring - Rewrites": "Rewritten articles from AI monitoring — flagged and reprocessed",
+    "AI Monitoring - Flags": "Yellow/Red flag articles — PARTIAL PASS and REVIEW/REWRITE only",
+    "AI Monitoring - Surfer Usage": "Monthly Surfer AI detector API usage per pod",
+    "Master Tracker - Cumulative": "All-time cumulative pipeline metrics per client — topics, CBs, articles, published",
+    "Master Tracker - Goals vs Delivery": "Weekly goals vs delivery tracking per month — CB and article delivery pacing",
+}
+
+# Map of importable sheet names to their import functions (populated below)
+IMPORT_DISPATCH: dict[str, str] = {
+    "Editorial SOW overview": "import_sow_overview",
+    "Delivered vs Invoiced v2": "import_delivered_invoiced",
+    "Model Assumptions": "import_model_assumptions",
+    "Editorial Operating Model": "import_operating_model",
+    "Delivery Schedules": "import_delivery_schedules",
+    "Editorial Engagement Requirements": "import_engagement_requirements",
+    "Meta Calendar Month Deliveries": "import_meta_deliveries",
+    "AI Monitoring - Data": "import_ai_monitoring_data",
+    "AI Monitoring - Rewrites": "import_ai_monitoring_rewrites",
+    "AI Monitoring - Flags": "import_ai_monitoring_flags",
+    "AI Monitoring - Surfer Usage": "import_ai_monitoring_surfer",
+    "Master Tracker - Cumulative": "import_cumulative",
+    "Master Tracker - Goals vs Delivery": "import_goals_vs_delivery",
+}
+# Capacity plan sheet name is detected dynamically but we keep a prefix for matching
+CAPACITY_PLAN_PREFIX = "ET CP 2026"
+
+
+# ---------------------------------------------------------------------------
+# Result dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ImportResult:
+    sheet: str
+    rows_parsed: int = 0
+    rows_imported: int = 0
+    success: bool = True
+    errors: list[str] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Helper functions (adapted from seed_data.py for raw list-of-lists input)
+# ---------------------------------------------------------------------------
+
+
+def _is_empty(val) -> bool:
+    """Check if a cell value is empty / missing."""
+    if val is None:
+        return True
+    s = str(val).strip()
+    return s in ("", "nan", "None")
+
+
+def safe_int(val, default=None) -> int | None:
+    """Convert a value to int, returning default if not possible."""
+    if _is_empty(val):
+        return default
+    try:
+        return int(float(str(val).replace(",", "").strip()))
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_pct(val, default=None) -> float | None:
+    """Convert '99.29%' to 99.29 float."""
+    if _is_empty(val):
+        return default
+    s = str(val).strip().rstrip("%")
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return default
+
+
+def parse_date(val, formats=None) -> date | None:
+    """Parse a date string, returning None for TBD/N/A/empty."""
+    if _is_empty(val):
+        return None
+    val_str = str(val).strip()
+    if val_str.upper() in ("TBD", "N/A", "NA", "-", ""):
+        return None
+
+    if formats is None:
+        formats = [
+            "%m/%d/%Y",
+            "%m/%d/%y",
+            "%B %d, %Y",
+            "%b %d %Y",
+            "%Y-%m-%d",
+            "%d/%m/%Y",
+        ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(val_str, fmt).date()
+        except ValueError:
+            continue
+    # Last resort: dateutil
+    try:
+        from dateutil.parser import parse as dateutil_parse
+
+        return dateutil_parse(val_str).date()
+    except Exception:
+        return None
+
+
+def parse_word_count(val) -> tuple[int | None, int | None]:
+    """Parse '1,000 - 1,500' into (min, max) ints."""
+    if _is_empty(val):
+        return None, None
+    val_str = str(val).replace(",", "").strip()
+    match = re.match(r"(\d+)\s*[-\u2013]\s*(\d+)", val_str)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    try:
+        v = int(val_str)
+        return v, v
+    except ValueError:
+        return None, None
+
+
+def parse_cadence_quarters(cadence_str) -> dict[str, int | None]:
+    """Parse 'Q1 = 30 / Q2 = 51 / Q3 = 60 / Q4 = 39' into {q1..q4}."""
+    result: dict[str, int | None] = {"q1": None, "q2": None, "q3": None, "q4": None}
+    if _is_empty(cadence_str):
+        return result
+    cadence_str = str(cadence_str)
+    for q in range(1, 5):
+        pattern = rf"Q{q}\s*=\s*(\d+)"
+        match = re.search(pattern, cadence_str)
+        if match:
+            result[f"q{q}"] = int(match.group(1))
+    return result
+
+
+def map_status(raw) -> str | None:
+    """Map raw status text to enum value."""
+    if _is_empty(raw):
+        return None
+    raw = str(raw).strip().upper()
+    mapping = {
+        "SOON TO BE ACTIVE": "SOON_TO_BE_ACTIVE",
+        "ACTIVE": "ACTIVE",
+        "COMPLETED": "COMPLETED",
+        "CANCELLED": "CANCELLED",
+        "INACTIVE": "COMPLETED",
+    }
+    return mapping.get(raw, raw)
+
+
+def parse_month_str(month_str) -> tuple[int | None, int | None]:
+    """Parse 'Mar 2026' or 'Feb 2026' to (year, month)."""
+    if _is_empty(month_str):
+        return None, None
+    try:
+        dt = datetime.strptime(str(month_str).strip(), "%b %Y")
+        return dt.year, dt.month
+    except ValueError:
+        return None, None
+
+
+def _cell(row: list, idx: int, default: str = "") -> str:
+    """Safely get a cell from a row list (Sheets API rows can be ragged)."""
+    if idx < len(row):
+        return str(row[idx]).strip() if row[idx] is not None else default
+    return default
+
+
+def _extract_hyperlinks(service, spreadsheet_id: str, range_str: str) -> dict[int, str]:
+    """Extract hyperlinks from a column range. Returns {row_index: url}."""
+    try:
+        resp = (
+            service.spreadsheets()
+            .get(
+                spreadsheetId=spreadsheet_id,
+                ranges=[range_str],
+                fields="sheets.data.rowData.values(hyperlink,formattedValue)",
+            )
+            .execute()
+        )
+        links: dict[int, str] = {}
+        for sheet in resp.get("sheets", []):
+            for data_block in sheet.get("data", []):
+                for i, row_data in enumerate(data_block.get("rowData", [])):
+                    for val in row_data.get("values", []):
+                        link = val.get("hyperlink", "")
+                        if link:
+                            links[i] = link
+        return links
+    except Exception:
+        logger.warning("Could not extract hyperlinks from %s", range_str)
+        return {}
+
+
+# ---------------------------------------------------------------------------
+# Google Sheets client
+# ---------------------------------------------------------------------------
+
+
+def _resolve_sa_key_path() -> str:
+    """Find the service-account key file. Tries several known locations."""
+    candidates = [
+        settings.google_application_credentials,  # from config
+        os.path.join(os.getcwd(), "sa-key.json"),  # CWD
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "sa-key.json",
+        ),  # backend/../sa-key.json
+        "/app/sa-key.json",  # Docker
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    raise FileNotFoundError(f"Cannot find SA key file. Tried: {candidates}")
+
+
+def get_sheets_client():
+    """Build an authenticated Google Sheets API service."""
+    sa_path = _resolve_sa_key_path()
+    creds = service_account.Credentials.from_service_account_file(
+        sa_path,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    )
+    return build("sheets", "v4", credentials=creds)
+
+
+# ---------------------------------------------------------------------------
+# list_available_sheets
+# ---------------------------------------------------------------------------
+
+
+def list_available_sheets() -> list[dict]:
+    """Return metadata for every visible sheet in the spreadsheet."""
+    service = get_sheets_client()
+    meta = (
+        service.spreadsheets()
+        .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+        .execute()
+    )
+    sheets_info: list[dict] = []
+    for s in meta.get("sheets", []):
+        props = s.get("properties", {})
+        if props.get("hidden"):
+            continue
+        name = props.get("title", "")
+        row_count = props.get("gridProperties", {}).get("rowCount", 0)
+        description = SHEET_DESCRIPTIONS.get(name, "")
+        sheets_info.append(
+            {
+                "name": name,
+                "row_count": row_count,
+                "description": description,
+            }
+        )
+
+    # Also list sheets from Master Tracker and AI Monitoring
+    for extra_id, prefix in [
+        (MASTER_TRACKER_ID, "Master Tracker"),
+        (AI_MONITORING_ID, "AI Monitoring"),
+    ]:
+        try:
+            extra_meta = (
+                service.spreadsheets()
+                .get(spreadsheetId=extra_id, fields="sheets.properties")
+                .execute()
+            )
+            for s in extra_meta.get("sheets", []):
+                props = s.get("properties", {})
+                if props.get("hidden"):
+                    continue
+                name = props.get("title", "")
+                row_count = props.get("gridProperties", {}).get("rowCount", 0)
+                sheets_info.append(
+                    {
+                        "name": f"{prefix} - {name}",
+                        "row_count": row_count,
+                        "description": SHEET_DESCRIPTIONS.get(
+                            f"{prefix} - {name}", f"From {prefix} spreadsheet"
+                        ),
+                        "source": prefix,
+                    }
+                )
+        except Exception:
+            logger.warning("Could not list sheets from %s spreadsheet", prefix)
+
+    return sheets_info
+
+
+# ---------------------------------------------------------------------------
+# preview_sheet
+# ---------------------------------------------------------------------------
+
+
+def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
+    """Read the first max_rows rows from a sheet and return headers + data."""
+    service = get_sheets_client()
+    # Fetch enough rows: 1 header + max_rows data
+    range_str = f"'{sheet_name}'!1:{max_rows + 1}"
+    result = (
+        service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=range_str).execute()
+    )
+    values = result.get("values", [])
+    if not values:
+        return {"sheet_name": sheet_name, "headers": [], "rows": [], "total_rows": 0}
+
+    headers = [str(h) for h in values[0]]
+    rows = values[1:] if len(values) > 1 else []
+
+    # Get total row count from sheet metadata
+    meta = (
+        service.spreadsheets()
+        .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+        .execute()
+    )
+    total_rows = 0
+    for s in meta.get("sheets", []):
+        if s.get("properties", {}).get("title") == sheet_name:
+            total_rows = s["properties"].get("gridProperties", {}).get("rowCount", 0)
+            break
+
+    return {
+        "sheet_name": sheet_name,
+        "headers": headers,
+        "rows": [[str(c) if c is not None else "" for c in r] for r in rows],
+        "total_rows": total_rows,
+    }
+
+
+# ---------------------------------------------------------------------------
+# import_sow_overview
+# ---------------------------------------------------------------------------
+
+
+def import_sow_overview(session: Session) -> ImportResult:
+    """Import 'Editorial SOW overview' sheet into the clients table.
+
+    Reuses parsing logic from seed_data.py's seed_clients(), adapted for
+    the Sheets API list-of-lists format instead of pandas DataFrames.
+    """
+    sheet_name = "Editorial SOW overview"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if len(all_rows) < 7:
+            result.errors.append("Sheet has fewer than 7 rows; cannot determine data")
+            result.success = False
+            return result
+
+        # Skip first 5 header/meta rows, row 6 (index 5) is the column header,
+        # data starts at index 6.
+        # Column mapping (0-indexed):
+        # 0: status, 1: client, 2: start, 3: term_months, 4: end, 5: cadence,
+        # 6: articles_sow, 7: articles_delivered, 8: articles_invoiced, 9: articles_paid,
+        # 10: word_count, 11: consulting_ko, 12: editorial_ko, 13: first_cb,
+        # 14: first_article_delivery, 15: first_feedback, 16: first_article_published,
+        # 17: comments, 18: sow
+        data_rows = all_rows[6:]
+
+        # Extract hyperlinks from SOW column (col S = col 19, 1-indexed)
+        # Rows 7+ in sheet = data rows (sheet is 1-indexed, so row 7 = index 0 in data_rows)
+        sow_hyperlinks = _extract_hyperlinks(service, SPREADSHEET_ID, f"'{sheet_name}'!S7:S200")
+
+        for row in data_rows:
+            result.rows_parsed += 1
+
+            status_raw = _cell(row, 0)
+            client_name = _cell(row, 1)
+
+            # Skip empty or summary rows
+            if not client_name or not status_raw:
+                continue
+            if any(kw in client_name.lower() for kw in ("total", "median", "average", "client")):
+                continue
+
+            status = map_status(status_raw)
+            if status is None:
+                continue
+
+            cadence_raw = _cell(row, 5) or None
+            quarters = parse_cadence_quarters(cadence_raw)
+            wc_min, wc_max = parse_word_count(_cell(row, 10))
+
+            # Upsert: try to find existing client by name
+            existing = session.execute(
+                select(Client).where(Client.name == client_name)
+            ).scalar_one_or_none()
+
+            client_data = dict(
+                status=status,
+                start_date=parse_date(_cell(row, 2)),
+                term_months=safe_int(_cell(row, 3)),
+                end_date=parse_date(_cell(row, 4)),
+                cadence=cadence_raw,
+                cadence_q1=quarters["q1"],
+                cadence_q2=quarters["q2"],
+                cadence_q3=quarters["q3"],
+                cadence_q4=quarters["q4"],
+                articles_sow=safe_int(_cell(row, 6)),
+                articles_delivered=safe_int(_cell(row, 7), 0),
+                articles_invoiced=safe_int(_cell(row, 8), 0),
+                articles_paid=safe_int(_cell(row, 9), 0),
+                word_count_min=wc_min,
+                word_count_max=wc_max,
+                consulting_ko_date=parse_date(_cell(row, 11)),
+                editorial_ko_date=parse_date(_cell(row, 12)),
+                first_cb_approved_date=parse_date(_cell(row, 13)),
+                first_article_delivered_date=parse_date(_cell(row, 14)),
+                first_feedback_date=parse_date(_cell(row, 15)),
+                first_article_published_date=parse_date(_cell(row, 16)),
+                comments=_cell(row, 17) or None,
+                sow_link=sow_hyperlinks.get(result.rows_parsed - 1, _cell(row, 18)) or None,
+                updated_by="sheets_migration",
+            )
+
+            if existing:
+                for k, v in client_data.items():
+                    setattr(existing, k, v)
+            else:
+                client = Client(name=client_name, **client_data)
+                session.add(client)
+
+            result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing SOW overview")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_delivered_invoiced
+# ---------------------------------------------------------------------------
+
+
+def import_delivered_invoiced(session: Session) -> ImportResult:
+    """Import 'Delivered vs Invoiced v2' sheet into deliverables_monthly.
+
+    Reuses the 6-row-per-client parsing pattern from seed_data.py.
+    """
+    sheet_name = "Delivered vs Invoiced v2"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if len(all_rows) < 10:
+            result.errors.append("Sheet has too few rows")
+            result.success = False
+            return result
+
+        # Build client name -> id lookup
+        clients = session.execute(select(Client)).scalars().all()
+        name_lookup: dict[str, int] = {}
+        for c in clients:
+            name_lookup[c.name.lower().strip()] = c.id
+
+        # Common aliases
+        alias_map = {
+            "get flex": "flex",
+            "genstoreai": "genstoreai",
+            "genstore ai": "genstoreai",
+            "blvd": "boulevard",
+            "meta fb": "meta bmg",
+            "meta bmg": "meta bmg",
+            "college hunks": "college hunks",
+        }
+        for alias, canonical in alias_map.items():
+            if canonical in name_lookup and alias not in name_lookup:
+                name_lookup[alias] = name_lookup[canonical]
+
+        # Data starts at row index 3, groups of 6 rows per client
+        row_idx = 3
+        max_months = 12
+
+        while row_idx + 5 < len(all_rows):
+            header_row = all_rows[row_idx]
+            result.rows_parsed += 1
+
+            # col 0: status
+            status_val = _cell(header_row, 0)
+            if not status_val:
+                row_idx += 1
+                continue
+
+            # col 3: client name
+            client_name = _cell(header_row, 3)
+            if not client_name:
+                row_idx += 6
+                continue
+
+            # col 5: start month
+            start_month_str = _cell(header_row, 5)
+            start_year, start_month = parse_month_str(start_month_str)
+            if start_year is None:
+                row_idx += 6
+                continue
+
+            # Look up client_id
+            client_id = name_lookup.get(client_name.lower().strip())
+            if client_id is None:
+                # Try partial matching
+                for key, cid in name_lookup.items():
+                    if client_name.lower().strip() in key or key in client_name.lower().strip():
+                        client_id = cid
+                        break
+
+            if client_id is None:
+                result.errors.append(f"Client '{client_name}' not found in DB, skipping")
+                row_idx += 6
+                continue
+
+            # Rows: 0=SOW targets, 1=Invoicing, 2=Cumulative, 3=Article Deliveries,
+            #        4=Variance, 5=Cumulative Delivered
+            sow_row = all_rows[row_idx] if row_idx < len(all_rows) else []
+            invoicing_row = all_rows[row_idx + 1] if row_idx + 1 < len(all_rows) else []
+            deliveries_row = all_rows[row_idx + 3] if row_idx + 3 < len(all_rows) else []
+
+            for m_offset in range(max_months):
+                col_idx = 7 + m_offset
+
+                # Calculate actual year/month
+                from dateutil.relativedelta import relativedelta
+
+                dt = date(start_year, start_month, 1) + relativedelta(months=m_offset)
+                year = dt.year
+                month = dt.month
+
+                articles_delivered_val = safe_int(_cell(deliveries_row, col_idx))
+                articles_invoiced_val = safe_int(_cell(invoicing_row, col_idx))
+                articles_sow_val = safe_int(_cell(sow_row, col_idx))
+
+                if articles_delivered_val is not None or articles_invoiced_val is not None:
+                    # Upsert: check for existing record
+                    existing = session.execute(
+                        select(DeliverableMonthly).where(
+                            DeliverableMonthly.client_id == client_id,
+                            DeliverableMonthly.year == year,
+                            DeliverableMonthly.month == month,
+                        )
+                    ).scalar_one_or_none()
+
+                    if existing:
+                        existing.articles_sow_target = articles_sow_val or 0
+                        existing.articles_delivered = articles_delivered_val or 0
+                        existing.articles_invoiced = articles_invoiced_val or 0
+                        existing.updated_by = "sheets_migration"
+                    else:
+                        dm = DeliverableMonthly(
+                            client_id=client_id,
+                            year=year,
+                            month=month,
+                            articles_sow_target=articles_sow_val or 0,
+                            articles_delivered=articles_delivered_val or 0,
+                            articles_invoiced=articles_invoiced_val or 0,
+                            updated_by="sheets_migration",
+                        )
+                        session.add(dm)
+
+                    result.rows_imported += 1
+
+            row_idx += 6
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing Delivered vs Invoiced")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_capacity_plan
+# ---------------------------------------------------------------------------
+
+
+def _detect_capacity_sheet_name(service) -> str | None:
+    """Find the latest 'ET CP 2026 [V...]' sheet name dynamically."""
+    meta = (
+        service.spreadsheets()
+        .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+        .execute()
+    )
+    candidates: list[str] = []
+    for s in meta.get("sheets", []):
+        title = s.get("properties", {}).get("title", "")
+        if title.startswith(CAPACITY_PLAN_PREFIX):
+            candidates.append(title)
+    if not candidates:
+        return None
+    # Sort so the latest version comes last (V11 > V10, etc.)
+    candidates.sort()
+    return candidates[-1]
+
+
+def import_capacity_plan(session: Session) -> ImportResult:
+    """Import the capacity-plan sheet into team_members + capacity_projections.
+
+    Reuses parsing logic from seed_data.py's seed_team_and_capacity().
+    """
+    service = get_sheets_client()
+    sheet_name = _detect_capacity_sheet_name(service)
+    if sheet_name is None:
+        return ImportResult(
+            sheet="ET CP 2026 [?]",
+            success=False,
+            errors=["No capacity-plan sheet found matching prefix 'ET CP 2026'"],
+        )
+
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if len(all_rows) < 40:
+            result.errors.append("Sheet has too few rows to parse")
+            result.success = False
+            return result
+
+        # ------------------------------------------------------------------
+        # Team members: parse pod assignments section
+        # ------------------------------------------------------------------
+        # The pod assignments are hardcoded in the same structure as seed_data.py
+        # but we can also detect them from the sheet. For reliability, use the
+        # same hardcoded structure (the sheet format is fragile).
+        pod_teams = {
+            "Pod 1": {
+                "senior_editor": "Nina Denison",
+                "editors": ["Robert Thorpe", "Jimmy Bunes"],
+                "clients": ["College HUNKS", "Eventbrite", "Felt", "Gainbridge", "n8n"],
+            },
+            "Pod 2": {
+                "senior_editor": "Kennedy Stevens",
+                "editors": ["Jimmy Bunes", "Elliot Gardner", "Tiffany Anderson"],
+                "clients": [
+                    "Genstore AI",
+                    "GenstoreAI",
+                    "Get Flex",
+                    "Flex",
+                    "Huntress",
+                    "Maven Clinic",
+                    "Mistplay",
+                    "Miter",
+                    "Workleap + Sharegate",
+                ],
+            },
+            "Pod 3": {
+                "senior_editor": "Alyssa Zacharias",
+                "editors": ["Lee Anderson", "Haley Drucker"],
+                "clients": [
+                    "BLVD",
+                    "Boulevard",
+                    "Cointracker",
+                    "Leapsome",
+                    "Pylon",
+                    "Vimeo",
+                    "Webflow",
+                ],
+            },
+            "Pod 5": {
+                "senior_editor": "Maggie Gowland",
+                "editors": ["Lauren Friar", "Shivani Verma"],
+                "clients": [
+                    "Honeybook",
+                    "Fivetran",
+                    "Front",
+                    "Meta fB",
+                    "Meta BMG",
+                    "Meta RL",
+                    "Meta AI",
+                    "Oyster",
+                ],
+            },
+        }
+
+        seen_members: set[str] = set()
+        members_imported = 0
+
+        for pod_name, pod_info in pod_teams.items():
+            # Senior Editor
+            se_name = pod_info["senior_editor"]
+            if se_name not in seen_members:
+                existing = session.execute(
+                    select(TeamMember).where(TeamMember.name == se_name)
+                ).scalar_one_or_none()
+                if existing:
+                    existing.role = "SENIOR_EDITOR"
+                    existing.pod = pod_name
+                    existing.is_active = True
+                    existing.monthly_capacity = 20
+                else:
+                    session.add(
+                        TeamMember(
+                            name=se_name,
+                            role="SENIOR_EDITOR",
+                            pod=pod_name,
+                            is_active=True,
+                            monthly_capacity=20,
+                        )
+                    )
+                seen_members.add(se_name)
+                members_imported += 1
+
+            # Editors
+            for ed_name in pod_info["editors"]:
+                if ed_name not in seen_members:
+                    existing = session.execute(
+                        select(TeamMember).where(TeamMember.name == ed_name)
+                    ).scalar_one_or_none()
+                    if existing:
+                        existing.role = "EDITOR"
+                        existing.pod = pod_name
+                        existing.is_active = True
+                        existing.monthly_capacity = 60
+                    else:
+                        session.add(
+                            TeamMember(
+                                name=ed_name,
+                                role="EDITOR",
+                                pod=pod_name,
+                                is_active=True,
+                                monthly_capacity=60,
+                            )
+                        )
+                    seen_members.add(ed_name)
+                    members_imported += 1
+
+        session.flush()
+
+        # Update client editorial_pod assignments
+        clients_all = session.execute(select(Client)).scalars().all()
+        client_name_map = {c.name.lower().strip(): c for c in clients_all}
+
+        for pod_name, pod_info in pod_teams.items():
+            for client_name in pod_info["clients"]:
+                c = client_name_map.get(client_name.lower().strip())
+                if c:
+                    c.editorial_pod = pod_name
+
+        # ------------------------------------------------------------------
+        # Capacity projections: parse from the CAPACITY section (~row 79+)
+        # ------------------------------------------------------------------
+        months = [
+            (2025, 12),
+            (2026, 1),
+            (2026, 2),
+            (2026, 3),
+            (2026, 4),
+            (2026, 5),
+            (2026, 6),
+            (2026, 7),
+            (2026, 8),
+            (2026, 9),
+            (2026, 10),
+            (2026, 11),
+            (2026, 12),
+        ]
+
+        # Extract version from sheet name
+        version_match = re.search(r"\[(.*?)\]", sheet_name)
+        version = version_match.group(1) if version_match else sheet_name
+
+        capacity_count = 0
+
+        for row_idx in range(75, min(len(all_rows), 120)):
+            row = all_rows[row_idx]
+            col3_val = _cell(row, 3)
+            col4_val = _cell(row, 4)
+
+            if col3_val.startswith("Pod") and col4_val == "Senior Editor":
+                pod_name = col3_val
+
+                for month_idx, (year, month) in enumerate(months):
+                    base_col = 3 + (month_idx * 8)
+                    total_cap_col = base_col + 5
+                    projected_col = base_col + 6
+                    actual_col = base_col + 7
+
+                    total_cap = safe_int(_cell(row, total_cap_col))
+                    projected = safe_int(_cell(row, projected_col))
+                    actual = safe_int(_cell(row, actual_col))
+
+                    # Upsert
+                    existing = session.execute(
+                        select(CapacityProjection).where(
+                            CapacityProjection.pod == pod_name,
+                            CapacityProjection.year == year,
+                            CapacityProjection.month == month,
+                            CapacityProjection.version == version,
+                        )
+                    ).scalar_one_or_none()
+
+                    if existing:
+                        existing.total_capacity = total_cap
+                        existing.projected_used_capacity = projected
+                        existing.actual_used_capacity = actual
+                        existing.updated_by = "sheets_migration"
+                    else:
+                        session.add(
+                            CapacityProjection(
+                                pod=pod_name,
+                                year=year,
+                                month=month,
+                                total_capacity=total_cap,
+                                projected_used_capacity=projected,
+                                actual_used_capacity=actual,
+                                version=version,
+                                updated_by="sheets_migration",
+                            )
+                        )
+                    capacity_count += 1
+
+        result.rows_parsed = members_imported + capacity_count
+        result.rows_imported = members_imported + capacity_count
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing capacity plan")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_model_assumptions
+# ---------------------------------------------------------------------------
+
+
+def import_model_assumptions(session: Session) -> ImportResult:
+    """Import 'Model Assumptions' sheet into model_assumptions table.
+
+    Simple key-value parsing, reusing logic from seed_data.py.
+    """
+    sheet_name = "Model Assumptions"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if not all_rows:
+            result.errors.append("Sheet is empty")
+            result.success = False
+            return result
+
+        # Known category headers
+        categories = {
+            "CLIENT CATEGORIZATION": "CLIENT_CATEGORIZATION",
+            "RAMP-UP PERIODS (TEAM)": "RAMP_UP_PERIODS",
+            "WEEKLY & MONTHLY CAPACITY": "WEEKLY_MONTHLY_CAPACITY",
+            "IDEAL CAPACITY": "IDEAL_CAPACITY",
+            "NEW CLIENTS PER POD PER MONTH": "NEW_CLIENTS_PER_POD",
+        }
+
+        current_category: str | None = None
+
+        for row in all_rows:
+            result.rows_parsed += 1
+            first_col = _cell(row, 0)
+
+            # Check if this row is a category header
+            if first_col in categories:
+                current_category = categories[first_col]
+                continue
+
+            if current_category is None:
+                continue
+
+            # Skip empty/header rows
+            if not first_col or first_col in ("MODEL ASSUMPTIONS", "nan", ""):
+                continue
+
+            def _upsert_assumption(
+                category: str, key: str, value: str, description: str | None = None
+            ):
+                existing = session.execute(
+                    select(ModelAssumption).where(
+                        ModelAssumption.category == category,
+                        ModelAssumption.key == key,
+                    )
+                ).scalar_one_or_none()
+                if existing:
+                    existing.value = value
+                    if description is not None:
+                        existing.description = description
+                else:
+                    session.add(
+                        ModelAssumption(
+                            category=category,
+                            key=key,
+                            value=value,
+                            description=description,
+                        )
+                    )
+                result.rows_imported += 1
+
+            if current_category == "CLIENT_CATEGORIZATION":
+                key = first_col
+                value = _cell(row, 1)
+                if value and value != "nan":
+                    _upsert_assumption(
+                        current_category,
+                        key,
+                        value,
+                        f"Client categorization: {key}",
+                    )
+
+            elif current_category == "RAMP_UP_PERIODS":
+                role = first_col
+                col1 = _cell(row, 1)
+                col2 = _cell(row, 2)
+                col3 = _cell(row, 3)
+                col4 = _cell(row, 4) if len(row) > 4 else ""
+
+                if col1 in ("percentage", "articles"):
+                    key = f"{role}_{col1}"
+                    value = f"M1={col2}, M2={col3}, M3+={col4}" if col4 else f"M1={col2}, M2={col3}"
+                    _upsert_assumption(
+                        current_category,
+                        key,
+                        value,
+                        f"Ramp-up {col1} for {role}",
+                    )
+                elif col2 and col2 != "nan":
+                    key = f"ramp_{role}"
+                    value = (
+                        f"M1={col1}, M2={col2}, M3={col3}, M4={col4}"
+                        if col4
+                        else f"M1={col1}, M2={col2}, M3={col3}"
+                    )
+                    _upsert_assumption(current_category, key, value)
+
+            elif current_category == "WEEKLY_MONTHLY_CAPACITY":
+                role = first_col
+                per_week = _cell(row, 1)
+                per_month = _cell(row, 2)
+                comments_val = _cell(row, 3) if len(row) > 3 else ""
+
+                if per_week and per_week != "nan" and per_week != "per week":
+                    desc = comments_val if comments_val and comments_val != "nan" else None
+                    _upsert_assumption(current_category, f"{role}_weekly", per_week, desc)
+                    _upsert_assumption(current_category, f"{role}_monthly", per_month, desc)
+
+            elif current_category == "IDEAL_CAPACITY":
+                pct = first_col
+                status_val = _cell(row, 1)
+                desc = _cell(row, 2)
+
+                if status_val and status_val != "nan" and status_val != "status":
+                    _upsert_assumption(
+                        current_category,
+                        pct,
+                        status_val,
+                        desc if desc and desc != "nan" else None,
+                    )
+
+            elif current_category == "NEW_CLIENTS_PER_POD":
+                key = first_col
+                value = _cell(row, 1)
+                if value and value != "nan":
+                    _upsert_assumption(current_category, key, value)
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing Model Assumptions")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_operating_model
+# ---------------------------------------------------------------------------
+
+
+def import_operating_model(session: Session) -> ImportResult:
+    """Import 'Editorial Operating Model' sheet into production_history.
+
+    Row 1: Actual/Projection labels (col 1-41 = Actual, col 42-53 = Projection)
+    Row 2: Month headers (col 1 = Oct 2022 through col 53 = Feb 2027)
+    Row 3: Production total row (skip)
+    Row 4+: Individual client rows (col 0 has indented client name)
+    """
+    sheet_name = "Editorial Operating Model"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if len(all_rows) < 4:
+            result.errors.append("Sheet has fewer than 4 rows; cannot determine data")
+            result.success = False
+            return result
+
+        # Row 0 (index 0): Actual/Projection labels
+        label_row = all_rows[0]
+        # Row 1 (index 1): Month headers
+        month_row = all_rows[1]
+
+        # Determine the Actual/Projection boundary from the label row
+        # Columns with "Actual" are actual, columns with "Projection" are projected
+        actual_cols: set[int] = set()
+        projection_cols: set[int] = set()
+        for col_idx in range(1, len(label_row)):
+            label = _cell(label_row, col_idx).strip()
+            if label == "Actual":
+                actual_cols.add(col_idx)
+            elif label == "Projection":
+                projection_cols.add(col_idx)
+
+        # Parse month headers: col 1 = "Oct 2022", col 2 = "Nov 2022", etc.
+        month_map: dict[int, tuple[int, int]] = {}  # col_idx -> (year, month)
+        for col_idx in range(1, len(month_row)):
+            year, month = parse_month_str(_cell(month_row, col_idx))
+            if year is not None and month is not None:
+                month_map[col_idx] = (year, month)
+
+        # Build client name -> id lookup
+        clients = session.execute(select(Client)).scalars().all()
+        name_lookup: dict[str, int] = {}
+        for c in clients:
+            name_lookup[c.name.lower().strip()] = c.id
+
+        # Common aliases (same as import_delivered_invoiced)
+        alias_map = {
+            "get flex": "flex",
+            "genstoreai": "genstoreai",
+            "genstore ai": "genstoreai",
+            "blvd": "boulevard",
+            "meta fb": "meta bmg",
+            "meta bmg": "meta bmg",
+            "college hunks": "college hunks",
+        }
+        for alias, canonical in alias_map.items():
+            if canonical in name_lookup and alias not in name_lookup:
+                name_lookup[alias] = name_lookup[canonical]
+
+        # Skip row 0 (labels), row 1 (month headers), row 2 (Production total)
+        # Data rows start at index 3
+        data_rows = all_rows[3:]
+
+        for row in data_rows:
+            result.rows_parsed += 1
+
+            client_name = _cell(row, 0).strip()
+            if not client_name:
+                continue
+            # Skip summary/total rows
+            if any(
+                kw in client_name.lower() for kw in ("production", "total", "median", "average")
+            ):
+                continue
+
+            # Look up client_id
+            client_id = name_lookup.get(client_name.lower().strip())
+            if client_id is None:
+                # Try partial matching
+                for key, cid in name_lookup.items():
+                    if client_name.lower().strip() in key or key in client_name.lower().strip():
+                        client_id = cid
+                        break
+
+            if client_id is None:
+                result.errors.append(f"Client '{client_name}' not found in DB, skipping")
+                continue
+
+            for col_idx, (year, month) in month_map.items():
+                val = safe_int(_cell(row, col_idx))
+                if val is None:
+                    continue
+
+                is_actual = col_idx in actual_cols
+                articles_actual = val if is_actual else None
+                articles_projected = val if not is_actual else None
+
+                # Upsert: match by (client_id, year, month)
+                existing = session.execute(
+                    select(ProductionHistory).where(
+                        ProductionHistory.client_id == client_id,
+                        ProductionHistory.year == year,
+                        ProductionHistory.month == month,
+                    )
+                ).scalar_one_or_none()
+
+                if existing:
+                    existing.articles_actual = articles_actual
+                    existing.articles_projected = articles_projected
+                    existing.is_actual = is_actual
+                    existing.source = "operating_model"
+                else:
+                    session.add(
+                        ProductionHistory(
+                            client_id=client_id,
+                            year=year,
+                            month=month,
+                            articles_actual=articles_actual,
+                            articles_projected=articles_projected,
+                            is_actual=is_actual,
+                            source="operating_model",
+                        )
+                    )
+
+                result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing Editorial Operating Model")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_delivery_schedules
+# ---------------------------------------------------------------------------
+
+
+def import_delivery_schedules(session: Session) -> ImportResult:
+    """Import 'Delivery Schedules' sheet into delivery_templates.
+
+    Structure: Multiple template sections for SOW sizes 240, 220, 180, 120, 125.
+    Row 5 (index 4): "Total Articles" header with SOW sizes in cols 2, 7, 12, 17, 22.
+    Row 6 (index 5): Column sub-headers.
+    Rows 7-18 (index 6-17): M1-M12 data rows.
+    Each template has: Invoicing, Cumulative, Articles, Cumulative, Difference columns.
+    """
+    sheet_name = "Delivery Schedules"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if len(all_rows) < 18:
+            result.errors.append("Sheet has too few rows to parse delivery schedules")
+            result.success = False
+            return result
+
+        # The main template sections are side by side in the first table block.
+        # Row index 4 has "Total Articles" and SOW sizes:
+        #   col 2=240, col 7=220, col 12=180, col 17=120, col 22=125
+        # Row index 5 has sub-headers.
+        # Rows 6-17 have M1-M12 data.
+        # For each SOW size template, columns are:
+        #   Invoicing, Cumulative, Articles, Cumulative, Difference
+        # Starting at the SOW size column offset.
+
+        sow_configs = [
+            # (sow_size, invoicing_col, inv_cum_col, articles_col, art_cum_col)
+            (240, 2, 3, 4, 5),
+            (220, 7, 8, 9, 10),
+            (180, 12, 13, 14, 15),
+            (120, 17, 18, 19, 20),
+            (125, 22, 23, 24, 25),
+        ]
+
+        for sow_size, inv_col, inv_cum_col, art_col, art_cum_col in sow_configs:
+            for month_idx in range(12):
+                row_idx = 6 + month_idx  # M1 at index 6, M12 at index 17
+                if row_idx >= len(all_rows):
+                    break
+
+                row = all_rows[row_idx]
+                result.rows_parsed += 1
+
+                month_number = month_idx + 1
+                invoicing_target = safe_int(_cell(row, inv_col))
+                invoicing_cumulative = safe_int(_cell(row, inv_cum_col))
+                delivery_target = safe_int(_cell(row, art_col))
+                delivery_cumulative = safe_int(_cell(row, art_cum_col))
+
+                # Upsert: match by (sow_size, month_number)
+                existing = session.execute(
+                    select(DeliveryTemplate).where(
+                        DeliveryTemplate.sow_size == sow_size,
+                        DeliveryTemplate.month_number == month_number,
+                    )
+                ).scalar_one_or_none()
+
+                if existing:
+                    existing.invoicing_target = invoicing_target
+                    existing.invoicing_cumulative = invoicing_cumulative
+                    existing.delivery_target = delivery_target
+                    existing.delivery_cumulative = delivery_cumulative
+                else:
+                    session.add(
+                        DeliveryTemplate(
+                            sow_size=sow_size,
+                            month_number=month_number,
+                            invoicing_target=invoicing_target,
+                            invoicing_cumulative=invoicing_cumulative,
+                            delivery_target=delivery_target,
+                            delivery_cumulative=delivery_cumulative,
+                        )
+                    )
+
+                result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing Delivery Schedules")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_engagement_requirements
+# ---------------------------------------------------------------------------
+
+
+def import_engagement_requirements(session: Session) -> ImportResult:
+    """Import 'Editorial Engagement Requirements' sheet into engagement_rules.
+
+    Skips title/header rows, finds the column-header row (#, Area, Rule, ...),
+    then parses 10 rules.
+    """
+    sheet_name = "Editorial Engagement Requirements"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if not all_rows:
+            result.errors.append("Sheet is empty")
+            result.success = False
+            return result
+
+        # Find the header row containing "#" and "Area"
+        header_row_idx = None
+        for idx, row in enumerate(all_rows):
+            for col_idx, cell_val in enumerate(row):
+                if str(cell_val).strip() == "#":
+                    # Check next column for "Area"
+                    if col_idx + 1 < len(row) and str(row[col_idx + 1]).strip() == "Area":
+                        header_row_idx = idx
+                        # Record the column offset where "#" appears
+                        col_offset = col_idx
+                        break
+            if header_row_idx is not None:
+                break
+
+        if header_row_idx is None:
+            result.errors.append("Could not find header row with '#' and 'Area'")
+            result.success = False
+            return result
+
+        # Parse data rows after the header
+        data_rows = all_rows[header_row_idx + 1 :]
+
+        for row in data_rows:
+            result.rows_parsed += 1
+
+            rule_num_str = _cell(row, col_offset)
+            rule_num = safe_int(rule_num_str)
+            if rule_num is None:
+                continue
+
+            area = _cell(row, col_offset + 1) or ""
+            rule_name = _cell(row, col_offset + 2) or ""
+            description = _cell(row, col_offset + 3) or None
+            owner = _cell(row, col_offset + 4) or None
+            timing = _cell(row, col_offset + 5) or None
+            consequences = _cell(row, col_offset + 6) or None
+
+            if not area or not rule_name:
+                continue
+
+            # Upsert: match by rule_number
+            existing = session.execute(
+                select(EngagementRule).where(
+                    EngagementRule.rule_number == rule_num,
+                )
+            ).scalar_one_or_none()
+
+            if existing:
+                existing.area = area
+                existing.rule_name = rule_name
+                existing.description = description
+                existing.owner = owner
+                existing.timing = timing
+                existing.consequences = consequences
+            else:
+                session.add(
+                    EngagementRule(
+                        rule_number=rule_num,
+                        area=area,
+                        rule_name=rule_name,
+                        description=description,
+                        owner=owner,
+                        timing=timing,
+                        consequences=consequences,
+                    )
+                )
+
+            result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing Editorial Engagement Requirements")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_meta_deliveries
+# ---------------------------------------------------------------------------
+
+
+def import_meta_deliveries(session: Session) -> ImportResult:
+    """Import 'Meta Calendar Month Deliveries' sheet into deliverables_monthly.
+
+    Row 0: Actual/Projection labels
+    Row 1: Month headers (Oct 2025 - Sep 2026)
+    Row 2: Meta BMG data
+    Row 3: Manus data
+    Row 4: Meta RL data
+    Row 5: Meta AI data
+    """
+    sheet_name = "Meta Calendar Month Deliveries"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+
+        if len(all_rows) < 6:
+            result.errors.append("Sheet has too few rows")
+            result.success = False
+            return result
+
+        # Row 1 (index 1): month headers
+        month_row = all_rows[1]
+        month_map: dict[int, tuple[int, int]] = {}
+        for col_idx in range(1, len(month_row)):
+            year, month = parse_month_str(_cell(month_row, col_idx))
+            if year is not None and month is not None:
+                month_map[col_idx] = (year, month)
+
+        # Build client name -> id lookup
+        clients = session.execute(select(Client)).scalars().all()
+        name_lookup: dict[str, int] = {}
+        for c in clients:
+            name_lookup[c.name.lower().strip()] = c.id
+
+        # Client data rows at indices 2-5
+        client_rows = [
+            (2, "Meta BMG"),
+            (3, "Manus"),
+            (4, "Meta RL"),
+            (5, "Meta AI"),
+        ]
+
+        for row_idx, expected_name in client_rows:
+            if row_idx >= len(all_rows):
+                continue
+
+            row = all_rows[row_idx]
+            result.rows_parsed += 1
+
+            client_name = _cell(row, 0).strip()
+            if not client_name:
+                client_name = expected_name
+
+            # Look up client_id
+            client_id = name_lookup.get(client_name.lower().strip())
+            if client_id is None:
+                # Try partial matching
+                for key, cid in name_lookup.items():
+                    if client_name.lower().strip() in key or key in client_name.lower().strip():
+                        client_id = cid
+                        break
+
+            if client_id is None:
+                result.errors.append(f"Client '{client_name}' not found in DB, skipping")
+                continue
+
+            for col_idx, (year, month) in month_map.items():
+                val = safe_int(_cell(row, col_idx))
+                if val is None:
+                    continue
+
+                # Upsert into deliverables_monthly
+                existing = session.execute(
+                    select(DeliverableMonthly).where(
+                        DeliverableMonthly.client_id == client_id,
+                        DeliverableMonthly.year == year,
+                        DeliverableMonthly.month == month,
+                    )
+                ).scalar_one_or_none()
+
+                if existing:
+                    existing.articles_delivered = val
+                    existing.updated_by = "sheets_migration"
+                else:
+                    session.add(
+                        DeliverableMonthly(
+                            client_id=client_id,
+                            year=year,
+                            month=month,
+                            articles_delivered=val,
+                            updated_by="sheets_migration",
+                        )
+                    )
+
+                result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+
+    except Exception as exc:
+        logger.exception("Error importing Meta Calendar Month Deliveries")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_ai_monitoring_data
+# ---------------------------------------------------------------------------
+
+
+def import_ai_monitoring_data(session: Session) -> ImportResult:
+    sheet_name = "AI Monitoring - Data"
+    result = ImportResult(sheet=sheet_name)
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=AI_MONITORING_ID, range="'Data'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        data_rows = all_rows[1:]  # skip header
+
+        for row in data_rows:
+            result.rows_parsed += 1
+            pod = _cell(row, 0)
+            client = _cell(row, 1)
+            title = _cell(row, 2)
+            if not client or not title:
+                continue
+
+            content = _cell(row, 3)
+            v1 = safe_pct(_cell(row, 4))
+            v2 = safe_pct(_cell(row, 5))
+            rec = _cell(row, 6).upper().replace("/", "_").replace(" ", "_")
+            # Normalize: "REVIEW/REWRITE" -> "REVIEW_REWRITE", "FULL PASS" -> "FULL_PASS", "PARTIAL PASS" -> "PARTIAL_PASS"
+            notes = _cell(row, 7)
+            action = _cell(row, 8)
+            writer = _cell(row, 9)
+            editor = _cell(row, 10)
+            link = _cell(row, 11)
+            date_proc = parse_date(_cell(row, 12))
+            month_str = _cell(row, 13)
+
+            existing = session.execute(
+                select(AIMonitoringRecord).where(
+                    AIMonitoringRecord.pod == pod,
+                    AIMonitoringRecord.client == client,
+                    AIMonitoringRecord.topic_title == title,
+                    AIMonitoringRecord.date_processed == date_proc,
+                    AIMonitoringRecord.is_rewrite.is_(False),
+                )
+            ).scalar_one_or_none()
+
+            data = dict(
+                pod=pod,
+                client=client,
+                topic_title=title,
+                topic_content=content[:2000] if content else None,
+                surfer_v1_score=v1,
+                surfer_v2_score=v2,
+                recommendation=rec,
+                manual_review_notes=notes,
+                action=action,
+                writer_name=writer,
+                editor_name=editor,
+                article_link=link,
+                date_processed=date_proc,
+                month=month_str,
+                is_rewrite=False,
+                is_flagged=False,
+            )
+
+            if existing:
+                for k, v in data.items():
+                    setattr(existing, k, v)
+            else:
+                session.add(AIMonitoringRecord(**data))
+            result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing AI Monitoring Data")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_ai_monitoring_rewrites
+# ---------------------------------------------------------------------------
+
+
+def import_ai_monitoring_rewrites(session: Session) -> ImportResult:
+    sheet_name = "AI Monitoring - Rewrites"
+    result = ImportResult(sheet=sheet_name)
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=AI_MONITORING_ID, range="'Rewrites'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        data_rows = all_rows[2:]  # headers at row 1, data from row 2
+
+        for row in data_rows:
+            result.rows_parsed += 1
+            client = _cell(row, 0)
+            title = _cell(row, 1)
+            if not client or not title:
+                continue
+
+            content = _cell(row, 2)
+            v1 = safe_pct(_cell(row, 3))
+            v2 = safe_pct(_cell(row, 4))
+            rec = _cell(row, 5).upper().replace("/", "_").replace(" ", "_")
+            notes = _cell(row, 6)
+            action = _cell(row, 7)
+            writer = _cell(row, 8)
+            editor = _cell(row, 9)
+            link = _cell(row, 10)
+            date_proc = parse_date(_cell(row, 11))
+
+            existing = session.execute(
+                select(AIMonitoringRecord).where(
+                    AIMonitoringRecord.client == client,
+                    AIMonitoringRecord.topic_title == title,
+                    AIMonitoringRecord.is_rewrite.is_(True),
+                )
+            ).scalar_one_or_none()
+
+            data = dict(
+                pod="Rewrites",
+                client=client,
+                topic_title=title,
+                topic_content=content[:2000] if content else None,
+                surfer_v1_score=v1,
+                surfer_v2_score=v2,
+                recommendation=rec,
+                manual_review_notes=notes,
+                action=action,
+                writer_name=writer,
+                editor_name=editor,
+                article_link=link,
+                date_processed=date_proc,
+                month=None,
+                is_rewrite=True,
+                is_flagged=False,
+            )
+
+            if existing:
+                for k, v in data.items():
+                    setattr(existing, k, v)
+            else:
+                session.add(AIMonitoringRecord(**data))
+            result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing AI Monitoring Rewrites")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_ai_monitoring_flags
+# ---------------------------------------------------------------------------
+
+
+def import_ai_monitoring_flags(session: Session) -> ImportResult:
+    sheet_name = "AI Monitoring - Flags"
+    result = ImportResult(sheet=sheet_name)
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=AI_MONITORING_ID, range="'Yellow/Red Flags_v2'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        data_rows = all_rows[1:]
+
+        for row in data_rows:
+            result.rows_parsed += 1
+            client = _cell(row, 0)
+            title = _cell(row, 1)
+            if not client or not title:
+                continue
+
+            date_proc = parse_date(_cell(row, 11))
+
+            # Try to find existing record from Data import and mark as flagged
+            existing = session.execute(
+                select(AIMonitoringRecord).where(
+                    AIMonitoringRecord.client == client,
+                    AIMonitoringRecord.topic_title == title,
+                    AIMonitoringRecord.date_processed == date_proc,
+                    AIMonitoringRecord.is_rewrite.is_(False),
+                )
+            ).scalar_one_or_none()
+
+            if existing:
+                existing.is_flagged = True
+            else:
+                # Insert as new flagged record
+                content = _cell(row, 2)
+                v1 = safe_pct(_cell(row, 3))
+                v2 = safe_pct(_cell(row, 4))
+                rec = _cell(row, 5).upper().replace("/", "_").replace(" ", "_")
+                notes = _cell(row, 6)
+                action = _cell(row, 7)
+                writer = _cell(row, 8)
+                editor = _cell(row, 9)
+                link = _cell(row, 10)
+
+                session.add(
+                    AIMonitoringRecord(
+                        pod="Flagged",
+                        client=client,
+                        topic_title=title,
+                        topic_content=content[:2000] if content else None,
+                        surfer_v1_score=v1,
+                        surfer_v2_score=v2,
+                        recommendation=rec,
+                        manual_review_notes=notes,
+                        action=action,
+                        writer_name=writer,
+                        editor_name=editor,
+                        article_link=link,
+                        date_processed=date_proc,
+                        is_rewrite=False,
+                        is_flagged=True,
+                    )
+                )
+            result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing AI Monitoring Flags")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_ai_monitoring_surfer
+# ---------------------------------------------------------------------------
+
+
+def import_ai_monitoring_surfer(session: Session) -> ImportResult:
+    sheet_name = "AI Monitoring - Surfer Usage"
+    result = ImportResult(sheet=sheet_name)
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=AI_MONITORING_ID, range="'Surfer''s API usage'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        data_rows = all_rows[1:]
+
+        for row in data_rows:
+            result.rows_parsed += 1
+            year_month = _cell(row, 4)  # "Year/Month" column e.g. "Oct 23, 2025 - Nov 22, 2025"
+            if not year_month:
+                continue
+
+            existing = session.execute(
+                select(SurferAPIUsage).where(SurferAPIUsage.year_month == year_month)
+            ).scalar_one_or_none()
+
+            data = dict(
+                year_month=year_month,
+                start_date=f"{_cell(row, 0)} {_cell(row, 1)}",
+                end_date=f"{_cell(row, 2)} {_cell(row, 3)}",
+                pod_1=safe_int(_cell(row, 5), 0),
+                pod_2=safe_int(_cell(row, 6), 0),
+                pod_3=safe_int(_cell(row, 7), 0),
+                pod_4=safe_int(_cell(row, 8), 0),
+                pod_5=safe_int(_cell(row, 9), 0),
+                auditioning_writers=safe_int(_cell(row, 10), 0),
+                rewrites=safe_int(_cell(row, 11), 0),
+                total_spent=safe_int(_cell(row, 13), 0),
+                remaining_calls=safe_int(_cell(row, 14)),
+            )
+
+            if existing:
+                for k, v in data.items():
+                    setattr(existing, k, v)
+            else:
+                session.add(SurferAPIUsage(**data))
+            result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing Surfer API Usage")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_cumulative
+# ---------------------------------------------------------------------------
+
+
+def import_cumulative(session: Session) -> ImportResult:
+    sheet_name = "Master Tracker - Cumulative"
+    result = ImportResult(sheet=sheet_name)
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=MASTER_TRACKER_ID, range="'Cumulative'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        data_rows = all_rows[4:]  # headers at row 3, data from row 4
+
+        for row in data_rows:
+            result.rows_parsed += 1
+            client_name = _cell(row, 2)
+            if not client_name:
+                continue
+
+            existing = session.execute(
+                select(CumulativeMetric).where(CumulativeMetric.client_name == client_name)
+            ).scalar_one_or_none()
+
+            data = dict(
+                status=_cell(row, 0) or None,
+                account_team_pod=_cell(row, 1) or None,
+                client_name=client_name,
+                client_type=_cell(row, 3) or None,
+                content_type=_cell(row, 4) or None,
+                topics_sent=safe_int(_cell(row, 5)),
+                topics_approved=safe_int(_cell(row, 6)),
+                topics_pct_approved=_cell(row, 7) or None,
+                cbs_sent=safe_int(_cell(row, 8)),
+                cbs_approved=safe_int(_cell(row, 9)),
+                cbs_pct_approved=_cell(row, 10) or None,
+                articles_sent=safe_int(_cell(row, 11)),
+                articles_approved=safe_int(_cell(row, 12)),
+                articles_difference=safe_int(_cell(row, 13)),
+                articles_pct_approved=_cell(row, 14) or None,
+                published_live=safe_int(_cell(row, 15)),
+                published_pct_live=_cell(row, 16) or None,
+                last_update=parse_date(_cell(row, 17)),
+                comments=_cell(row, 18) or None,
+            )
+
+            if existing:
+                for k, v in data.items():
+                    setattr(existing, k, v)
+            else:
+                session.add(CumulativeMetric(**data))
+            result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing Cumulative metrics")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_goals_vs_delivery
+# ---------------------------------------------------------------------------
+
+
+def import_goals_vs_delivery(session: Session) -> ImportResult:
+    sheet_name = "Master Tracker - Goals vs Delivery"
+    result = ImportResult(sheet=sheet_name)
+    try:
+        service = get_sheets_client()
+
+        # First, discover all Goals vs Delivery sheets
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=MASTER_TRACKER_ID, fields="sheets.properties")
+            .execute()
+        )
+        gvd_sheets = []
+        for s in meta.get("sheets", []):
+            title = s.get("properties", {}).get("title", "")
+            if "] Goals vs Delivery" in title and "[Template]" not in title:
+                gvd_sheets.append(title)
+
+        gvd_sheets.sort()
+
+        for gvd_sheet in gvd_sheets:
+            # Extract month_year from sheet name like "[March 2026] Goals vs Delivery"
+            match = re.match(r"\[(\w+ \d{4})\]", gvd_sheet)
+            if not match:
+                continue
+            month_year = match.group(1)
+
+            resp = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=MASTER_TRACKER_ID, range=f"'{gvd_sheet}'")
+                .execute()
+            )
+            all_rows = resp.get("values", [])
+            if len(all_rows) < 5:
+                continue
+
+            # Row 2 has week dates, row 4 has column headers
+            date_row = all_rows[2] if len(all_rows) > 2 else []
+            header_row = all_rows[4] if len(all_rows) > 4 else []
+            data_rows = all_rows[5:]
+
+            # Detect week blocks: find all "Delivered today" positions in header_row for CB blocks
+            # Each CB block starts with "Delivered today" after the fixed cols (0-5)
+            week_starts = []
+            for ci, h in enumerate(header_row):
+                if ci >= 6 and str(h).strip().lower() == "delivered today":
+                    week_starts.append(ci)
+
+            # Pattern: fixed(6) + [CB block(6 cols) + AD block(8 cols)] per week = 14 per week
+            num_weeks = (len(header_row) - 6) // 14 + 1
+
+            for row in data_rows:
+                result.rows_parsed += 1
+                client_name = _cell(row, 0)
+                if not client_name or client_name.lower() in ("client", ""):
+                    continue
+
+                growth_pod = _cell(row, 1) or None
+                ed_pod = _cell(row, 2) or None
+                client_type = _cell(row, 3) or None
+                content_type = _cell(row, 4) or None
+                ratios = _cell(row, 5) or None
+
+                # Find the latest week with data
+                best_week = 1
+                for w in range(num_weeks):
+                    cb_base = 6 + w * 14
+                    # Check if this week has any data
+                    if cb_base < len(row) and _cell(row, cb_base):
+                        best_week = w + 1
+
+                # Import the latest week's data
+                w = best_week - 1
+                cb_base = 6 + w * 14
+                ad_base = cb_base + 6
+
+                # Get week date from date_row
+                week_date = (
+                    parse_date(_cell(date_row, cb_base)) if cb_base < len(date_row) else None
+                )
+
+                existing = session.execute(
+                    select(GoalsVsDelivery).where(
+                        GoalsVsDelivery.month_year == month_year,
+                        GoalsVsDelivery.week_number == best_week,
+                        GoalsVsDelivery.client_name == client_name,
+                    )
+                ).scalar_one_or_none()
+
+                data = dict(
+                    month_year=month_year,
+                    week_number=best_week,
+                    week_date=week_date,
+                    client_name=client_name,
+                    growth_team_pod=growth_pod,
+                    editorial_team_pod=ed_pod,
+                    client_type=client_type,
+                    content_type=content_type,
+                    ratios=ratios,
+                    cb_delivered_today=safe_int(_cell(row, cb_base)),
+                    cb_projection=safe_int(_cell(row, cb_base + 1)),
+                    cb_delivered_to_date=safe_int(_cell(row, cb_base + 2)),
+                    cb_monthly_goal=safe_int(_cell(row, cb_base + 3)),
+                    cb_pct_of_goal=_cell(row, cb_base + 4) or None,
+                    cb_comments=_cell(row, cb_base + 5) or None,
+                    ad_revisions=safe_int(_cell(row, ad_base)),
+                    ad_delivered_today=safe_int(_cell(row, ad_base + 1)),
+                    ad_projection=safe_int(_cell(row, ad_base + 2)),
+                    ad_cb_backlog=safe_int(_cell(row, ad_base + 3)),
+                    ad_delivered_to_date=safe_int(_cell(row, ad_base + 4)),
+                    ad_monthly_goal=safe_int(_cell(row, ad_base + 5)),
+                    ad_pct_of_goal=_cell(row, ad_base + 6) or None,
+                    ad_comments=_cell(row, ad_base + 7) or None,
+                )
+
+                if existing:
+                    for k, v in data.items():
+                        setattr(existing, k, v)
+                else:
+                    session.add(GoalsVsDelivery(**data))
+                result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing Goals vs Delivery")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_all
+# ---------------------------------------------------------------------------
+
+
+def _get_import_func(sheet_name: str):
+    """Resolve sheet name to its import function."""
+    # Direct match
+    func_name = IMPORT_DISPATCH.get(sheet_name)
+    if func_name:
+        return globals()[func_name]  # nosemgrep
+
+    # Capacity plan sheets match by prefix
+    if sheet_name.startswith(CAPACITY_PLAN_PREFIX):
+        return import_capacity_plan
+
+    return None
+
+
+def import_all(session: Session, sheet_names: list[str]) -> list[ImportResult]:
+    """Import each requested sheet and return results."""
+    results: list[ImportResult] = []
+
+    for name in sheet_names:
+        func = _get_import_func(name)
+        if func is None:
+            results.append(
+                ImportResult(
+                    sheet=name,
+                    success=False,
+                    errors=[f"No import handler for sheet '{name}'"],
+                )
+            )
+            continue
+
+        logger.info("Importing sheet: %s", name)
+        r = func(session)
+        results.append(r)
+
+    # Write audit log
+    try:
+        audit = AuditLog(
+            entity_type="sheets_migration",
+            entity_id=None,
+            action="IMPORT",
+            changes_json=json.dumps(
+                {
+                    "sheets": [
+                        {
+                            "sheet": r.sheet,
+                            "rows_parsed": r.rows_parsed,
+                            "rows_imported": r.rows_imported,
+                            "success": r.success,
+                            "errors": r.errors,
+                        }
+                        for r in results
+                    ],
+                    "all_ok": all(r.success for r in results),
+                    "total_imported": sum(r.rows_imported for r in results),
+                }
+            ),
+            performed_by="system",
+        )
+        session.add(audit)
+        session.commit()
+    except Exception:
+        logger.exception("Failed to write migration audit log entry")
+
+    return results

@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graphite Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --n1:#FFFFFF;--n2:#FFF9EB;--n3:#989B9B;--n4:#606060;--n5:#333333;
+  --n6:#1F1F1F;--n7:#161616;--n8:#000000;
+  --wn1:#DDCFAC;--wn2:#C4BCAA;--wn3:#606060;--wn9:#121212;
+  --p1:#65FFAA;--p2:#42CA80;--p3:#2E8C59;
+  --s1:#8FB5D9;--s2:#CEBCF4;--s3:#F5BC4E;--s4:#F28D59;--s5:#FFB686;
+  --s6:#ED6958;--s7:#A7D9C4;--s8:#7EC6D3;--s9:#E8A6CF;--s10:#F9E2B7;
+  --color-success:var(--p2);--color-success-subtle:#1a3d2b;
+  --color-warning:var(--s3);--color-warning-subtle:#3d2f0d;
+  --color-error:var(--s6);--color-error-subtle:#3d1a17;
+  --color-info:var(--s1);--color-info-subtle:#1a2b3d;
+  --surface-bg:var(--n8);--surface-base:var(--n7);--surface-raised:#1a1a1a;
+  --surface-overlay:var(--n6);--surface-sunken:#0d0d0d;
+  --surface-border:#2a2a2a;--surface-border-sub:#1e1e1e;
+  --text-primary:var(--n1);--text-secondary:var(--wn2);--text-tertiary:var(--wn3);
+  --text-disabled:#404040;--text-inverse:var(--n8);--text-brand:var(--p1);
+  --interactive-primary:var(--p2);--interactive-primary-hover:var(--p1);
+  --interactive-focus-ring:var(--p2);
+  --font-sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono','Fira Code',monospace;
+  --text-xs:.625rem;--text-sm:.75rem;--text-base:.875rem;--text-md:1rem;
+  --text-lg:1.125rem;--text-xl:1.25rem;--text-2xl:1.5rem;
+  --text-3xl:1.875rem;--text-4xl:2.25rem;
+  --weight-light:300;--weight-regular:400;--weight-medium:500;
+  --weight-semibold:600;--weight-bold:700;
+  --leading-tight:1.2;--leading-snug:1.35;--leading-normal:1.5;
+  --leading-relaxed:1.6;--leading-loose:1.8;
+  --tracking-tight:-.02em;--tracking-normal:0;--tracking-wide:.04em;
+  --tracking-wider:.08em;--tracking-widest:.12em;
+  --space-0:0px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;
+  --space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;
+  --space-12:48px;--space-16:64px;--space-20:80px;--space-24:96px;
+  --radius-none:0;--radius-xs:2px;--radius-sm:4px;--radius-md:6px;
+  --radius-lg:8px;--radius-xl:12px;--radius-2xl:16px;--radius-full:9999px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm:0 1px 4px rgba(0,0,0,.5),0 0 1px rgba(0,0,0,.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.4);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.4);
+  --shadow-xl:0 16px 40px rgba(0,0,0,.7);
+  --shadow-focus:0 0 0 2px var(--interactive-focus-ring);
+  --z-dropdown:100;--z-sticky:200;--z-overlay:300;
+  --transition-fast:80ms ease;--transition-base:150ms ease;--transition-slow:250ms ease;
+}
+[data-theme="light"] {
+  --surface-bg:#F5F5F0;--surface-base:var(--n1);--surface-raised:#FAFAFA;
+  --surface-overlay:#F0F0EB;--surface-sunken:#E8E8E3;
+  --surface-border:#E0E0DB;--surface-border-sub:#EAEAE5;
+  --text-primary:var(--n8);--text-secondary:var(--n5);
+  --text-tertiary:var(--n4);--text-disabled:var(--n3);--text-inverse:var(--n1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);font-size:var(--text-base);font-weight:var(--weight-regular);line-height:var(--leading-normal);color:var(--text-primary);background:var(--surface-bg);-webkit-font-smoothing:antialiased}
+code,pre,.mono{font-family:var(--font-mono)}
+
+/* ── SVG Icons ── */
+.icon{display:inline-block;vertical-align:middle;flex-shrink:0;fill:currentColor}
+.icon-sm{width:16px;height:16px}
+.icon-md{width:20px;height:20px}
+.icon-lg{width:24px;height:24px}
+.icon-xl{width:40px;height:40px}
+
+/* ── Layout ── */
+.ds-page{display:flex;min-height:100vh}
+.ds-sidebar{width:220px;flex-shrink:0;background:var(--surface-base);border-right:1px solid var(--surface-border);position:sticky;top:0;height:100vh;overflow-y:auto;padding:var(--space-6) 0;z-index:var(--z-sticky)}
+.ds-sidebar-logo{display:flex;align-items:center;gap:var(--space-2);padding:0 var(--space-4) var(--space-6);border-bottom:1px solid var(--surface-border);margin-bottom:var(--space-4)}
+.ds-sidebar-logo-mark{width:28px;height:28px;background:var(--p2);border-radius:var(--radius-sm);display:grid;place-items:center;font-size:14px;font-weight:var(--weight-bold);color:var(--n8);font-family:var(--font-mono)}
+.ds-sidebar-logo-text{font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);letter-spacing:var(--tracking-wide);text-transform:uppercase;font-family:var(--font-mono)}
+.ds-sidebar-section-title{font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-tertiary);letter-spacing:var(--tracking-widest);text-transform:uppercase;padding:var(--space-3) var(--space-4) var(--space-1);font-family:var(--font-mono)}
+.ds-sidebar-link{display:block;padding:var(--space-1) var(--space-4);font-size:var(--text-sm);color:var(--text-secondary);text-decoration:none;transition:color var(--transition-fast),background var(--transition-fast);line-height:2}
+.ds-sidebar-link:hover{color:var(--text-primary);background:var(--surface-overlay)}
+.ds-sidebar-link.active{color:var(--text-brand)}
+.ds-main{flex:1;min-width:0;padding:var(--space-12);max-width:1080px}
+.ds-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-12);padding-bottom:var(--space-6);border-bottom:1px solid var(--wn1)}
+.ds-topbar-heading{font-size:var(--text-4xl);font-weight:var(--weight-bold);color:var(--text-primary)}
+.ds-theme-toggle{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--text-secondary);font-family:var(--font-mono);cursor:pointer;background:var(--surface-overlay);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:var(--space-1) var(--space-3);transition:all var(--transition-base)}
+.ds-theme-toggle:hover{border-color:var(--p2);color:var(--text-primary)}
+.ds-section{margin-bottom:var(--space-20);scroll-margin-top:var(--space-6)}
+.ds-section-header{margin-bottom:var(--space-8)}
+.ds-section-title{font-size:var(--text-xl);font-weight:var(--weight-semibold);  color:var(--wn1);margin-bottom:var(--space-1)}
+.ds-section-desc{font-size:var(--text-sm);color:var(--text-tertiary);max-width:600px;line-height:var(--leading-relaxed)}
+.ds-subsection{margin-bottom:var(--space-12)}
+.ds-subsection-title{font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-secondary);margin-bottom:var(--space-4);font-family:var(--font-mono);letter-spacing:var(--tracking-wide)}
+.ds-component-block{margin-bottom:var(--space-8)}
+.ds-preview{background:var(--surface-base);border:1px solid var(--surface-border);border-bottom:none;border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:var(--space-8);display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-4)}
+.ds-preview--column{flex-direction:column;align-items:flex-start}
+.ds-code{background:#0a0a0a;border:1px solid var(--surface-border);border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:var(--space-4) var(--space-6);font-family:var(--font-mono);font-size:var(--text-xs);color:#a0a0a0;overflow-x:auto;white-space:pre;line-height:var(--leading-relaxed)}
+.ds-code .kw{color:var(--p2)}.ds-code .at{color:var(--s2)}.ds-code .val{color:var(--wn1)}.ds-code .cm{color:#444}
+
+/* ── Color swatches ── */
+.ds-swatch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:var(--space-2)}
+.ds-swatch{border-radius:var(--radius-md);overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.ds-swatch-color{height:48px;width:100%}
+.ds-swatch-info{background:var(--surface-overlay);padding:var(--space-2)}
+.ds-swatch-name{font-size:10px;font-weight:var(--weight-medium);color:var(--text-secondary);font-family:var(--font-mono)}
+.ds-swatch-hex{font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px}
+
+/* ── Type specimens ── */
+.ds-type-specimen{padding:var(--space-4) 0;border-bottom:1px solid var(--surface-border);display:grid;grid-template-columns:120px 1fr 140px;align-items:baseline;gap:var(--space-4)}
+.ds-type-specimen:last-child{border-bottom:none}
+.ds-type-meta{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-tertiary);line-height:var(--leading-relaxed)}
+
+/* ── Spacing ── */
+.ds-space-row{display:flex;align-items:center;gap:var(--space-4);margin-bottom:var(--space-2)}
+.ds-space-bar{height:16px;background:var(--p3);border-radius:var(--radius-xs);opacity:.8}
+.ds-space-label{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-tertiary);min-width:90px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);font-family:var(--font-mono);font-weight:var(--weight-medium);letter-spacing:var(--tracking-widest);text-transform:uppercase;text-decoration:none;white-space:nowrap;cursor:pointer;border:1px solid transparent;border-radius:var(--radius-lg);transition:background var(--transition-base),color var(--transition-base),border-color var(--transition-base),box-shadow var(--transition-base);position:relative;overflow:hidden}
+.btn:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.35;cursor:not-allowed;pointer-events:none}
+.btn-sm{font-size:10px;padding:var(--space-1) var(--space-3);height:28px;border-radius:var(--radius-md)}
+.btn-md{font-size:var(--text-xs);padding:var(--space-2) var(--space-5);height:36px}
+.btn-lg{font-size:var(--text-sm);padding:var(--space-3) var(--space-8);height:44px;border-radius:var(--radius-xl)}
+.btn-primary{background:var(--p2);color:var(--n8);border-color:var(--p2)}
+.btn-primary:hover:not(:disabled){background:var(--p1);border-color:var(--p1);box-shadow:0 0 16px rgba(66,202,128,.3)}
+.btn-primary:active:not(:disabled){background:var(--p3);border-color:var(--p3)}
+.btn-secondary{background:var(--n7);color:var(--wn2);border-color:var(--surface-border)}
+.btn-secondary:hover:not(:disabled){background:var(--surface-overlay);color:var(--text-primary);border-color:#3a3a3a}
+.btn-ghost{background:transparent;color:var(--text-secondary);border-color:transparent}
+.btn-ghost:hover:not(:disabled){background:var(--surface-overlay);color:var(--text-primary)}
+.btn-destructive{background:transparent;color:var(--s6);border-color:rgba(237,105,88,.35)}
+.btn-destructive:hover:not(:disabled){background:var(--color-error-subtle);border-color:var(--s6)}
+.btn-loading{color:transparent!important;pointer-events:none}
+.btn-loading::after{content:'';position:absolute;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:rgba(0,0,0,.7);border-radius:50%;animation:spin .7s linear infinite}
+.btn-secondary.btn-loading::after{border-top-color:var(--text-secondary)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-icon{width:36px;padding:0;border-radius:var(--radius-md)}
+.btn-icon.btn-sm{width:28px}.btn-icon.btn-lg{width:44px}
+
+/* ── Inputs ── */
+.input-group{display:flex;flex-direction:column;gap:var(--space-1);width:100%}
+.input-label{font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-secondary);letter-spacing:var(--tracking-wide);text-transform:uppercase;font-family:var(--font-mono)}
+.input-label span.req{color:var(--s6);margin-left:2px}
+.input-hint{font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-1);display:flex;align-items:center;gap:4px}
+.input-hint.error{color:var(--s6)}.input-hint.success{color:var(--p2)}
+.input-wrap{position:relative;display:flex;align-items:center}
+.input-wrap .input-icon-left{position:absolute;left:var(--space-3);color:var(--text-tertiary);pointer-events:none;display:flex}
+.input-wrap .input-icon-right{position:absolute;right:var(--space-3);color:var(--text-tertiary);cursor:pointer;background:none;border:none;display:flex;align-items:center;padding:0}
+.input-wrap .input-icon-right:hover{color:var(--text-primary)}
+.input{width:100%;background:var(--surface-base);border:1px solid var(--surface-border);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--text-base);line-height:var(--leading-normal);padding:var(--space-2) var(--space-3);height:36px;transition:border-color var(--transition-base),box-shadow var(--transition-base);outline:none}
+.input::placeholder{color:var(--text-tertiary)}
+.input:focus{border-color:var(--p2);box-shadow:0 0 0 3px rgba(66,202,128,.12)}
+.input:disabled{opacity:.4;cursor:not-allowed}
+.input.error{border-color:var(--s6)}.input.error:focus{box-shadow:0 0 0 3px rgba(237,105,88,.12)}
+.input.success{border-color:var(--p3)}.input.success:focus{box-shadow:0 0 0 3px rgba(66,202,128,.12)}
+.input.has-icon-left{padding-left:calc(var(--space-3) + 20px + var(--space-2))}
+.input.has-icon-right{padding-right:calc(var(--space-3) + 20px + var(--space-2))}
+textarea.input{height:auto;min-height:96px;resize:vertical;padding:var(--space-2) var(--space-3)}
+
+/* ── Cards ── */
+.card{background:var(--surface-base);border-radius:var(--radius-xl);padding:var(--space-6);transition:box-shadow var(--transition-base)}
+.card-bordered{background:var(--surface-base);border:1px solid var(--surface-border)}
+.card-elevated{background:var(--surface-raised);box-shadow:var(--shadow-md)}
+.card-elevated:hover{box-shadow:var(--shadow-lg)}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-4)}
+.card-title{font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary)}
+.card-subtitle{font-size:var(--text-sm);color:var(--text-tertiary);margin-top:var(--space-1)}
+.card-body{font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed)}
+.card-footer{margin-top:var(--space-6);padding-top:var(--space-4);border-top:1px solid var(--surface-border);display:flex;align-items:center;gap:var(--space-2)}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:var(--space-1);font-family:var(--font-mono);font-size:10px;font-weight:var(--weight-medium);letter-spacing:var(--tracking-wider);text-transform:uppercase;border-radius:var(--radius-full);padding:2px var(--space-2);line-height:1.6;white-space:nowrap}
+.badge-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge-neutral{background:var(--surface-overlay);color:var(--wn2)}
+.badge-success{background:rgba(66,202,128,.12);color:var(--p2)}
+.badge-warning{background:rgba(245,188,78,.12);color:var(--s3)}
+.badge-error{background:rgba(237,105,88,.12);color:var(--s6)}
+.badge-info{background:rgba(143,181,217,.12);color:var(--s1)}
+.badge-purple{background:rgba(206,188,244,.12);color:var(--s2)}
+.badge-count{min-width:18px;height:18px;background:var(--p3);color:var(--n1);border-radius:var(--radius-full);display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;font-weight:var(--weight-bold);padding:0 var(--space-1)}
+.badge-indicator{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.badge-indicator.online{background:var(--p2);box-shadow:0 0 0 2px rgba(66,202,128,.2)}
+.badge-indicator.away{background:var(--s3)}.badge-indicator.offline{background:var(--n4)}.badge-indicator.busy{background:var(--s6)}
+
+/* ── Labels ── */
+.label{font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-secondary);letter-spacing:var(--tracking-wide);text-transform:uppercase;font-family:var(--font-mono);display:flex;align-items:center;gap:var(--space-1)}
+.label-inline{display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--text-secondary)}
+.label-inline input[type="checkbox"],.label-inline input[type="radio"]{width:14px;height:14px;accent-color:var(--p2);cursor:pointer}
+
+/* ── Accordion ── */
+.accordion{border:1px solid var(--surface-border);border-radius:var(--radius-lg);overflow:hidden}
+.accordion-item{border-bottom:1px solid var(--surface-border)}.accordion-item:last-child{border-bottom:none}
+.accordion-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);background:var(--surface-base);border:none;cursor:pointer;font-family:var(--font-sans);font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-primary);text-align:left;transition:background var(--transition-fast)}
+.accordion-trigger:hover{background:var(--surface-overlay)}
+.accordion-trigger .acc-icon{color:var(--text-tertiary);transition:transform var(--transition-base);flex-shrink:0}
+.accordion-item.open .accordion-trigger .acc-icon{transform:rotate(180deg)}
+.accordion-item.open .accordion-trigger{color:var(--text-brand)}
+.accordion-content{display:none;padding:var(--space-4) var(--space-5) var(--space-5);font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);background:var(--surface-sunken);border-top:1px solid var(--surface-border)}
+.accordion-item.open .accordion-content{display:block}
+
+/* ── Table ── */
+.table-wrap{border:1px solid var(--surface-border);border-radius:var(--radius-lg);overflow:hidden}
+.ds-table{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
+.ds-table thead{background:var(--surface-overlay)}
+.ds-table th{padding:var(--space-2) var(--space-4);text-align:left;font-family:var(--font-mono);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-tertiary);letter-spacing:var(--tracking-wider);text-transform:uppercase;border-bottom:1px solid var(--surface-border);white-space:nowrap}
+.ds-table th.sortable{cursor:pointer;user-select:none}
+.ds-table th.sortable:hover{color:var(--text-primary)}
+.ds-table th .sort-icon{vertical-align:middle;opacity:.4;margin-left:var(--space-1)}
+.ds-table th.sort-asc .sort-icon,.ds-table th.sort-desc .sort-icon{opacity:1;fill:var(--p2)}
+.ds-table td{padding:var(--space-3) var(--space-4);color:var(--text-secondary);border-bottom:1px solid var(--surface-border-sub)}
+.ds-table tr:last-child td{border-bottom:none}
+.ds-table tbody tr{transition:background var(--transition-fast)}.ds-table tbody tr:hover{background:var(--surface-overlay)}
+.ds-table tbody tr.selected{background:rgba(66,202,128,.06)}.ds-table tbody tr.selected td{color:var(--text-primary)}
+.ds-table td:first-child,.ds-table th:first-child{padding-left:var(--space-5)}
+.ds-table .cell-mono{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-tertiary)}
+.table-checkbox{width:14px;height:14px;accent-color:var(--p2);cursor:pointer}
+
+/* ── Filters ── */
+.filter-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center}
+.filter-chip{display:inline-flex;align-items:center;gap:var(--space-1);height:28px;padding:0 var(--space-3);background:var(--surface-overlay);border:1px solid var(--surface-border);border-radius:var(--radius-full);font-size:var(--text-xs);font-family:var(--font-mono);color:var(--text-secondary);cursor:pointer;transition:all var(--transition-fast);white-space:nowrap}
+.filter-chip:hover{border-color:var(--p3);color:var(--text-primary)}
+.filter-chip.active{background:rgba(66,202,128,.12);border-color:var(--p3);color:var(--p1)}
+.filter-chip .chip-remove{display:flex;align-items:center;opacity:.6}.filter-chip .chip-remove:hover{opacity:1}
+.filter-dropdown{position:relative;display:inline-block}
+.filter-dropdown-trigger{display:inline-flex;align-items:center;gap:var(--space-2);height:32px;padding:0 var(--space-3);background:var(--surface-base);border:1px solid var(--surface-border);border-radius:var(--radius-md);font-size:var(--text-xs);font-family:var(--font-mono);color:var(--text-secondary);cursor:pointer;transition:all var(--transition-fast)}
+.filter-dropdown-trigger:hover{border-color:var(--p3);color:var(--text-primary)}.filter-dropdown-trigger.open{border-color:var(--p2);color:var(--text-primary)}
+.filter-dropdown-menu{position:absolute;top:calc(100% + var(--space-1));left:0;min-width:180px;background:var(--surface-raised);border:1px solid var(--surface-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:var(--z-dropdown);overflow:hidden;display:none}
+.filter-dropdown.open .filter-dropdown-menu{display:block}
+.filter-dropdown-item{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);font-size:var(--text-sm);color:var(--text-secondary);cursor:pointer;transition:background var(--transition-fast)}
+.filter-dropdown-item:hover{background:var(--surface-overlay);color:var(--text-primary)}.filter-dropdown-item.selected{color:var(--p2)}
+.filter-dropdown-item .check-icon{opacity:0}.filter-dropdown-item.selected .check-icon{opacity:1}
+.filter-date{display:inline-flex;align-items:center;gap:var(--space-2);height:32px;padding:0 var(--space-3);background:var(--surface-base);border:1px solid var(--surface-border);border-radius:var(--radius-md);font-size:var(--text-xs);font-family:var(--font-mono);color:var(--text-secondary);cursor:pointer;transition:all var(--transition-fast)}
+.filter-date:hover{border-color:var(--p3);color:var(--text-primary)}
+
+/* ── Tooltip ── */
+[data-tooltip]{position:relative}
+[data-tooltip]::before{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--n6);color:var(--text-primary);font-size:var(--text-xs);font-family:var(--font-mono);white-space:nowrap;padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);border:1px solid var(--surface-border);pointer-events:none;opacity:0;transition:opacity var(--transition-fast);z-index:var(--z-overlay)}
+[data-tooltip]:hover::before{opacity:1}
+
+/* ── Icon gallery ── */
+.icon-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:var(--space-2)}
+.icon-item{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-2);background:var(--surface-overlay);border-radius:var(--radius-md);border:1px solid var(--surface-border);transition:border-color var(--transition-fast)}
+.icon-item:hover{border-color:var(--p3)}
+.icon-item-label{font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);text-align:center;word-break:break-all}
+
+/* ── Breadcrumb ── */
+.breadcrumb{display:flex;align-items:center;gap:var(--space-2);font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-tertiary);letter-spacing:var(--tracking-wider);text-transform:uppercase}
+.breadcrumb-item{color:var(--text-tertiary)}.breadcrumb-item.current{color:var(--text-secondary);font-weight:var(--weight-medium)}.breadcrumb-sep{opacity:.4}
+
+/* ── Scorecard Accordion ── */
+.sc-accordion{background:var(--surface-base);border:1px solid var(--surface-border);border-radius:var(--radius-xl);overflow:hidden;width:100%}
+.sc-header{width:100%;display:flex;align-items:flex-start;justify-content:space-between;padding:var(--space-5) var(--space-6);background:var(--surface-base);border:none;cursor:pointer;text-align:left;gap:var(--space-4);transition:background var(--transition-fast)}
+.sc-header:hover{background:var(--surface-overlay)}
+.sc-header-main{display:flex;align-items:flex-start;gap:var(--space-4);flex:1;min-width:0}
+.sc-score{font-size:var(--text-3xl);font-weight:var(--weight-semibold);color:var(--text-primary);font-family:var(--font-mono);line-height:1.2;flex-shrink:0;min-width:76px}
+.sc-header-info{display:flex;flex-direction:column;gap:var(--space-1);min-width:0}
+.sc-header-top{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.sc-company{font-size:var(--text-lg);font-weight:var(--weight-semibold);color:var(--text-primary)}
+.sc-header-meta{font-size:var(--text-sm);color:var(--text-tertiary);font-family:var(--font-mono)}
+.sc-chevron{color:var(--text-tertiary);flex-shrink:0;margin-top:4px;transition:transform var(--transition-base)}
+.sc-accordion.open .sc-chevron{transform:rotate(180deg)}
+.sc-accordion.open .sc-header{color:var(--text-brand)}
+.sc-body{display:none;background:var(--surface-sunken)}
+.sc-accordion.open .sc-body{display:block}
+.sc-section{padding:var(--space-5) var(--space-6);border-bottom:1px solid var(--surface-border)}
+.sc-section:last-child{border-bottom:none}
+.sc-section-title{font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-secondary);margin-bottom:var(--space-3)}
+.sc-question-list{display:flex;flex-direction:column;gap:var(--space-2)}
+.sc-question{display:flex;align-items:flex-start;gap:var(--space-2);font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);font-family:var(--font-sans)}
+.sc-question.sc-pass .sc-qi{color:var(--p2);flex-shrink:0;margin-top:2px}
+.sc-question.sc-fail .sc-qi{color:var(--s6);flex-shrink:0;margin-top:2px}
+.sc-question:not(.sc-pass):not(.sc-fail){padding-left:calc(20px + var(--space-2))}
+.sc-qnum{color:var(--text-tertiary);margin-right:2px;font-family:var(--font-mono)}
+.sc-pts{color:var(--text-tertiary)}
+.sc-meta-row{font-size:var(--text-sm);color:var(--text-tertiary);line-height:var(--leading-relaxed);font-family:var(--font-sans)}
+.sc-meta-row strong{color:var(--text-secondary);font-weight:var(--weight-semibold)}
+.sc-yes{color:var(--p2);font-weight:var(--weight-medium)}
+.sc-context-box{background:var(--surface-overlay);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:var(--space-3);font-size:var(--text-sm);color:var(--text-tertiary);font-family:var(--font-sans);margin-top:var(--space-2)}
+
+/* ── Charts ── */
+.chart-card{background:var(--surface-base);border:1px solid var(--surface-border);border-radius:var(--radius-xl);padding:var(--space-6);width:100%}
+.chart-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-1)}
+.chart-title{font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary)}
+.chart-subtitle{font-size:var(--text-sm);color:var(--text-tertiary);margin-bottom:var(--space-5);line-height:var(--leading-snug)}
+.chart-legend{display:flex;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-5)}
+.chart-legend-item{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-xs);font-family:var(--font-mono);color:var(--text-secondary);cursor:pointer;transition:opacity var(--transition-fast)}
+.chart-legend-item:hover{opacity:.75}
+.chart-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.chart-legend-line{width:16px;height:2px;border-radius:2px;flex-shrink:0}
+.chart-wrap{position:relative;width:100%}
+canvas.chart-canvas{width:100%!important;display:block}
+
+/* ── Nav Header ── */
+.app-nav{display:flex;align-items:stretch;height:48px;background:var(--n8);border-bottom:1px solid var(--surface-border);padding:0 var(--space-5);gap:var(--space-1);width:100%}
+.app-nav-logo{display:flex;align-items:center;padding-right:var(--space-5);flex-shrink:0;border-right:none}
+.app-nav-items{display:flex;align-items:stretch;flex:1;gap:0}
+.app-nav-item{display:flex;align-items:center;padding:0 var(--space-4);font-family:var(--font-mono);font-size:var(--text-xs);font-weight:var(--weight-medium);letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--text-tertiary);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:color var(--transition-fast);white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
+.app-nav-item:hover{color:var(--text-secondary)}
+.app-nav-item.active{color:var(--p2);border-bottom-color:var(--p2)}
+.app-nav-right{display:flex;align-items:center;gap:var(--space-2);margin-left:auto;flex-shrink:0}
+.app-nav-workspace{display:flex;align-items:center;gap:var(--space-2);height:28px;padding:0 var(--space-2);border:1px solid var(--surface-border);border-radius:var(--radius-md);cursor:pointer;background:none;transition:border-color var(--transition-fast)}
+.app-nav-workspace:hover{border-color:#3a3a3a}
+.app-nav-avatar{width:20px;height:20px;border-radius:var(--radius-xs);background:var(--n5);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;font-weight:var(--weight-bold);color:var(--n1);flex-shrink:0}
+.app-nav-workspace-name{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-secondary);letter-spacing:var(--tracking-wide)}
+.app-nav-user{width:32px;height:32px;border:1px solid var(--surface-border);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;cursor:pointer;background:none;color:var(--text-tertiary);transition:border-color var(--transition-fast),color var(--transition-fast)}
+.app-nav-user:hover{border-color:#3a3a3a;color:var(--text-secondary)}
+
+/* ── Alerts ── */
+.alert{display:flex;gap:var(--space-3);padding:var(--space-4);border-radius:var(--radius-lg);border:1px solid;font-size:var(--text-sm);line-height:var(--leading-relaxed)}
+.alert-icon{flex-shrink:0;margin-top:1px}
+.alert-title{font-weight:var(--weight-semibold);margin-bottom:var(--space-1);font-size:var(--text-base)}
+.alert-info{background:var(--color-info-subtle);border-color:rgba(143,181,217,.25);color:var(--s1)}
+.alert-success{background:var(--color-success-subtle);border-color:rgba(66,202,128,.25);color:var(--p2)}
+.alert-warning{background:var(--color-warning-subtle);border-color:rgba(245,188,78,.25);color:var(--s3)}
+.alert-error{background:var(--color-error-subtle);border-color:rgba(237,105,88,.25);color:var(--s6)}
+
+/* ── Utils ── */
+.flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}.items-start{align-items:flex-start}.justify-between{justify-content:space-between}
+.gap-2{gap:var(--space-2)}.gap-3{gap:var(--space-3)}.gap-4{gap:var(--space-4)}.gap-6{gap:var(--space-6)}
+.w-full{width:100%}.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-4)}
+.text-sm{font-size:var(--text-sm);color:var(--text-secondary)}.text-xs{font-size:var(--text-xs);color:var(--text-tertiary);font-family:var(--font-mono)}
+.type-block{background:var(--surface-base);border:1px solid var(--surface-border);border-radius:var(--radius-lg);padding:var(--space-6)}
+</style>
+</head>
+<body>
+
+<!-- ===== SVG ICON SPRITE ===== -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="ic-search" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></symbol>
+  <symbol id="ic-add" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
+  <symbol id="ic-close" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+  <symbol id="ic-more" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></symbol>
+  <symbol id="ic-download" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></symbol>
+  <symbol id="ic-filter" viewBox="0 0 24 24"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></symbol>
+  <symbol id="ic-sort" viewBox="0 0 24 24"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
+  <symbol id="ic-chevron-down" viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></symbol>
+  <symbol id="ic-calendar" viewBox="0 0 24 24"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></symbol>
+  <symbol id="ic-eye-off" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></symbol>
+  <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
+  <symbol id="ic-delete" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></symbol>
+  <symbol id="ic-warning" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
+  <symbol id="ic-error" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></symbol>
+  <symbol id="ic-arrow-up" viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></symbol>
+  <symbol id="ic-unfold" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z"/></symbol>
+  <symbol id="ic-contrast" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18V4c4.41 0 8 3.59 8 8s-3.59 8-8 8z"/></symbol>
+  <symbol id="ic-settings" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></symbol>
+  <symbol id="ic-person" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></symbol>
+  <symbol id="ic-arrow-fwd" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></symbol>
+</svg>
+
+<div class="ds-page">
+  <!-- ===== SIDEBAR ===== -->
+  <nav class="ds-sidebar">
+    <div class="ds-sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path d="M0 0V32H32V0H0ZM28.1407 28.1407H3.85932V3.85932H28.1407V28.1407ZM12.5484 24.2814H8.68992L14.0715 7.7186L17.9292 7.72096L12.5484 24.2814ZM23.3101 24.2814H19.4516L17.9292 19.5972L19.8585 13.6591L23.3101 24.2814Z" fill="#FFF9EB"/>
+      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="80" height="10" viewBox="0 0 104 12" fill="none" aria-label="Graphite">
+        <path d="M91.0613 2.79136H87.8465V11.7625H85.1424V2.79136H81.9276V0.238967H91.0613V2.79136ZM77.1132 11.7625V0.238242H74.4091V11.7618L77.1132 11.7625ZM65.897 11.7625H68.6011V0.238242H65.897V4.72344H61.5231V0.238242H58.819V11.7618H61.5231V7.27656H65.897V11.7625ZM54.0901 4.38278C54.0901 6.67151 52.123 8.5266 49.6962 8.5266H48.0018V11.7618H45.2976V0.238242H49.6962C52.1223 0.238242 54.0901 2.09406 54.0901 4.38278ZM51.3759 4.38278C51.3759 3.50753 50.6235 2.79789 49.6954 2.79789H48.001V5.96768H49.6954C50.6235 5.96695 51.3759 5.25803 51.3759 4.38278ZM23.6362 7.48066L25.1111 11.7618H22.2645L21.1431 8.50626C20.9752 8.54113 19.0251 8.52588 19.0251 8.52588V11.761H16.321V0.238242H20.7195C23.1464 0.238242 25.1134 2.09333 25.1134 4.38206C25.1134 5.6154 24.5427 6.72163 23.6362 7.48066ZM20.7195 5.96695C21.6476 5.96695 22.4 5.25731 22.4 4.38206C22.4 3.50681 21.6476 2.79717 20.7195 2.79717H19.0251V5.96695H20.7195ZM102.811 4.72417H98.0276V2.79136H103.319V0.238967H95.3235V11.7625H103.487V9.2101H98.0276V7.27728H102.811V4.72417ZM11.1607 10.2618V4.72417H6.42874V7.27656H8.45662V9.03577C8.00529 9.22753 7.22742 9.44688 6.16687 9.44688C4.06504 9.44688 2.7072 8.04866 2.7072 5.88487C2.7072 4.27383 3.61602 2.55311 6.16687 2.55311C7.23435 2.55311 8.03841 2.91411 8.54981 3.2446L10.4837 1.42074C9.68814 0.822225 8.22171 0 6.16687 0C2.53622 0 0 2.41947 0 5.88487C0 9.428 2.59322 12 6.16687 12C8.65456 12 10.215 11.2439 11.1607 10.2618ZM36.3527 0.240421L33.5061 0.238242L29.5358 11.7618H32.3824L36.3527 0.240421ZM37.776 4.37189L36.3527 8.50336L37.4756 11.7625H40.3223L37.776 4.37189Z" fill="#FFF9EB"/>
+      </svg>
+    </div>
+    <div class="ds-sidebar-section">
+      <div class="ds-sidebar-section-title">Foundation</div>
+      <a href="#tokens" class="ds-sidebar-link">Tokens</a>
+      <a href="#colors" class="ds-sidebar-link">Colors</a>
+      <a href="#typography" class="ds-sidebar-link">Typography</a>
+      <a href="#spacing" class="ds-sidebar-link">Spacing</a>
+      <a href="#iconography" class="ds-sidebar-link">Iconography</a>
+    </div>
+    <div class="ds-sidebar-section">
+      <div class="ds-sidebar-section-title">Components</div>
+      <a href="#buttons" class="ds-sidebar-link">Buttons</a>
+      <a href="#inputs" class="ds-sidebar-link">Inputs</a>
+      <a href="#cards" class="ds-sidebar-link">Cards</a>
+      <a href="#badges" class="ds-sidebar-link">Badges &amp; Labels</a>
+      <a href="#accordion" class="ds-sidebar-link">Accordion</a>
+      <a href="#tables" class="ds-sidebar-link">Tables</a>
+      <a href="#filters" class="ds-sidebar-link">Filters</a>
+      <a href="#alerts" class="ds-sidebar-link">Alerts</a>
+      <a href="#breadcrumb" class="ds-sidebar-link">Breadcrumb</a>
+      <a href="#charts" class="ds-sidebar-link">Charts</a>
+      <a href="#nav" class="ds-sidebar-link">Nav Header</a>
+    </div>
+  </nav>
+
+  <!-- ===== MAIN ===== -->
+  <main class="ds-main">
+    <div class="ds-topbar">
+      <div class="ds-topbar-heading">Design System</div>
+    </div>
+
+    <!-- TOKENS -->
+    <section class="ds-section" id="tokens">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Design Tokens</div>
+        <div class="ds-section-desc">All values are CSS custom properties on <code>:root</code>. Reference by semantic alias to stay in sync with theme changes.</div>
+      </div>
+      <div class="ds-component-block">
+        <div class="ds-preview ds-preview--column">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);width:100%">
+            <div style="background:var(--surface-overlay);border-radius:var(--radius-md);padding:var(--space-3)">
+              <div style="font-size:var(--text-xs);font-family:var(--font-mono);color:var(--p2);margin-bottom:var(--space-2)">COLORS</div>
+              <div class="text-xs">--n1 … --n8</div><div class="text-xs">--wn1 … --wn9</div>
+              <div class="text-xs">--p1 … --p3</div><div class="text-xs">--s1 … --s10</div>
+              <div class="text-xs">--surface-* / --text-*</div>
+            </div>
+            <div style="background:var(--surface-overlay);border-radius:var(--radius-md);padding:var(--space-3)">
+              <div style="font-size:var(--text-xs);font-family:var(--font-mono);color:var(--p2);margin-bottom:var(--space-2)">TYPOGRAPHY</div>
+              <div class="text-xs">--font-sans / --font-mono</div>
+              <div class="text-xs">--text-xs … --text-4xl</div>
+              <div class="text-xs">--weight-light … bold</div>
+              <div class="text-xs">--leading-* / --tracking-*</div>
+            </div>
+            <div style="background:var(--surface-overlay);border-radius:var(--radius-md);padding:var(--space-3)">
+              <div style="font-size:var(--text-xs);font-family:var(--font-mono);color:var(--p2);margin-bottom:var(--space-2)">LAYOUT</div>
+              <div class="text-xs">--space-1 … --space-24</div>
+              <div class="text-xs">--radius-none … --full</div>
+              <div class="text-xs">--shadow-xs … --shadow-xl</div>
+              <div class="text-xs">--z-dropdown … --z-overlay</div>
+            </div>
+          </div>
+        </div>
+        <div class="ds-code"><span class="cm">/* Always use semantic aliases */</span>
+<span class="kw">.component</span> {
+  background:    <span class="at">var(</span><span class="val">--surface-base</span><span class="at">)</span>;
+  color:         <span class="at">var(</span><span class="val">--text-primary</span><span class="at">)</span>;
+  border:        1px solid <span class="at">var(</span><span class="val">--surface-border</span><span class="at">)</span>;
+  padding:       <span class="at">var(</span><span class="val">--space-4</span><span class="at">)</span>;
+  border-radius: <span class="at">var(</span><span class="val">--radius-lg</span><span class="at">)</span>;
+  transition:    all <span class="at">var(</span><span class="val">--transition-base</span><span class="at">)</span>;
+}</div>
+      </div>
+    </section>
+
+    <!-- COLORS -->
+    <section class="ds-section" id="colors">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Colors</div>
+        <div class="ds-section-desc">Full palette with semantic aliases. Use raw palette tokens only inside token definitions.</div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Neutrals (Gray)</div>
+        <div class="ds-swatch-grid">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#FFFFFF;outline:1px solid #2a2a2a"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N1</div><div class="ds-swatch-hex">#FFFFFF</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#FFF9EB"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N2</div><div class="ds-swatch-hex">#FFF9EB</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#989B9B"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N3 / Grey200</div><div class="ds-swatch-hex">#989B9B</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#606060"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N4 / Grey400</div><div class="ds-swatch-hex">#606060</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#333333"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N5 / Grey600</div><div class="ds-swatch-hex">#333333</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#1F1F1F"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N6 / Grey800</div><div class="ds-swatch-hex">#1F1F1F</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#161616"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N7 / Grey900</div><div class="ds-swatch-hex">#161616</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#000000"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N8</div><div class="ds-swatch-hex">#000000</div></div></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Warm Gray (Text)</div>
+        <div class="ds-swatch-grid">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#DDCFAC"></div><div class="ds-swatch-info"><div class="ds-swatch-name">WN1</div><div class="ds-swatch-hex">#DDCFAC</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#C4BCAA"></div><div class="ds-swatch-info"><div class="ds-swatch-name">WN2</div><div class="ds-swatch-hex">#C4BCAA</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#606060"></div><div class="ds-swatch-info"><div class="ds-swatch-name">WN3</div><div class="ds-swatch-hex">#606060</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#121212"></div><div class="ds-swatch-info"><div class="ds-swatch-name">N9 / New</div><div class="ds-swatch-hex">#121212</div></div></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Primary (Green)</div>
+        <div class="ds-swatch-grid">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#65FFAA"></div><div class="ds-swatch-info"><div class="ds-swatch-name">P1</div><div class="ds-swatch-hex">#65FFAA</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#42CA80"></div><div class="ds-swatch-info"><div class="ds-swatch-name">P2</div><div class="ds-swatch-hex">#42CA80</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#2E8C59"></div><div class="ds-swatch-info"><div class="ds-swatch-name">P3</div><div class="ds-swatch-hex">#2E8C59</div></div></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Semantics / Variants</div>
+        <div class="ds-swatch-grid">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#8FB5D9"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S1 · Info</div><div class="ds-swatch-hex">#8FB5D9</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#CEBCF4"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S2 · Purple</div><div class="ds-swatch-hex">#CEBCF4</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#F5BC4E"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S3 · Warning</div><div class="ds-swatch-hex">#F5BC4E</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#F28D59"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S4 · Orange</div><div class="ds-swatch-hex">#F28D59</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#FFB686"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S5 · Peach</div><div class="ds-swatch-hex">#FFB686</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#ED6958"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S6 · Error</div><div class="ds-swatch-hex">#ED6958</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#A7D9C4"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S7 · Teal</div><div class="ds-swatch-hex">#A7D9C4</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#7EC6D3"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S8 · Cyan</div><div class="ds-swatch-hex">#7EC6D3</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#E8A6CF"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S9 · Pink</div><div class="ds-swatch-hex">#E8A6CF</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#F9E2B7"></div><div class="ds-swatch-info"><div class="ds-swatch-name">S10 · Cream</div><div class="ds-swatch-hex">#F9E2B7</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TYPOGRAPHY -->
+    <section class="ds-section" id="typography">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Typography</div>
+        <div class="ds-section-desc">IBM Plex Sans for UI text. JetBrains Mono for labels, code, nav, and metadata.</div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">IBM Plex Sans Scale</div>
+        <div class="type-block">
+          <div class="ds-type-specimen"><div class="ds-type-meta">4xl · 36px<br>Bold</div><div style="font-size:var(--text-4xl);font-weight:var(--weight-bold);line-height:var(--leading-tight);letter-spacing:var(--tracking-tight)">Page Heading</div><div class="ds-type-meta">--text-4xl<br>--weight-bold</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">3xl · 30px<br>Semibold</div><div style="font-size:var(--text-3xl);font-weight:var(--weight-semibold);line-height:var(--leading-tight)">Section Title</div><div class="ds-type-meta">--text-3xl</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">2xl · 24px<br>Semibold</div><div style="font-size:var(--text-2xl);font-weight:var(--weight-semibold)">Card Heading</div><div class="ds-type-meta">--text-2xl</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">xl · 20px<br>Medium</div><div style="font-size:var(--text-xl);font-weight:var(--weight-medium)">Subheading</div><div class="ds-type-meta">--text-xl</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">base · 14px<br>Regular</div><div style="font-size:var(--text-base)">Default UI body — tables, inputs, secondary content areas.</div><div class="ds-type-meta">--text-base</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">sm · 12px<br>Regular</div><div style="font-size:var(--text-sm);color:var(--text-secondary)">Helper text, captions, timestamps, hints.</div><div class="ds-type-meta">--text-sm</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">xs · 10px<br>Medium</div><div style="font-size:var(--text-xs);font-weight:var(--weight-medium);letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--text-tertiary)">OVERLINE LABEL</div><div class="ds-type-meta">--text-xs</div></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">JetBrains Mono</div>
+        <div class="type-block">
+          <div class="ds-type-specimen"><div class="ds-type-meta">Nav breadcrumb</div><div style="font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--text-tertiary)">MAIN DASHBOARD // ALL PROMPTS // <strong style="color:var(--text-secondary)">PROMPT</strong></div><div class="ds-type-meta">xs · widest · mono</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">Button label</div><div style="font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-widest);text-transform:uppercase">NEW PROMPT +</div><div class="ds-type-meta">xs · widest · mono</div></div>
+          <div class="ds-type-specimen"><div class="ds-type-meta">Code</div><div style="font-family:var(--font-mono);font-size:var(--text-sm);color:var(--p2)">const result = await fetchPrompts(id);</div><div class="ds-type-meta">sm · mono</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SPACING -->
+    <section class="ds-section" id="spacing">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Spacing</div>
+        <div class="ds-section-desc">4px base grid. All values are multiples of 4px.</div>
+      </div>
+      <div class="type-block">
+        <div class="ds-space-row"><div class="ds-space-label">--space-1 · 4px</div><div class="ds-space-bar" style="width:4px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-2 · 8px</div><div class="ds-space-bar" style="width:8px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-3 · 12px</div><div class="ds-space-bar" style="width:12px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-4 · 16px</div><div class="ds-space-bar" style="width:16px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-6 · 24px</div><div class="ds-space-bar" style="width:24px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-8 · 32px</div><div class="ds-space-bar" style="width:32px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-12 · 48px</div><div class="ds-space-bar" style="width:48px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-16 · 64px</div><div class="ds-space-bar" style="width:64px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-20 · 80px</div><div class="ds-space-bar" style="width:80px"></div></div>
+        <div class="ds-space-row"><div class="ds-space-label">--space-24 · 96px</div><div class="ds-space-bar" style="width:96px"></div></div>
+      </div>
+    </section>
+
+    <!-- ICONOGRAPHY -->
+    <section class="ds-section" id="iconography">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Iconography</div>
+        <div class="ds-section-desc">Inline SVG sprite. Icons inherit <code>fill: currentColor</code> from parent. Always <code>aria-hidden="true"</code> on decorative icons; add <code>aria-label</code> on standalone interactive icons.</div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Sizes</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-6">
+            <div class="flex flex-col items-center gap-2"><svg class="icon icon-sm" aria-hidden="true"><use href="#ic-search"></use></svg><div class="text-xs">16px · icon-sm</div></div>
+            <div class="flex flex-col items-center gap-2"><svg class="icon icon-md" aria-hidden="true"><use href="#ic-search"></use></svg><div class="text-xs">20px · icon-md</div></div>
+            <div class="flex flex-col items-center gap-2"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-search"></use></svg><div class="text-xs">24px · icon-lg</div></div>
+            <div class="flex flex-col items-center gap-2"><svg class="icon icon-xl" aria-hidden="true"><use href="#ic-search"></use></svg><div class="text-xs">40px · icon-xl</div></div>
+          </div>
+          <div class="ds-code"><span class="cm">/* SVG sprite usage — fill inherits from parent color */</span>
+<span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-sm"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-search"</span><span class="kw">&gt;&lt;/use&gt;&lt;/svg&gt;</span>
+<span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-md"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-search"</span><span class="kw">&gt;&lt;/use&gt;&lt;/svg&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Usage Patterns</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-4" style="flex-wrap:wrap">
+            <button class="btn btn-primary btn-md">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-add"></use></svg>New Prompt
+            </button>
+            <button class="btn btn-secondary btn-icon btn-md" data-tooltip="Search" aria-label="Search">
+              <svg class="icon icon-md" aria-hidden="true"><use href="#ic-search"></use></svg>
+            </button>
+            <span class="badge badge-success badge-dot">Published</span>
+            <span class="badge badge-error badge-dot">Failed</span>
+            <div class="input-wrap" style="width:220px">
+              <svg class="icon icon-sm input-icon-left" aria-hidden="true"><use href="#ic-search"></use></svg>
+              <input class="input has-icon-left" placeholder="Search prompts…" aria-label="Search">
+            </div>
+          </div>
+          <div class="ds-code"><span class="cm">/* Icon + label (decorative) */</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-md"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-sm"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-add"</span><span class="kw">&gt;&lt;/use&gt;&lt;/svg&gt;</span>
+  New Prompt
+<span class="kw">&lt;/button&gt;</span>
+
+<span class="cm">/* Icon-only — requires aria-label + tooltip */</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-secondary btn-icon btn-md"</span>
+        <span class="at">data-tooltip</span>=<span class="val">"Search"</span> <span class="at">aria-label</span>=<span class="val">"Search"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-md"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-search"</span><span class="kw">&gt;&lt;/use&gt;&lt;/svg&gt;</span>
+<span class="kw">&lt;/button&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Icon Set</div>
+        <div class="icon-gallery">
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-search"></use></svg><div class="icon-item-label">ic-search</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-add"></use></svg><div class="icon-item-label">ic-add</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-close"></use></svg><div class="icon-item-label">ic-close</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-more"></use></svg><div class="icon-item-label">ic-more</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-download"></use></svg><div class="icon-item-label">ic-download</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-filter"></use></svg><div class="icon-item-label">ic-filter</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-sort"></use></svg><div class="icon-item-label">ic-sort</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-check"></use></svg><div class="icon-item-label">ic-check</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-chevron-down"></use></svg><div class="icon-item-label">ic-chevron-down</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-calendar"></use></svg><div class="icon-item-label">ic-calendar</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-eye"></use></svg><div class="icon-item-label">ic-eye</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-eye-off"></use></svg><div class="icon-item-label">ic-eye-off</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-edit"></use></svg><div class="icon-item-label">ic-edit</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-delete"></use></svg><div class="icon-item-label">ic-delete</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-info"></use></svg><div class="icon-item-label">ic-info</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-warning"></use></svg><div class="icon-item-label">ic-warning</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-error"></use></svg><div class="icon-item-label">ic-error</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-check-circle"></use></svg><div class="icon-item-label">ic-check-circle</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-settings"></use></svg><div class="icon-item-label">ic-settings</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-person"></use></svg><div class="icon-item-label">ic-person</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-arrow-fwd"></use></svg><div class="icon-item-label">ic-arrow-fwd</div></div>
+          <div class="icon-item"><svg class="icon icon-lg" aria-hidden="true"><use href="#ic-contrast"></use></svg><div class="icon-item-label">ic-contrast</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUTTONS -->
+    <section class="ds-section" id="buttons">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Buttons</div>
+        <div class="ds-section-desc">4 variants × 3 sizes. JetBrains Mono uppercase labels with widest tracking.</div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Variants</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-3">
+            <button class="btn btn-primary btn-md">Primary</button>
+            <button class="btn btn-secondary btn-md">Secondary</button>
+            <button class="btn btn-ghost btn-md">Ghost</button>
+            <button class="btn btn-destructive btn-md">Destructive</button>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-md"</span><span class="kw">&gt;</span>Primary<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-secondary btn-md"</span><span class="kw">&gt;</span>Secondary<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-ghost btn-md"</span><span class="kw">&gt;</span>Ghost<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-destructive btn-md"</span><span class="kw">&gt;</span>Destructive<span class="kw">&lt;/button&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Sizes</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-3">
+            <button class="btn btn-primary btn-sm">Small</button>
+            <button class="btn btn-primary btn-md">Medium</button>
+            <button class="btn btn-primary btn-lg">Large</button>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-sm"</span><span class="kw">&gt;</span>Small<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-md"</span><span class="kw">&gt;</span>Medium<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-lg"</span><span class="kw">&gt;</span>Large<span class="kw">&lt;/button&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">States</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-3" style="flex-wrap:wrap">
+            <button class="btn btn-primary btn-md">Default</button>
+            <button class="btn btn-primary btn-md" style="background:var(--p1);border-color:var(--p1);box-shadow:0 0 16px rgba(66,202,128,.3)">Hover</button>
+            <button class="btn btn-primary btn-md" style="box-shadow:var(--shadow-focus)">Focus</button>
+            <button class="btn btn-primary btn-md btn-loading" aria-busy="true">Loading</button>
+            <button class="btn btn-primary btn-md" disabled>Disabled</button>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-md btn-loading"</span> <span class="at">aria-busy</span>=<span class="val">"true"</span><span class="kw">&gt;</span>Save<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-md"</span> <span class="at">disabled</span><span class="kw">&gt;</span>Disabled<span class="kw">&lt;/button&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">With Icons</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-3" style="flex-wrap:wrap">
+            <button class="btn btn-primary btn-md">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-add"></use></svg>New Prompt
+            </button>
+            <button class="btn btn-secondary btn-md">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-download"></use></svg>Export
+            </button>
+            <button class="btn btn-secondary btn-icon btn-md" data-tooltip="Search" aria-label="Search">
+              <svg class="icon icon-md" aria-hidden="true"><use href="#ic-search"></use></svg>
+            </button>
+            <button class="btn btn-ghost btn-icon btn-md" data-tooltip="More options" aria-label="More options">
+              <svg class="icon icon-md" aria-hidden="true"><use href="#ic-more"></use></svg>
+            </button>
+            <button class="btn btn-destructive btn-icon btn-md" data-tooltip="Delete" aria-label="Delete">
+              <svg class="icon icon-md" aria-hidden="true"><use href="#ic-delete"></use></svg>
+            </button>
+          </div>
+          <div class="ds-code"><span class="cm">/* Icon-only: always pair data-tooltip + aria-label */</span>
+<span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-secondary btn-icon btn-md"</span>
+        <span class="at">data-tooltip</span>=<span class="val">"Search"</span> <span class="at">aria-label</span>=<span class="val">"Search"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-md"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-search"</span><span class="kw">&gt;&lt;/use&gt;</span>
+  <span class="kw">&lt;/svg&gt;</span>
+<span class="kw">&lt;/button&gt;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INPUTS -->
+    <section class="ds-section" id="inputs">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Inputs</div>
+        <div class="ds-section-desc">Text, Search, Password, Textarea. 36px height for single-line inputs.</div>
+      </div>
+      <div class="ds-component-block">
+        <div class="ds-preview ds-preview--column gap-4" style="max-width:400px">
+          <div class="input-group w-full">
+            <label class="input-label" for="i-text">Prompt Name<span class="req">*</span></label>
+            <input class="input" id="i-text" type="text" placeholder="Enter prompt name">
+          </div>
+          <div class="input-group w-full">
+            <label class="input-label" for="i-search">Search</label>
+            <div class="input-wrap">
+              <svg class="icon icon-sm input-icon-left" aria-hidden="true"><use href="#ic-search"></use></svg>
+              <input class="input has-icon-left" id="i-search" type="search" placeholder="Search prompts…">
+            </div>
+          </div>
+          <div class="input-group w-full">
+            <label class="input-label" for="i-pass">Password</label>
+            <div class="input-wrap">
+              <input class="input has-icon-right" id="i-pass" type="password" value="supersecret">
+              <button class="input-icon-right" aria-label="Toggle password" onclick="togglePw(this)">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-eye"></use></svg>
+              </button>
+            </div>
+          </div>
+          <div class="input-group w-full">
+            <label class="input-label" for="i-err">API Key</label>
+            <input class="input error" id="i-err" type="text" value="invalid-key-format" aria-invalid="true" aria-describedby="hint-err">
+            <span class="input-hint error" id="hint-err">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-error"></use></svg>Invalid API key format
+            </span>
+          </div>
+          <div class="input-group w-full">
+            <label class="input-label" for="i-ok">Domain</label>
+            <input class="input success" id="i-ok" type="text" value="graphite.com" aria-describedby="hint-ok">
+            <span class="input-hint success" id="hint-ok">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-check-circle"></use></svg>Domain verified
+            </span>
+          </div>
+          <div class="input-group w-full">
+            <label class="input-label" for="i-dis">Account ID</label>
+            <input class="input" id="i-dis" type="text" value="acct_8fx92kz" disabled>
+            <span class="input-hint">Read-only field</span>
+          </div>
+          <div class="input-group w-full">
+            <label class="input-label" for="i-ta">System Prompt</label>
+            <textarea class="input" id="i-ta" placeholder="Enter system instructions…" rows="3"></textarea>
+            <span class="input-hint">Markdown supported</span>
+          </div>
+        </div>
+        <div class="ds-code"><span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"input-group"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;label</span> <span class="at">class</span>=<span class="val">"input-label"</span> <span class="at">for</span>=<span class="val">"field"</span><span class="kw">&gt;</span>Label<span class="kw">&lt;/label&gt;</span>
+  <span class="kw">&lt;input</span> <span class="at">class</span>=<span class="val">"input"</span> <span class="at">id</span>=<span class="val">"field"</span> <span class="at">type</span>=<span class="val">"text"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;/div&gt;</span>
+
+<span class="cm">/* Error state */</span>
+<span class="kw">&lt;input</span> <span class="at">class</span>=<span class="val">"input error"</span> <span class="at">aria-invalid</span>=<span class="val">"true"</span>
+       <span class="at">aria-describedby</span>=<span class="val">"hint-id"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"input-hint error"</span> <span class="at">id</span>=<span class="val">"hint-id"</span><span class="kw">&gt;</span>Error message<span class="kw">&lt;/span&gt;</span></div>
+      </div>
+    </section>
+
+    <!-- CARDS -->
+    <section class="ds-section" id="cards">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Cards</div>
+        <div class="ds-section-desc">Three surface elevations: Default, Bordered, Elevated.</div>
+      </div>
+      <div class="ds-component-block">
+        <div class="ds-preview ds-preview--column">
+          <div class="grid-3 w-full">
+            <div class="card card-default" style="border:1px solid var(--surface-border)">
+              <div class="card-header"><div><div class="card-title">Default Card</div><div class="card-subtitle">Surface base</div></div><span class="badge badge-neutral">Draft</span></div>
+              <div class="card-body">Flat surface with optional border. Use for primary content areas.</div>
+              <div class="card-footer"><button class="btn btn-ghost btn-sm">Edit</button><button class="btn btn-secondary btn-sm">View</button></div>
+            </div>
+            <div class="card card-bordered">
+              <div class="card-header"><div><div class="card-title">Bordered Card</div><div class="card-subtitle">Visible edge</div></div><span class="badge badge-success badge-dot">Live</span></div>
+              <div class="card-body">Adds visible border for clear container edges in dense layouts.</div>
+              <div class="card-footer"><button class="btn btn-ghost btn-sm">Edit</button><button class="btn btn-primary btn-sm">Publish</button></div>
+            </div>
+            <div class="card card-elevated">
+              <div class="card-header">
+                <div><div class="card-title">Elevated Card</div><div class="card-subtitle">With shadow</div></div>
+                <button class="btn btn-ghost btn-icon btn-sm" aria-label="Options">
+                  <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-more"></use></svg>
+                </button>
+              </div>
+              <div class="card-body">Raised surface for modals, drawers, or overlapping content.</div>
+              <div class="card-footer"><button class="btn btn-secondary btn-sm">Cancel</button><button class="btn btn-primary btn-sm">Save</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="ds-code"><span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"card card-bordered"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"card-header"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"card-title"</span><span class="kw">&gt;</span>Title<span class="kw">&lt;/div&gt;</span>
+    <span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge badge-success badge-dot"</span><span class="kw">&gt;</span>Live<span class="kw">&lt;/span&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"card-body"</span><span class="kw">&gt;</span>Body content.<span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"card-footer"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"btn btn-primary btn-sm"</span><span class="kw">&gt;</span>Save<span class="kw">&lt;/button&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+      </div>
+    </section>
+
+    <!-- BADGES & LABELS -->
+    <section class="ds-section" id="badges">
+      <div class="ds-section-header"><div class="ds-section-title">Badges &amp; Labels</div></div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Status Badges</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-2" style="flex-wrap:wrap">
+            <span class="badge badge-neutral">Neutral</span>
+            <span class="badge badge-success">Success</span>
+            <span class="badge badge-warning">Warning</span>
+            <span class="badge badge-error">Error</span>
+            <span class="badge badge-info">Info</span>
+            <span class="badge badge-purple">Purple</span>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge badge-success"</span><span class="kw">&gt;</span>Success<span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge badge-error"</span><span class="kw">&gt;</span>Error<span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge badge-warning"</span><span class="kw">&gt;</span>Warning<span class="kw">&lt;/span&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Dot Badges</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-3" style="flex-wrap:wrap">
+            <span class="badge badge-success badge-dot">Published</span>
+            <span class="badge badge-warning badge-dot">Pending</span>
+            <span class="badge badge-error badge-dot">Failed</span>
+            <span class="badge badge-info badge-dot">Tracking</span>
+            <span class="badge badge-neutral badge-dot">Draft</span>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge badge-success badge-dot"</span><span class="kw">&gt;</span>Published<span class="kw">&lt;/span&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Count &amp; Presence Indicators</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-4">
+            <div class="flex items-center gap-2"><span class="text-sm">Prompts</span><span class="badge-count">328</span></div>
+            <div class="flex items-center gap-2"><span class="badge-indicator online"></span><span class="text-sm">Online</span></div>
+            <div class="flex items-center gap-2"><span class="badge-indicator away"></span><span class="text-sm">Away</span></div>
+            <div class="flex items-center gap-2"><span class="badge-indicator busy"></span><span class="text-sm">Busy</span></div>
+            <div class="flex items-center gap-2"><span class="badge-indicator offline"></span><span class="text-sm">Offline</span></div>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge-count"</span><span class="kw">&gt;</span>328<span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"badge-indicator online"</span><span class="kw">&gt;&lt;/span&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Form &amp; Inline Labels</div>
+        <div class="ds-component-block">
+          <div class="ds-preview ds-preview--column gap-3">
+            <label class="label" for="lbl-d">Prompt Name <span style="color:var(--s6)">*</span></label>
+            <input class="input" id="lbl-d" type="text" style="max-width:240px" placeholder="Value…">
+            <label class="label-inline"><input type="checkbox" checked> Track performance</label>
+            <label class="label-inline"><input type="radio" name="ws" checked> Shared workspace</label>
+            <label class="label-inline"><input type="radio" name="ws"> Personal workspace</label>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;label</span> <span class="at">class</span>=<span class="val">"label"</span> <span class="at">for</span>=<span class="val">"f"</span><span class="kw">&gt;</span>Field Name<span class="kw">&lt;/label&gt;</span>
+<span class="kw">&lt;label</span> <span class="at">class</span>=<span class="val">"label-inline"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;input</span> <span class="at">type</span>=<span class="val">"checkbox"</span><span class="kw">&gt;</span> Track performance
+<span class="kw">&lt;/label&gt;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCORDION -->
+    <section class="ds-section" id="accordion">
+      <div class="ds-section-header"><div class="ds-section-title">Accordion</div></div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Single Expand</div>
+        <div class="ds-component-block">
+          <div class="ds-preview ds-preview--column">
+            <div class="accordion w-full" style="max-width:600px">
+              <div class="accordion-item open">
+                <button class="accordion-trigger" onclick="toggleAcc(this,'single')" aria-expanded="true">
+                  <span>What is Answer Engine Optimization?</span>
+                  <svg class="icon icon-sm acc-icon" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+                </button>
+                <div class="accordion-content">AEO is the practice of optimizing content to be cited by AI answer engines like ChatGPT, Gemini, Perplexity, and Claude — measuring Share of Voice per query.</div>
+              </div>
+              <div class="accordion-item">
+                <button class="accordion-trigger" onclick="toggleAcc(this,'single')" aria-expanded="false">
+                  <span>How is Share of Voice calculated?</span>
+                  <svg class="icon icon-sm acc-icon" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+                </button>
+                <div class="accordion-content">SOV tracks how often your branded terms appear in AI-generated answers across tracked prompts, expressed as a percentage relative to competitors.</div>
+              </div>
+              <div class="accordion-item">
+                <button class="accordion-trigger" onclick="toggleAcc(this,'single')" aria-expanded="false">
+                  <span>Which AI engines are tracked?</span>
+                  <svg class="icon icon-sm acc-icon" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+                </button>
+                <div class="accordion-content">ChatGPT, Google AI Overview, Gemini, Perplexity, and Claude — with more engines being added continuously.</div>
+              </div>
+            </div>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"accordion"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"accordion-item open"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"accordion-trigger"</span> <span class="at">aria-expanded</span>=<span class="val">"true"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;span&gt;</span>Question<span class="kw">&lt;/span&gt;</span>
+      <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-sm acc-icon"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-chevron-down"</span><span class="kw">&gt;&lt;/use&gt;</span>
+      <span class="kw">&lt;/svg&gt;</span>
+    <span class="kw">&lt;/button&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"accordion-content"</span><span class="kw">&gt;</span>Answer.<span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Multi-Expand</div>
+        <div class="ds-component-block">
+          <div class="ds-preview ds-preview--column">
+            <div class="accordion w-full" style="max-width:600px">
+              <div class="accordion-item open">
+                <button class="accordion-trigger" onclick="toggleAcc(this,'multi')" aria-expanded="true">
+                  <span>Tracked Prompts</span>
+                  <svg class="icon icon-sm acc-icon" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+                </button>
+                <div class="accordion-content">Currently tracking 328 prompts with 300 remaining. Prompts are organized into Lists for segmentation and reporting.</div>
+              </div>
+              <div class="accordion-item open">
+                <button class="accordion-trigger" onclick="toggleAcc(this,'multi')" aria-expanded="true">
+                  <span>Branded Terms</span>
+                  <svg class="icon icon-sm acc-icon" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+                </button>
+                <div class="accordion-content">Add your brand name and product identifiers to track Share of Voice across all AI engines automatically.</div>
+              </div>
+            </div>
+          </div>
+          <div class="ds-code"><span class="cm">/* Multi: siblings stay open */</span>
+<span class="kw">onclick</span>=<span class="val">"toggleAcc(this, 'multi')"</span></div>
+        </div>
+      </div>
+    </section>
+
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Scorecard / Report</div>
+        <div class="ds-component-block">
+          <div class="ds-preview ds-preview--column" style="padding:0;overflow:hidden">
+            <!-- SCORECARD ACCORDION -->
+            <div class="sc-accordion open" id="sc1">
+              <!-- Header -->
+              <button class="sc-header" onclick="toggleSC('sc1')" aria-expanded="true">
+                <div class="sc-header-main">
+                  <div class="sc-score">53%</div>
+                  <div class="sc-header-info">
+                    <div class="sc-header-top">
+                      <span class="sc-company">Honeybook</span>
+                      <span class="badge badge-error" style="display:inline-flex;align-items:center;gap:4px">
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--s6);flex-shrink:0"></span>
+                        In Danger
+                      </span>
+  
+                    </div>
+                    <div class="sc-header-meta">Mar 16, 2026 · Submitted by: serena.anton@graphitehq.com</div>
+                  </div>
+                </div>
+                <svg class="icon icon-sm sc-chevron" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+              </button>
+              <!-- Progress bar removed -->
+
+              <!-- Body -->
+              <div class="sc-body">
+                <!-- N/A Questions -->
+                <div class="sc-section">
+                  <div class="sc-section-title">N/A Questions</div>
+                  <div class="sc-question-list">
+                    <div class="sc-question"><span class="sc-qnum">Q20.</span> Is the client satisfied with our writing quality?</div>
+                    <div class="sc-question"><span class="sc-qnum">Q22.</span> Are we being cited in prompts or questions that are a high priority for the client?</div>
+                  </div>
+                </div>
+                <!-- General -->
+                <div class="sc-section">
+                  <div class="sc-section-title">General</div>
+                  <div class="sc-question-list">
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q1.</span> Are we on pace with our Project Roadmap? <span class="sc-pts">(2pts)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q2.</span> Did we present Q3 QBR? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q3.</span> Did the client mention they are satisfied with the value we provide? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q6.</span> Did we build relationships with key stakeholders who can influence renewal? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q9.</span> Are we trending toward renewal by Q4? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q4.</span> Are we contributing to the business's KPIs beyond traffic growth? <span class="sc-pts">(2pts)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q5.</span> Were there indicators that we delivered a seven-star experience? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q8.</span> Did we have a session with our Client Partner to discuss strategies? <span class="sc-pts">(2pts)</span></span></div>
+                  </div>
+                </div>
+                <!-- Performance -->
+                <div class="sc-section">
+                  <div class="sc-section-title">Performance</div>
+                  <div class="sc-question-list">
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q12.</span> Are we achieving the targets proposed in the measurement framework? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q14.</span> Can we clearly attribute SEO and AEO initiatives to ROI? <span class="sc-pts">(2pts)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q15.</span> Are we seeing compounding results from our High Impact Initiatives? <span class="sc-pts">(2pts)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q10.</span> Are we seeing growth in high-priority content clusters? <span class="sc-pts">(2pts)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q11.</span> Is organic traffic compounding? <span class="sc-pts">(2pts)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q13.</span> Is our work driving conversions? <span class="sc-pts">(2pts)</span></span></div>
+                  </div>
+                </div>
+                <!-- Content & Editorial -->
+                <div class="sc-section">
+                  <div class="sc-section-title">Content &amp; Editorial</div>
+                  <div class="sc-question-list">
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q17.</span> Have we ramped up article production? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q18.</span> Are we meeting our monthly Article Draft goals? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q19.</span> Did we present a Q3 Cohort Analysis? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q16.</span> Are we meeting our monthly content goals (Topics, CBs)? <span class="sc-pts">(1pt)</span></span></div>
+                  </div>
+                </div>
+                <!-- AEO -->
+                <div class="sc-section">
+                  <div class="sc-section-title">AEO</div>
+                  <div class="sc-question-list">
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q21.</span> Is AEO Share of Voice growing? <span class="sc-pts">(1pt)</span></span></div>
+                    <div class="sc-question sc-fail"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-error"></use></svg><span><span class="sc-qnum">Q23.</span> Have our onsite and offsite AEO strategies produced results? <span class="sc-pts">(1pt)</span></span></div>
+                  </div>
+                </div>
+                <!-- Additional Context -->
+                <div class="sc-section">
+                  <div class="sc-section-title">Additional Context</div>
+                  <div class="sc-meta-row" style="margin-bottom:var(--space-2)">Subjective assessment: <span class="badge badge-warning" style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--s3);flex-shrink:0"></span>At Risk</span></div>
+                  <div class="sc-context-box">no</div>
+                </div>
+                <!-- Renewal Prep -->
+                <div class="sc-section">
+                  <div class="sc-section-title">Renewal Prep</div>
+                  <div class="sc-question-list">
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q1.</span> If there is an auto-renewal in the SOW, is the client aware?</span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q2.</span> Has the auto-renewal been discussed with the client in the past 30 days?</span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q3.</span> Do current account conditions support pitching a longer-term renewal?</span></div>
+                    <div class="sc-question sc-pass"><svg class="icon icon-sm sc-qi" aria-hidden="true"><use href="#ic-check-circle"></use></svg><span><span class="sc-qnum">Q4.</span> Would you like support evaluating and outlining the renewal plan?</span></div>
+                    <div class="sc-question" style="flex-direction:column;gap:var(--space-2);padding-left:0;width:100%">
+                      <span class="sc-meta-row"><span class="sc-qnum">Q5.</span> Share any strategic context around the renewal</span>
+                      <div class="sc-context-box" style="width:100%">no</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ds-code"><span class="cm">/* Scorecard accordion */</span>
+<span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-accordion"</span> <span class="at">id</span>=<span class="val">"sc1"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"sc-header"</span> <span class="at">onclick</span>=<span class="val">"toggleSC('sc1')"</span> <span class="at">aria-expanded</span>=<span class="val">"true"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-header-main"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-score"</span><span class="kw">&gt;</span>53%<span class="kw">&lt;/div&gt;</span>
+      <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-header-info"</span><span class="kw">&gt;</span>…<span class="kw">&lt;/div&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+    <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-sm sc-chevron"</span><span class="kw">&gt;…&lt;/svg&gt;</span>
+  <span class="kw">&lt;/button&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-progress-bar"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-progress-fill"</span> <span class="at">style</span>=<span class="val">"width:53%;background:var(--s6)"</span><span class="kw">&gt;&lt;/div&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-body"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-two-col"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-section"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-section-title"</span><span class="kw">&gt;</span>General<span class="kw">&lt;/div&gt;</span>
+        <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-question sc-pass"</span><span class="kw">&gt;</span>…<span class="kw">&lt;/div&gt;</span>
+        <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"sc-question sc-fail"</span><span class="kw">&gt;</span>…<span class="kw">&lt;/div&gt;</span>
+      <span class="kw">&lt;/div&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+        </div>
+      </div>
+
+    <!-- TABLES -->
+    <section class="ds-section" id="tables">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Tables</div>
+        <div class="ds-section-desc">Sortable columns and selectable rows matching the Prompts dashboard.</div>
+      </div>
+      <div class="ds-component-block">
+        <div class="ds-preview ds-preview--column" style="padding:0;border-radius:var(--radius-lg);overflow:hidden">
+          <div class="table-wrap" style="border:none;border-radius:0;width:100%">
+            <table class="ds-table" id="main-table">
+              <thead>
+                <tr>
+                  <th class="row-checkbox"><input type="checkbox" class="table-checkbox" onchange="selectAll(this)" aria-label="Select all"></th>
+                  <th class="sortable sort-asc" onclick="sortTable(this)" scope="col">
+                    Prompt <svg class="icon icon-sm sort-icon" aria-hidden="true"><use href="#ic-arrow-up"></use></svg>
+                  </th>
+                  <th class="sortable" onclick="sortTable(this)" scope="col">
+                    Added <svg class="icon icon-sm sort-icon" aria-hidden="true"><use href="#ic-unfold"></use></svg>
+                  </th>
+                  <th scope="col">Lists</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="selected">
+                  <td><input type="checkbox" class="table-checkbox" checked aria-label="Select row"></td>
+                  <td>What is the best AI mood board generator?</td>
+                  <td class="cell-mono">Dec 17 2025</td>
+                  <td><span class="badge badge-neutral">AI Mood Board Gen</span></td>
+                  <td><span class="badge badge-success badge-dot">Tracked</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="table-checkbox" aria-label="Select row"></td>
+                  <td>What is the best AI voice translator?</td>
+                  <td class="cell-mono">Dec 17 2025</td>
+                  <td><span class="badge badge-neutral">AI Sound Gen</span></td>
+                  <td><span class="badge badge-success badge-dot">Tracked</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="table-checkbox" aria-label="Select row"></td>
+                  <td>What are the best AI dubbing tools?</td>
+                  <td class="cell-mono">Dec 17 2025</td>
+                  <td><span class="badge badge-neutral">AI Sound Gen</span></td>
+                  <td><span class="badge badge-warning badge-dot">Pending</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="table-checkbox" aria-label="Select row"></td>
+                  <td>What is the best AI character voice generator?</td>
+                  <td class="cell-mono">Dec 17 2025</td>
+                  <td><span class="badge badge-neutral">AI Sound Gen</span></td>
+                  <td><span class="badge badge-error badge-dot">Failed</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="table-checkbox" aria-label="Select row"></td>
+                  <td>What is the best AI sketch generator?</td>
+                  <td class="cell-mono">Dec 17 2025</td>
+                  <td><span class="badge badge-neutral">AI Image Gen</span></td>
+                  <td><span class="badge badge-success badge-dot">Tracked</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="ds-code"><span class="cm">/* Sortable header */</span>
+<span class="kw">&lt;th</span> <span class="at">class</span>=<span class="val">"sortable sort-asc"</span> <span class="at">onclick</span>=<span class="val">"sortTable(this)"</span><span class="kw">&gt;</span>
+  Prompt
+  <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-sm sort-icon"</span><span class="kw">&gt;&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-arrow-up"</span><span class="kw">&gt;&lt;/use&gt;&lt;/svg&gt;</span>
+<span class="kw">&lt;/th&gt;</span>
+<span class="cm">/* Selected row */</span>
+<span class="kw">&lt;tr</span> <span class="at">class</span>=<span class="val">"selected"</span><span class="kw">&gt;</span>…<span class="kw">&lt;/tr&gt;</span></div>
+      </div>
+    </section>
+
+    <!-- FILTERS -->
+    <section class="ds-section" id="filters">
+      <div class="ds-section-header"><div class="ds-section-title">Filters</div></div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Chip-Based</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center">
+            <div class="filter-chips">
+              <span class="filter-chip active">All</span>
+              <span class="filter-chip">ChatGPT</span>
+              <span class="filter-chip">Gemini</span>
+              <span class="filter-chip active">
+                Claude
+                <span class="chip-remove" role="button" aria-label="Remove Claude filter">
+                  <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-close"></use></svg>
+                </span>
+              </span>
+              <span class="filter-chip">Perplexity</span>
+              <span class="filter-chip">AI Overview</span>
+            </div>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"filter-chips"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"filter-chip active"</span><span class="kw">&gt;</span>
+    Claude
+    <span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"chip-remove"</span> <span class="at">role</span>=<span class="val">"button"</span> <span class="at">aria-label</span>=<span class="val">"Remove"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-sm"</span><span class="kw">&gt;&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-close"</span><span class="kw">&gt;&lt;/use&gt;&lt;/svg&gt;</span>
+    <span class="kw">&lt;/span&gt;</span>
+  <span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+        </div>
+      </div>
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Dropdown + Date Range</div>
+        <div class="ds-component-block">
+          <div class="ds-preview items-center gap-3" style="min-height:210px;align-items:flex-start;padding-bottom:170px">
+            <div class="filter-dropdown open" id="ddFilter">
+              <button class="filter-dropdown-trigger open" onclick="toggleDD()" aria-haspopup="listbox" aria-expanded="true">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-filter"></use></svg>
+                Engine
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+              </button>
+              <div class="filter-dropdown-menu" role="listbox">
+                <div class="filter-dropdown-item selected" role="option" aria-selected="true">
+                  <svg class="icon icon-sm check-icon" aria-hidden="true"><use href="#ic-check"></use></svg>ChatGPT
+                </div>
+                <div class="filter-dropdown-item" role="option" aria-selected="false">
+                  <svg class="icon icon-sm check-icon" aria-hidden="true"><use href="#ic-check"></use></svg>Gemini
+                </div>
+                <div class="filter-dropdown-item" role="option" aria-selected="false">
+                  <svg class="icon icon-sm check-icon" aria-hidden="true"><use href="#ic-check"></use></svg>Perplexity
+                </div>
+                <div class="filter-dropdown-item" role="option" aria-selected="false">
+                  <svg class="icon icon-sm check-icon" aria-hidden="true"><use href="#ic-check"></use></svg>Claude
+                </div>
+              </div>
+            </div>
+            <button class="filter-date">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-calendar"></use></svg>
+              Last 28 days
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+            </button>
+          </div>
+          <div class="ds-code"><span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"filter-dropdown open"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"filter-dropdown-trigger open"</span>
+          <span class="at">aria-haspopup</span>=<span class="val">"listbox"</span> <span class="at">aria-expanded</span>=<span class="val">"true"</span><span class="kw">&gt;</span>
+    Engine
+  <span class="kw">&lt;/button&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"filter-dropdown-menu"</span> <span class="at">role</span>=<span class="val">"listbox"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"filter-dropdown-item selected"</span><span class="kw">&gt;</span>ChatGPT<span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALERTS -->
+    <section class="ds-section" id="alerts">
+      <div class="ds-section-header"><div class="ds-section-title">Alerts</div></div>
+      <div class="ds-component-block">
+        <div class="ds-preview ds-preview--column gap-3">
+          <div class="alert alert-info w-full" role="alert">
+            <svg class="icon icon-md alert-icon" aria-hidden="true"><use href="#ic-info"></use></svg>
+            <div><div class="alert-title">Indexing in progress</div>Your prompts are being processed. Results will appear within 30 minutes.</div>
+          </div>
+          <div class="alert alert-success w-full" role="alert">
+            <svg class="icon icon-md alert-icon" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
+            <div><div class="alert-title">Prompts imported</div>328 prompts were successfully imported and are now being tracked.</div>
+          </div>
+          <div class="alert alert-warning w-full" role="alert">
+            <svg class="icon icon-md alert-icon" aria-hidden="true"><use href="#ic-warning"></use></svg>
+            <div><div class="alert-title">Approaching limit</div>You have 300 of 628 prompt slots remaining. Upgrade to add more.</div>
+          </div>
+          <div class="alert alert-error w-full" role="alert">
+            <svg class="icon icon-md alert-icon" aria-hidden="true"><use href="#ic-error"></use></svg>
+            <div><div class="alert-title">Crawl failed</div>Unable to retrieve answers for 3 prompts. Check branded terms configuration.</div>
+          </div>
+        </div>
+        <div class="ds-code"><span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"alert alert-success"</span> <span class="at">role</span>=<span class="val">"alert"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;svg</span> <span class="at">class</span>=<span class="val">"icon icon-md alert-icon"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;use</span> <span class="at">href</span>=<span class="val">"#ic-check-circle"</span><span class="kw">&gt;&lt;/use&gt;</span>
+  <span class="kw">&lt;/svg&gt;</span>
+  <span class="kw">&lt;div&gt;</span>
+    <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"alert-title"</span><span class="kw">&gt;</span>Title<span class="kw">&lt;/div&gt;</span>
+    Description text.
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+      </div>
+    </section>
+
+    <!-- CHARTS -->
+    <section class="ds-section" id="charts">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Charts</div>
+        <div class="ds-section-desc">Canvas-based charts using design system tokens. Two variants: Line (time-series, multi-series) and Bar (grouped comparison).</div>
+      </div>
+
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Line Chart — Multi-Series</div>
+        <div class="ds-component-block">
+          <div class="ds-preview ds-preview--column">
+            <div class="chart-card w-full">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">Share of Voice</div>
+                  <div class="chart-subtitle">Track how often your branded terms appear in answers for this prompt.</div>
+                </div>
+                <button class="filter-date" style="flex-shrink:0">
+                  <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-calendar"></use></svg>
+                  Last 28 days
+                  <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+                </button>
+              </div>
+              <div class="chart-legend" id="line-legend"></div>
+              <div class="chart-wrap"><canvas class="chart-canvas" id="lineChart" height="260"></canvas></div>
+            </div>
+          </div>
+          <div class="ds-code"><span class="cm">/* Line chart */</span>
+<span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"chart-card"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"chart-title"</span><span class="kw">&gt;</span>Share of Voice<span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"chart-legend"</span> <span class="at">id</span>=<span class="val">"line-legend"</span><span class="kw">&gt;&lt;/div&gt;</span>
+  <span class="kw">&lt;canvas</span> <span class="at">class</span>=<span class="val">"chart-canvas"</span> <span class="at">id</span>=<span class="val">"lineChart"</span><span class="kw">&gt;&lt;/canvas&gt;</span>
+<span class="kw">&lt;/div&gt;</span>
+<span class="cm">/* renderLineChart(id, series, labels) */</span></div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <div class="ds-subsection-title">Bar Chart — Grouped Comparison</div>
+        <div class="ds-component-block">
+          <div class="ds-preview ds-preview--column">
+            <div class="chart-card w-full">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">Prompt Performance by Engine</div>
+                  <div class="chart-subtitle">Appearances across answer engines for top 5 tracked prompts.</div>
+                </div>
+              </div>
+              <div class="chart-legend" id="bar-legend"></div>
+              <div class="chart-wrap"><canvas class="chart-canvas" id="barChart" height="240"></canvas></div>
+            </div>
+          </div>
+          <div class="ds-code"><span class="cm">/* Bar chart */</span>
+<span class="kw">&lt;canvas</span> <span class="at">class</span>=<span class="val">"chart-canvas"</span> <span class="at">id</span>=<span class="val">"barChart"</span><span class="kw">&gt;&lt;/canvas&gt;</span>
+<span class="cm">/* renderBarChart(id, groups, labels, series) */</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAV HEADER -->
+    <section class="ds-section" id="nav">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Nav Header</div>
+        <div class="ds-section-desc">Top-level application navigation. Mono uppercase labels, active state with green underline indicator, workspace selector, and user button.</div>
+      </div>
+      <div class="ds-component-block">
+        <div class="ds-preview" style="padding:0;overflow:hidden;display:block">
+          <nav class="app-nav" aria-label="Main navigation">
+            <!-- Logo -->
+            <div class="app-nav-logo">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32" fill="none" aria-label="Graphite">
+                <path d="M0 0V32H32V0H0ZM28.1407 28.1407H3.85932V3.85932H28.1407V28.1407ZM12.5484 24.2814H8.68992L14.0715 7.7186L17.9292 7.72096L12.5484 24.2814ZM23.3101 24.2814H19.4516L17.9292 19.5972L19.8585 13.6591L23.3101 24.2814Z" fill="#FFF9EB"/>
+              </svg>
+            </div>
+            <!-- Nav items -->
+            <div class="app-nav-items" role="list">
+              <button class="app-nav-item" onclick="setNav(this)">Explore</button>
+              <button class="app-nav-item" onclick="setNav(this)">Plan</button>
+              <button class="app-nav-item" onclick="setNav(this)">Write</button>
+              <button class="app-nav-item" onclick="setNav(this)">Measure</button>
+              <button class="app-nav-item active" onclick="setNav(this)">AEO</button>
+              <button class="app-nav-item" onclick="setNav(this)">Tools</button>
+            </div>
+            <!-- Right side -->
+            <div class="app-nav-right">
+              <button class="app-nav-workspace" aria-label="Switch workspace">
+                <div class="app-nav-avatar">A</div>
+                <span class="app-nav-workspace-name">Adobe</span>
+                <svg class="icon icon-sm" style="color:var(--text-tertiary)" aria-hidden="true"><use href="#ic-chevron-down"></use></svg>
+              </button>
+              <button class="app-nav-user" aria-label="User account">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#ic-person"></use></svg>
+              </button>
+            </div>
+          </nav>
+        </div>
+        <div class="ds-code"><span class="kw">&lt;nav</span> <span class="at">class</span>=<span class="val">"app-nav"</span> <span class="at">aria-label</span>=<span class="val">"Main navigation"</span><span class="kw">&gt;</span>
+  <span class="cm">&lt;!-- Logo --&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"app-nav-logo"</span><span class="kw">&gt;</span>…<span class="kw">&lt;/div&gt;</span>
+
+  <span class="cm">&lt;!-- Nav items: add .active for current page --&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"app-nav-items"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"app-nav-item"</span><span class="kw">&gt;</span>Explore<span class="kw">&lt;/button&gt;</span>
+    <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"app-nav-item active"</span><span class="kw">&gt;</span>AEO<span class="kw">&lt;/button&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+
+  <span class="cm">&lt;!-- Right: workspace + user --&gt;</span>
+  <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"app-nav-right"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"app-nav-workspace"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;div</span> <span class="at">class</span>=<span class="val">"app-nav-avatar"</span><span class="kw">&gt;</span>A<span class="kw">&lt;/div&gt;</span>
+      <span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"app-nav-workspace-name"</span><span class="kw">&gt;</span>Adobe<span class="kw">&lt;/span&gt;</span>
+    <span class="kw">&lt;/button&gt;</span>
+    <span class="kw">&lt;button</span> <span class="at">class</span>=<span class="val">"app-nav-user"</span> <span class="at">aria-label</span>=<span class="val">"User account"</span><span class="kw">&gt;</span>…<span class="kw">&lt;/button&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/nav&gt;</span></div>
+      </div>
+    </section>
+
+    <!-- BREADCRUMB -->
+    <section class="ds-section" id="breadcrumb">
+      <div class="ds-section-header">
+        <div class="ds-section-title">Breadcrumb</div>
+        <div class="ds-section-desc">JetBrains Mono, uppercase, slash-separated — as seen in the AEO Prompt view.</div>
+      </div>
+      <div class="ds-component-block">
+        <div class="ds-preview">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="#" class="breadcrumb-item">Main Dashboard</a>
+            <span class="breadcrumb-sep" aria-hidden="true">//</span>
+            <a href="#" class="breadcrumb-item">All Prompts</a>
+            <span class="breadcrumb-sep" aria-hidden="true">//</span>
+            <span class="breadcrumb-item current" aria-current="page">Prompt</span>
+          </nav>
+        </div>
+        <div class="ds-code"><span class="kw">&lt;nav</span> <span class="at">class</span>=<span class="val">"breadcrumb"</span> <span class="at">aria-label</span>=<span class="val">"Breadcrumb"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;a</span> <span class="at">href</span>=<span class="val">"#"</span> <span class="at">class</span>=<span class="val">"breadcrumb-item"</span><span class="kw">&gt;</span>Main Dashboard<span class="kw">&lt;/a&gt;</span>
+  <span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"breadcrumb-sep"</span> <span class="at">aria-hidden</span>=<span class="val">"true"</span><span class="kw">&gt;</span>//<span class="kw">&lt;/span&gt;</span>
+  <span class="kw">&lt;span</span> <span class="at">class</span>=<span class="val">"breadcrumb-item current"</span> <span class="at">aria-current</span>=<span class="val">"page"</span><span class="kw">&gt;</span>Prompt<span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;/nav&gt;</span></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ── Chart Renderer ──
+const C = {
+  bg:      '#000000',
+  base:    '#161616',
+  border:  '#2a2a2a',
+  text3:   '#606060',
+  text2:   '#C4BCAA',
+  grid:    'rgba(255,255,255,0.04)',
+  series: ['#42CA80','#F5BC4E','#8FB5D9','#CEBCF4','#ED6958'],
+  labels: ['AI Overview','ChatGPT','Gemini','Perplexity','Claude'],
+};
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(id, h) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth;
+  const r = dpr();
+  canvas.width  = w * r;
+  canvas.height = h * r;
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(r, r);
+  return { ctx, w, h };
+}
+
+function renderLineChart(id, series, xLabels) {
+  const setup = setupCanvas(id, 260);
+  if (!setup) return;
+  const { ctx, w, h } = setup;
+  const pad = { t: 16, r: 24, b: 48, l: 48 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+
+  // bg
+  ctx.fillStyle = C.base;
+  ctx.fillRect(0, 0, w, h);
+
+  // y grid + labels
+  const yTicks = [0, 20, 40, 60, 80, 100];
+  ctx.font = `400 10px ${getComputedStyle(document.body).getPropertyValue('--font-mono').trim()}`;
+  ctx.textAlign = 'right';
+  yTicks.forEach(v => {
+    const y = pad.t + ch - (v / 100) * ch;
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    ctx.fillStyle = C.text3;
+    ctx.fillText(v + '%', pad.l - 8, y + 3.5);
+  });
+
+  // x labels
+  ctx.textAlign = 'center';
+  xLabels.forEach((lbl, i) => {
+    const x = pad.l + (i / (xLabels.length - 1)) * cw;
+    ctx.fillStyle = C.text3;
+    ctx.fillText(lbl, x, h - 10);
+  });
+
+  // lines
+  series.forEach((s, si) => {
+    const pts = s.data.map((v, i) => ({
+      x: pad.l + (i / (s.data.length - 1)) * cw,
+      y: pad.t + ch - (v / 100) * ch,
+    }));
+
+    // smooth line
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      if (i === 0) { ctx.moveTo(p.x, p.y); return; }
+      const prev = pts[i - 1];
+      const cpx = (prev.x + p.x) / 2;
+      ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y);
+    });
+    ctx.stroke();
+
+    // dots
+    pts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = C.base;
+      ctx.fill();
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  });
+}
+
+function renderBarChart(id, groups, xLabels, series) {
+  const setup = setupCanvas(id, 240);
+  if (!setup) return;
+  const { ctx, w, h } = setup;
+  const pad = { t: 16, r: 24, b: 48, l: 48 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+  const maxVal = 100;
+
+  ctx.fillStyle = C.base;
+  ctx.fillRect(0, 0, w, h);
+
+  // y grid
+  const yTicks = [0, 25, 50, 75, 100];
+  ctx.font = `400 10px ${getComputedStyle(document.body).getPropertyValue('--font-mono').trim()}`;
+  ctx.textAlign = 'right';
+  yTicks.forEach(v => {
+    const y = pad.t + ch - (v / maxVal) * ch;
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    ctx.fillStyle = C.text3;
+    ctx.fillText(v + '%', pad.l - 8, y + 3.5);
+  });
+
+  const groupW = cw / groups.length;
+  const barGap = 3;
+  const groupPad = groupW * 0.18;
+  const barW = (groupW - groupPad * 2 - barGap * (series.length - 1)) / series.length;
+
+  groups.forEach((grp, gi) => {
+    const gx = pad.l + gi * groupW + groupPad;
+    series.forEach((s, si) => {
+      const val = grp[si];
+      const bh = (val / maxVal) * ch;
+      const bx = gx + si * (barW + barGap);
+      const by = pad.t + ch - bh;
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      const r = 3;
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + barW - r, by);
+      ctx.quadraticCurveTo(bx + barW, by, bx + barW, by + r);
+      ctx.lineTo(bx + barW, by + bh);
+      ctx.lineTo(bx, by + bh);
+      ctx.lineTo(bx, by + r);
+      ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // x label
+    ctx.fillStyle = C.text3;
+    ctx.textAlign = 'center';
+    ctx.fillText(xLabels[gi], pad.l + gi * groupW + groupW / 2, h - 10);
+  });
+}
+
+function buildLegend(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = items.map(s => `
+    <div class="chart-legend-item">
+      <span class="chart-legend-line" style="background:${s.color}"></span>
+      <span>${s.label}</span>
+    </div>`).join('');
+}
+
+function initCharts() {
+  const lineSeries = [
+    { label: 'AI Overview', color: '#42CA80', data: [58, 61, 65, 69] },
+    { label: 'ChatGPT',     color: '#F5BC4E', data: [60, 62, 62, 63] },
+    { label: 'Gemini',      color: '#8FB5D9', data: [54, 55, 57, 57] },
+    { label: 'Perplexity',  color: '#CEBCF4', data: [44, 38, 20,  4] },
+    { label: 'Claude',      color: '#ED6958', data: [20, 42, 60,  2] },
+  ];
+  const xLabels = ['23 Feb–1 Mar', '2–8 Mar', '9–15 Mar', '16–22 Mar'];
+  buildLegend('line-legend', lineSeries);
+  renderLineChart('lineChart', lineSeries, xLabels);
+
+  const barSeries = [
+    { label: 'ChatGPT',    color: '#F5BC4E' },
+    { label: 'AI Overview',color: '#42CA80' },
+    { label: 'Gemini',     color: '#8FB5D9' },
+  ];
+  const barGroups = [
+    [72, 65, 58],
+    [55, 80, 47],
+    [38, 42, 60],
+    [90, 73, 52],
+    [48, 55, 44],
+  ];
+  const barLabels = ['AI Art Gen', 'AI Voice', 'AI Dubbing', 'AI Music', 'AI Sketch'];
+  buildLegend('bar-legend', barSeries);
+  renderBarChart('barChart', barGroups, barLabels, barSeries);
+}
+
+window.addEventListener('load', initCharts);
+window.addEventListener('resize', initCharts);
+
+function setNav(btn) {
+  btn.closest('.app-nav-items').querySelectorAll('.app-nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleSC(id) {
+
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  el.querySelector('.sc-header').setAttribute('aria-expanded', el.classList.contains('open'));
+}
+
+function toggleAcc(btn, mode) {
+  const item = btn.closest('.accordion-item');
+  const acc  = btn.closest('.accordion');
+  const isOpen = item.classList.contains('open');
+  if (mode === 'single') {
+    acc.querySelectorAll('.accordion-item').forEach(i => {
+      i.classList.remove('open');
+      i.querySelector('.accordion-trigger').setAttribute('aria-expanded','false');
+    });
+  }
+  if (!isOpen) { item.classList.add('open'); btn.setAttribute('aria-expanded','true'); }
+  else if (mode === 'multi') { item.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+}
+
+function toggleDD() { document.getElementById('ddFilter').classList.toggle('open'); }
+
+function togglePw(btn) {
+  const input = btn.closest('.input-wrap').querySelector('input');
+  const use = btn.querySelector('use');
+  if (input.type === 'password') {
+    input.type = 'text'; use.setAttribute('href','#ic-eye-off');
+  } else {
+    input.type = 'password'; use.setAttribute('href','#ic-eye');
+  }
+}
+
+function selectAll(cb) {
+  document.querySelectorAll('#main-table tbody .table-checkbox').forEach(c => {
+    c.checked = cb.checked;
+    c.closest('tr').classList.toggle('selected', cb.checked);
+  });
+}
+
+document.querySelectorAll('#main-table tbody .table-checkbox').forEach(cb => {
+  cb.addEventListener('change', () => cb.closest('tr').classList.toggle('selected', cb.checked));
+});
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', e => { if (!e.target.closest('.chip-remove')) chip.classList.toggle('active'); });
+});
+
+document.querySelectorAll('.filter-dropdown-item').forEach(item => {
+  item.addEventListener('click', () => item.classList.toggle('selected'));
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ddFilter')) document.getElementById('ddFilter').classList.remove('open');
+});
+
+// Sidebar scroll spy
+const sections = document.querySelectorAll('.ds-section');
+const links = document.querySelectorAll('.ds-sidebar-link');
+new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const l = document.querySelector(`.ds-sidebar-link[href="#${entry.target.id}"]`);
+      if (l) l.classList.add('active');
+    }
+  });
+}, { threshold: 0.25 }).observe && sections.forEach(s => {
+  new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const l = document.querySelector(`.ds-sidebar-link[href="#${e.target.id}"]`);
+        if (l) l.classList.add('active');
+      }
+    });
+  }, { threshold: 0.25 }).observe(s);
+});
+</script>
+</body>
+</html>
