@@ -327,14 +327,26 @@ def list_available_sheets() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
+    """Return (spreadsheet_id, actual_sheet_title) for a given sheet name.
+
+    Sheets prefixed with 'Master Tracker - ' or 'AI Monitoring - ' live in
+    separate spreadsheets. The prefix is stripped to get the real tab name.
+    """
+    if sheet_name.startswith("Master Tracker - "):
+        return MASTER_TRACKER_ID, sheet_name.removeprefix("Master Tracker - ")
+    if sheet_name.startswith("AI Monitoring - "):
+        return AI_MONITORING_ID, sheet_name.removeprefix("AI Monitoring - ")
+    return SPREADSHEET_ID, sheet_name
+
+
 def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
     """Read the first max_rows rows from a sheet and return headers + data."""
     service = get_sheets_client()
+    ssid, tab_name = _resolve_sheet_source(sheet_name)
     # Fetch enough rows: 1 header + max_rows data
-    range_str = f"'{sheet_name}'!1:{max_rows + 1}"
-    result = (
-        service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=range_str).execute()
-    )
+    range_str = f"'{tab_name}'!1:{max_rows + 1}"
+    result = service.spreadsheets().values().get(spreadsheetId=ssid, range=range_str).execute()
     values = result.get("values", [])
     if not values:
         return {"sheet_name": sheet_name, "headers": [], "rows": [], "total_rows": 0}
@@ -343,14 +355,10 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
     rows = values[1:] if len(values) > 1 else []
 
     # Get total row count from sheet metadata
-    meta = (
-        service.spreadsheets()
-        .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
-        .execute()
-    )
+    meta = service.spreadsheets().get(spreadsheetId=ssid, fields="sheets.properties").execute()
     total_rows = 0
     for s in meta.get("sheets", []):
-        if s.get("properties", {}).get("title") == sheet_name:
+        if s.get("properties", {}).get("title") == tab_name:
             total_rows = s["properties"].get("gridProperties", {}).get("rowCount", 0)
             break
 
