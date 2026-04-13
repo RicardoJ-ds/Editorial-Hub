@@ -10,12 +10,14 @@ from app.routers import (
     admin,
     ai_monitoring,
     capacity,
+    client_delivery,
     clients,
     dashboard,
     deliverables,
     goals_delivery,
     kpis,
     migration,
+    notion_articles,
     team_members,
 )
 
@@ -55,6 +57,10 @@ app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(ai_monitoring.router, prefix="/api/ai-monitoring", tags=["ai-monitoring"])
 app.include_router(goals_delivery.router, prefix="/api/goals-delivery", tags=["goals-delivery"])
 app.include_router(migration.router, prefix="/api/migrate", tags=["migration"])
+app.include_router(
+    client_delivery.router, prefix="/api/dashboard/client-delivery", tags=["dashboard"]
+)
+app.include_router(notion_articles.router, prefix="/api/notion-articles", tags=["notion-articles"])
 
 
 @app.get("/api/health")

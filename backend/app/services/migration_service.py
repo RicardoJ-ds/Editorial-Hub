@@ -25,7 +25,9 @@ from app.models import (
     DeliveryTemplate,
     EngagementRule,
     GoalsVsDelivery,
+    KpiScore,
     ModelAssumption,
+    NotionArticle,
     ProductionHistory,
     SurferAPIUsage,
     TeamMember,
@@ -53,6 +55,8 @@ SHEET_DESCRIPTIONS: dict[str, str] = {
     "AI Monitoring - Surfer Usage": "Monthly Surfer AI detector API usage per pod",
     "Master Tracker - Cumulative": "All-time cumulative pipeline metrics per client — topics, CBs, articles, published",
     "Master Tracker - Goals vs Delivery": "Weekly goals vs delivery tracking per month — CB and article delivery pacing",
+    "Notion Database": "Article workflow tracking from Notion export — 13K+ records with statuses, dates, assignments",
+    "Monthly KPI Scores": "Manual KPI scores entered by SEs — Internal Quality, External Quality, Mentorship, Feedback Adoption",
 }
 
 # Map of importable sheet names to their import functions (populated below)
@@ -70,6 +74,8 @@ IMPORT_DISPATCH: dict[str, str] = {
     "AI Monitoring - Surfer Usage": "import_ai_monitoring_surfer",
     "Master Tracker - Cumulative": "import_cumulative",
     "Master Tracker - Goals vs Delivery": "import_goals_vs_delivery",
+    "Notion Database": "import_notion_database",
+    "Monthly KPI Scores": "import_monthly_kpi_scores",
 }
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
@@ -587,6 +593,7 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
             sow_row = all_rows[row_idx] if row_idx < len(all_rows) else []
             invoicing_row = all_rows[row_idx + 1] if row_idx + 1 < len(all_rows) else []
             deliveries_row = all_rows[row_idx + 3] if row_idx + 3 < len(all_rows) else []
+            variance_row = all_rows[row_idx + 4] if row_idx + 4 < len(all_rows) else []
 
             for m_offset in range(max_months):
                 col_idx = 7 + m_offset
@@ -601,6 +608,7 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
                 articles_delivered_val = safe_int(_cell(deliveries_row, col_idx))
                 articles_invoiced_val = safe_int(_cell(invoicing_row, col_idx))
                 articles_sow_val = safe_int(_cell(sow_row, col_idx))
+                variance_val = safe_int(_cell(variance_row, col_idx))
 
                 if articles_delivered_val is not None or articles_invoiced_val is not None:
                     # Upsert: check for existing record
@@ -616,6 +624,7 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
                         existing.articles_sow_target = articles_sow_val or 0
                         existing.articles_delivered = articles_delivered_val or 0
                         existing.articles_invoiced = articles_invoiced_val or 0
+                        existing.variance = variance_val or 0
                         existing.updated_by = "sheets_migration"
                     else:
                         dm = DeliverableMonthly(
@@ -625,6 +634,7 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
                             articles_sow_target=articles_sow_val or 0,
                             articles_delivered=articles_delivered_val or 0,
                             articles_invoiced=articles_invoiced_val or 0,
+                            variance=variance_val or 0,
                             updated_by="sheets_migration",
                         )
                         session.add(dm)
@@ -1995,64 +2005,67 @@ def import_goals_vs_delivery(session: Session) -> ImportResult:
                 content_type = _cell(row, 4) or None
                 ratios = _cell(row, 5) or None
 
-                # Find the latest week with data
-                best_week = 1
+                # Import ALL weeks (not just the latest)
                 for w in range(num_weeks):
+                    week_num = w + 1
                     cb_base = 6 + w * 14
-                    # Check if this week has any data
-                    if cb_base < len(row) and _cell(row, cb_base):
-                        best_week = w + 1
+                    ad_base = cb_base + 6
 
-                # Import the latest week's data
-                w = best_week - 1
-                cb_base = 6 + w * 14
-                ad_base = cb_base + 6
-
-                # Get week date from date_row
-                week_date = (
-                    parse_date(_cell(date_row, cb_base)) if cb_base < len(date_row) else None
-                )
-
-                existing = session.execute(
-                    select(GoalsVsDelivery).where(
-                        GoalsVsDelivery.month_year == month_year,
-                        GoalsVsDelivery.week_number == best_week,
-                        GoalsVsDelivery.client_name == client_name,
+                    # Skip weeks with no data at all
+                    has_cb = cb_base < len(row) and any(
+                        _cell(row, cb_base + i) for i in range(6) if cb_base + i < len(row)
                     )
-                ).scalar_one_or_none()
+                    has_ad = ad_base < len(row) and any(
+                        _cell(row, ad_base + i) for i in range(8) if ad_base + i < len(row)
+                    )
+                    if not has_cb and not has_ad:
+                        continue
 
-                data = dict(
-                    month_year=month_year,
-                    week_number=best_week,
-                    week_date=week_date,
-                    client_name=client_name,
-                    growth_team_pod=growth_pod,
-                    editorial_team_pod=ed_pod,
-                    client_type=client_type,
-                    content_type=content_type,
-                    ratios=ratios,
-                    cb_delivered_today=safe_int(_cell(row, cb_base)),
-                    cb_projection=safe_int(_cell(row, cb_base + 1)),
-                    cb_delivered_to_date=safe_int(_cell(row, cb_base + 2)),
-                    cb_monthly_goal=safe_int(_cell(row, cb_base + 3)),
-                    cb_pct_of_goal=_cell(row, cb_base + 4) or None,
-                    cb_comments=_cell(row, cb_base + 5) or None,
-                    ad_revisions=safe_int(_cell(row, ad_base)),
-                    ad_delivered_today=safe_int(_cell(row, ad_base + 1)),
-                    ad_projection=safe_int(_cell(row, ad_base + 2)),
-                    ad_cb_backlog=safe_int(_cell(row, ad_base + 3)),
-                    ad_delivered_to_date=safe_int(_cell(row, ad_base + 4)),
-                    ad_monthly_goal=safe_int(_cell(row, ad_base + 5)),
-                    ad_pct_of_goal=_cell(row, ad_base + 6) or None,
-                    ad_comments=_cell(row, ad_base + 7) or None,
-                )
+                    # Get week date from date_row
+                    week_date = (
+                        parse_date(_cell(date_row, cb_base)) if cb_base < len(date_row) else None
+                    )
 
-                if existing:
-                    for k, v in data.items():
-                        setattr(existing, k, v)
-                else:
-                    session.add(GoalsVsDelivery(**data))
-                result.rows_imported += 1
+                    existing = session.execute(
+                        select(GoalsVsDelivery).where(
+                            GoalsVsDelivery.month_year == month_year,
+                            GoalsVsDelivery.week_number == week_num,
+                            GoalsVsDelivery.client_name == client_name,
+                        )
+                    ).scalar_one_or_none()
+
+                    data = dict(
+                        month_year=month_year,
+                        week_number=week_num,
+                        week_date=week_date,
+                        client_name=client_name,
+                        growth_team_pod=growth_pod,
+                        editorial_team_pod=ed_pod,
+                        client_type=client_type,
+                        content_type=content_type,
+                        ratios=ratios,
+                        cb_delivered_today=safe_int(_cell(row, cb_base)),
+                        cb_projection=safe_int(_cell(row, cb_base + 1)),
+                        cb_delivered_to_date=safe_int(_cell(row, cb_base + 2)),
+                        cb_monthly_goal=safe_int(_cell(row, cb_base + 3)),
+                        cb_pct_of_goal=_cell(row, cb_base + 4) or None,
+                        cb_comments=_cell(row, cb_base + 5) or None,
+                        ad_revisions=safe_int(_cell(row, ad_base)),
+                        ad_delivered_today=safe_int(_cell(row, ad_base + 1)),
+                        ad_projection=safe_int(_cell(row, ad_base + 2)),
+                        ad_cb_backlog=safe_int(_cell(row, ad_base + 3)),
+                        ad_delivered_to_date=safe_int(_cell(row, ad_base + 4)),
+                        ad_monthly_goal=safe_int(_cell(row, ad_base + 5)),
+                        ad_pct_of_goal=_cell(row, ad_base + 6) or None,
+                        ad_comments=_cell(row, ad_base + 7) or None,
+                    )
+
+                    if existing:
+                        for k, v in data.items():
+                            setattr(existing, k, v)
+                    else:
+                        session.add(GoalsVsDelivery(**data))
+                    result.rows_imported += 1
 
         session.commit()
     except Exception as exc:
@@ -2060,6 +2073,340 @@ def import_goals_vs_delivery(session: Session) -> ImportResult:
         session.rollback()
         result.success = False
         result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_notion_database
+# ---------------------------------------------------------------------------
+
+
+def import_monthly_kpi_scores(session: Session) -> ImportResult:
+    """Import 'Monthly KPI Scores' sheet into kpi_scores table.
+
+    Reads manually-entered KPI scores for Internal Quality, External Quality,
+    Mentorship, and Feedback Adoption. Upserts into kpi_scores matching on
+    (team_member_id, year, month, kpi_type, client_id).
+    """
+    result = ImportResult(sheet="Monthly KPI Scores")
+
+    try:
+        service = get_sheets_client()
+
+        # Find the sheet — it may have [Mock] prefix or not
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+            .execute()
+        )
+        sheet_name = None
+        for s in meta.get("sheets", []):
+            title = s.get("properties", {}).get("title", "")
+            if "Monthly KPI Scores" in title:
+                sheet_name = title
+                break
+
+        if not sheet_name:
+            result.errors.append("Sheet 'Monthly KPI Scores' not found")
+            result.success = False
+            return result
+
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        if len(all_rows) < 5:
+            result.errors.append("Sheet has too few rows")
+            result.success = False
+            return result
+
+        # Build team member lookup: name → id
+        members = session.execute(select(TeamMember)).scalars().all()
+        member_lookup: dict[str, int] = {}
+        for m in members:
+            member_lookup[m.name.strip().lower()] = m.id
+
+        # Build client lookup: name → id
+        clients_all = session.execute(select(Client)).scalars().all()
+        client_lookup: dict[str, int] = {}
+        for c in clients_all:
+            client_lookup[c.name.strip().lower()] = c.id
+
+        # KPI column mapping: col index → kpi_type
+        KPI_COLS = {
+            5: "internal_quality",
+            6: "external_quality",
+            7: "mentorship",
+            8: "feedback_adoption",
+        }
+
+        # KPI targets
+        TARGETS = {
+            "internal_quality": 85.0,
+            "external_quality": 85.0,
+            "mentorship": 80.0,
+            "feedback_adoption": 80.0,
+        }
+
+        # Data starts at row 4 (index 4, after title + empty + headers + guidance)
+        data_rows = all_rows[4:]
+
+        for row in data_rows:
+            result.rows_parsed += 1
+
+            month_year_str = _cell(row, 0)
+            member_name = _cell(row, 1)
+            client_name = _cell(row, 4)
+
+            if not month_year_str or not member_name:
+                continue
+
+            # Parse month_year: "March 2026" → (2026, 3)
+            parsed = None
+            parts = month_year_str.strip().split()
+            if len(parts) == 2:
+                month_names = {
+                    "january": 1,
+                    "february": 2,
+                    "march": 3,
+                    "april": 4,
+                    "may": 5,
+                    "june": 6,
+                    "july": 7,
+                    "august": 8,
+                    "september": 9,
+                    "october": 10,
+                    "november": 11,
+                    "december": 12,
+                }
+                m = month_names.get(parts[0].lower())
+                try:
+                    y = int(parts[1])
+                    if m:
+                        parsed = (y, m)
+                except ValueError:
+                    pass
+
+            if not parsed:
+                continue
+            year, month = parsed
+
+            # Resolve team member
+            member_id = member_lookup.get(member_name.strip().lower())
+            if member_id is None:
+                continue
+
+            # Resolve client (None for aggregate rows)
+            client_id = None
+            if client_name and client_name != "(Aggregate)":
+                client_id = client_lookup.get(client_name.strip().lower())
+
+            # Import each KPI column
+            for col_idx, kpi_type in KPI_COLS.items():
+                raw = _cell(row, col_idx)
+                if not raw:
+                    continue
+
+                score = safe_int(raw)
+                if score is None:
+                    try:
+                        score = int(float(raw))
+                    except (ValueError, TypeError):
+                        continue
+
+                target = TARGETS[kpi_type]
+
+                # Upsert
+                existing = session.execute(
+                    select(KpiScore).where(
+                        KpiScore.team_member_id == member_id,
+                        KpiScore.year == year,
+                        KpiScore.month == month,
+                        KpiScore.kpi_type == kpi_type,
+                        KpiScore.client_id == client_id
+                        if client_id is not None
+                        else KpiScore.client_id.is_(None),
+                    )
+                ).scalar_one_or_none()
+
+                if existing:
+                    existing.score = float(score)
+                    existing.target = target
+                    existing.notes = "from Monthly KPI Scores sheet"
+                    existing.updated_by = "kpi_sheet_import"
+                else:
+                    session.add(
+                        KpiScore(
+                            team_member_id=member_id,
+                            year=year,
+                            month=month,
+                            kpi_type=kpi_type,
+                            score=float(score),
+                            target=target,
+                            client_id=client_id,
+                            notes="from Monthly KPI Scores sheet",
+                            updated_by="kpi_sheet_import",
+                        )
+                    )
+                result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+        logger.info(f"Monthly KPI Scores: {result.rows_imported} scores imported")
+
+    except Exception as exc:
+        logger.exception("Error importing Monthly KPI Scores")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_notion_database
+# ---------------------------------------------------------------------------
+
+
+def import_notion_database(session: Session) -> ImportResult:
+    """Import Notion database export from Google Sheet into notion_articles table."""
+    sheet_name = "Notion Database"
+    result = ImportResult(sheet=sheet_name)
+
+    notion_sheet_id = settings.notion_database_id
+    if not notion_sheet_id:
+        result.errors.append("NOTION_DATABASE_ID not configured")
+        result.success = False
+        return result
+
+    try:
+        service = get_sheets_client()
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=notion_sheet_id, range="'Notion'")
+            .execute()
+        )
+        all_rows = resp.get("values", [])
+        if len(all_rows) < 2:
+            result.errors.append("Sheet has too few rows")
+            result.success = False
+            return result
+
+        # Build column index from header row
+        headers = all_rows[0]
+        col_map: dict[str, int] = {}
+        for i, h in enumerate(headers):
+            if h and str(h).strip():
+                col_map[str(h).strip()] = i
+
+        # Column mapping: sheet header → model field
+        FIELD_MAP = {
+            "Case ID": "case_id",
+            "Property": "title",
+            "Client": "client_name",
+            "Writer": "writer",
+            "Editor": "editor",
+            "Sr Editor": "sr_editor",
+            "Current Assignee": "current_assignee",
+            "CB Creator": "cb_creator",
+            "CB Reviewer": "cb_reviewer",
+            "Editorial Team POD": "editorial_pod",
+            "Account Team POD": "account_pod",
+            "CMS POD": "cms_pod",
+            "Content Type": "content_type",
+            "Client Type": "client_type",
+            "Article Workflow Status": "article_status",
+            "CB Workflow Status": "cb_status",
+            "CMS Workflow Status": "cms_status",
+            "Workflow": "workflow",
+            "Client Folder": "client_folder",
+            "Published URL": "published_url",
+            "WA Link": "wa_link",
+            "Article Link": "article_link",
+            "CB Link": "cb_link",
+            "Page Url": "notion_url",
+            "Priority Month": "priority_month",
+            "Priority Level": "priority_level",
+            "Month": "month",
+            "Uploader": "uploader",
+            "Created by": "created_by",
+            "Notes": "notes",
+        }
+
+        DATE_FIELDS = {
+            "Created time": "created_date",
+            "CB Delivered Date": "cb_delivered_date",
+            "CB Deadline": "cb_deadline",
+            "Article Delivered Date": "article_delivered_date",
+            "Article Deadline": "article_deadline",
+            "CMS Delivered Date": "cms_delivered_date",
+        }
+
+        data_rows = all_rows[1:]
+        batch_size = 500
+
+        for idx, row in enumerate(data_rows):
+            result.rows_parsed += 1
+
+            # Get case_id — skip if missing
+            case_id_col = col_map.get("Case ID")
+            if case_id_col is None:
+                continue
+            case_id = _cell(row, case_id_col)
+            if not case_id:
+                continue
+
+            # Build data dict from string fields
+            data: dict = {"case_id": case_id}
+            for sheet_col, model_field in FIELD_MAP.items():
+                ci = col_map.get(sheet_col)
+                if ci is not None:
+                    val = _cell(row, ci) or None
+                    data[model_field] = val
+
+            # Parse date fields
+            for sheet_col, model_field in DATE_FIELDS.items():
+                ci = col_map.get(sheet_col)
+                if ci is not None:
+                    raw = _cell(row, ci)
+                    if raw:
+                        data[model_field] = parse_date(raw)
+                    else:
+                        data[model_field] = None
+
+            # Upsert on case_id
+            existing = session.execute(
+                select(NotionArticle).where(NotionArticle.case_id == case_id)
+            ).scalar_one_or_none()
+
+            if existing:
+                for k, v in data.items():
+                    if k != "case_id":
+                        setattr(existing, k, v)
+            else:
+                session.add(NotionArticle(**data))
+
+            result.rows_imported += 1
+
+            # Batch flush for performance
+            if (idx + 1) % batch_size == 0:
+                session.flush()
+                logger.info(f"Notion import: flushed {idx + 1} rows...")
+
+        session.commit()
+        result.success = True
+        logger.info(f"Notion import complete: {result.rows_imported} articles imported")
+
+    except Exception as exc:
+        logger.exception("Error importing Notion database")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
     return result
 
 

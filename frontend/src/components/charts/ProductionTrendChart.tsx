@@ -123,7 +123,7 @@ export function ProductionTrendChart({ data }: ProductionTrendChartProps) {
     <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
       <div className="mb-4">
         <h3 className="text-base font-semibold text-white">
-          Production History <DataSourceBadge type="live" source="Google Sheets — Editorial Operating Model (Oct 2022–Feb 2027)" />
+          Production History <DataSourceBadge type="live" source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output across all clients, actual vs projected (Oct 2022–Feb 2027)." />
         </h3>
         <p className="mt-0.5 text-xs text-[#606060]">
           Monthly article output across all clients

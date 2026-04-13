@@ -28,6 +28,10 @@ import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { DeliveryTrendChart } from "@/components/charts/DeliveryTrendChart";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { PacingBadge } from "@/components/dashboard/PacingBadge";
+import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
+import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
+import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
+import { SortableHead as SortableHeadShared } from "@/components/dashboard/shared-helpers";
 import {
   Select,
   SelectContent,
@@ -266,7 +270,11 @@ export default function EditorialClientsPage() {
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="contract-timeline">
+      <Tabs defaultValue="contract-timeline" onValueChange={() => {
+        const scroller = document.querySelector('.ml-\\[240px\\]') as HTMLElement | null;
+        if (scroller) scroller.scrollTo({ top: 0, behavior: "smooth" });
+        else window.scrollTo({ top: 0, behavior: "smooth" });
+      }}>
         {/* Sticky: title + filters + tabs */}
         <div className="sticky top-14 z-20 bg-black pb-3 -mx-8 px-8 pt-1">
           {/* Compact header: filters + tabs in one tight block */}
@@ -299,6 +307,7 @@ export default function EditorialClientsPage() {
         </TabsContent>
 
         <TabsContent value="deliverables-sow">
+          {/* Delivery Overview: summary cards + charts */}
           <DeliverablesSOWTab
             clients={filteredClients}
             deliverables={deliverables}
@@ -306,20 +315,37 @@ export default function EditorialClientsPage() {
             pacingData={pacingData}
           />
 
-          {/* Cumulative Pipeline section */}
+          {/* Unified Client Delivery Matrix (joined data from all sources) */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
-            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-4">
-              Cumulative Pipeline <DataSourceBadge type="live" source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline metrics per client: topics, CBs, articles sent/approved." />
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
+              Client Delivery Matrix <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial Operating Model' + 'Goals vs Delivery' — Spreadsheet: Editorial Capacity Planning + Master Tracker. Joined view across all delivery data sources." />
             </h3>
-            <CumulativePipelineTab />
+            <p className="text-xs text-[#606060] mb-4">
+              Unified per-client monthly view joining SOW, invoicing, CB &amp; article delivery, and production data. Expand rows for weekly detail.
+            </p>
+            <ClientDeliveryMatrix filteredClients={filteredClients} />
           </div>
 
-          {/* Weekly Goals vs Delivery section */}
+          {/* Cumulative Pipeline section — card-based redesign */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
-            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-4">
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
+              Cumulative Pipeline <DataSourceBadge type="live" source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline metrics per client: topics, CBs, articles sent/approved." />
+            </h3>
+            <p className="text-xs text-[#606060] mb-4">
+              All-time pipeline progression per client — topics through publication with approval rates at each stage.
+            </p>
+            <CumulativePipelineSection filteredClients={filteredClients} />
+          </div>
+
+          {/* Weekly Goals vs Delivery section — card-based redesign */}
+          <div className="mt-8 border-t border-[#2a2a2a] pt-6">
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
               Weekly Goals vs Delivery <DataSourceBadge type="live" source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Weekly delivery tracking against monthly goals." />
             </h3>
-            <GoalsVsDeliveryTab />
+            <p className="text-xs text-[#606060] mb-4">
+              Weekly delivery tracking against monthly goals for content briefs and articles by client.
+            </p>
+            <GoalsVsDeliverySection filteredClients={filteredClients} />
           </div>
         </TabsContent>
       </Tabs>
@@ -1122,12 +1148,8 @@ interface ClientDeliverableSummary {
   articles_sow: number;
   articles_delivered: number;
   articles_invoiced: number;
-  balance: number;
+  variance: number;
   pct_complete: number;
-  cbs_delivered: number;
-  cbs_goal: number;
-  ko_to_article_days: number | null;
-  cb_to_article_days: number | null;
 }
 
 function DeliverablesSOWTab({
@@ -1151,28 +1173,13 @@ function DeliverablesSOWTab({
       const sow = c.articles_sow ?? 0;
       const delivered = c.articles_delivered ?? 0;
       const invoiced = c.articles_invoiced ?? 0;
-      const balance = delivered - invoiced;
       const pct = sow > 0 ? Math.round((delivered / sow) * 100) : 0;
 
-      // Content briefs: sum from deliverables for this client
+      // Sum variance from deliverables for this client (from sheet)
       const clientDeliverables = deliverables.filter((d) => d.client_id === c.id);
-      const cbsDelivered = clientDeliverables.reduce(
-        (acc, d) => acc + (d.content_briefs_delivered ?? 0),
+      const totalVariance = clientDeliverables.reduce(
+        (acc, d) => acc + (d.variance ?? 0),
         0
-      );
-      const cbsGoal = clientDeliverables.reduce(
-        (acc, d) => acc + (d.content_briefs_goal ?? 0),
-        0
-      );
-
-      // Time-to metrics per client
-      const koToArticleDays = daysBetween(
-        c.editorial_ko_date,
-        c.first_article_delivered_date
-      );
-      const cbToArticleDays = daysBetween(
-        c.first_cb_approved_date,
-        c.first_article_delivered_date
       );
 
       return {
@@ -1182,12 +1189,8 @@ function DeliverablesSOWTab({
         articles_sow: sow,
         articles_delivered: delivered,
         articles_invoiced: invoiced,
-        balance,
+        variance: totalVariance,
         pct_complete: pct,
-        cbs_delivered: cbsDelivered,
-        cbs_goal: cbsGoal,
-        ko_to_article_days: koToArticleDays,
-        cb_to_article_days: cbToArticleDays,
       };
     });
   }, [clients, deliverables]);
@@ -1205,20 +1208,31 @@ function DeliverablesSOWTab({
       : 0;
 
   return (
-    <div className="mt-4 space-y-6">
-      {/* Summary row */}
-      <div className="flex items-center gap-2 mb-2">
-        <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Monthly articles delivered and invoiced per client." />
+    <div className="mt-3 space-y-5">
+      {/* Section heading */}
+      <div>
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
+          Delivery Overview <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Articles delivered, invoiced, balance, and SOW targets." />
+        </h3>
+        <p className="text-xs text-[#606060] mb-3">
+          Monthly article delivery progress against SOW targets, invoicing balance, and pacing status per client.
+        </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <SummaryCard
           title="Total Delivered vs SOW"
-          value={`${totalDelivered} / ${totalSow}`}
+          value={`${totalDelivered.toLocaleString()} / ${totalSow.toLocaleString()}`}
           valueColor="green"
           progress={overallPct}
           description={`${overallPct}% complete`}
         />
-        <SummaryCard title="Total Invoiced" value={totalInvoiced} />
+        <SummaryCard title="Total Invoiced" value={totalInvoiced.toLocaleString()} />
+        <SummaryCard
+          title="Total Variance"
+          value={(() => { const v = rows.reduce((a, r) => a + r.variance, 0); return v > 0 ? `+${v.toLocaleString()}` : v.toLocaleString(); })()}
+          valueColor={(() => { const v = rows.reduce((a, r) => a + r.variance, 0); return v >= 0 ? "green" : "white"; })()}
+          description="From Delivered vs Invoiced sheet"
+        />
         <SummaryCard
           title="Avg Completion %"
           value={`${avgPct}%`}
@@ -1226,20 +1240,16 @@ function DeliverablesSOWTab({
         />
       </div>
 
-      {/* Production History */}
-      {productionTrend.length > 0 && (
-        <ProductionTrendChart data={productionTrend} />
-      )}
-
-      {/* Delivery Trend Chart */}
-      <DeliveryTrendChart deliverables={deliverables} />
-
-      {/* Table */}
-      <div className="flex items-center gap-2 mb-2">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          Deliverables vs SOW <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Articles delivered, invoiced, balance, and SOW targets." />
-        </h3>
+      {/* Charts side by side on larger screens */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {productionTrend.length > 0 && (
+          <ProductionTrendChart data={productionTrend} />
+        )}
+        <DeliveryTrendChart deliverables={deliverables} />
       </div>
+      <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+        Client Delivery Detail <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Per-client articles delivered, invoiced, CB delivery, pacing, and time-to metrics." />
+      </h3>
       <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
         <Table>
           <TableHeader>
@@ -1249,27 +1259,24 @@ function DeliverablesSOWTab({
               <SortableHead<ClientDeliverableSummary> label="Articles SOW" field="articles_sow" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<ClientDeliverableSummary> label="Delivered" field="articles_delivered" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<ClientDeliverableSummary> label="Invoiced" field="articles_invoiced" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="Balance" field="balance" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="CBs Delivered" field="cbs_delivered" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="CBs Goal" field="cbs_goal" toggle={toggleSort} icon={getSortIcon} />
+              <SortableHead<ClientDeliverableSummary> label="Variance" field="variance" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<ClientDeliverableSummary> label="% Complete" field="pct_complete" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="KO→Article (days)" field="ko_to_article_days" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="CB→Article (days)" field="cb_to_article_days" toggle={toggleSort} icon={getSortIcon} />
               <TableHead className="text-xs text-[#C4BCAA]">Pacing</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="text-center text-[#606060]">
+                <TableCell colSpan={8} className="text-center text-[#606060]">
                   No clients match the selected filters.
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((row) => (
+              sorted.map((row, idx) => (
                 <TableRow
                   key={row.id}
-                  className="border-[#2a2a2a] hover:bg-[#1F1F1F]"
+                  className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide"
+                  style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   <TableCell className="font-semibold text-white">
                     {row.name}
@@ -1287,20 +1294,14 @@ function DeliverablesSOWTab({
                   <TableCell
                     className={cn(
                       "font-mono text-xs font-semibold",
-                      row.balance > 0
+                      row.variance > 0
                         ? "text-[#42CA80]"
-                        : row.balance < 0
+                        : row.variance < 0
                           ? "text-[#ED6958]"
                           : "text-[#C4BCAA]"
                     )}
                   >
-                    {row.balance > 0 ? `+${row.balance}` : row.balance}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.cbs_delivered > 0 ? row.cbs_delivered : "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.cbs_goal > 0 ? row.cbs_goal : "\u2014"}
+                    {row.variance > 0 ? `+${row.variance}` : row.variance}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -1311,16 +1312,6 @@ function DeliverablesSOWTab({
                         <Progress value={row.pct_complete} className="h-1.5" />
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {row.ko_to_article_days !== null
-                      ? `${row.ko_to_article_days} d`
-                      : "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {row.cb_to_article_days !== null
-                      ? `${row.cb_to_article_days} d`
-                      : "\u2014"}
                   </TableCell>
                   <TableCell>
                     {pacingMap.has(row.name) ? (
@@ -1342,457 +1333,8 @@ function DeliverablesSOWTab({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tab 3: Goals vs Delivery
-// ---------------------------------------------------------------------------
+// Re-export SortableHead from shared helpers (used by Tab 1 + Deliverables table above)
+const SortableHead = SortableHeadShared;
 
-function pctColor(pctStr: string | null): string {
-  if (!pctStr) return "text-[#606060]";
-  const num = parseFloat(pctStr.replace("%", "")); // nosemgrep: incomplete-sanitization — formatting backend percentage strings, not sanitizing user input
-  if (isNaN(num)) return "text-[#606060]";
-  if (num >= 75) return "text-[#42CA80]";
-  if (num >= 50) return "text-[#F5C542]";
-  return "text-[#ED6958]";
-}
-
-function displayPct(pctStr: string | null): string {
-  if (!pctStr) return "-%";
-  const trimmed = pctStr.trim();
-  if (trimmed === "" || trimmed === "0" || trimmed === "0%") return "0%";
-  return trimmed.includes("%") ? trimmed : `${trimmed}%`;
-}
-
-function GoalsVsDeliveryTab() {
-  const [months, setMonths] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [rows, setRows] = useState<GoalsVsDeliveryRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch available months
-  useEffect(() => {
-    apiGet<string[]>("/api/goals-delivery/months")
-      .then((data) => {
-        setMonths(data);
-        // Default will be set by fetching latest
-      })
-      .catch(() => {});
-  }, []);
-
-  // Fetch latest data on mount
-  useEffect(() => {
-    setLoading(true);
-    apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/latest")
-      .then((data) => {
-        setRows(data);
-        // Set the selected month from the data
-        if (data.length > 0 && !selectedMonth) {
-          setSelectedMonth(data[0].month_year);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Fetch by selected month
-  const handleMonthChange = useCallback((month: string | null) => {
-    if (!month) return;
-    setSelectedMonth(month);
-    setLoading(true);
-    apiGet<GoalsVsDeliveryRow[]>(
-      `/api/goals-delivery/by-month/${encodeURIComponent(month)}`
-    )
-      .then(setRows)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Deduplicate rows by client_name (take latest week)
-  const clientRows = useMemo(() => {
-    const map = new Map<string, GoalsVsDeliveryRow>();
-    for (const row of rows) {
-      const existing = map.get(row.client_name);
-      if (!existing || row.week_number > existing.week_number) {
-        map.set(row.client_name, row);
-      }
-    }
-    return Array.from(map.values()).sort((a, b) =>
-      a.client_name.localeCompare(b.client_name)
-    );
-  }, [rows]);
-
-  const { sorted, toggleSort, getSortIcon } =
-    useSortableData<GoalsVsDeliveryRow>(clientRows);
-
-  // Summary computations
-  const totalCBDelivered = clientRows.reduce(
-    (acc, r) => acc + (r.cb_delivered_to_date ?? 0),
-    0
-  );
-  const totalCBGoal = clientRows.reduce(
-    (acc, r) => acc + (r.cb_monthly_goal ?? 0),
-    0
-  );
-  const totalADDelivered = clientRows.reduce(
-    (acc, r) => acc + (r.ad_delivered_to_date ?? 0),
-    0
-  );
-  const totalADGoal = clientRows.reduce(
-    (acc, r) => acc + (r.ad_monthly_goal ?? 0),
-    0
-  );
-  const cbPct = totalCBGoal > 0 ? Math.round((totalCBDelivered / totalCBGoal) * 100) : 0;
-  const adPct = totalADGoal > 0 ? Math.round((totalADDelivered / totalADGoal) * 100) : 0;
-  const onTrackCount = clientRows.filter((r) => {
-    const cbP = r.cb_pct_of_goal ? parseFloat(r.cb_pct_of_goal.replace("%", "")) : 0; // nosemgrep: incomplete-sanitization — formatting backend percentage strings
-    const adP = r.ad_pct_of_goal ? parseFloat(r.ad_pct_of_goal.replace("%", "")) : 0; // nosemgrep: incomplete-sanitization — formatting backend percentage strings
-    return cbP >= 75 || adP >= 75;
-  }).length;
-
-  if (loading) {
-    return (
-      <div className="mt-4 space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Skeleton className="h-[100px]" />
-          <Skeleton className="h-[100px]" />
-          <Skeleton className="h-[100px]" />
-        </div>
-        <Skeleton className="h-[400px]" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-4 space-y-6">
-      {/* Controls row */}
-      <div className="flex items-center gap-3">
-        <label className="font-mono text-xs text-[#606060] uppercase tracking-wider">
-          Month
-        </label>
-        <Select
-          value={selectedMonth}
-          onValueChange={handleMonthChange}
-        >
-          <SelectTrigger size="sm" className="w-[200px]">
-            <SelectValue placeholder="Select month" />
-          </SelectTrigger>
-          <SelectContent>
-            {months.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard
-          title="CBs Delivered vs Goal"
-          value={`${totalCBDelivered} / ${totalCBGoal}`}
-          valueColor="green"
-          progress={cbPct}
-          description={`${cbPct}% of goal`}
-        />
-        <SummaryCard
-          title="Articles Delivered vs Goal"
-          value={`${totalADDelivered} / ${totalADGoal}`}
-          valueColor="green"
-          progress={adPct}
-          description={`${adPct}% of goal`}
-        />
-        <SummaryCard
-          title="Clients On Track"
-          value={onTrackCount}
-          valueColor="green"
-          description={`of ${clientRows.length} clients`}
-        />
-      </div>
-
-      {/* Table */}
-      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-[#2a2a2a] hover:bg-transparent">
-              <SortableHead<GoalsVsDeliveryRow> label="Client" field="client_name" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<GoalsVsDeliveryRow> label="Growth Pod" field="growth_team_pod" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<GoalsVsDeliveryRow> label="Editorial Pod" field="editorial_team_pod" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Type</TableHead>
-              <SortableHead<GoalsVsDeliveryRow> label="CB Delivered" field="cb_delivered_to_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<GoalsVsDeliveryRow> label="CB Goal" field="cb_monthly_goal" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">CB %</TableHead>
-              <SortableHead<GoalsVsDeliveryRow> label="Articles Delivered" field="ad_delivered_to_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<GoalsVsDeliveryRow> label="Articles Goal" field="ad_monthly_goal" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Articles %</TableHead>
-              <SortableHead<GoalsVsDeliveryRow> label="Revisions" field="ad_revisions" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<GoalsVsDeliveryRow> label="CB Backlog" field="ad_cb_backlog" toggle={toggleSort} icon={getSortIcon} />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={12} className="text-center text-[#606060]">
-                  No data available for the selected month.
-                </TableCell>
-              </TableRow>
-            ) : (
-              sorted.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className="border-[#2a2a2a] hover:bg-[#1F1F1F]"
-                >
-                  <TableCell className="font-semibold text-white">
-                    {row.client_name}
-                  </TableCell>
-                  <TableCell>{podBadge(row.growth_team_pod)}</TableCell>
-                  <TableCell>{podBadge(row.editorial_team_pod)}</TableCell>
-                  <TableCell className="text-xs text-[#C4BCAA]">
-                    {row.client_type ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.cb_delivered_to_date ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.cb_monthly_goal ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className={cn("font-mono text-xs font-semibold", pctColor(row.cb_pct_of_goal))}>
-                    {displayPct(row.cb_pct_of_goal)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.ad_delivered_to_date ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.ad_monthly_goal ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className={cn("font-mono text-xs font-semibold", pctColor(row.ad_pct_of_goal))}>
-                    {displayPct(row.ad_pct_of_goal)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {row.ad_revisions ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {row.ad_cb_backlog ?? "\u2014"}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 4: Cumulative Pipeline
-// ---------------------------------------------------------------------------
-
-function CumulativePipelineTab() {
-  const [rows, setRows] = useState<CumulativeMetric[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiGet<CumulativeMetric[]>("/api/goals-delivery/cumulative")
-      .then(setRows)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Sort by pod, then client
-  const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => {
-      const podA = a.account_team_pod ?? "";
-      const podB = b.account_team_pod ?? "";
-      if (podA !== podB) return podA.localeCompare(podB);
-      return a.client_name.localeCompare(b.client_name);
-    });
-  }, [rows]);
-
-  const { sorted, toggleSort, getSortIcon } =
-    useSortableData<CumulativeMetric>(sortedRows);
-
-  // Summary computations
-  const totalClients = new Set(rows.map((r) => r.client_name)).size;
-  const totalTopicsSent = rows.reduce((a, r) => a + (r.topics_sent ?? 0), 0);
-  const totalTopicsApproved = rows.reduce((a, r) => a + (r.topics_approved ?? 0), 0);
-  const totalCBsSent = rows.reduce((a, r) => a + (r.cbs_sent ?? 0), 0);
-  const totalCBsApproved = rows.reduce((a, r) => a + (r.cbs_approved ?? 0), 0);
-  const totalArticlesSent = rows.reduce((a, r) => a + (r.articles_sent ?? 0), 0);
-  const totalArticlesApproved = rows.reduce((a, r) => a + (r.articles_approved ?? 0), 0);
-  const overallApproval =
-    totalArticlesSent > 0
-      ? Math.round((totalArticlesApproved / totalArticlesSent) * 100)
-      : 0;
-
-  if (loading) {
-    return (
-      <div className="mt-4 space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          <Skeleton className="h-[100px]" />
-          <Skeleton className="h-[100px]" />
-          <Skeleton className="h-[100px]" />
-          <Skeleton className="h-[100px]" />
-          <Skeleton className="h-[100px]" />
-        </div>
-        <Skeleton className="h-[400px]" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-4 space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <SummaryCard title="Total Clients" value={totalClients} valueColor="green" />
-        <SummaryCard
-          title="Topics Sent / Approved"
-          value={`${totalTopicsSent} / ${totalTopicsApproved}`}
-        />
-        <SummaryCard
-          title="CBs Sent / Approved"
-          value={`${totalCBsSent} / ${totalCBsApproved}`}
-        />
-        <SummaryCard
-          title="Articles Sent / Approved"
-          value={`${totalArticlesSent} / ${totalArticlesApproved}`}
-        />
-        <SummaryCard
-          title="Overall Approval Rate"
-          value={`${overallApproval}%`}
-          valueColor={overallApproval >= 75 ? "green" : "white"}
-        />
-      </div>
-
-      {/* Table */}
-      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-[#2a2a2a] hover:bg-transparent">
-              <TableHead className="text-xs text-[#C4BCAA]">Status</TableHead>
-              <SortableHead<CumulativeMetric> label="Pod" field="account_team_pod" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<CumulativeMetric> label="Client" field="client_name" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Type</TableHead>
-              <SortableHead<CumulativeMetric> label="Topics Sent" field="topics_sent" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<CumulativeMetric> label="Topics Appr." field="topics_approved" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Topics %</TableHead>
-              <SortableHead<CumulativeMetric> label="CBs Sent" field="cbs_sent" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<CumulativeMetric> label="CBs Appr." field="cbs_approved" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">CBs %</TableHead>
-              <SortableHead<CumulativeMetric> label="Articles Sent" field="articles_sent" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<CumulativeMetric> label="Articles Appr." field="articles_approved" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<CumulativeMetric> label="Diff" field="articles_difference" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Articles %</TableHead>
-              <SortableHead<CumulativeMetric> label="Published" field="published_live" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Live %</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={16} className="text-center text-[#606060]">
-                  No cumulative pipeline data available.
-                </TableCell>
-              </TableRow>
-            ) : (
-              sorted.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className="border-[#2a2a2a] hover:bg-[#1F1F1F]"
-                >
-                  <TableCell>
-                    {row.status ? statusBadge(row.status.toUpperCase()) : (
-                      <span className="text-[#606060]">{"\u2014"}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{podBadge(row.account_team_pod)}</TableCell>
-                  <TableCell className="font-semibold text-white">
-                    {row.client_name}
-                  </TableCell>
-                  <TableCell className="text-xs text-[#C4BCAA]">
-                    {row.client_type ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.topics_sent ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.topics_approved ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className={cn("font-mono text-xs font-semibold", pctColor(row.topics_pct_approved))}>
-                    {displayPct(row.topics_pct_approved)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.cbs_sent ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.cbs_approved ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className={cn("font-mono text-xs font-semibold", pctColor(row.cbs_pct_approved))}>
-                    {displayPct(row.cbs_pct_approved)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.articles_sent ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.articles_approved ?? "\u2014"}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "font-mono text-xs font-semibold",
-                      row.articles_difference != null && row.articles_difference > 0
-                        ? "text-[#42CA80]"
-                        : row.articles_difference != null && row.articles_difference < 0
-                          ? "text-[#ED6958]"
-                          : "text-[#C4BCAA]"
-                    )}
-                  >
-                    {row.articles_difference != null
-                      ? row.articles_difference > 0
-                        ? `+${row.articles_difference}`
-                        : row.articles_difference
-                      : "\u2014"}
-                  </TableCell>
-                  <TableCell className={cn("font-mono text-xs font-semibold", pctColor(row.articles_pct_approved))}>
-                    {displayPct(row.articles_pct_approved)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.published_live ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className={cn("font-mono text-xs font-semibold", pctColor(row.published_pct_live))}>
-                    {displayPct(row.published_pct_live)}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sortable Table Head
-// ---------------------------------------------------------------------------
-
-function SortableHead<T>({
-  label,
-  field,
-  toggle,
-  icon,
-}: {
-  label: string;
-  field: keyof T;
-  toggle: (key: keyof T) => void;
-  icon: (key: keyof T) => React.ReactNode;
-}) {
-  return (
-    <TableHead
-      className="cursor-pointer select-none text-xs text-[#C4BCAA] hover:text-white"
-      onClick={() => toggle(field)}
-    >
-      {label}
-      {icon(field)}
-    </TableHead>
-  );
-}
+// Old GoalsVsDeliveryTab, CumulativePipelineTab, and SortableHead functions
+// have been extracted to standalone components in /components/dashboard/

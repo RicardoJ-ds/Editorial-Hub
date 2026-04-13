@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     spreadsheet_id: str = ""
     master_tracker_id: str = ""
     ai_monitoring_id: str = ""
+    notion_database_id: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

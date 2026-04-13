@@ -39,7 +39,7 @@ export default function RecommendationChart({
   }));
 
   return (
-    <Card className="border-[#2a2a2a] bg-[#1a1a1a]">
+    <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-[#999]">
           {title}

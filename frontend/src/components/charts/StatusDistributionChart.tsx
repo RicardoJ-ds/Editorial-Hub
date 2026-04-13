@@ -79,7 +79,7 @@ export function StatusDistributionChart({
   return (
     <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardHeader>
-        <CardTitle className="text-white">Client Status <DataSourceBadge type="live" source="Derived from client status distribution" /></CardTitle>
+        <CardTitle className="text-white">Client Status <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Client status breakdown: Active, Completed, Cancelled, Soon to be Active." /></CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
         <ResponsiveContainer width="100%" height={220}>

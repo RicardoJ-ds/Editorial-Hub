@@ -20,6 +20,10 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Editorial Hub | Graphite",
   description: "Editorial operations management platform",
+  icons: {
+    icon: "/graphite-logo.png",
+    apple: "/graphite-logo.png",
+  },
 };
 
 export default function RootLayout({

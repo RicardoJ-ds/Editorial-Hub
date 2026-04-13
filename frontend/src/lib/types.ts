@@ -86,6 +86,7 @@ export interface DeliverableMonthly {
   articles_sow_target: number | null;
   articles_delivered: number | null;
   articles_invoiced: number | null;
+  variance: number | null;
   content_briefs_delivered: number | null;
   content_briefs_goal: number | null;
   notes: string | null;
@@ -100,6 +101,7 @@ export interface DeliverableCreate {
   articles_sow_target?: number;
   articles_delivered?: number;
   articles_invoiced?: number;
+  variance?: number;
   content_briefs_delivered?: number;
   content_briefs_goal?: number;
   notes?: string;
@@ -393,4 +395,83 @@ export interface GoalsVsDeliveryRow {
   ad_monthly_goal: number | null;
   ad_pct_of_goal: string | null;
   ad_comments: string | null;
+}
+
+// --- Unified Client Delivery ---
+
+export interface ClientMonthRow {
+  client_id: number;
+  client_name: string;
+  status: string;
+  growth_pod: string | null;
+  editorial_pod: string | null;
+  year: number;
+  month: number;
+  month_label: string;
+  articles_sow_target: number | null;
+  articles_delivered: number | null;
+  articles_invoiced: number | null;
+  variance: number | null;
+  articles_actual: number | null;
+  articles_projected: number | null;
+  is_actual: boolean | null;
+  cb_delivered_to_date: number | null;
+  cb_monthly_goal: number | null;
+  cb_pct: number | null;
+  ad_delivered_to_date: number | null;
+  ad_monthly_goal: number | null;
+  ad_pct: number | null;
+  ad_revisions: number | null;
+  ad_cb_backlog: number | null;
+  weeks_with_data: number;
+  pct_complete: number | null;
+}
+
+export interface ClientAlltimeRow {
+  client_id: number | null;
+  client_name: string;
+  status: string | null;
+  growth_pod: string | null;
+  editorial_pod: string | null;
+  account_team_pod: string | null;
+  articles_sow: number | null;
+  articles_delivered: number | null;
+  articles_invoiced: number | null;
+  topics_sent: number | null;
+  topics_approved: number | null;
+  cbs_sent: number | null;
+  cbs_approved: number | null;
+  articles_sent: number | null;
+  articles_approved: number | null;
+  articles_difference: number | null;
+  published_live: number | null;
+  topics_approval_pct: number | null;
+  cbs_approval_pct: number | null;
+  articles_approval_pct: number | null;
+}
+
+export interface WeeklyDetailRow {
+  client_name: string;
+  month_year: string;
+  week_number: number;
+  week_date: string | null;
+  cb_delivered_today: number | null;
+  cb_projection: number | null;
+  cb_delivered_to_date: number | null;
+  cb_monthly_goal: number | null;
+  cb_pct_of_goal: string | null;
+  ad_revisions: number | null;
+  ad_delivered_today: number | null;
+  ad_projection: number | null;
+  ad_cb_backlog: number | null;
+  ad_delivered_to_date: number | null;
+  ad_monthly_goal: number | null;
+  ad_pct_of_goal: string | null;
+}
+
+export interface ClientDeliveryResponse {
+  view: string;
+  monthly_rows: ClientMonthRow[] | null;
+  alltime_rows: ClientAlltimeRow[] | null;
+  weekly_rows: WeeklyDetailRow[] | null;
 }

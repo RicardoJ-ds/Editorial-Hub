@@ -125,7 +125,7 @@ export function DeliveryTrendChart({ deliverables }: DeliveryTrendChartProps) {
     <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardHeader>
         <CardTitle className="text-white">
-          Delivery vs Invoicing Trend <DataSourceBadge type="live" source="Google Sheets — Delivered vs Invoiced v2" />
+          Delivery vs Invoicing Trend <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Cumulative articles delivered and invoiced per month across all clients." />
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">

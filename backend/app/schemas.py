@@ -97,6 +97,7 @@ class DeliverableBase(BaseModel):
     articles_sow_target: int | None = 0
     articles_delivered: int | None = 0
     articles_invoiced: int | None = 0
+    variance: int | None = 0
     content_briefs_delivered: int | None = 0
     content_briefs_goal: int | None = 0
     notes: str | None = None
@@ -110,6 +111,7 @@ class DeliverableUpdate(BaseModel):
     articles_sow_target: int | None = None
     articles_delivered: int | None = None
     articles_invoiced: int | None = None
+    variance: int | None = None
     content_briefs_delivered: int | None = None
     content_briefs_goal: int | None = None
     notes: str | None = None
@@ -451,3 +453,129 @@ class GoalsVsDeliveryResponse(BaseModel):
     ad_comments: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- Unified Client Delivery schemas ---
+
+
+class ClientMonthRow(BaseModel):
+    client_id: int
+    client_name: str
+    status: str
+    growth_pod: str | None = None
+    editorial_pod: str | None = None
+    year: int
+    month: int
+    month_label: str
+    # DeliverableMonthly
+    articles_sow_target: int | None = None
+    articles_delivered: int | None = None
+    articles_invoiced: int | None = None
+    variance: int | None = None
+    # ProductionHistory
+    articles_actual: int | None = None
+    articles_projected: int | None = None
+    is_actual: bool | None = None
+    # GoalsVsDelivery (aggregated to month)
+    cb_delivered_to_date: int | None = None
+    cb_monthly_goal: int | None = None
+    cb_pct: float | None = None
+    ad_delivered_to_date: int | None = None
+    ad_monthly_goal: int | None = None
+    ad_pct: float | None = None
+    ad_revisions: int | None = None
+    ad_cb_backlog: int | None = None
+    weeks_with_data: int = 0
+    # Computed
+    pct_complete: float | None = None
+
+
+class ClientAlltimeRow(BaseModel):
+    client_id: int | None = None
+    client_name: str
+    status: str | None = None
+    growth_pod: str | None = None
+    editorial_pod: str | None = None
+    account_team_pod: str | None = None
+    articles_sow: int | None = None
+    articles_delivered: int | None = None
+    articles_invoiced: int | None = None
+    topics_sent: int | None = None
+    topics_approved: int | None = None
+    cbs_sent: int | None = None
+    cbs_approved: int | None = None
+    articles_sent: int | None = None
+    articles_approved: int | None = None
+    articles_difference: int | None = None
+    published_live: int | None = None
+    topics_approval_pct: float | None = None
+    cbs_approval_pct: float | None = None
+    articles_approval_pct: float | None = None
+
+
+class WeeklyDetailRow(BaseModel):
+    client_name: str
+    month_year: str
+    week_number: int
+    week_date: str | None = None
+    cb_delivered_today: int | None = None
+    cb_projection: int | None = None
+    cb_delivered_to_date: int | None = None
+    cb_monthly_goal: int | None = None
+    cb_pct_of_goal: str | None = None
+    ad_revisions: int | None = None
+    ad_delivered_today: int | None = None
+    ad_projection: int | None = None
+    ad_cb_backlog: int | None = None
+    ad_delivered_to_date: int | None = None
+    ad_monthly_goal: int | None = None
+    ad_pct_of_goal: str | None = None
+
+
+class ClientDeliveryResponse(BaseModel):
+    view: str
+    monthly_rows: list[ClientMonthRow] | None = None
+    alltime_rows: list[ClientAlltimeRow] | None = None
+    weekly_rows: list[WeeklyDetailRow] | None = None
+
+
+# --- Notion Article schemas ---
+
+
+class NotionArticleResponse(BaseModel):
+    id: int
+    case_id: str
+    title: str | None = None
+    client_name: str | None = None
+    writer: str | None = None
+    editor: str | None = None
+    sr_editor: str | None = None
+    editorial_pod: str | None = None
+    account_pod: str | None = None
+    content_type: str | None = None
+    client_type: str | None = None
+    article_status: str | None = None
+    cb_status: str | None = None
+    cms_status: str | None = None
+    created_date: datetime | None = None
+    cb_delivered_date: datetime | None = None
+    article_delivered_date: datetime | None = None
+    cms_delivered_date: datetime | None = None
+    published_url: str | None = None
+    priority_month: str | None = None
+    month: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NotionSummaryResponse(BaseModel):
+    total_articles: int
+    status_breakdown: dict[str, int]
+    revision_rate: float
+    revision_count: int
+    avg_turnaround_days: float | None = None
+    median_turnaround_days: float | None = None
+    turnaround_count: int = 0
+    second_review_count: int = 0
+    clients_count: int = 0
+    pods_breakdown: dict[str, int] | None = None

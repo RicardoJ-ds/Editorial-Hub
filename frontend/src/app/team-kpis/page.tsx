@@ -36,8 +36,8 @@ import { KpiCard, KPI_DISPLAY_NAMES, getKpiTypesForRole } from "@/components/das
 import { CapacityChart } from "@/components/charts/CapacityChart";
 import RecommendationChart from "@/components/charts/RecommendationChart";
 import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
+import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -128,13 +128,23 @@ export default function TeamKpisPage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Filters
-  const [selectedPod, setSelectedPod] = useState("All");
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMember, setSelectedMember] = useState("All");
-  const [selectedClient, setSelectedClient] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  // Unified filter state
+  const [filters, setFilters] = useState<TeamKpiFilters>({
+    search: "",
+    pod: "All",
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+    memberId: "All",
+    clientId: "All",
+  });
+
+  // Backwards-compat aliases for existing code
+  const selectedPod = filters.pod;
+  const selectedMonth = filters.month;
+  const selectedYear = filters.year;
+  const selectedMember = filters.memberId;
+  const selectedClient = filters.clientId;
+  const searchQuery = filters.search;
 
   useEffect(() => {
     async function fetchData() {
@@ -223,153 +233,49 @@ export default function TeamKpisPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Team KPIs Dashboard
-          </h2>
-          <p className="mt-1 text-sm text-[#606060]">
-            Monitor team performance metrics, KPI scores, and capacity
-            projections.
-          </p>
+    <div className="space-y-4">
+      <Tabs defaultValue="kpi-performance" onValueChange={() => {
+        const scroller = document.querySelector('.ml-\\[240px\\]') as HTMLElement | null;
+        if (scroller) scroller.scrollTo({ top: 0, behavior: "smooth" });
+        else window.scrollTo({ top: 0, behavior: "smooth" });
+      }}>
+        {/* Sticky header: filters + tabs (matching D1 pattern) */}
+        <div className="sticky top-14 z-20 bg-black pb-3 -mx-8 px-8 pt-1">
+          <div className="flex items-center justify-between mb-3">
+            <TeamKpiFilterBar
+              teamMembers={teamMembers}
+              clients={clients}
+              yearOptions={yearOptions}
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+            {lastUpdated && (
+              <p className="text-[10px] text-[#606060] font-mono shrink-0 ml-4">
+                {lastUpdated.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+          </div>
+          <TabsList variant="line">
+            <TabsTrigger
+              value="kpi-performance"
+              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+            >
+              KPI Performance
+            </TabsTrigger>
+            <TabsTrigger
+              value="capacity-projections"
+              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+            >
+              Capacity Projections
+            </TabsTrigger>
+            <TabsTrigger
+              value="ai-compliance"
+              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+            >
+              AI Compliance
+            </TabsTrigger>
+          </TabsList>
         </div>
-        {lastUpdated && (
-          <p className="text-xs text-[#606060] font-mono">
-            Last updated:{" "}
-            {lastUpdated.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#606060]" />
-          <Input
-            placeholder="Search members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 w-[200px] rounded-[min(var(--radius-md),10px)] border-[#2a2a2a] bg-[#161616] pl-8 text-sm text-white placeholder:text-[#606060]"
-          />
-        </div>
-
-        {/* Pod Select */}
-        <Select
-          value={selectedPod}
-          onValueChange={(val) => setSelectedPod(val ?? "All")}
-        >
-          <SelectTrigger size="sm" className="w-[140px]">
-            <SelectValue placeholder="Pod" />
-          </SelectTrigger>
-          <SelectContent>
-            {PODS.map((pod) => (
-              <SelectItem key={pod} value={pod}>
-                {pod}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Month Select */}
-        <Select
-          value={String(selectedMonth)}
-          onValueChange={(val) => setSelectedMonth(Number(val))}
-        >
-          <SelectTrigger size="sm" className="w-[140px]">
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map((m) => (
-              <SelectItem key={m.value} value={String(m.value)}>
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Year Select */}
-        <Select
-          value={String(selectedYear)}
-          onValueChange={(val) => setSelectedYear(Number(val))}
-        >
-          <SelectTrigger size="sm" className="w-[100px]">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {yearOptions.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Member Select */}
-        <Select
-          value={selectedMember}
-          onValueChange={(val) => setSelectedMember(val ?? "All")}
-        >
-          <SelectTrigger size="sm" className="w-[160px]">
-            <SelectValue placeholder="All Members" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Members</SelectItem>
-            {teamMembers.map((m) => (
-              <SelectItem key={m.id} value={String(m.id)}>
-                <span className="flex items-center gap-1.5">
-                  {m.name}
-                  {m.pod && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "ml-1 scale-75 text-[9px]",
-                        POD_COLORS[m.pod] ??
-                          "bg-[#606060]/15 text-[#909090] border-[#606060]/30"
-                      )}
-                    >
-                      {m.pod}
-                    </Badge>
-                  )}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Client Select */}
-        <Select
-          value={selectedClient}
-          onValueChange={(val) => setSelectedClient(val ?? "All")}
-        >
-          <SelectTrigger size="sm" className="w-[160px]">
-            <SelectValue placeholder="All Clients" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Clients</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="kpi-performance">
-        <TabsList variant="line">
-          <TabsTrigger value="kpi-performance">KPI Performance</TabsTrigger>
-          <TabsTrigger value="capacity-projections">
-            Capacity Projections
-          </TabsTrigger>
-          <TabsTrigger value="ai-compliance">AI Compliance</TabsTrigger>
-        </TabsList>
 
         <TabsContent value="kpi-performance">
           {selectedClient !== "All" && filteredScores.length === 0 ? (
@@ -484,7 +390,7 @@ function AIComplianceTab() {
       {/* Summary Cards */}
       <div className="mb-1 flex items-center gap-2">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">AI Compliance Summary</span>
-        <DataSourceBadge type="live" source="Google Sheets — Writer AI Monitoring 2.0 (Surfer AI detector v1/v2 scores)" />
+        <DataSourceBadge type="live" source="Sheet: 'Data' — Spreadsheet: Writer AI Monitoring 2.0. Surfer AI detector v1/v2 scores across 1,168 scanned articles." />
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <SummaryCard
@@ -532,7 +438,7 @@ function AIComplianceTab() {
       {/* Recommendation Charts 2x2 */}
       <div className="mb-1 flex items-center gap-2">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Recommendation Breakdown</span>
-        <DataSourceBadge type="live" source="Google Sheets — Writer AI Monitoring 2.0, Data sheet (1,168 scanned articles)" />
+        <DataSourceBadge type="live" source="Sheet: 'Data' — Spreadsheet: Writer AI Monitoring 2.0. Recommendation breakdown by pod, client, writer, and monthly trend." />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RecommendationChart data={byPod} title="Recommendation by Pod" />
@@ -544,7 +450,7 @@ function AIComplianceTab() {
       {/* Flagged Articles Table */}
       <section className="space-y-3">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          Flagged Articles <DataSourceBadge type="live" source="Google Sheets — Writer AI Monitoring 2.0, Yellow/Red Flags v2 sheet" />
+          Flagged Articles <DataSourceBadge type="live" source="Sheet: 'Yellow/Red Flags_v2' — Spreadsheet: Writer AI Monitoring 2.0. Articles flagged for AI content review requiring editorial action." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
           <Table>
@@ -567,8 +473,8 @@ function AIComplianceTab() {
                   </TableCell>
                 </TableRow>
               ) : (
-                flags.map((r) => (
-                  <TableRow key={r.id} className="border-[#2a2a2a] hover:bg-[#1F1F1F]">
+                flags.map((r, idx) => (
+                  <TableRow key={r.id} className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide" style={{ animationDelay: `${idx * 30}ms` }}>
                     <TableCell className="text-xs text-white">{r.client}</TableCell>
                     <TableCell className="max-w-[200px] truncate text-xs text-[#C4BCAA]" title={r.topic_title}>
                       {r.topic_title}
@@ -602,7 +508,7 @@ function AIComplianceTab() {
       {/* Rewrites Table */}
       <section className="space-y-3">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          Rewrites <DataSourceBadge type="live" source="Google Sheets — Writer AI Monitoring 2.0, Rewrites sheet" />
+          Rewrites <DataSourceBadge type="live" source="Sheet: 'Rewrites' — Spreadsheet: Writer AI Monitoring 2.0. Articles requiring full rewrite due to AI compliance failure." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
           <Table>
@@ -625,8 +531,8 @@ function AIComplianceTab() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rewrites.map((r) => (
-                  <TableRow key={r.id} className="border-[#2a2a2a] hover:bg-[#1F1F1F]">
+                rewrites.map((r, idx) => (
+                  <TableRow key={r.id} className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide" style={{ animationDelay: `${idx * 30}ms` }}>
                     <TableCell className="text-xs text-white">{r.client}</TableCell>
                     <TableCell className="max-w-[200px] truncate text-xs text-[#C4BCAA]" title={r.topic_title}>
                       {r.topic_title}
@@ -660,7 +566,7 @@ function AIComplianceTab() {
       {/* Surfer API Usage Table */}
       <section className="space-y-3">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          Surfer API Usage <DataSourceBadge type="live" source="Google Sheets — Writer AI Monitoring 2.0, Surfer's API usage sheet" />
+          Surfer API Usage <DataSourceBadge type="live" source="Sheet: 'Surfer&#39;s API usage' — Spreadsheet: Writer AI Monitoring 2.0. Monthly Surfer API call counts by editorial pod." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
           <Table>
@@ -684,8 +590,8 @@ function AIComplianceTab() {
                   </TableCell>
                 </TableRow>
               ) : (
-                surferUsage.map((row) => (
-                  <TableRow key={row.id} className="border-[#2a2a2a] hover:bg-[#1F1F1F]">
+                surferUsage.map((row, idx) => (
+                  <TableRow key={row.id} className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide" style={{ animationDelay: `${idx * 30}ms` }}>
                     <TableCell className="font-mono text-xs text-white">{row.year_month}</TableCell>
                     <TableCell className="font-mono text-xs text-[#C4BCAA] text-right">{row.pod_1}</TableCell>
                     <TableCell className="font-mono text-xs text-[#C4BCAA] text-right">{row.pod_2}</TableCell>
@@ -890,11 +796,11 @@ function KpiPerformanceTab({
   }
 
   return (
-    <div className="mt-4 space-y-8">
+    <div className="mt-3 space-y-5">
       {/* KPI Overview Heatmap */}
       <section className="space-y-3">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          KPI Overview <DataSourceBadge type="mock" source="Simulated scores (random seed). Real sources: Internal/External Quality need scoring rubric, Revision Rate needs Notion API, Turnaround Time needs Notion API, Second Reviews need manual tracking, Mentorship/Feedback need forms" />
+          KPI Overview <DataSourceBadge type="live" source="Sheet: 'Notion' — Spreadsheet: Notion Database Export. Revision Rate, Turnaround Time, and Second Reviews computed from 13K+ article records. Other KPIs (Internal/External Quality, Mentorship, Feedback) use simulated data pending scoring rubric." />
         </h3>
         <div className="table-scroll rounded-xl border border-[#2a2a2a] bg-[#161616]">
           <table className="w-full border-collapse">
@@ -924,7 +830,7 @@ function KpiPerformanceTab({
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => {
+              {members.map((member, idx) => {
                 const memberKpiTypes = getKpiTypesForRole(member.role);
                 const podColor =
                   POD_COLORS[member.pod ?? ""] ??
@@ -933,7 +839,8 @@ function KpiPerformanceTab({
                 return (
                   <tr
                     key={member.id}
-                    className="cursor-pointer border-t border-[#2a2a2a] transition-colors hover:bg-[#1F1F1F]"
+                    className="cursor-pointer border-t border-[#2a2a2a] transition-colors hover:bg-[#1F1F1F] animate-fade-slide"
+                    style={{ animationDelay: `${idx * 30}ms` }}
                     onClick={() => handleRowClick(member.id)}
                   >
                     <td className="sticky left-0 z-10 bg-[#161616] px-3 py-2 text-sm font-semibold text-white whitespace-nowrap">
@@ -1129,11 +1036,11 @@ function CapacityProjectionsTab({
   }, [capacity]);
 
   return (
-    <div className="mt-4 space-y-6">
+    <div className="mt-3 space-y-5">
       {/* Summary Row */}
       <div className="mb-1 flex items-center gap-2">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Capacity Summary</span>
-        <DataSourceBadge type="live" source="Google Sheets — ET CP 2026 (Editorial Capacity Planning Model, monthly pod projections)" />
+        <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections, utilization, and available bandwidth." />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
@@ -1172,10 +1079,18 @@ function CapacityProjectionsTab({
       </div>
 
       {/* Capacity Chart */}
-      <CapacityChart data={capacity} />
+      <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
+        <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-4">
+          Utilization by Pod <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections and utilization." />
+        </h4>
+        <CapacityChart data={capacity} />
+      </div>
 
       {/* Capacity Table */}
-      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
+      <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+        Capacity Detail <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Per-pod monthly capacity, projected usage, actual usage, and variance." />
+      </h3>
+      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
         <Table>
           <TableHeader>
             <TableRow className="border-[#2a2a2a] hover:bg-transparent">
@@ -1210,7 +1125,7 @@ function CapacityProjectionsTab({
                 </TableCell>
               </TableRow>
             ) : (
-              tableRows.map((row) => {
+              tableRows.map((row, idx) => {
                 const total = row.total_capacity ?? 0;
                 const projected = row.projected_used_capacity ?? 0;
                 const actual = row.actual_used_capacity ?? 0;
@@ -1223,7 +1138,8 @@ function CapacityProjectionsTab({
                 return (
                   <TableRow
                     key={row.id}
-                    className="border-[#2a2a2a] hover:bg-[#1F1F1F]"
+                    className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide"
+                    style={{ animationDelay: `${idx * 30}ms` }}
                   >
                     <TableCell>
                       <CapacityPodBadge pod={row.pod} />

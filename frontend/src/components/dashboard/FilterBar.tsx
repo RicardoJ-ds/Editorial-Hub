@@ -30,17 +30,24 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
   const [editorialPod, setEditorialPod] = useState(
     searchParams.get("editorial_pod") ?? "All"
   );
+  const [growthPod, setGrowthPod] = useState(
+    searchParams.get("growth_pod") ?? "All"
+  );
   const [status, setStatus] = useState(
     searchParams.get("status") ?? "All"
   );
   const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
 
-  // Derive editorial pods from actual data
+  // Derive pods from actual data
   const editorialPods = useMemo(() => {
     const pods = new Set<string>();
-    clients.forEach((c) => {
-      if (c.editorial_pod) pods.add(c.editorial_pod);
-    });
+    clients.forEach((c) => { if (c.editorial_pod) pods.add(c.editorial_pod); });
+    return ["All", ...Array.from(pods).sort()];
+  }, [clients]);
+
+  const growthPods = useMemo(() => {
+    const pods = new Set<string>();
+    clients.forEach((c) => { if (c.growth_pod) pods.add(c.growth_pod); });
     return ["All", ...Array.from(pods).sort()];
   }, [clients]);
 
@@ -67,6 +74,10 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
 
     if (editorialPod !== "All") {
       filtered = filtered.filter((c) => c.editorial_pod === editorialPod);
+    }
+
+    if (growthPod !== "All") {
+      filtered = filtered.filter((c) => c.growth_pod === growthPod);
     }
 
     if (status === "Active") {
@@ -96,7 +107,7 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
     }
 
     onFilterChange(filtered);
-  }, [clients, search, editorialPod, status, dateRange, onFilterChange]);
+  }, [clients, search, editorialPod, growthPod, status, dateRange, onFilterChange]);
 
   // Combobox state
   const [showDropdown, setShowDropdown] = useState(false);
@@ -124,6 +135,7 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
   const activeFilters = [
     search ? 1 : 0,
     editorialPod !== "All" ? 1 : 0,
+    growthPod !== "All" ? 1 : 0,
     status !== "All" ? 1 : 0,
     dateRange.type !== "all" ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
@@ -191,15 +203,44 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
           updateParams("editorial_pod", v);
         }}
       >
-        <SelectTrigger className={cn(
-          "h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2",
-          editorialPod !== "All" && "text-[#42CA80]"
-        )}>
+        <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
           <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Pod</span>
-          <SelectValue />
+          {editorialPod !== "All" ? (
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+              {editorialPod}
+            </span>
+          ) : (
+            <SelectValue />
+          )}
         </SelectTrigger>
         <SelectContent>
           {editorialPods.map((pod) => (
+            <SelectItem key={pod} value={pod}>{pod}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Growth Pod */}
+      <Select
+        value={growthPod}
+        onValueChange={(val) => {
+          const v = val ?? "All";
+          setGrowthPod(v);
+          updateParams("growth_pod", v);
+        }}
+      >
+        <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
+          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Growth</span>
+          {growthPod !== "All" ? (
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+              {growthPod}
+            </span>
+          ) : (
+            <SelectValue />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {growthPods.map((pod) => (
             <SelectItem key={pod} value={pod}>{pod}</SelectItem>
           ))}
         </SelectContent>
@@ -217,12 +258,15 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
           updateParams("status", v);
         }}
       >
-        <SelectTrigger className={cn(
-          "h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2",
-          status !== "All" && "text-[#42CA80]"
-        )}>
+        <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
           <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Status</span>
-          <SelectValue />
+          {status !== "All" ? (
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+              {status}
+            </span>
+          ) : (
+            <SelectValue />
+          )}
         </SelectTrigger>
         <SelectContent>
           {STATUS_OPTIONS.map((opt) => (
@@ -246,6 +290,7 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
             onClick={() => {
               setSearch(""); updateParams("search", "");
               setEditorialPod("All"); updateParams("editorial_pod", "All");
+              setGrowthPod("All"); updateParams("growth_pod", "All");
               setStatus("All"); updateParams("status", "All");
               setDateRange({ type: "all" });
             }}
