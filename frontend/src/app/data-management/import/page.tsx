@@ -640,57 +640,50 @@ function StepImporting({
 
   const runImport = useCallback(async () => {
     setStarted(true);
-    // Mark all as importing
-    setSheetStatuses(Object.fromEntries(selectedSheets.map((s) => [s, "importing"])));
+    const allResults: ImportResultItem[] = [];
+    let allOk = true;
 
-    try {
-      const response = await apiPost<ImportResponse>("/api/migrate/import", {
-        sheets: selectedSheets,
-      });
+    // Import sheets ONE AT A TIME to avoid timeout
+    for (let i = 0; i < selectedSheets.length; i++) {
+      const sheet = selectedSheets[i];
+      setSheetStatuses((prev) => ({ ...prev, [sheet]: "importing" }));
 
-      // Animate progress through results
-      const resultMap: Record<string, ImportResultItem> = {};
-      for (let i = 0; i < response.results.length; i++) {
-        const result = response.results[i];
-        resultMap[result.sheet] = result;
-        setResults({ ...resultMap });
+      try {
+        const response = await apiPost<ImportResponse>("/api/migrate/import", {
+          sheets: [sheet],
+        });
+        const result = response.results[0];
+        allResults.push(result);
+        setResults((prev) => ({ ...prev, [sheet]: result }));
         setSheetStatuses((prev) => ({
           ...prev,
-          [result.sheet]: result.success ? "done" : "error",
+          [sheet]: result.success ? "done" : "error",
         }));
-        setProgress(((i + 1) / response.results.length) * 100);
-        // Brief delay between each result for visual feedback
-        await new Promise((r) => setTimeout(r, 400));
-      }
-
-      // Auto-advance after showing all results
-      setTimeout(() => onComplete(response), 800);
-    } catch (err) {
-      // Mark all remaining as error
-      setSheetStatuses((prev) => {
-        const next = { ...prev };
-        for (const key of Object.keys(next)) {
-          if (next[key] === "importing" || next[key] === "pending") {
-            next[key] = "error";
-          }
-        }
-        return next;
-      });
-
-      // Create a synthetic error response
-      const errorResponse: ImportResponse = {
-        results: selectedSheets.map((s) => ({
-          sheet: s,
+        if (!result.success) allOk = false;
+      } catch (err) {
+        const errorResult: ImportResultItem = {
+          sheet,
           rows_parsed: 0,
           rows_imported: 0,
           success: false,
           errors: [err instanceof Error ? err.message : "Import failed"],
-        })),
-        total_imported: 0,
-        all_ok: false,
-      };
-      setTimeout(() => onComplete(errorResponse), 1500);
+        };
+        allResults.push(errorResult);
+        setResults((prev) => ({ ...prev, [sheet]: errorResult }));
+        setSheetStatuses((prev) => ({ ...prev, [sheet]: "error" }));
+        allOk = false;
+      }
+
+      setProgress(((i + 1) / selectedSheets.length) * 100);
     }
+
+    // Auto-advance after all sheets processed
+    const finalResponse: ImportResponse = {
+      results: allResults,
+      total_imported: allResults.reduce((sum, r) => sum + r.rows_imported, 0),
+      all_ok: allOk,
+    };
+    setTimeout(() => onComplete(finalResponse), 800);
   }, [selectedSheets, onComplete]);
 
   // Auto-start

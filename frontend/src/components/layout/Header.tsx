@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { CheckCircle2, Loader2, LogOut, RefreshCw, XCircle } from "lucide-react";
-import { apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 const pageTitles: Record<string, string> = {
   "/": "Home",
@@ -47,14 +47,30 @@ export function Header() {
     setSyncState("syncing");
     setSyncError(null);
     try {
-      await apiPost<{ all_ok: boolean; total_imported: number }>(
-        "/api/migrate/sync-all",
-        {}
-      );
-      setSyncState("success");
+      // Get all importable sheets
+      const sheets = await apiGet<{ name: string }[]>("/api/migrate/sheets");
+      const importable = sheets.map((s) => s.name);
+
+      // Import one sheet at a time to avoid timeout
+      let failed = 0;
+      for (const sheet of importable) {
+        try {
+          await apiPost("/api/migrate/import", { sheets: [sheet] });
+        } catch {
+          failed++;
+        }
+      }
+
+      if (failed > 0) {
+        setSyncState("error");
+        setSyncError(`${failed} of ${importable.length} sheets failed`);
+        setTimeout(() => setSyncState("idle"), 5000);
+      } else {
+        setSyncState("success");
+        setTimeout(() => setSyncState("idle"), 3000);
+      }
       // Notify dashboard pages to refetch
       window.dispatchEvent(new Event("data-synced"));
-      setTimeout(() => setSyncState("idle"), 3000);
     } catch (err) {
       setSyncState("error");
       setSyncError(err instanceof Error ? err.message : "Sync failed");
