@@ -319,6 +319,35 @@ def list_available_sheets() -> list[dict]:
         except Exception:
             logger.warning("Could not list sheets from %s spreadsheet", prefix)
 
+    # Also list the dedicated Notion Database spreadsheet
+    notion_id = getattr(settings, "notion_database_id", None)
+    if notion_id:
+        try:
+            notion_meta = (
+                service.spreadsheets()
+                .get(spreadsheetId=notion_id, fields="sheets.properties")
+                .execute()
+            )
+            for s in notion_meta.get("sheets", []):
+                props = s.get("properties", {})
+                if props.get("hidden"):
+                    continue
+                title = props.get("title", "")
+                if title == "Notion":
+                    row_count = props.get("gridProperties", {}).get("rowCount", 0)
+                    sheets_info.append(
+                        {
+                            "name": "Notion Database",
+                            "row_count": row_count,
+                            "description": SHEET_DESCRIPTIONS.get(
+                                "Notion Database",
+                                "Article workflow tracking from Notion export",
+                            ),
+                        }
+                    )
+        except Exception:
+            logger.warning("Could not list sheets from Notion spreadsheet")
+
     return sheets_info
 
 
