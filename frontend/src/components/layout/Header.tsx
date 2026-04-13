@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { CheckCircle2, Loader2, LogOut, RefreshCw, XCircle } from "lucide-react";
+import { apiPost } from "@/lib/api";
 
 const pageTitles: Record<string, string> = {
   "/": "Home",
@@ -32,10 +34,33 @@ function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
   return crumbs;
 }
 
+type SyncState = "idle" | "syncing" | "success" | "error";
+
 export function Header() {
   const pathname = usePathname();
   const title = pageTitles[pathname] || "Editorial Hub";
   const breadcrumbs = getBreadcrumbs(pathname);
+  const [syncState, setSyncState] = useState<SyncState>("idle");
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  async function handleSync() {
+    setSyncState("syncing");
+    setSyncError(null);
+    try {
+      await apiPost<{ all_ok: boolean; total_imported: number }>(
+        "/api/migrate/sync-all",
+        {}
+      );
+      setSyncState("success");
+      // Notify dashboard pages to refetch
+      window.dispatchEvent(new Event("data-synced"));
+      setTimeout(() => setSyncState("idle"), 3000);
+    } catch (err) {
+      setSyncState("error");
+      setSyncError(err instanceof Error ? err.message : "Sync failed");
+      setTimeout(() => setSyncState("idle"), 5000);
+    }
+  }
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-[#1e1e1e] bg-black px-6">
@@ -57,8 +82,45 @@ export function Header() {
         <h1 className="text-sm font-semibold text-white">{title}</h1>
       </div>
 
-      {/* Right: User info + avatar + logout */}
+      {/* Right: Sync button + User info + avatar + logout */}
       <div className="flex items-center gap-3">
+        {/* Sync button */}
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={syncState === "syncing"}
+          title={syncError ?? "Sync all data from Google Sheets"}
+          className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition-all duration-200 ${
+            syncState === "syncing"
+              ? "cursor-wait border-[#333] bg-[#1a1a1a] text-[#606060]"
+              : syncState === "success"
+                ? "border-[#42CA80]/30 bg-[#42CA80]/10 text-[#42CA80]"
+                : syncState === "error"
+                  ? "border-[#ED6958]/30 bg-[#ED6958]/10 text-[#ED6958]"
+                  : "border-[#333] bg-[#1a1a1a] text-[#999] hover:border-[#42CA80]/40 hover:text-white"
+          }`}
+        >
+          {syncState === "syncing" && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          )}
+          {syncState === "success" && (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          )}
+          {syncState === "error" && <XCircle className="h-3.5 w-3.5" />}
+          {syncState === "idle" && <RefreshCw className="h-3.5 w-3.5" />}
+          <span>
+            {syncState === "syncing"
+              ? "Syncing..."
+              : syncState === "success"
+                ? "Synced"
+                : syncState === "error"
+                  ? "Failed"
+                  : "Sync"}
+          </span>
+        </button>
+
+        <div className="h-5 w-px bg-[#333]" />
+
         <span className="font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA]">
           Ricardo Jaramillo
         </span>

@@ -227,25 +227,21 @@ export default function EditorialClientsPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [productionTrend, setProductionTrend] = useState<ProductionTrendPoint[]>([]);
   const [pacingData, setPacingData] = useState<ClientPacing[]>([]);
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [clientsData, deliverablesData] = await Promise.all([
-          apiGet<Client[]>("/api/clients/?limit=200"),
-          apiGet<DeliverableMonthly[]>("/api/deliverables/?limit=1000"),
-        ]);
-        setClients(clientsData);
-        setFilteredClients(clientsData);
-        setDeliverables(deliverablesData);
-        setLastUpdated(new Date());
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
-      } finally {
-        setLoading(false);
-      }
+  const fetchData = useCallback(async () => {
+    try {
+      const [clientsData, deliverablesData] = await Promise.all([
+        apiGet<Client[]>("/api/clients/?limit=200"),
+        apiGet<DeliverableMonthly[]>("/api/deliverables/?limit=1000"),
+      ]);
+      setClients(clientsData);
+      setFilteredClients(clientsData);
+      setDeliverables(deliverablesData);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
-
     // Fetch supplementary data in parallel — failures are non-blocking
     apiGet<ProductionTrendPoint[]>("/api/dashboard/production-trend")
       .then(setProductionTrend)
@@ -254,6 +250,15 @@ export default function EditorialClientsPage() {
       .then(setPacingData)
       .catch(() => {});
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Re-fetch when sync completes
+  useEffect(() => {
+    const handler = () => { setLoading(true); fetchData(); };
+    window.addEventListener("data-synced", handler);
+    return () => window.removeEventListener("data-synced", handler);
+  }, [fetchData]);
 
   const handleFilterChange = useCallback((filtered: Client[]) => {
     setFilteredClients(filtered);

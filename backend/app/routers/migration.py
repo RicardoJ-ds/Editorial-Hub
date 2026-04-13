@@ -17,6 +17,8 @@ from app.config import settings
 from app.database import get_db
 from app.models import AuditLog
 from app.services.migration_service import (
+    CAPACITY_PLAN_PREFIX,
+    IMPORT_DISPATCH,
     import_all,
     list_available_sheets,
     preview_sheet,
@@ -165,6 +167,72 @@ async def trigger_import(body: ImportRequest):
             status_code=500,
             detail=f"Import failed: {exc}",
         ) from exc
+
+    return ImportResponse(
+        results=[
+            ImportResultResponse(
+                sheet=r.sheet,
+                rows_parsed=r.rows_parsed,
+                rows_imported=r.rows_imported,
+                success=r.success,
+                errors=r.errors,
+            )
+            for r in results
+        ],
+        total_imported=sum(r.rows_imported for r in results),
+        all_ok=all(r.success for r in results),
+    )
+
+
+@router.post("/sync-all", response_model=ImportResponse)
+async def sync_all():
+    """One-click sync: import ALL sheets + refresh Notion KPIs."""
+
+    def _run_sync():
+        session = _get_sync_session()
+        try:
+            # Discover capacity plan sheet dynamically
+            all_sheets = list(IMPORT_DISPATCH.keys())
+            try:
+                available = list_available_sheets()
+                for s in available:
+                    if s["name"].startswith(CAPACITY_PLAN_PREFIX) and s["name"] not in all_sheets:
+                        all_sheets.append(s["name"])
+            except Exception:
+                logger.warning("Could not list sheets to detect capacity plan; skipping")
+
+            results = import_all(session, all_sheets)
+
+            # Refresh Notion KPIs for recent months
+            try:
+                from app.services.notion_kpi_service import refresh_notion_kpis
+
+                now = datetime.now()
+                for offset in range(7):
+                    m = now.month - offset
+                    y = now.year
+                    if m <= 0:
+                        m += 12
+                        y -= 1
+                    refresh_notion_kpis(session, y, m)
+                session.commit()
+            except Exception:
+                logger.warning(
+                    "Notion KPI refresh failed; sheet data still imported", exc_info=True
+                )
+
+            return results
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    try:
+        results = await asyncio.to_thread(_run_sync)
+    except Exception as exc:
+        logger.exception("Sync-all failed")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
 
     return ImportResponse(
         results=[

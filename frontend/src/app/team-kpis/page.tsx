@@ -146,30 +146,36 @@ export default function TeamKpisPage() {
   const selectedClient = filters.clientId;
   const searchQuery = filters.search;
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [members, kpis, capacity, activeClients] = await Promise.all([
-          apiGet<TeamMember[]>("/api/team-members/?limit=200"),
-          apiGet<KpiScore[]>(
-            `/api/kpis/?limit=500&year=${selectedYear}&month=${selectedMonth}`
-          ),
-          apiGet<CapacityProjection[]>("/api/capacity/?limit=200"),
-          apiGet<Client[]>("/api/clients/?status=ACTIVE&limit=100"),
-        ]);
-        setTeamMembers(members);
-        setKpiScores(kpis);
-        setCapacityData(capacity);
-        setClients(activeClients);
-        setLastUpdated(new Date());
-      } catch (err) {
-        console.error("Failed to load team KPI data:", err);
-      } finally {
-        setLoading(false);
-      }
+  const fetchData = useCallback(async () => {
+    try {
+      const [members, kpis, capacity, activeClients] = await Promise.all([
+        apiGet<TeamMember[]>("/api/team-members/?limit=200"),
+        apiGet<KpiScore[]>(
+          `/api/kpis/?limit=500&year=${selectedYear}&month=${selectedMonth}`
+        ),
+        apiGet<CapacityProjection[]>("/api/capacity/?limit=200"),
+        apiGet<Client[]>("/api/clients/?status=ACTIVE&limit=100"),
+      ]);
+      setTeamMembers(members);
+      setKpiScores(kpis);
+      setCapacityData(capacity);
+      setClients(activeClients);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Failed to load team KPI data:", err);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, [selectedYear, selectedMonth]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Re-fetch when sync completes
+  useEffect(() => {
+    const handler = () => { setLoading(true); fetchData(); };
+    window.addEventListener("data-synced", handler);
+    return () => window.removeEventListener("data-synced", handler);
+  }, [fetchData]);
 
   // Client id -> name lookup map
   const clientMap = useMemo(() => {
