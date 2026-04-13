@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -254,30 +252,11 @@ def _extract_hyperlinks(service, spreadsheet_id: str, range_str: str) -> dict[in
 # ---------------------------------------------------------------------------
 
 
-def _resolve_sa_key_path() -> str:
-    """Find the service-account key file. Tries several known locations."""
-    candidates = [
-        settings.google_application_credentials,  # from config
-        os.path.join(os.getcwd(), "sa-key.json"),  # CWD
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "sa-key.json",
-        ),  # backend/../sa-key.json
-        "/app/sa-key.json",  # Docker
-    ]
-    for path in candidates:
-        if os.path.isfile(path):
-            return path
-    raise FileNotFoundError(f"Cannot find SA key file. Tried: {candidates}")
-
-
 def get_sheets_client():
     """Build an authenticated Google Sheets API service."""
-    sa_path = _resolve_sa_key_path()
-    creds = service_account.Credentials.from_service_account_file(
-        sa_path,
-        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    )
+    from app.services.google_auth import get_google_credentials
+
+    creds = get_google_credentials(scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"])
     return build("sheets", "v4", credentials=creds)
 
 

@@ -10,7 +10,6 @@ from typing import Any
 
 import pandas as pd
 from google.cloud import bigquery
-from google.oauth2 import service_account
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -188,11 +187,10 @@ class FullSyncResult:
 
 
 def _get_bq_client() -> bigquery.Client:
-    """Build an authenticated BigQuery client from the SA key file."""
-    credentials = service_account.Credentials.from_service_account_file(
-        settings.google_application_credentials,
-        scopes=["https://www.googleapis.com/auth/bigquery"],
-    )
+    """Build an authenticated BigQuery client."""
+    from app.services.google_auth import get_google_credentials
+
+    credentials = get_google_credentials(scopes=["https://www.googleapis.com/auth/bigquery"])
     return bigquery.Client(
         project=settings.bq_project,
         credentials=credentials,
