@@ -434,9 +434,9 @@ def import_sow_overview(session: Session) -> ImportResult:
             wc_min, wc_max = parse_word_count(_cell(row, 10))
 
             # Upsert: try to find existing client by name
-            existing = session.execute(
-                select(Client).where(Client.name == client_name)
-            ).scalar_one_or_none()
+            existing = (
+                session.execute(select(Client).where(Client.name == client_name)).scalars().first()
+            )
 
             client_data = dict(
                 status=status,
@@ -599,13 +599,17 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
 
                 if articles_delivered_val is not None or articles_invoiced_val is not None:
                     # Upsert: check for existing record
-                    existing = session.execute(
-                        select(DeliverableMonthly).where(
-                            DeliverableMonthly.client_id == client_id,
-                            DeliverableMonthly.year == year,
-                            DeliverableMonthly.month == month,
+                    existing = (
+                        session.execute(
+                            select(DeliverableMonthly).where(
+                                DeliverableMonthly.client_id == client_id,
+                                DeliverableMonthly.year == year,
+                                DeliverableMonthly.month == month,
+                            )
                         )
-                    ).scalar_one_or_none()
+                        .scalars()
+                        .first()
+                    )
 
                     if existing:
                         existing.articles_sow_target = articles_sow_val or 0
@@ -759,9 +763,11 @@ def import_capacity_plan(session: Session) -> ImportResult:
             # Senior Editor
             se_name = pod_info["senior_editor"]
             if se_name not in seen_members:
-                existing = session.execute(
-                    select(TeamMember).where(TeamMember.name == se_name)
-                ).scalar_one_or_none()
+                existing = (
+                    session.execute(select(TeamMember).where(TeamMember.name == se_name))
+                    .scalars()
+                    .first()
+                )
                 if existing:
                     existing.role = "SENIOR_EDITOR"
                     existing.pod = pod_name
@@ -783,9 +789,11 @@ def import_capacity_plan(session: Session) -> ImportResult:
             # Editors
             for ed_name in pod_info["editors"]:
                 if ed_name not in seen_members:
-                    existing = session.execute(
-                        select(TeamMember).where(TeamMember.name == ed_name)
-                    ).scalar_one_or_none()
+                    existing = (
+                        session.execute(select(TeamMember).where(TeamMember.name == ed_name))
+                        .scalars()
+                        .first()
+                    )
                     if existing:
                         existing.role = "EDITOR"
                         existing.pod = pod_name
@@ -860,14 +868,18 @@ def import_capacity_plan(session: Session) -> ImportResult:
                     actual = safe_int(_cell(row, actual_col))
 
                     # Upsert
-                    existing = session.execute(
-                        select(CapacityProjection).where(
-                            CapacityProjection.pod == pod_name,
-                            CapacityProjection.year == year,
-                            CapacityProjection.month == month,
-                            CapacityProjection.version == version,
+                    existing = (
+                        session.execute(
+                            select(CapacityProjection).where(
+                                CapacityProjection.pod == pod_name,
+                                CapacityProjection.year == year,
+                                CapacityProjection.month == month,
+                                CapacityProjection.version == version,
+                            )
                         )
-                    ).scalar_one_or_none()
+                        .scalars()
+                        .first()
+                    )
 
                     if existing:
                         existing.total_capacity = total_cap
@@ -962,12 +974,16 @@ def import_model_assumptions(session: Session) -> ImportResult:
             def _upsert_assumption(
                 category: str, key: str, value: str, description: str | None = None
             ):
-                existing = session.execute(
-                    select(ModelAssumption).where(
-                        ModelAssumption.category == category,
-                        ModelAssumption.key == key,
+                existing = (
+                    session.execute(
+                        select(ModelAssumption).where(
+                            ModelAssumption.category == category,
+                            ModelAssumption.key == key,
+                        )
                     )
-                ).scalar_one_or_none()
+                    .scalars()
+                    .first()
+                )
                 if existing:
                     existing.value = value
                     if description is not None:
@@ -1174,13 +1190,17 @@ def import_operating_model(session: Session) -> ImportResult:
                 articles_projected = val if not is_actual else None
 
                 # Upsert: match by (client_id, year, month)
-                existing = session.execute(
-                    select(ProductionHistory).where(
-                        ProductionHistory.client_id == client_id,
-                        ProductionHistory.year == year,
-                        ProductionHistory.month == month,
+                existing = (
+                    session.execute(
+                        select(ProductionHistory).where(
+                            ProductionHistory.client_id == client_id,
+                            ProductionHistory.year == year,
+                            ProductionHistory.month == month,
+                        )
                     )
-                ).scalar_one_or_none()
+                    .scalars()
+                    .first()
+                )
 
                 if existing:
                     existing.articles_actual = articles_actual
@@ -1280,12 +1300,16 @@ def import_delivery_schedules(session: Session) -> ImportResult:
                 delivery_cumulative = safe_int(_cell(row, art_cum_col))
 
                 # Upsert: match by (sow_size, month_number)
-                existing = session.execute(
-                    select(DeliveryTemplate).where(
-                        DeliveryTemplate.sow_size == sow_size,
-                        DeliveryTemplate.month_number == month_number,
+                existing = (
+                    session.execute(
+                        select(DeliveryTemplate).where(
+                            DeliveryTemplate.sow_size == sow_size,
+                            DeliveryTemplate.month_number == month_number,
+                        )
                     )
-                ).scalar_one_or_none()
+                    .scalars()
+                    .first()
+                )
 
                 if existing:
                     existing.invoicing_target = invoicing_target
@@ -1388,11 +1412,15 @@ def import_engagement_requirements(session: Session) -> ImportResult:
                 continue
 
             # Upsert: match by rule_number
-            existing = session.execute(
-                select(EngagementRule).where(
-                    EngagementRule.rule_number == rule_num,
+            existing = (
+                session.execute(
+                    select(EngagementRule).where(
+                        EngagementRule.rule_number == rule_num,
+                    )
                 )
-            ).scalar_one_or_none()
+                .scalars()
+                .first()
+            )
 
             if existing:
                 existing.area = area
@@ -1513,13 +1541,17 @@ def import_meta_deliveries(session: Session) -> ImportResult:
                     continue
 
                 # Upsert into deliverables_monthly
-                existing = session.execute(
-                    select(DeliverableMonthly).where(
-                        DeliverableMonthly.client_id == client_id,
-                        DeliverableMonthly.year == year,
-                        DeliverableMonthly.month == month,
+                existing = (
+                    session.execute(
+                        select(DeliverableMonthly).where(
+                            DeliverableMonthly.client_id == client_id,
+                            DeliverableMonthly.year == year,
+                            DeliverableMonthly.month == month,
+                        )
                     )
-                ).scalar_one_or_none()
+                    .scalars()
+                    .first()
+                )
 
                 if existing:
                     existing.articles_delivered = val
@@ -1589,15 +1621,19 @@ def import_ai_monitoring_data(session: Session) -> ImportResult:
             date_proc = parse_date(_cell(row, 12))
             month_str = _cell(row, 13)
 
-            existing = session.execute(
-                select(AIMonitoringRecord).where(
-                    AIMonitoringRecord.pod == pod,
-                    AIMonitoringRecord.client == client,
-                    AIMonitoringRecord.topic_title == title,
-                    AIMonitoringRecord.date_processed == date_proc,
-                    AIMonitoringRecord.is_rewrite.is_(False),
+            existing = (
+                session.execute(
+                    select(AIMonitoringRecord).where(
+                        AIMonitoringRecord.pod == pod,
+                        AIMonitoringRecord.client == client,
+                        AIMonitoringRecord.topic_title == title,
+                        AIMonitoringRecord.date_processed == date_proc,
+                        AIMonitoringRecord.is_rewrite.is_(False),
+                    )
                 )
-            ).scalar_one_or_none()
+                .scalars()
+                .first()
+            )
 
             data = dict(
                 pod=pod,
@@ -1671,13 +1707,17 @@ def import_ai_monitoring_rewrites(session: Session) -> ImportResult:
             link = _cell(row, 10)
             date_proc = parse_date(_cell(row, 11))
 
-            existing = session.execute(
-                select(AIMonitoringRecord).where(
-                    AIMonitoringRecord.client == client,
-                    AIMonitoringRecord.topic_title == title,
-                    AIMonitoringRecord.is_rewrite.is_(True),
+            existing = (
+                session.execute(
+                    select(AIMonitoringRecord).where(
+                        AIMonitoringRecord.client == client,
+                        AIMonitoringRecord.topic_title == title,
+                        AIMonitoringRecord.is_rewrite.is_(True),
+                    )
                 )
-            ).scalar_one_or_none()
+                .scalars()
+                .first()
+            )
 
             data = dict(
                 pod="Rewrites",
@@ -1743,14 +1783,18 @@ def import_ai_monitoring_flags(session: Session) -> ImportResult:
             date_proc = parse_date(_cell(row, 11))
 
             # Try to find existing record from Data import and mark as flagged
-            existing = session.execute(
-                select(AIMonitoringRecord).where(
-                    AIMonitoringRecord.client == client,
-                    AIMonitoringRecord.topic_title == title,
-                    AIMonitoringRecord.date_processed == date_proc,
-                    AIMonitoringRecord.is_rewrite.is_(False),
+            existing = (
+                session.execute(
+                    select(AIMonitoringRecord).where(
+                        AIMonitoringRecord.client == client,
+                        AIMonitoringRecord.topic_title == title,
+                        AIMonitoringRecord.date_processed == date_proc,
+                        AIMonitoringRecord.is_rewrite.is_(False),
+                    )
                 )
-            ).scalar_one_or_none()
+                .scalars()
+                .first()
+            )
 
             if existing:
                 existing.is_flagged = True
@@ -1821,9 +1865,13 @@ def import_ai_monitoring_surfer(session: Session) -> ImportResult:
             if not year_month:
                 continue
 
-            existing = session.execute(
-                select(SurferAPIUsage).where(SurferAPIUsage.year_month == year_month)
-            ).scalar_one_or_none()
+            existing = (
+                session.execute(
+                    select(SurferAPIUsage).where(SurferAPIUsage.year_month == year_month)
+                )
+                .scalars()
+                .first()
+            )
 
             data = dict(
                 year_month=year_month,
@@ -1881,9 +1929,13 @@ def import_cumulative(session: Session) -> ImportResult:
             if not client_name:
                 continue
 
-            existing = session.execute(
-                select(CumulativeMetric).where(CumulativeMetric.client_name == client_name)
-            ).scalar_one_or_none()
+            existing = (
+                session.execute(
+                    select(CumulativeMetric).where(CumulativeMetric.client_name == client_name)
+                )
+                .scalars()
+                .first()
+            )
 
             data = dict(
                 status=_cell(row, 0) or None,
@@ -2013,13 +2065,17 @@ def import_goals_vs_delivery(session: Session) -> ImportResult:
                         parse_date(_cell(date_row, cb_base)) if cb_base < len(date_row) else None
                     )
 
-                    existing = session.execute(
-                        select(GoalsVsDelivery).where(
-                            GoalsVsDelivery.month_year == month_year,
-                            GoalsVsDelivery.week_number == week_num,
-                            GoalsVsDelivery.client_name == client_name,
+                    existing = (
+                        session.execute(
+                            select(GoalsVsDelivery).where(
+                                GoalsVsDelivery.month_year == month_year,
+                                GoalsVsDelivery.week_number == week_num,
+                                GoalsVsDelivery.client_name == client_name,
+                            )
                         )
-                    ).scalar_one_or_none()
+                        .scalars()
+                        .first()
+                    )
 
                     data = dict(
                         month_year=month_year,
@@ -2207,17 +2263,21 @@ def import_monthly_kpi_scores(session: Session) -> ImportResult:
                 target = TARGETS[kpi_type]
 
                 # Upsert
-                existing = session.execute(
-                    select(KpiScore).where(
-                        KpiScore.team_member_id == member_id,
-                        KpiScore.year == year,
-                        KpiScore.month == month,
-                        KpiScore.kpi_type == kpi_type,
-                        KpiScore.client_id == client_id
-                        if client_id is not None
-                        else KpiScore.client_id.is_(None),
+                existing = (
+                    session.execute(
+                        select(KpiScore).where(
+                            KpiScore.team_member_id == member_id,
+                            KpiScore.year == year,
+                            KpiScore.month == month,
+                            KpiScore.kpi_type == kpi_type,
+                            KpiScore.client_id == client_id
+                            if client_id is not None
+                            else KpiScore.client_id.is_(None),
+                        )
                     )
-                ).scalar_one_or_none()
+                    .scalars()
+                    .first()
+                )
 
                 if existing:
                     existing.score = float(score)
@@ -2366,9 +2426,11 @@ def import_notion_database(session: Session) -> ImportResult:
                         data[model_field] = None
 
             # Upsert on case_id
-            existing = session.execute(
-                select(NotionArticle).where(NotionArticle.case_id == case_id)
-            ).scalar_one_or_none()
+            existing = (
+                session.execute(select(NotionArticle).where(NotionArticle.case_id == case_id))
+                .scalars()
+                .first()
+            )
 
             if existing:
                 for k, v in data.items():
