@@ -100,11 +100,11 @@ export function Header() {
 
       {/* Right: Sync button + User info + avatar + logout */}
       <div className="flex items-center gap-3">
-        {/* Sync button */}
+        {/* Sync button (disabled for now) */}
         <button
           type="button"
           onClick={handleSync}
-          disabled={syncState === "syncing"}
+          disabled
           title={syncError ?? "Sync all data from Google Sheets"}
           className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition-all duration-200 ${
             syncState === "syncing"
