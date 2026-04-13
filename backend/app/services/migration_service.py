@@ -366,6 +366,10 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
         return MASTER_TRACKER_ID, sheet_name.removeprefix("Master Tracker - ")
     if sheet_name.startswith("AI Monitoring - "):
         return AI_MONITORING_ID, sheet_name.removeprefix("AI Monitoring - ")
+    if sheet_name == "Notion Database":
+        notion_id = getattr(settings, "notion_database_id", None)
+        if notion_id:
+            return notion_id, "Notion"
     return SPREADSHEET_ID, sheet_name
 
 
