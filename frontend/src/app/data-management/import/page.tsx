@@ -89,7 +89,6 @@ const IMPORTABLE_PREFIXES = [
   "ET CP 2026",
   "Monthly KPI Scores",
   "[Mock] Monthly KPI Scores",
-  "Master Tracker - Notion Database",
 ];
 
 function isImportable(name: string): boolean {
