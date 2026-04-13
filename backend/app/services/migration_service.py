@@ -2475,6 +2475,18 @@ def _get_import_func(sheet_name: str):
     if sheet_name.startswith(CAPACITY_PLAN_PREFIX):
         return import_capacity_plan
 
+    # [Mock] prefix variants — strip prefix and retry
+    if sheet_name.startswith("[Mock] "):
+        return _get_import_func(sheet_name.removeprefix("[Mock] "))
+
+    # Master Tracker - Notion Database → same as Notion Database
+    if sheet_name == "Master Tracker - Notion Database":
+        return import_notion_database
+
+    # Goals vs Delivery sheets with month prefix
+    if "Goals vs Delivery" in sheet_name:
+        return import_goals_vs_delivery
+
     return None
 
 

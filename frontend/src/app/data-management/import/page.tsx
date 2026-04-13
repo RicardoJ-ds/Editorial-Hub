@@ -66,48 +66,56 @@ interface ImportResponse {
 
 const STEPS = ["Connect", "Select Sheets", "Preview", "Import", "Complete"] as const;
 
-const IMPORTABLE_SHEETS = [
-  // Editorial Capacity Planning
+/** Exact-match importable sheet names */
+const IMPORTABLE_EXACT = [
   "Editorial SOW overview",
   "Delivered vs Invoiced v2",
-  "ET CP 2026 [V11 Mar 2026]",
   "Model Assumptions",
   "Editorial Operating Model",
   "Delivery Schedules",
   "Editorial Engagement Requirements",
   "Meta Calendar Month Deliveries",
-  // AI Monitoring
   "AI Monitoring - Data",
   "AI Monitoring - Rewrites",
   "AI Monitoring - Flags",
   "AI Monitoring - Surfer Usage",
-  // Master Tracker
   "Master Tracker - Cumulative",
   "Master Tracker - Goals vs Delivery",
+  "Notion Database",
 ];
 
-const SHEET_GROUPS: Record<string, string[]> = {
-  "Editorial Capacity Planning": [
+/** Prefix-match importable sheet names (capacity plan versions, KPI scores variants) */
+const IMPORTABLE_PREFIXES = [
+  "ET CP 2026",
+  "Monthly KPI Scores",
+  "[Mock] Monthly KPI Scores",
+  "Master Tracker - Notion Database",
+];
+
+function isImportable(name: string): boolean {
+  if (IMPORTABLE_EXACT.includes(name)) return true;
+  return IMPORTABLE_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+/** Group sheets by source — capacity plan matched by prefix */
+function getSheetGroup(name: string): string | null {
+  const ecpSheets = [
     "Editorial SOW overview",
     "Delivered vs Invoiced v2",
-    "ET CP 2026 [V11 Mar 2026]",
     "Model Assumptions",
     "Editorial Operating Model",
     "Delivery Schedules",
     "Editorial Engagement Requirements",
     "Meta Calendar Month Deliveries",
-  ],
-  "Writer AI Monitoring": [
-    "AI Monitoring - Data",
-    "AI Monitoring - Rewrites",
-    "AI Monitoring - Flags",
-    "AI Monitoring - Surfer Usage",
-  ],
-  "Master Tracker": [
-    "Master Tracker - Cumulative",
-    "Master Tracker - Goals vs Delivery",
-  ],
-};
+  ];
+  if (ecpSheets.includes(name) || name.startsWith("ET CP 2026") || name.includes("Monthly KPI Scores")) {
+    return "Editorial Capacity Planning";
+  }
+  if (name.startsWith("AI Monitoring")) return "Writer AI Monitoring";
+  if (name.startsWith("Master Tracker")) return "Master Tracker";
+  if (name === "Notion Database") return "Master Tracker";
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Step Indicator Component
@@ -263,8 +271,7 @@ function StepSelectSheets({
   onBack: () => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(() => {
-    const importable = new Set(IMPORTABLE_SHEETS);
-    return new Set(sheets.filter((s) => importable.has(s.name)).map((s) => s.name));
+    return new Set(sheets.filter((s) => isImportable(s.name)).map((s) => s.name));
   });
 
   const toggle = (name: string) => {
@@ -285,7 +292,7 @@ function StepSelectSheets({
     }
   };
 
-  const isImportable = (name: string) => IMPORTABLE_SHEETS.includes(name);
+  // isImportable is defined at module level
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -300,149 +307,82 @@ function StepSelectSheets({
         </button>
       </div>
 
-      {/* Sheet list — grouped by source */}
+      {/* Sheet list — dynamically grouped by source */}
       <div className="space-y-6">
-        {Object.entries(SHEET_GROUPS).map(([group, groupSheets]) => {
-          const matching = sheets.filter((s) => groupSheets.includes(s.name));
-          // Also show importable sheets not yet in groups (from API listing)
-          if (matching.length === 0) {
-            // If no sheets returned from API, show the group with known importable names
-            return (
-              <div key={group}>
-                <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#42CA80]">
-                  {group}
-                </h4>
-                <div className="space-y-2">
-                  {groupSheets.map((name) => {
-                    const checked = selected.has(name);
-                    return (
-                      <label
-                        key={name}
-                        className={cn(
-                          "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors",
-                          checked
-                            ? "border-[#42CA80]/40 bg-[#42CA80]/5"
-                            : "border-[#2a2a2a] bg-[#161616] hover:border-[#2a2a2a]/80",
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggle(name)}
-                          className="h-4 w-4 rounded border-[#2a2a2a] bg-[#161616] text-[#42CA80] accent-[#42CA80]"
-                        />
-                        <span className="font-medium text-white truncate">{name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            );
+        {(() => {
+          const groups: Record<string, SheetInfo[]> = {};
+          const ungrouped: SheetInfo[] = [];
+          for (const sheet of sheets) {
+            const group = getSheetGroup(sheet.name);
+            if (group) {
+              (groups[group] ??= []).push(sheet);
+            } else {
+              ungrouped.push(sheet);
+            }
           }
-          return (
-            <div key={group}>
-              <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#42CA80]">
-                {group}
-              </h4>
-              <div className="space-y-2">
-                {matching.map((sheet) => {
-                  const importable = isImportable(sheet.name);
-                  const checked = selected.has(sheet.name);
-                  return (
-                    <label
-                      key={sheet.name}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors",
-                        checked
-                          ? "border-[#42CA80]/40 bg-[#42CA80]/5"
-                          : "border-[#2a2a2a] bg-[#161616] hover:border-[#2a2a2a]/80",
-                        !importable && "opacity-60"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggle(sheet.name)}
-                        className="h-4 w-4 rounded border-[#2a2a2a] bg-[#161616] text-[#42CA80] accent-[#42CA80]"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium text-white truncate">
-                            {sheet.name}
-                          </span>
-                          <Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
-                            {sheet.row_count} rows
-                          </Badge>
-                          {!importable && (
-                            <span className="font-mono text-[10px] text-[#606060]">
-                              Preview only
-                            </span>
-                          )}
-                        </div>
-                        {sheet.description && (
-                          <p className="mt-1 text-sm text-[#C4BCAA] truncate">
-                            {sheet.description}
-                          </p>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
 
-        {/* Ungrouped sheets from API */}
-        {sheets.filter((s) => !Object.values(SHEET_GROUPS).flat().includes(s.name)).length > 0 && (
-          <div>
-            <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#999]">
-              Other Sheets
-            </h4>
-            <div className="space-y-2">
-              {sheets
-                .filter((s) => !Object.values(SHEET_GROUPS).flat().includes(s.name))
-                .map((sheet) => {
-                  const importable = isImportable(sheet.name);
-                  const checked = selected.has(sheet.name);
-                  return (
-                    <label
-                      key={sheet.name}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors",
-                        checked
-                          ? "border-[#42CA80]/40 bg-[#42CA80]/5"
-                          : "border-[#2a2a2a] bg-[#161616] hover:border-[#2a2a2a]/80",
-                        !importable && "opacity-60"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggle(sheet.name)}
-                        className="h-4 w-4 rounded border-[#2a2a2a] bg-[#161616] text-[#42CA80] accent-[#42CA80]"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium text-white truncate">{sheet.name}</span>
-                          <Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
-                            {sheet.row_count} rows
-                          </Badge>
-                          {!importable && (
-                            <span className="font-mono text-[10px] text-[#606060]">Preview only</span>
-                          )}
-                        </div>
-                        {sheet.description && (
-                          <p className="mt-1 text-sm text-[#C4BCAA] truncate">{sheet.description}</p>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
-            </div>
-          </div>
-        )}
+          const renderSheet = (sheet: SheetInfo) => {
+            const canImport = isImportable(sheet.name);
+            const checked = selected.has(sheet.name);
+            return (
+              <label
+                key={sheet.name}
+                className={cn(
+                  "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors",
+                  checked
+                    ? "border-[#42CA80]/40 bg-[#42CA80]/5"
+                    : "border-[#2a2a2a] bg-[#161616] hover:border-[#2a2a2a]/80",
+                  !canImport && "opacity-60"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(sheet.name)}
+                  disabled={!canImport}
+                  className="h-4 w-4 rounded border-[#2a2a2a] bg-[#161616] text-[#42CA80] accent-[#42CA80]"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-white truncate">{sheet.name}</span>
+                    <Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
+                      {sheet.row_count} rows
+                    </Badge>
+                    {!canImport && (
+                      <span className="font-mono text-[10px] text-[#606060]">Preview only</span>
+                    )}
+                  </div>
+                  {sheet.description && (
+                    <p className="mt-1 text-sm text-[#C4BCAA] truncate">{sheet.description}</p>
+                  )}
+                </div>
+              </label>
+            );
+          };
+
+          return (
+            <>
+              {Object.entries(groups).map(([group, groupSheets]) => (
+                <div key={group}>
+                  <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#42CA80]">
+                    {group}
+                  </h4>
+                  <div className="space-y-2">{groupSheets.map(renderSheet)}</div>
+                </div>
+              ))}
+              {ungrouped.length > 0 && (
+                <div>
+                  <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#999]">
+                    Other Sheets
+                  </h4>
+                  <div className="space-y-2">{ungrouped.map(renderSheet)}</div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
+
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-4">
