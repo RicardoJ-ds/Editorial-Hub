@@ -17,11 +17,18 @@
 - [x] Handoff documentation
 
 ## Pending — P1
+
+### Notion Database import failure (Apr 16)
+- [ ] Paginate Sheets API read for "Notion" tab (5K-row chunks instead of whole sheet at once)
+- [ ] Replace per-row SELECT + UPDATE/INSERT with bulk `INSERT ... ON CONFLICT DO UPDATE` (PostgreSQL)
+- [ ] Commit / deploy to Railway; re-run import and verify rows_imported > 20,000
+
 - [ ] Init git repo + push to GitHub (exclude sa-key.json, .env)
 - [ ] Deploy to AWS using existing template
 - [ ] Date range picker for Dashboard 1
 - [ ] Wire Capacity Utilization KPI card to real capacity data
 - [ ] Make SOW links clickable (add URL field or mapping)
+
 
 ## Pending — P2 (External Dependencies)
 - [ ] Identify and integrate Master Tracker sheet

@@ -12,6 +12,7 @@ import {
   Target,
   Download,
   Search,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,10 @@ const dataManagementNav: NavItem[] = [
   { label: "Capacity", href: "/data-management/capacity", icon: BarChart3 },
   { label: "KPI Scores", href: "/data-management/kpi-entry", icon: Target },
   { label: "Import Data", href: "/data-management/import", icon: Download },
+];
+
+const proposalNav: NavItem[] = [
+  { label: "Capacity Planning v2", href: "/capacity-planning", icon: Sparkles },
 ];
 
 function NavSection({
@@ -127,6 +132,7 @@ export function Sidebar() {
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
         <NavSection label="Dashboards" items={dashboardNav} pathname={pathname} />
         <NavSection label="Data Management" items={dataManagementNav} pathname={pathname} />
+        <NavSection label="Proposal" items={proposalNav} pathname={pathname} />
       </nav>
 
       {/* Footer */}

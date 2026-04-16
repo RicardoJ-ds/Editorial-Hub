@@ -15,6 +15,9 @@ const pageTitles: Record<string, string> = {
   "/data-management/capacity": "Capacity Planning",
   "/data-management/kpi-entry": "KPI Scores",
   "/data-management/import": "Import Data",
+  "/capacity-planning": "Capacity Planning v2 [Proposal]",
+  "/capacity-planning/roster": "Roster [Proposal]",
+  "/capacity-planning/allocation": "Allocation [Proposal]",
 };
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
@@ -36,7 +39,20 @@ function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
 
 type SyncState = "idle" | "syncing" | "success" | "error";
 
-export function Header() {
+export type HeaderUser = {
+  name: string;
+  email: string;
+  picture?: string;
+};
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export function Header({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
   const title = pageTitles[pathname] || "Editorial Hub";
   const breadcrumbs = getBreadcrumbs(pathname);
@@ -137,19 +153,35 @@ export function Header() {
 
         <div className="h-5 w-px bg-[#333]" />
 
-        <span className="font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA]">
-          Ricardo Jaramillo
-        </span>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#42CA80] text-sm font-bold text-black">
-          G
-        </div>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-[#606060] transition-colors duration-[var(--transition-base)] hover:bg-[#1F1F1F] hover:text-white"
-          aria-label="Logout"
+        <span
+          className="font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA]"
+          title={user.email}
         >
-          <LogOut className="h-4 w-4" />
-        </button>
+          {user.name}
+        </span>
+        {user.picture ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.picture}
+            alt={user.name}
+            className="h-8 w-8 rounded-full"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#42CA80] text-sm font-bold text-black">
+            {getInitials(user.name)}
+          </div>
+        )}
+        <form action="/api/auth/logout" method="POST">
+          <button
+            type="submit"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[#606060] transition-colors duration-[var(--transition-base)] hover:bg-[#1F1F1F] hover:text-white"
+            aria-label="Logout"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </form>
       </div>
     </header>
   );

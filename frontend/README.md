@@ -7,6 +7,14 @@ Next.js 14 dashboard application for Graphite's Editorial Team.
 - **Dashboard 1** (`/editorial-clients`) — Client delivery tracking, pipeline metrics, goals vs delivery
 - **Dashboard 2** (`/team-kpis`) — Team KPI performance heatmap, AI compliance, Surfer API usage
 
+## Proposal
+
+- **Capacity Planning v2** (`/capacity-planning`) — Overview board, roster matrix, allocation kanban (prototype, localStorage-backed)
+
+## Auth
+
+Google OAuth via `/api/auth/*`, session gated by `proxy.ts` + `(app)/layout.tsx`. Restricted to `@graphitehq.com` (`ALLOWED_EMAIL_DOMAIN`). JWT session cookie signed with `AUTH_SECRET`.
+
 ## Tech Stack
 
 - Next.js 16 + React 19 + TypeScript
@@ -26,3 +34,8 @@ npm run build      # Production build
 | Variable | Description |
 |----------|-------------|
 | `NEXT_PUBLIC_API_URL` | Backend API base URL (default: `http://localhost:8050`) |
+| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client secret |
+| `AUTH_REDIRECT_URI` | OAuth callback (default: `http://localhost:4050/api/auth/callback/google`) |
+| `AUTH_SECRET` | 32+ byte secret for signing the session JWT (`openssl rand -base64 32`) |
+| `ALLOWED_EMAIL_DOMAIN` | Workspace domain allowed to sign in (default: `graphitehq.com`) |

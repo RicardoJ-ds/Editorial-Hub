@@ -43,6 +43,11 @@ services:
       - "4050:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8050}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      AUTH_REDIRECT_URI: ${AUTH_REDIRECT_URI:-http://localhost:4050/api/auth/callback/google}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env — generate with `openssl rand -base64 32`}
+      ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-graphitehq.com}
     volumes:
       - ./frontend/src:/app/src
     depends_on:

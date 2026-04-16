@@ -18,3 +18,4 @@ backend/app/services/__pycache__/
 postgres_data/
 .docs/
 tasks/
+.vercel
