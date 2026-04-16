@@ -2352,7 +2352,15 @@ def import_monthly_kpi_scores(session: Session) -> ImportResult:
 
 
 def import_notion_database(session: Session) -> ImportResult:
-    """Import Notion database export from Google Sheet into notion_articles table."""
+    """Import Notion database export from Google Sheet into notion_articles table.
+
+    Strategy: the Notion sheet has ~23K rows × ~38 cols, so reading it all in one
+    Sheets API call + per-row SELECT/INSERT overruns Railway's proxy timeout. We
+    paginate the Sheets read and bulk-upsert with PostgreSQL ON CONFLICT.
+    """
+    from sqlalchemy import func as sa_func
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
     sheet_name = "Notion Database"
     result = ImportResult(sheet=sheet_name)
 
@@ -2362,126 +2370,165 @@ def import_notion_database(session: Session) -> ImportResult:
         result.success = False
         return result
 
+    FIELD_MAP = {
+        "Case ID": "case_id",
+        "Property": "title",
+        "Client": "client_name",
+        "Writer": "writer",
+        "Editor": "editor",
+        "Sr Editor": "sr_editor",
+        "Current Assignee": "current_assignee",
+        "CB Creator": "cb_creator",
+        "CB Reviewer": "cb_reviewer",
+        "Editorial Team POD": "editorial_pod",
+        "Account Team POD": "account_pod",
+        "CMS POD": "cms_pod",
+        "Content Type": "content_type",
+        "Client Type": "client_type",
+        "Article Workflow Status": "article_status",
+        "CB Workflow Status": "cb_status",
+        "CMS Workflow Status": "cms_status",
+        "Workflow": "workflow",
+        "Client Folder": "client_folder",
+        "Published URL": "published_url",
+        "WA Link": "wa_link",
+        "Article Link": "article_link",
+        "CB Link": "cb_link",
+        "Page Url": "notion_url",
+        "Priority Month": "priority_month",
+        "Priority Level": "priority_level",
+        "Month": "month",
+        "Uploader": "uploader",
+        "Created by": "created_by",
+        "Notes": "notes",
+    }
+    DATE_FIELDS = {
+        "Created time": "created_date",
+        "CB Delivered Date": "cb_delivered_date",
+        "CB Deadline": "cb_deadline",
+        "Article Delivered Date": "article_delivered_date",
+        "Article Deadline": "article_deadline",
+        "CMS Delivered Date": "cms_delivered_date",
+    }
+
+    PAGE_SIZE = 5000
+    BULK_BATCH = 500
+
+    def _flush_upsert(records: list[dict]) -> int:
+        if not records:
+            return 0
+        # De-duplicate on case_id within the same batch — ON CONFLICT can't see
+        # two rows with the same conflict target in a single statement.
+        by_case: dict[str, dict] = {}
+        for r in records:
+            by_case[r["case_id"]] = r
+        deduped = list(by_case.values())
+
+        stmt = pg_insert(NotionArticle).values(deduped)
+        skip = {"id", "case_id", "created_at", "updated_at"}
+        update_cols = {
+            c.name: getattr(stmt.excluded, c.name)
+            for c in NotionArticle.__table__.columns
+            if c.name not in skip
+        }
+        update_cols["updated_at"] = sa_func.now()
+        stmt = stmt.on_conflict_do_update(index_elements=["case_id"], set_=update_cols)
+        session.execute(stmt)
+        return len(deduped)
+
     try:
         service = get_sheets_client()
-        resp = (
+
+        # Fetch header row to establish column order
+        header_resp = (
             service.spreadsheets()
             .values()
-            .get(spreadsheetId=notion_sheet_id, range="'Notion'")
+            .get(spreadsheetId=notion_sheet_id, range="'Notion'!1:1")
             .execute()
         )
-        all_rows = resp.get("values", [])
-        if len(all_rows) < 2:
+        header_values = header_resp.get("values", [])
+        if not header_values:
+            result.errors.append("Sheet has no header row")
+            result.success = False
+            return result
+
+        col_map: dict[str, int] = {}
+        for i, h in enumerate(header_values[0]):
+            if h and str(h).strip():
+                col_map[str(h).strip()] = i
+
+        case_id_col = col_map.get("Case ID")
+        if case_id_col is None:
+            result.errors.append("Sheet is missing 'Case ID' column")
+            result.success = False
+            return result
+
+        # Discover total rows from sheet metadata so we can paginate
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=notion_sheet_id, fields="sheets.properties")
+            .execute()
+        )
+        total_rows = 0
+        for s in meta.get("sheets", []):
+            if s.get("properties", {}).get("title") == "Notion":
+                total_rows = s["properties"].get("gridProperties", {}).get("rowCount", 0)
+                break
+        if total_rows <= 1:
             result.errors.append("Sheet has too few rows")
             result.success = False
             return result
 
-        # Build column index from header row
-        headers = all_rows[0]
-        col_map: dict[str, int] = {}
-        for i, h in enumerate(headers):
-            if h and str(h).strip():
-                col_map[str(h).strip()] = i
+        pending: list[dict] = []
 
-        # Column mapping: sheet header → model field
-        FIELD_MAP = {
-            "Case ID": "case_id",
-            "Property": "title",
-            "Client": "client_name",
-            "Writer": "writer",
-            "Editor": "editor",
-            "Sr Editor": "sr_editor",
-            "Current Assignee": "current_assignee",
-            "CB Creator": "cb_creator",
-            "CB Reviewer": "cb_reviewer",
-            "Editorial Team POD": "editorial_pod",
-            "Account Team POD": "account_pod",
-            "CMS POD": "cms_pod",
-            "Content Type": "content_type",
-            "Client Type": "client_type",
-            "Article Workflow Status": "article_status",
-            "CB Workflow Status": "cb_status",
-            "CMS Workflow Status": "cms_status",
-            "Workflow": "workflow",
-            "Client Folder": "client_folder",
-            "Published URL": "published_url",
-            "WA Link": "wa_link",
-            "Article Link": "article_link",
-            "CB Link": "cb_link",
-            "Page Url": "notion_url",
-            "Priority Month": "priority_month",
-            "Priority Level": "priority_level",
-            "Month": "month",
-            "Uploader": "uploader",
-            "Created by": "created_by",
-            "Notes": "notes",
-        }
-
-        DATE_FIELDS = {
-            "Created time": "created_date",
-            "CB Delivered Date": "cb_delivered_date",
-            "CB Deadline": "cb_deadline",
-            "Article Delivered Date": "article_delivered_date",
-            "Article Deadline": "article_deadline",
-            "CMS Delivered Date": "cms_delivered_date",
-        }
-
-        data_rows = all_rows[1:]
-        batch_size = 500
-
-        for idx, row in enumerate(data_rows):
-            result.rows_parsed += 1
-
-            # Get case_id — skip if missing
-            case_id_col = col_map.get("Case ID")
-            if case_id_col is None:
-                continue
-            case_id = _cell(row, case_id_col)
-            if not case_id:
-                continue
-
-            # Build data dict from string fields
-            data: dict = {"case_id": case_id}
-            for sheet_col, model_field in FIELD_MAP.items():
-                ci = col_map.get(sheet_col)
-                if ci is not None:
-                    val = _cell(row, ci) or None
-                    data[model_field] = val
-
-            # Parse date fields
-            for sheet_col, model_field in DATE_FIELDS.items():
-                ci = col_map.get(sheet_col)
-                if ci is not None:
-                    raw = _cell(row, ci)
-                    if raw:
-                        data[model_field] = parse_date(raw)
-                    else:
-                        data[model_field] = None
-
-            # Upsert on case_id
-            existing = (
-                session.execute(select(NotionArticle).where(NotionArticle.case_id == case_id))
-                .scalars()
-                .first()
+        for start in range(2, total_rows + 1, PAGE_SIZE):
+            end = min(start + PAGE_SIZE - 1, total_rows)
+            page_resp = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=notion_sheet_id, range=f"'Notion'!{start}:{end}")
+                .execute()
+            )
+            page_rows = page_resp.get("values", [])
+            logger.info(
+                "Notion import: fetched rows %d..%d (%d values)",
+                start,
+                end,
+                len(page_rows),
             )
 
-            if existing:
-                for k, v in data.items():
-                    if k != "case_id":
-                        setattr(existing, k, v)
-            else:
-                session.add(NotionArticle(**data))
+            for row in page_rows:
+                result.rows_parsed += 1
+                case_id = _cell(row, case_id_col)
+                if not case_id:
+                    continue
 
-            result.rows_imported += 1
+                data: dict = {"case_id": case_id}
+                for sheet_col, model_field in FIELD_MAP.items():
+                    ci = col_map.get(sheet_col)
+                    if ci is not None:
+                        data[model_field] = _cell(row, ci) or None
+                for sheet_col, model_field in DATE_FIELDS.items():
+                    ci = col_map.get(sheet_col)
+                    if ci is not None:
+                        raw = _cell(row, ci)
+                        data[model_field] = parse_date(raw) if raw else None
 
-            # Batch flush for performance
-            if (idx + 1) % batch_size == 0:
-                session.flush()
-                logger.info(f"Notion import: flushed {idx + 1} rows...")
+                pending.append(data)
+                if len(pending) >= BULK_BATCH:
+                    result.rows_imported += _flush_upsert(pending)
+                    pending = []
+
+        if pending:
+            result.rows_imported += _flush_upsert(pending)
 
         session.commit()
         result.success = True
-        logger.info(f"Notion import complete: {result.rows_imported} articles imported")
+        logger.info(
+            "Notion import complete: parsed=%d imported=%d",
+            result.rows_parsed,
+            result.rows_imported,
+        )
 
     except Exception as exc:
         logger.exception("Error importing Notion database")
