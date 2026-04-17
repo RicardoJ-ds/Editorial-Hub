@@ -685,8 +685,8 @@ function ClientEngagementTimeline({
                     <div
                       key={item.key}
                       className={cn(
-                        "flex-1 flex flex-col items-center justify-end animate-fade-slide rounded-t-sm",
-                        isCurrent && "bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/40",
+                        "relative flex-1 flex flex-col items-center justify-end animate-fade-slide",
+                        isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                       )}
                       style={{ height: "100%", animationDelay: `${idx * 20}ms` }}
                     >
@@ -725,14 +725,14 @@ function ClientEngagementTimeline({
                         }}
                         onMouseLeave={() => setTooltip(null)}
                       >
-                        {/* Projected (top portion) — striped overlay, softer */}
+                        {/* Projected (top portion) — solid, semi-transparent */}
                         {projectedPct > 0 && (
                           <div
                             className="w-full rounded-t-sm animate-bar-grow"
                             style={{
                               height: actualPct > 0 ? `${(projectedPct / (actualPct + projectedPct)) * 100}%` : "100%",
-                              backgroundImage: "repeating-linear-gradient(45deg, #8FB5D9 0 3px, transparent 3px 6px)",
-                              backgroundColor: "rgba(143, 181, 217, 0.18)",
+                              backgroundColor: "#42CA80",
+                              opacity: 0.35,
                               animationDelay: `${idx * 20}ms`,
                             }}
                           />
@@ -747,7 +747,7 @@ function ClientEngagementTimeline({
                             style={{
                               height: projectedPct > 0 ? `${(actualPct / (actualPct + projectedPct)) * 100}%` : "100%",
                               backgroundColor: "#42CA80",
-                              opacity: 0.85,
+                              opacity: 0.9,
                               animationDelay: `${idx * 20}ms`,
                             }}
                           />
@@ -808,15 +808,27 @@ function ClientEngagementTimeline({
 
         {/* Row layout: [client name 128px] [chart area flex-1] [totals sidebar 240px] */}
         {/* Shared period axis — adapts to monthly/quarterly */}
-        <div key={`axis-${cumView}`} className="flex items-center gap-2 mb-2 animate-fade-slide">
+        <div key={`axis-${cumView}`} className="flex items-stretch gap-2 mb-2 animate-fade-slide">
           <span className="w-32 shrink-0" />
           <div className="flex-1 flex gap-px">
             {activePeriods.map((p, i) => {
               const showLabel = cumView === "quarterly" || i % 2 === 0;
+              const isCurrent = cumView === "quarterly"
+                ? p.key === currentQuarterKey
+                : p.key === currentMonthKey;
               return (
-                <div key={p.key} className="flex-1 text-center">
+                <div
+                  key={p.key}
+                  className={cn(
+                    "flex-1 text-center py-0.5",
+                    isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
+                  )}
+                >
                   {showLabel && (
-                    <span className="text-[8px] font-mono text-[#606060]">
+                    <span className={cn(
+                      "text-[8px] font-mono",
+                      isCurrent ? "text-[#65FFAA] font-semibold" : "text-[#606060]",
+                    )}>
                       {p.label}
                     </span>
                   )}
@@ -880,8 +892,8 @@ function ClientEngagementTimeline({
                         <div
                           key={p.key}
                           className={cn(
-                            "flex-1 rounded-t-sm",
-                            isCurrent && "bg-[#42CA80]/5",
+                            "flex-1",
+                            isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                           )}
                           style={{ height: "100%" }}
                         />
@@ -894,8 +906,8 @@ function ClientEngagementTimeline({
                       <div
                         key={p.key}
                         className={cn(
-                          "flex-1 flex items-end justify-center rounded-t-sm",
-                          isCurrent && "bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/40",
+                          "flex-1 flex items-end justify-center",
+                          isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                         )}
                         style={{ height: "100%" }}
                       >
@@ -923,26 +935,25 @@ function ClientEngagementTimeline({
                           }}
                           onMouseLeave={() => setTooltip(null)}
                         >
-                          {/* Projected (on top, striped) */}
+                          {/* Projected (on top) — pod color at 35% opacity */}
                           {projectedFrac > 0 && (
                             <div
                               className="w-full rounded-t-sm"
                               style={{
                                 height: `${projectedFrac * 100}%`,
-                                backgroundImage: `repeating-linear-gradient(45deg, ${podColor} 0 3px, transparent 3px 6px)`,
-                                backgroundColor: `${podColor}1F`,
-                                opacity: 0.9,
+                                backgroundColor: podColor,
+                                opacity: 0.35,
                               }}
                             />
                           )}
-                          {/* Actual (on bottom, solid pod color) */}
+                          {/* Actual (on bottom) — pod color solid */}
                           {actualFrac > 0 && (
                             <div
                               className={cn("w-full", projectedFrac === 0 && "rounded-t-sm")}
                               style={{
                                 height: `${actualFrac * 100}%`,
                                 backgroundColor: podColor,
-                                opacity: 0.85,
+                                opacity: 0.9,
                               }}
                             />
                           )}
@@ -976,22 +987,16 @@ function ClientEngagementTimeline({
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 pt-3 border-t border-[#2a2a2a]">
           <div className="flex items-center gap-1.5">
-            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80] opacity-85" />
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80]" style={{ opacity: 0.9 }} />
             <span className="text-[10px] font-mono text-[#606060]">Actual — solid (pod color)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div
-              className="h-2.5 w-2.5 rounded-sm"
-              style={{
-                backgroundImage: "repeating-linear-gradient(45deg, #8FB5D9 0 2px, transparent 2px 4px)",
-                backgroundColor: "rgba(143, 181, 217, 0.18)",
-              }}
-            />
-            <span className="text-[10px] font-mono text-[#606060]">Projected — striped</span>
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80]" style={{ opacity: 0.35 }} />
+            <span className="text-[10px] font-mono text-[#606060]">Projected — lighter shade</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/40" />
-            <span className="text-[10px] font-mono text-[#606060]">Current month</span>
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80]/14 border-x border-[#42CA80]/50" />
+            <span className="text-[10px] font-mono text-[#606060]">Current month column</span>
           </div>
           <span className="text-[#333]">·</span>
           {Object.entries(TIMELINE_POD_COLORS).map(([pod, color]) => (

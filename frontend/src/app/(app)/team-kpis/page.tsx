@@ -132,6 +132,7 @@ export default function TeamKpisPage() {
   const [filters, setFilters] = useState<TeamKpiFilters>({
     search: "",
     pod: "All",
+    growthPod: "All",
     month: now.getMonth() + 1,
     year: now.getFullYear(),
     memberId: "All",
@@ -202,12 +203,22 @@ export default function TeamKpisPage() {
     return result;
   }, [teamMembers, selectedPod, selectedMember, searchQuery]);
 
-  // Filter KPI scores by selected client
+  // Filter KPI scores by selected client (and by Growth Pod when set — any
+  // KPI row attributed to a client outside the selected growth pod is hidden).
   const filteredScores = useMemo(() => {
-    if (selectedClient === "All") return kpiScores;
-    const clientId = Number(selectedClient);
-    return kpiScores.filter((s) => s.client_id === clientId);
-  }, [kpiScores, selectedClient]);
+    let result = kpiScores;
+    if (filters.growthPod !== "All") {
+      const allowed = new Set(
+        clients.filter((c) => c.growth_pod === filters.growthPod).map((c) => c.id),
+      );
+      result = result.filter((s) => s.client_id === null || allowed.has(s.client_id));
+    }
+    if (selectedClient !== "All") {
+      const clientId = Number(selectedClient);
+      result = result.filter((s) => s.client_id === clientId);
+    }
+    return result;
+  }, [kpiScores, clients, filters.growthPod, selectedClient]);
 
   // Filter capacity by pod
   const filteredCapacity = useMemo(() => {

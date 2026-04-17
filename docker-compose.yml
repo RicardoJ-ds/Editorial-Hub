@@ -29,6 +29,7 @@ services:
       MASTER_TRACKER_ID: ${MASTER_TRACKER_ID:-}
       AI_MONITORING_ID: ${AI_MONITORING_ID:-}
       NOTION_DATABASE_ID: ${NOTION_DATABASE_ID:-}
+      TEAM_PODS_ID: ${TEAM_PODS_ID:-}
     volumes:
       - ./backend/app:/app/app
       - ./sa-key.json:/app/sa-key.json:ro

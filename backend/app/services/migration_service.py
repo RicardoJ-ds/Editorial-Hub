@@ -55,6 +55,7 @@ SHEET_DESCRIPTIONS: dict[str, str] = {
     "Master Tracker - Goals vs Delivery": "Weekly goals vs delivery tracking per month — CB and article delivery pacing",
     "Notion Database": "Article workflow tracking from Notion export — 13K+ records with statuses, dates, assignments",
     "Monthly KPI Scores": "Manual KPI scores entered by SEs — Internal Quality, External Quality, Mentorship, Feedback Adoption",
+    "Team Pods": "Growth team → client mapping (POD NUMBER × CLIENT). Updates clients.growth_pod.",
 }
 
 # Map of importable sheet names to their import functions (populated below)
@@ -74,6 +75,7 @@ IMPORT_DISPATCH: dict[str, str] = {
     "Master Tracker - Goals vs Delivery": "import_goals_vs_delivery",
     "Notion Database": "import_notion_database",
     "Monthly KPI Scores": "import_monthly_kpi_scores",
+    "Team Pods": "import_team_pods",
 }
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
@@ -348,6 +350,32 @@ def list_available_sheets() -> list[dict]:
         except Exception:
             logger.warning("Could not list sheets from Notion spreadsheet")
 
+    # Also list the Team Pods spreadsheet (single "Team Pods" logical sheet)
+    team_pods_id = getattr(settings, "team_pods_id", None)
+    if team_pods_id:
+        try:
+            tp_meta = (
+                service.spreadsheets()
+                .get(spreadsheetId=team_pods_id, fields="sheets.properties")
+                .execute()
+            )
+            sheets_info_pods = tp_meta.get("sheets", [])
+            if sheets_info_pods:
+                first = sheets_info_pods[0].get("properties", {})
+                row_count = first.get("gridProperties", {}).get("rowCount", 0)
+                sheets_info.append(
+                    {
+                        "name": "Team Pods",
+                        "row_count": row_count,
+                        "description": SHEET_DESCRIPTIONS.get(
+                            "Team Pods",
+                            "Growth team pod mapping per client",
+                        ),
+                    }
+                )
+        except Exception:
+            logger.warning("Could not list sheets from Team Pods spreadsheet")
+
     return sheets_info
 
 
@@ -370,6 +398,13 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
         notion_id = getattr(settings, "notion_database_id", None)
         if notion_id:
             return notion_id, "Notion"
+    if sheet_name == "Team Pods":
+        team_pods_id = getattr(settings, "team_pods_id", None)
+        if team_pods_id:
+            # Preview the first tab — the Team Pods sheet has a single
+            # "Growth Team Projects" table, tab name varies per month so we
+            # resolve dynamically at preview/import time.
+            return team_pods_id, ""
     return SPREADSHEET_ID, sheet_name
 
 
@@ -377,6 +412,14 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
     """Read the first max_rows rows from a sheet and return headers + data."""
     service = get_sheets_client()
     ssid, tab_name = _resolve_sheet_source(sheet_name)
+    # Empty tab_name → resolve to the first (non-hidden) tab of the spreadsheet.
+    if not tab_name:
+        meta_pre = service.spreadsheets().get(spreadsheetId=ssid, fields="sheets.properties").execute()
+        for s in meta_pre.get("sheets", []):
+            props = s.get("properties", {})
+            if not props.get("hidden"):
+                tab_name = props.get("title", "")
+                break
     # Fetch enough rows: 1 header + max_rows data
     range_str = f"'{tab_name}'!1:{max_rows + 1}"
     result = service.spreadsheets().values().get(spreadsheetId=ssid, range=range_str).execute()
@@ -2532,6 +2575,156 @@ def import_notion_database(session: Session) -> ImportResult:
 
     except Exception as exc:
         logger.exception("Error importing Notion database")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_team_pods
+# ---------------------------------------------------------------------------
+
+
+def import_team_pods(session: Session) -> ImportResult:
+    """Read the Team Pods spreadsheet and write the growth pod for each
+    matched client back to `clients.growth_pod`.
+
+    Sheet layout (top rows are a title; the real header is a couple of rows
+    down and may be repeated). Columns of interest:
+      POD NUMBER | CLIENT | GROWTH DIRECTOR | SR GROWTH DIRECTOR
+    We scan the whole first tab, tolerate merged-cell blanks on POD NUMBER
+    (carry-forward), and match CLIENT against Client.name (case-insensitive).
+    """
+    sheet_name = "Team Pods"
+    result = ImportResult(sheet=sheet_name)
+
+    team_pods_id = getattr(settings, "team_pods_id", None)
+    if not team_pods_id:
+        result.errors.append("TEAM_PODS_ID not configured")
+        result.success = False
+        return result
+
+    try:
+        service = get_sheets_client()
+
+        # Find the first non-hidden tab
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=team_pods_id, fields="sheets.properties")
+            .execute()
+        )
+        tab_name = ""
+        for s in meta.get("sheets", []):
+            props = s.get("properties", {})
+            if not props.get("hidden"):
+                tab_name = props.get("title", "")
+                break
+        if not tab_name:
+            result.errors.append("Team Pods spreadsheet has no visible tab")
+            result.success = False
+            return result
+
+        resp = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=team_pods_id, range=f"'{tab_name}'")
+            .execute()
+        )
+        rows = resp.get("values", [])
+        if len(rows) < 3:
+            result.errors.append("Team Pods sheet has too few rows")
+            result.success = False
+            return result
+
+        # Find the header row — look for one that contains BOTH "POD" and
+        # "CLIENT" in the first ~10 rows.
+        header_idx = -1
+        for i, row in enumerate(rows[:12]):
+            joined = " | ".join(str(c).strip().upper() for c in row)
+            if ("POD NUMBER" in joined or "POD" in joined) and "CLIENT" in joined:
+                header_idx = i
+                break
+        if header_idx == -1:
+            result.errors.append("Could not find header row (POD NUMBER + CLIENT)")
+            result.success = False
+            return result
+
+        headers = [str(h).strip().upper() for h in rows[header_idx]]
+
+        def col_of(*names: str) -> int | None:
+            for n in names:
+                nu = n.upper()
+                for i, h in enumerate(headers):
+                    if h == nu or h.startswith(nu) or nu in h:
+                        return i
+            return None
+
+        pod_col = col_of("POD NUMBER", "POD #", "POD")
+        client_col = col_of("CLIENT")
+        if pod_col is None or client_col is None:
+            result.errors.append(
+                f"Missing POD NUMBER or CLIENT column — headers: {headers}"
+            )
+            result.success = False
+            return result
+
+        # Build pod→client mapping. POD NUMBER may be blank on repeated rows
+        # (merged cells in the sheet), so carry forward.
+        client_to_pod: dict[str, str] = {}
+        current_pod: str | None = None
+        for r in rows[header_idx + 1:]:
+            result.rows_parsed += 1
+            raw_pod = _cell(r, pod_col)
+            raw_client = _cell(r, client_col)
+            if raw_pod:
+                # Normalize "1" or "Pod 1" or " 1 " → "Pod 1"
+                digits = "".join(ch for ch in raw_pod if ch.isdigit())
+                if digits:
+                    current_pod = f"Pod {int(digits)}"
+            if not raw_client or current_pod is None:
+                continue
+            # Skip obvious non-client values
+            name = raw_client.strip()
+            if not name or name.upper() == "CLIENT":
+                continue
+            client_to_pod[name] = current_pod
+
+        if not client_to_pod:
+            result.errors.append("No client → pod mappings found in sheet")
+            result.success = False
+            return result
+
+        # Update clients.growth_pod — case-insensitive client name match.
+        all_clients = session.execute(select(Client)).scalars().all()
+        by_lower = {c.name.lower(): c for c in all_clients}
+        for sheet_client, pod in client_to_pod.items():
+            key = sheet_client.lower()
+            c = by_lower.get(key)
+            if c is None:
+                # Relaxed match: strip punctuation
+                normalized = re.sub(r"[^a-z0-9]+", "", key)
+                for lc, obj in by_lower.items():
+                    if re.sub(r"[^a-z0-9]+", "", lc) == normalized:
+                        c = obj
+                        break
+            if c is None:
+                continue
+            if c.growth_pod != pod:
+                c.growth_pod = pod
+            result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+        logger.info(
+            "Team Pods import: parsed=%d matched=%d",
+            result.rows_parsed,
+            result.rows_imported,
+        )
+
+    except Exception as exc:
+        logger.exception("Error importing Team Pods")
         session.rollback()
         result.success = False
         result.errors.append(str(exc))

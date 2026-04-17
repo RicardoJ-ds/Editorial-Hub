@@ -35,6 +35,7 @@ const POD_COLORS: Record<string, string> = {
 export interface TeamKpiFilters {
   search: string;
   pod: string;
+  growthPod: string;
   month: number;
   year: number;
   memberId: string;
@@ -54,9 +55,25 @@ export function TeamKpiFilterBar({ teamMembers, clients, yearOptions, filters, o
     onFiltersChange({ ...filters, ...partial });
   };
 
+  // Derive growth pods from the active client list.
+  const growthPods = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of clients) {
+      if (c.growth_pod) set.add(c.growth_pod);
+    }
+    return ["All", ...Array.from(set).sort()];
+  }, [clients]);
+
+  // Clients narrowed by the Growth filter — feeds the Client dropdown.
+  const filteredClients = useMemo(() => {
+    if (filters.growthPod === "All") return clients;
+    return clients.filter((c) => c.growth_pod === filters.growthPod);
+  }, [clients, filters.growthPod]);
+
   const activeCount = [
     filters.search ? 1 : 0,
     filters.pod !== "All" ? 1 : 0,
+    filters.growthPod !== "All" ? 1 : 0,
     filters.memberId !== "All" ? 1 : 0,
     filters.clientId !== "All" ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
@@ -85,7 +102,7 @@ export function TeamKpiFilterBar({ teamMembers, clients, yearOptions, filters, o
 
       <div className="h-4 w-px bg-[#1e1e1e]" />
 
-      {/* Pod */}
+      {/* Editorial Pod */}
       <Select value={filters.pod} onValueChange={(v) => v && update({ pod: v })}>
         <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
           <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Pod</span>
@@ -99,6 +116,23 @@ export function TeamKpiFilterBar({ teamMembers, clients, yearOptions, filters, o
         </SelectTrigger>
         <SelectContent>
           {PODS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+        </SelectContent>
+      </Select>
+
+      {/* Growth Pod — narrows the Client dropdown */}
+      <Select value={filters.growthPod} onValueChange={(v) => v && update({ growthPod: v, clientId: "All" })}>
+        <SelectTrigger className="h-7 w-auto min-w-[90px] text-xs border-0 bg-transparent gap-1 px-2">
+          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Growth</span>
+          {filters.growthPod !== "All" ? (
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+              {filters.growthPod}
+            </span>
+          ) : (
+            <SelectValue />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {growthPods.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
         </SelectContent>
       </Select>
 
@@ -172,7 +206,7 @@ export function TeamKpiFilterBar({ teamMembers, clients, yearOptions, filters, o
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="All">All</SelectItem>
-          {clients.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+          {filteredClients.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
         </SelectContent>
       </Select>
 
@@ -182,7 +216,7 @@ export function TeamKpiFilterBar({ teamMembers, clients, yearOptions, filters, o
           <div className="h-4 w-px bg-[#1e1e1e]" />
           <button
             type="button"
-            onClick={() => update({ search: "", pod: "All", memberId: "All", clientId: "All" })}
+            onClick={() => update({ search: "", pod: "All", growthPod: "All", memberId: "All", clientId: "All" })}
             className="flex items-center gap-1 text-[10px] font-mono text-[#606060] hover:text-[#ED6958] transition-colors px-1"
           >
             <X className="h-3 w-3" />
