@@ -198,10 +198,17 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
     return { buckets, overallAvg };
   }, [clients, metric]);
 
-  const maxAvg = useMemo(
-    () => Math.max(1, overallAvg ?? 0, ...buckets.map((b) => b.avg)),
-    [buckets, overallAvg]
-  );
+  // Cap the y-axis so a single extreme cohort doesn't flatten everything else.
+  // Use p90 of bucket averages with a sensible floor relative to the overall avg.
+  const { scaleMax, actualMax } = useMemo(() => {
+    const actualMax = Math.max(1, overallAvg ?? 0, ...buckets.map((b) => b.avg));
+    if (buckets.length === 0) return { scaleMax: actualMax, actualMax };
+    const sorted = buckets.map((b) => b.avg).slice().sort((a, b) => a - b);
+    const p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))];
+    const floor = Math.max(10, Math.round((overallAvg ?? 0) * 2));
+    const scaleMax = Math.max(1, Math.min(actualMax, Math.max(p90, floor)));
+    return { scaleMax, actualMax };
+  }, [buckets, overallAvg]);
 
   const [hover, setHover] = useState<{ x: number; y: number; key: string; avg: number; count: number } | null>(null);
 
@@ -216,6 +223,9 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
             Average {metric.label.toLowerCase()}, bucketed by each client&apos;s {REF_LABEL} month. Lower is better.
             {overallAvg !== null && (
               <> Overall avg across all clients: <span className="text-white font-semibold">{overallAvg}d</span>.</>
+            )}
+            {actualMax > scaleMax && (
+              <> Y-axis capped at <span className="text-[#C4BCAA]">{scaleMax}d</span> so outliers don&apos;t flatten the rest — clipped bars marked ↑.</>
             )}
           </p>
         </div>
@@ -247,16 +257,21 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
             {/* Bars */}
             <div className="absolute inset-0 flex items-end gap-2 pb-5">
               {buckets.map((b) => {
-                const hPx = Math.max(2, Math.round((b.avg / maxAvg) * 140));
+                const clipped = b.avg > scaleMax;
+                const ratio = clipped ? 1 : b.avg / scaleMax;
+                const hPx = Math.max(2, Math.round(ratio * 140));
                 const above = overallAvg !== null && b.avg > overallAvg;
                 return (
                   <div key={b.key} className="flex-1 flex flex-col items-center gap-1 min-w-0 group/bar">
-                    <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">{b.avg}d</span>
+                    <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">
+                      {b.avg}d{clipped && <span className="text-[#ED6958]"> ↑</span>}
+                    </span>
                     <div
                       className={cn(
-                        "w-full rounded-t transition-all",
+                        "w-full transition-all rounded-t",
                         above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
-                        "group-hover/bar:opacity-80"
+                        "group-hover/bar:opacity-80",
+                        clipped && "ring-1 ring-inset ring-[#ED6958]/70"
                       )}
                       style={{ height: hPx, opacity: 0.85 }}
                       onMouseEnter={(e) => {
@@ -278,7 +293,7 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
               <div
                 className="absolute left-0 right-0 pointer-events-none"
                 style={{
-                  bottom: `${20 + (overallAvg / maxAvg) * 140}px`,
+                  bottom: `${20 + Math.min(1, overallAvg / scaleMax) * 140}px`,
                   height: 0,
                   borderTop: "1px dashed #42CA80",
                   opacity: 0.7,
