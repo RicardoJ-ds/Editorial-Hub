@@ -330,8 +330,21 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
             >
               Δ: {data.articlesDifference > 0 ? `+${data.articlesDifference}` : data.articlesDifference}
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              <strong>Articles sent − articles approved</strong> (Master Tracker&apos;s &quot;Diff&quot; column), summed across the pod. Positive = articles delivered to clients that are still awaiting approval. Zero = approvals are caught up. Negative is rare and usually a sheet correction.
+            <TooltipContent side="top" className="max-w-sm text-[11px] leading-relaxed space-y-1.5">
+              <p>
+                <strong>How many articles this pod&apos;s clients have received but not yet approved</strong>, summed across every client in the pod.
+              </p>
+              <p className="text-[10px] text-[#9A9A9A]">
+                Formula: <code>articles sent − articles approved</code>. Comes from the Master Tracker&apos;s &quot;Diff&quot; column (stored per-client, then summed here).
+              </p>
+              <p className="text-[10px] text-[#9A9A9A]">
+                Example: if one client has 30 sent / 22 approved (Diff +8) and another has 15 sent / 13 approved (Diff +2), the pod&apos;s total Δ is <strong className="text-white">+10</strong> — ten articles across the pod are waiting on client sign-off.
+              </p>
+              <ul className="text-[10px] text-[#9A9A9A] list-none space-y-0.5 pt-0.5">
+                <li><span className="text-[#42CA80] font-semibold">Positive</span> — articles in flight, normal for an active pipeline.</li>
+                <li><span className="text-[#C4BCAA] font-semibold">Zero</span> — approvals are caught up.</li>
+                <li><span className="text-[#ED6958] font-semibold">Negative</span> — rare; usually a sheet correction.</li>
+              </ul>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -461,7 +474,9 @@ export function ContractClientProgress({ filteredClients }: Props) {
         <p className="text-[10px] text-[#606060]">
           <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />{" "}
           ·{" "}
-          <InfoLabel text="Articles Δ / Overall %" hint="Pipeline deltas and cumulative approval rate." />
+          <InfoLabel text="Articles Δ" hint="Articles sent minus articles approved — how many articles the pod has delivered that are still awaiting client approval. Summed across the pod's clients." />
+          {" · "}
+          <InfoLabel text="Overall %" hint="Cumulative article approval rate = articles approved ÷ articles sent across the pod." />
         </p>
       </div>
 

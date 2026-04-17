@@ -104,8 +104,21 @@ export function ClientPipelineCard({ data }: Props) {
               >
                 Diff: {data.articles_difference > 0 ? `+${data.articles_difference}` : data.articles_difference}
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-                <strong>Articles sent − articles approved</strong>, stored verbatim from the Master Tracker&apos;s &quot;Diff&quot; column. Positive = articles delivered to the client that are still awaiting approval. Zero = approvals are caught up. Negative is rare and usually a sheet correction.
+              <TooltipContent side="top" className="max-w-sm text-[11px] leading-relaxed space-y-1.5">
+                <p>
+                  <strong>How many articles this client has received but not yet approved.</strong>
+                </p>
+                <p className="text-[10px] text-[#9A9A9A]">
+                  Formula: <code>articles sent − articles approved</code>. Comes from the Master Tracker&apos;s &quot;Diff&quot; column (stored, not recomputed).
+                </p>
+                <p className="text-[10px] text-[#9A9A9A]">
+                  Example: if 30 articles were sent and 22 are approved, Diff = <strong className="text-white">+8</strong> — eight articles are sitting in the client&apos;s review queue waiting to be signed off.
+                </p>
+                <ul className="text-[10px] text-[#9A9A9A] list-none space-y-0.5 pt-0.5">
+                  <li><span className="text-[#42CA80] font-semibold">Positive</span> — articles in flight, normal state of an active pipeline.</li>
+                  <li><span className="text-[#C4BCAA] font-semibold">Zero</span> — approvals are fully caught up.</li>
+                  <li><span className="text-[#ED6958] font-semibold">Negative</span> — rare, usually a sheet correction (more approvals logged than items sent).</li>
+                </ul>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
