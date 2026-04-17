@@ -15,6 +15,7 @@ import { SummaryCard } from "./SummaryCard";
 import { DataSourceBadge } from "./DataSourceBadge";
 import { ClientGoalCard } from "./ClientGoalCard";
 import { GoalsDeliveryChart } from "@/components/charts/GoalsDeliveryChart";
+import { WeeklyBreakdownMatrix } from "./WeeklyBreakdownMatrix";
 import { parsePctValue } from "./shared-helpers";
 
 interface Props {
@@ -79,6 +80,13 @@ export function GoalsVsDeliverySection({ filteredClients }: Props) {
     return clientRows.filter((r) => names.has(r.client_name));
   }, [clientRows, filteredClients]);
 
+  // Every week × every client for the selected month — feeds WeeklyBreakdownMatrix
+  const monthRowsFiltered = useMemo(() => {
+    if (!filteredClients?.length) return rows;
+    const names = new Set(filteredClients.map((c) => c.name));
+    return rows.filter((r) => names.has(r.client_name));
+  }, [rows, filteredClients]);
+
   // Summary
   const totalCB = displayRows.reduce((a, r) => a + (r.cb_delivered_to_date ?? 0), 0);
   const totalCBGoal = displayRows.reduce((a, r) => a + (r.cb_monthly_goal ?? 0), 0);
@@ -137,6 +145,9 @@ export function GoalsVsDeliverySection({ filteredClients }: Props) {
 
       {/* Chart */}
       <GoalsDeliveryChart data={displayRows} />
+
+      {/* Weekly breakdown — surfaces every Week N: CB / Week N: AD column from the sheet */}
+      <WeeklyBreakdownMatrix rows={monthRowsFiltered} monthLabel={selectedMonth} />
 
       {/* Client Goal Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
