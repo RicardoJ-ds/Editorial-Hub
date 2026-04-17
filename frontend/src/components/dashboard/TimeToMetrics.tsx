@@ -345,132 +345,172 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
           Not enough data to compute a {groupMode === "month" ? "trend" : "breakdown"} for the current filters.
         </p>
       ) : (
-        <div>
-          {/* Chart area — bars + reference line share the same baseline (container bottom) */}
-          <div className="relative h-[160px]">
-            {/* Bars: column has [label, bar]; the bar sits at the very bottom of the 160px area */}
-            <div className="absolute inset-0 flex items-end gap-2">
-              {buckets.map((b) => {
-                const clipped = b.avg > scaleMax;
-                const ratio = clipped ? 1 : b.avg / scaleMax;
-                const hPx = Math.max(2, Math.round(ratio * 140));
-                const above = overallAvg !== null && b.avg > overallAvg;
-                return (
-                  <div key={b.key} className="flex-1 flex flex-col items-center gap-1 min-w-0 group/bar">
-                    <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">
-                      {b.avg}d{clipped && <span className="text-[#ED6958]"> ↑</span>}
-                    </span>
-                    <div
-                      className={cn(
-                        "w-full transition-all rounded-t",
-                        above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
-                        "group-hover/bar:opacity-80",
-                        clipped && "ring-1 ring-inset ring-[#ED6958]/70"
-                      )}
-                      style={{ height: hPx, opacity: 0.85 }}
-                      onMouseEnter={(e) => {
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setHover({
-                          x: r.left + r.width / 2,
-                          y: r.top - 10,
-                          key: b.key,
-                          label: b.label,
-                          avg: b.avg,
-                          count: b.count,
-                          sublabel: b.sublabel,
-                        });
-                      }}
-                      onMouseLeave={() => setHover(null)}
-                    />
+        (() => {
+          // Give each bar a minimum footprint. When we have many clients the
+          // whole chart widens past the container and scrolls horizontally —
+          // much better than squeezing 70+ bars into 1000px and losing
+          // labels/values entirely.
+          const MIN_BAR_WIDTH = groupMode === "client" ? 32 : 28;
+          const BAR_GAP = 6;
+          const minWidthPx = buckets.length * (MIN_BAR_WIDTH + BAR_GAP);
+          const labelRowHeight = groupMode === "client" ? 96 : 20;
+          return (
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: minWidthPx }}>
+                {/* Chart area — bars + reference line share the same baseline */}
+                <div className="relative h-[160px]">
+                  <div className="absolute inset-0 flex items-end" style={{ gap: BAR_GAP }}>
+                    {buckets.map((b) => {
+                      const clipped = b.avg > scaleMax;
+                      const ratio = clipped ? 1 : b.avg / scaleMax;
+                      const hPx = Math.max(2, Math.round(ratio * 140));
+                      const above = overallAvg !== null && b.avg > overallAvg;
+                      // Show the day-count above the bar only when the bar is
+                      // wide enough to not collide with its neighbours. Under
+                      // ~30px the values overlap; the tooltip still has them.
+                      const showValue = MIN_BAR_WIDTH >= 30 || buckets.length <= 20;
+                      return (
+                        <div
+                          key={b.key}
+                          className="flex flex-col items-center gap-1 group/bar"
+                          style={{ width: MIN_BAR_WIDTH, flex: "1 0 auto" }}
+                        >
+                          {showValue ? (
+                            <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">
+                              {b.avg}d{clipped && <span className="text-[#ED6958]"> ↑</span>}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-[9px] text-transparent">·</span>
+                          )}
+                          <div
+                            className={cn(
+                              "w-full transition-all rounded-t cursor-default",
+                              above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
+                              "hover:opacity-100",
+                              clipped && "ring-1 ring-inset ring-[#ED6958]/70",
+                            )}
+                            style={{ height: hPx, opacity: 0.85 }}
+                            onMouseEnter={(e) => {
+                              const r = e.currentTarget.getBoundingClientRect();
+                              setHover({
+                                x: r.left + r.width / 2,
+                                y: r.top - 10,
+                                key: b.key,
+                                label: b.label,
+                                avg: b.avg,
+                                count: b.count,
+                                sublabel: b.sublabel,
+                              });
+                            }}
+                            onMouseLeave={() => setHover(null)}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Reference line (overall average) — measured from the same bottom the bars sit on */}
-            {overallAvg !== null && overallAvg > 0 && (
-              <div
-                className="absolute left-0 right-0 pointer-events-none"
-                style={{
-                  bottom: `${Math.min(1, overallAvg / scaleMax) * 140}px`,
-                  height: 0,
-                  borderTop: "1px dashed #42CA80",
-                  opacity: 0.7,
-                }}
-              >
-                <span
-                  className="absolute right-0 text-[8px] font-mono text-[#42CA80] bg-[#161616] px-1 whitespace-nowrap"
-                  style={{ top: -6 }}
-                >
-                  Overall avg · {overallAvg}d
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Labels — one per bar, aligned to the same flex widths.
-              Client labels rotate 45° so long names fit. */}
-          <div className={cn("flex gap-2", groupMode === "client" ? "mt-3 h-[56px]" : "mt-1")}>
-            {buckets.map((b) => (
-              <span
-                key={`lbl-${b.key}`}
-                title={b.label}
-                className={cn(
-                  "flex-1 font-mono text-[8px] text-[#606060] min-w-0",
-                  groupMode === "client"
-                    ? "origin-top-left rotate-[45deg] whitespace-nowrap overflow-hidden text-ellipsis"
-                    : "truncate text-center",
-                )}
-              >
-                {b.label}
-              </span>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 pt-2 border-t border-[#2a2a2a]">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-sm bg-[#42CA80]" />
-              <span className="text-[9px] font-mono text-[#C4BCAA]">
-                Faster — {groupMode === "month" ? "month avg" : "client"} ≤ overall
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-sm bg-[#F5BC4E]" />
-              <span className="text-[9px] font-mono text-[#C4BCAA]">
-                Slower — {groupMode === "month" ? "month avg" : "client"} &gt; overall
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-px border-t border-dashed border-[#42CA80]" />
-              <span className="text-[9px] font-mono text-[#C4BCAA]">
-                Overall average across all clients{overallAvg !== null ? ` (${overallAvg}d)` : ""}
-              </span>
-            </div>
-          </div>
-
-          {/* Tooltip */}
-          {hover && (
-            <div
-              className="fixed z-[9999] pointer-events-none"
-              style={{ left: hover.x, top: hover.y, transform: "translate(-50%, -100%)" }}
-            >
-              <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
-                <p className="text-[11px] font-mono font-semibold text-white">{hover.label}</p>
-                {hover.sublabel && (
-                  <p className="text-[9px] font-mono text-[#606060] mt-0.5">{hover.sublabel}</p>
-                )}
-                <p className="text-[10px] font-mono text-[#C4BCAA] mt-0.5">
-                  {groupMode === "month" ? (
-                    <>Avg <span className="text-white">{hover.avg}d</span> · {hover.count} client{hover.count === 1 ? "" : "s"}</>
-                  ) : (
-                    <><span className="text-white">{hover.avg}d</span></>
+                  {/* Reference line (overall average) */}
+                  {overallAvg !== null && overallAvg > 0 && (
+                    <div
+                      className="absolute left-0 right-0 pointer-events-none"
+                      style={{
+                        bottom: `${Math.min(1, overallAvg / scaleMax) * 140}px`,
+                        height: 0,
+                        borderTop: "1px dashed #42CA80",
+                        opacity: 0.7,
+                      }}
+                    >
+                      <span
+                        className="absolute right-0 text-[8px] font-mono text-[#42CA80] bg-[#161616] px-1 whitespace-nowrap"
+                        style={{ top: -6 }}
+                      >
+                        Overall avg · {overallAvg}d
+                      </span>
+                    </div>
                   )}
-                </p>
+                </div>
+
+                {/* Labels — rotated 55° in client mode, centered in month mode.
+                    Matching width/gap to the bars so each label sits directly
+                    under its column. Ellipsis + native title tooltip for long
+                    names. */}
+                <div
+                  className="flex mt-2"
+                  style={{ gap: BAR_GAP, height: labelRowHeight }}
+                >
+                  {buckets.map((b) => (
+                    <div
+                      key={`lbl-${b.key}`}
+                      className="flex justify-center"
+                      style={{ width: MIN_BAR_WIDTH, flex: "1 0 auto" }}
+                    >
+                      <span
+                        title={b.sublabel ? `${b.label} · ${b.sublabel}` : b.label}
+                        className={cn(
+                          "font-mono text-[10px] leading-tight",
+                          groupMode === "client"
+                            ? "origin-top-left rotate-[55deg] whitespace-nowrap overflow-hidden text-ellipsis text-[#C4BCAA] hover:text-white max-w-[140px]"
+                            : "truncate text-center text-[#606060] max-w-full",
+                        )}
+                      >
+                        {b.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-2 border-t border-[#2a2a2a]">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-sm bg-[#42CA80]" />
+                    <span className="text-[9px] font-mono text-[#C4BCAA]">
+                      Faster — {groupMode === "month" ? "month avg" : "client"} ≤ overall
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-sm bg-[#F5BC4E]" />
+                    <span className="text-[9px] font-mono text-[#C4BCAA]">
+                      Slower — {groupMode === "month" ? "month avg" : "client"} &gt; overall
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-px border-t border-dashed border-[#42CA80]" />
+                    <span className="text-[9px] font-mono text-[#C4BCAA]">
+                      Overall average across all clients{overallAvg !== null ? ` (${overallAvg}d)` : ""}
+                    </span>
+                  </div>
+                  {groupMode === "client" && buckets.length > 12 && (
+                    <span className="ml-auto text-[9px] font-mono text-[#606060]">
+                      ← scroll to see all {buckets.length} clients →
+                    </span>
+                  )}
+                </div>
+
+                {/* Tooltip */}
+                {hover && (
+                  <div
+                    className="fixed z-[9999] pointer-events-none"
+                    style={{ left: hover.x, top: hover.y, transform: "translate(-50%, -100%)" }}
+                  >
+                    <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                      <p className="text-[11px] font-mono font-semibold text-white">{hover.label}</p>
+                      {hover.sublabel && (
+                        <p className="text-[9px] font-mono text-[#606060] mt-0.5">{hover.sublabel}</p>
+                      )}
+                      <p className="text-[10px] font-mono text-[#C4BCAA] mt-0.5">
+                        {groupMode === "month" ? (
+                          <>Avg <span className="text-white">{hover.avg}d</span> · {hover.count} client{hover.count === 1 ? "" : "s"}</>
+                        ) : (
+                          <><span className="text-white">{hover.avg}d</span></>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
+          );
+        })()
       )}
     </div>
   );
