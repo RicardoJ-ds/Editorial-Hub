@@ -29,6 +29,7 @@ import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { DeliveryTrendChart } from "@/components/charts/DeliveryTrendChart";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { PacingBadge } from "@/components/dashboard/PacingBadge";
+import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
 import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
@@ -1320,6 +1321,9 @@ function DeliverablesSOWTab({
         )}
         <DeliveryTrendChart deliverables={deliverables} />
       </div>
+      {/* Per-client cards — same data as the table below, with pacing badge + bars */}
+      <ClientDeliveryCards rows={rows} pacingMap={pacingMap} />
+
       <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
         Client Delivery Detail <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Per-client articles delivered, invoiced, CB delivery, pacing, and time-to metrics." />
       </h3>
