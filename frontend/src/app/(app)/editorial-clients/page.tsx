@@ -657,57 +657,79 @@ function ClientEngagementTimeline({
         </div>
       </div>
       <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
-        {/* Cumulative article load chart */}
-        {activeCumData.length > 0 && (
+        {/* Cumulative article load chart — aligned column-for-column with the
+            per-client rows below by iterating the SAME activePeriods array
+            (rather than just the months that have production data). */}
+        {activePeriods.length > 0 && (() => {
+          // Lookup helper: period key → { actual, projected, total }
+          const cumMap = new Map(
+            activeCumData.map((c) => [c.key, { actual: c.actual, projected: c.projected, total: c.total }]),
+          );
+          // Aggregate totals across every client in the active portfolio,
+          // mirroring the per-row totals sidebar (projected / delivered /
+          // sow / reconcile). Computed from productionByClient so the figures
+          // match what each client-row shows on the right.
+          const agg = activeClients.reduce(
+            (acc, c) => {
+              const t = productionByClient.get(c.name)?.totals;
+              if (!t) return acc;
+              acc.projected += t.projected;
+              acc.delivered += t.delivered;
+              acc.sow += t.sow;
+              acc.reconciliation += t.reconciliation;
+              return acc;
+            },
+            { projected: 0, delivered: 0, sow: 0, reconciliation: 0 },
+          );
+          return (
           <div className="mb-4">
-            <div className="mb-2">
-              <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
-                Cumulative Articles — Actual & Projected
-              </p>
-              <p className="text-[8px] font-mono text-[#606060] mt-0.5">
-                Solid = actual delivered, striped = projected. Source: Editorial Operating Model. Current month is highlighted.
-              </p>
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
+                  Cumulative Articles — Actual & Projected
+                </p>
+                <p className="text-[8px] font-mono text-[#606060] mt-0.5">
+                  Columns align with the per-client rows below. Solid = actual delivered, lighter shade = projected. Source: Editorial Operating Model. Current month is highlighted.
+                </p>
+              </div>
+              <span className="font-mono text-[9px] text-[#606060]">
+                peak: {maxCumulative}
+              </span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="w-32 shrink-0 text-right pr-2 text-[9px] font-mono text-[#606060]">
-                {maxCumulative}
-              </span>
-              {/* Actual delivered sits below projected, so the overall bar
-                  still visually totals to operating-model output. Actual is
-                  solid green; projected is a striped/translucent overlay. */}
+              {/* Mirrors the 128px client-name column below so the bar grid aligns */}
+              <span className="w-32 shrink-0" />
               <div key={cumView} className="flex-1 flex items-end gap-px" style={{ height: 80 }}>
-                {activeCumData.map((item, idx) => {
-                  const actualPct = maxCumulative > 0 ? (item.actual / maxCumulative) * 100 : 0;
-                  const projectedPct = maxCumulative > 0 ? (item.projected / maxCumulative) * 100 : 0;
+                {activePeriods.map((p, idx) => {
+                  const entry = cumMap.get(p.key) ?? { actual: 0, projected: 0, total: 0 };
+                  const actualPct = maxCumulative > 0 ? (entry.actual / maxCumulative) * 100 : 0;
+                  const projectedPct = maxCumulative > 0 ? (entry.projected / maxCumulative) * 100 : 0;
                   const isCurrent = cumView === "quarterly"
-                    ? item.key === currentQuarterKey
-                    : item.key === currentMonthKey;
-                  const label = cumView === "quarterly" ? item.key.replace("-", " ") : (() => {
-                    const [y, m] = item.key.split("-").map(Number);
-                    return new Date(y, m).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-                  })();
+                    ? p.key === currentQuarterKey
+                    : p.key === currentMonthKey;
+                  const label = p.label;
                   return (
                     <div
-                      key={item.key}
+                      key={p.key}
                       className={cn(
                         "relative flex-1 flex flex-col items-center justify-end animate-fade-slide",
                         isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                       )}
                       style={{ height: "100%", animationDelay: `${idx * 20}ms` }}
                     >
-                      {item.total > 0 && (
+                      {entry.total > 0 && (
                         <span className={cn(
                           "text-[7px] font-mono mb-0.5",
                           isCurrent ? "text-[#65FFAA] font-semibold" : "text-[#42CA80]"
                         )}>
-                          {item.total}
+                          {entry.total}
                         </span>
                       )}
                       <div
                         className="relative w-full flex flex-col justify-end cursor-default"
-                        style={{ height: `${actualPct + projectedPct}%`, minHeight: item.total > 0 ? 2 : 0 }}
+                        style={{ height: `${actualPct + projectedPct}%`, minHeight: entry.total > 0 ? 2 : 0 }}
                         onMouseEnter={(e) => {
-                          if (item.total <= 0) return;
+                          if (entry.total <= 0) return;
                           const rect = e.currentTarget.getBoundingClientRect();
                           setTooltip({
                             x: rect.left + rect.width / 2,
@@ -715,11 +737,11 @@ function ClientEngagementTimeline({
                             content: (
                               <>
                                 <p className="text-[10px] font-semibold text-white">{label}</p>
-                                {item.actual > 0 && (
-                                  <p className="text-[10px] text-[#42CA80] font-mono">Actual: {item.actual}</p>
+                                {entry.actual > 0 && (
+                                  <p className="text-[10px] text-[#42CA80] font-mono">Actual: {entry.actual}</p>
                                 )}
-                                {item.projected > 0 && (
-                                  <p className="text-[10px] text-[#8FB5D9] font-mono">Projected: {item.projected}</p>
+                                {entry.projected > 0 && (
+                                  <p className="text-[10px] text-[#8FB5D9] font-mono">Projected: {entry.projected}</p>
                                 )}
                                 <p className="text-[9px] text-[#606060] font-mono mt-0.5">
                                   Source: Editorial Operating Model
@@ -730,7 +752,7 @@ function ClientEngagementTimeline({
                         }}
                         onMouseLeave={() => setTooltip(null)}
                       >
-                        {/* Projected (top portion) — solid, semi-transparent */}
+                        {/* Projected (top portion) — pod color at 35% */}
                         {projectedPct > 0 && (
                           <div
                             className="w-full rounded-t-sm animate-bar-grow"
@@ -762,37 +784,61 @@ function ClientEngagementTimeline({
                   );
                 })}
               </div>
-              {/* Reserve space so cross-client bars align with the per-client chart region */}
-              <div className="w-[260px] shrink-0" />
+              {/* Totals sidebar — aggregate across every client in the view */}
+              <div className="w-[260px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-4 gap-1 items-end">
+                <TotalsCell value={agg.projected} />
+                <TotalsCell value={agg.delivered} />
+                <TotalsCell value={agg.sow} muted />
+                <TotalsCell
+                  value={agg.reconciliation}
+                  color={
+                    agg.reconciliation < 0
+                      ? "#ED6958"
+                      : agg.reconciliation > 0
+                      ? "#42CA80"
+                      : undefined
+                  }
+                />
+              </div>
             </div>
-            {/* Period labels */}
+            {/* Period labels — aligned to the same flex grid as the bars */}
             <div key={`labels-${cumView}`} className="flex items-center gap-2 mt-0.5 animate-fade-slide">
               <span className="w-32 shrink-0" />
               <div className="flex-1 flex gap-px">
-                {activeCumData.map((item, i) => {
+                {activePeriods.map((p, i) => {
+                  const isCurrent = cumView === "quarterly"
+                    ? p.key === currentQuarterKey
+                    : p.key === currentMonthKey;
                   const showLabel = cumView === "quarterly" || i % 2 === 0;
-                  const shortLabel = cumView === "quarterly"
-                    ? item.key.replace("-", " ")
-                    : (() => {
-                        const [y, m] = item.key.split("-").map(Number);
-                        return new Date(y, m).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-                      })();
                   return (
-                    <div key={item.key} className="flex-1 text-center">
+                    <div key={p.key} className={cn(
+                      "flex-1 text-center",
+                      isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
+                    )}>
                       {showLabel && (
-                        <span className="text-[7px] font-mono text-[#606060]">
-                          {shortLabel}
+                        <span className={cn(
+                          "text-[7px] font-mono",
+                          isCurrent ? "text-[#65FFAA] font-semibold" : "text-[#606060]",
+                        )}>
+                          {p.label}
                         </span>
                       )}
                     </div>
                   );
                 })}
               </div>
-              <div className="w-[260px] shrink-0" />
+              {/* Mirror the totals sidebar width so labels don't drift */}
+              <div className="w-[260px] shrink-0 pl-3 grid grid-cols-4 gap-1">
+                <TotalsHeader label="Projected" hint="Sum of articles_projected across every active client." />
+                <TotalsHeader label="Delivered" hint="Sum of articles_actual across every active client." />
+                <TotalsHeader label="SOW" hint="Sum of contracted articles_sow across every active client." />
+                <TotalsHeader label="Reconcile" hint="sow − delivered − projected across every active client." />
+              </div>
             </div>
             <div className="border-b border-[#2a2a2a] mt-2 mb-3" />
           </div>
-        )}
+          );
+        })()}
 
         {/* Per-client section title */}
         <div className="flex items-start justify-between mb-2">
