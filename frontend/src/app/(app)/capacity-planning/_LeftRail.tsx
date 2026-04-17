@@ -61,7 +61,7 @@ export function LeftRail() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-[72px] flex h-fit w-[200px] shrink-0 flex-col gap-4 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] p-3">
+    <aside className="sticky top-14 flex h-fit w-[200px] shrink-0 flex-col gap-4 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] p-3">
       <div className="flex items-center gap-2 px-2 pt-1">
         <Sparkles className="h-4 w-4 text-[#42CA80]" />
         <div className="flex flex-col">

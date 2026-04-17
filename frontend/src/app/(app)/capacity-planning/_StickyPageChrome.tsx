@@ -12,7 +12,7 @@ import { SubNav } from "./_SubNav";
  */
 export function StickyPageChrome({ subtitle }: { subtitle?: string }) {
   return (
-    <div className="sticky top-14 z-20 flex flex-col gap-3 bg-black pb-3 pt-1">
+    <div className="sticky top-14 z-20 flex flex-col gap-3 bg-black pb-3">
       <ProposalBanner subtitle={subtitle} />
       <SubNav />
     </div>
