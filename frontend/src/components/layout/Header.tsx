@@ -24,6 +24,12 @@ const pageTitles: Record<string, string> = {
   "/capacity-planning/leave": "Leave [Proposal]",
   "/capacity-planning/overrides": "Overrides [Proposal]",
   "/capacity-planning/weekly": "Weekly Actuals [Proposal]",
+  "/capacity-planning/admin": "Admin [Proposal]",
+  "/capacity-planning/admin/members": "Members [Admin]",
+  "/capacity-planning/admin/pods": "Pods [Admin]",
+  "/capacity-planning/admin/clients": "Clients [Admin]",
+  "/capacity-planning/admin/tiers": "Engagement Tiers [Admin]",
+  "/capacity-planning/admin/metrics": "KPI Metrics [Admin]",
 };
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {

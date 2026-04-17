@@ -12,6 +12,7 @@ import {
   Plane,
   Sliders,
   CalendarRange,
+  Settings,
 } from "lucide-react";
 import { MonthPicker } from "./_MonthPicker";
 
@@ -22,6 +23,7 @@ const TABS = [
   { href: "/capacity-planning/weekly", label: "Weekly", icon: CalendarRange },
   { href: "/capacity-planning/leave", label: "Leave", icon: Plane },
   { href: "/capacity-planning/overrides", label: "Overrides", icon: Sliders },
+  { href: "/capacity-planning/admin", label: "Admin", icon: Settings },
   { href: "/capacity-planning/schema", label: "Schema", icon: Database },
   { href: "/capacity-planning/tables", label: "Tables", icon: Table2 },
   { href: "/capacity-planning/glossary", label: "Glossary", icon: BookOpen },
@@ -29,15 +31,18 @@ const TABS = [
 
 // Tabs that don't depend on the selected month — hide the picker there to
 // reduce noise.
-const MONTH_AGNOSTIC = new Set<string>([
+const MONTH_AGNOSTIC_EXACT = new Set<string>([
   "/capacity-planning/schema",
   "/capacity-planning/tables",
   "/capacity-planning/glossary",
 ]);
+const MONTH_AGNOSTIC_PREFIXES = ["/capacity-planning/admin"];
 
 export function SubNav() {
   const pathname = usePathname();
-  const showMonth = !MONTH_AGNOSTIC.has(pathname);
+  const showMonth =
+    !MONTH_AGNOSTIC_EXACT.has(pathname) &&
+    !MONTH_AGNOSTIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
     <div className="flex flex-wrap items-center gap-2">

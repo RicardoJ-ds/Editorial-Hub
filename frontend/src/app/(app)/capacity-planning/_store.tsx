@@ -37,6 +37,7 @@ const CLOSED_MONTHS_KEY = "cp2.proposal.closedMonths";
 const LEAVES_KEY = "cp2.proposal.leaves";
 const OVERRIDES_KEY = "cp2.proposal.overrides";
 const WEEKLY_KEY = "cp2.proposal.weeklyActuals";
+const DIMS_KEY = "cp2.proposal.dims";
 
 export type LeaveReason = "PTO" | "Parental" | "Sick" | "Other";
 
@@ -69,6 +70,72 @@ export type WeeklyActualRow = {
   goalArticles: number;
   ingestedAt: string;
 };
+
+// ---------------------------------------------------------------------------
+// Dim tables — admin-managed reference data.
+// ---------------------------------------------------------------------------
+
+export type DimMember = {
+  id: number;
+  full_name: string;
+  email: string;
+  role_default: "SE" | "ED" | "WR" | "AD" | "PM";
+  default_monthly_capacity_articles: number;
+  start_month: string;
+  end_month: string | null;
+  is_active: boolean;
+  notes: string;
+};
+
+export type DimPod = {
+  id: number;
+  pod_number: number;
+  display_name: string;
+  active_from: string;
+  active_to: string | null;
+  notes: string;
+};
+
+export type DimClient = {
+  id: number;
+  client_id_fk: number;
+  engagement_tier_id: number | null;
+  cadence: "quarterly" | "monthly" | "custom";
+  sow_articles_total: number;
+  sow_articles_per_month: number;
+  contract_start: string;
+  contract_end: string;
+  is_active_in_cp2: boolean;
+};
+
+export type DimEngagementTier = {
+  id: number;
+  name: string;
+  description: string;
+};
+
+export type DimKpiMetric = {
+  id: number;
+  metric_key: string;
+  display_name: string;
+  unit: "percent" | "score" | "days" | "count";
+  target_value: number;
+  direction: "higher_is_better" | "lower_is_better" | "band";
+  formula: string;
+  applies_to_roles: string;
+};
+
+export type DimsShape = {
+  members: DimMember[];
+  pods: DimPod[];
+  clients: DimClient[];
+  tiers: DimEngagementTier[];
+  metrics: DimKpiMetric[];
+};
+
+export type DimKind = keyof DimsShape;
+
+export type DimRow<K extends DimKind> = DimsShape[K][number];
 
 // ---------------------------------------------------------------------------
 // Month range — computed ±6 months from "today" so the picker follows the
@@ -262,6 +329,58 @@ function loadWeekly(): Record<string, WeeklyActualRow[]> {
   }
 }
 
+function loadDims(): DimsShape | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DIMS_KEY);
+    return raw ? (JSON.parse(raw) as DimsShape) : null;
+  } catch {
+    return null;
+  }
+}
+
+function seedDims(): DimsShape {
+  // Kept local to avoid a cyclic import with _tableMocks.ts.
+  const members: DimMember[] = [
+    { id: 101, full_name: "Nina Derossi", email: "nina@graphitehq.com", role_default: "SE", default_monthly_capacity_articles: 12, start_month: "2024-09-01", end_month: null, is_active: true, notes: "" },
+    { id: 102, full_name: "Robert Trampe", email: "robert@graphitehq.com", role_default: "ED", default_monthly_capacity_articles: 10, start_month: "2024-09-01", end_month: null, is_active: true, notes: "" },
+    { id: 103, full_name: "Jimmy Bowes", email: "jimmy@graphitehq.com", role_default: "ED", default_monthly_capacity_articles: 8, start_month: "2025-02-01", end_month: null, is_active: true, notes: "split across Pod 1 and Pod 2" },
+    { id: 201, full_name: "Kennedy Stevens", email: "kennedy@graphitehq.com", role_default: "SE", default_monthly_capacity_articles: 12, start_month: "2024-09-01", end_month: null, is_active: true, notes: "" },
+    { id: 202, full_name: "Samantha McEniff", email: "samantha@graphitehq.com", role_default: "ED", default_monthly_capacity_articles: 10, start_month: "2024-09-01", end_month: null, is_active: true, notes: "" },
+    { id: 203, full_name: "Tiffany Anderson", email: "tiffany@graphitehq.com", role_default: "ED", default_monthly_capacity_articles: 8, start_month: "2025-06-01", end_month: null, is_active: true, notes: "onboarding ramp" },
+    { id: 301, full_name: "Meredith Shaw", email: "meredith@graphitehq.com", role_default: "SE", default_monthly_capacity_articles: 12, start_month: "2025-03-01", end_month: null, is_active: true, notes: "" },
+    { id: 302, full_name: "Drew Anand", email: "drew@graphitehq.com", role_default: "WR", default_monthly_capacity_articles: 14, start_month: "2025-03-01", end_month: null, is_active: true, notes: "" },
+    { id: 303, full_name: "Lena Voss", email: "lena@graphitehq.com", role_default: "WR", default_monthly_capacity_articles: 14, start_month: "2025-03-01", end_month: null, is_active: true, notes: "" },
+  ];
+  const pods: DimPod[] = [
+    { id: 1, pod_number: 1, display_name: "Nina's Pod", active_from: "2024-09-01", active_to: null, notes: "" },
+    { id: 2, pod_number: 2, display_name: "Kennedy's Pod", active_from: "2024-09-01", active_to: null, notes: "" },
+    { id: 3, pod_number: 3, display_name: "Meredith's Pod", active_from: "2025-03-01", active_to: null, notes: "AI-sector clients" },
+  ];
+  const tiers: DimEngagementTier[] = [
+    { id: 1, name: "Premium", description: "Full CB + article + senior review" },
+    { id: 2, name: "Standard", description: "Article + editorial review" },
+    { id: 3, name: "Custom", description: "Bespoke SOW — see notes" },
+  ];
+  const clients: DimClient[] = [
+    { id: 1, client_id_fk: 42, engagement_tier_id: 1, cadence: "monthly", sow_articles_total: 300, sow_articles_per_month: 25, contract_start: "2025-01-01", contract_end: "2026-12-31", is_active_in_cp2: true },
+    { id: 2, client_id_fk: 58, engagement_tier_id: 2, cadence: "quarterly", sow_articles_total: 60, sow_articles_per_month: 5, contract_start: "2025-06-01", contract_end: "2026-06-30", is_active_in_cp2: true },
+    { id: 3, client_id_fk: 71, engagement_tier_id: 1, cadence: "monthly", sow_articles_total: 120, sow_articles_per_month: 10, contract_start: "2025-04-01", contract_end: "2026-10-31", is_active_in_cp2: true },
+  ];
+  const metrics: DimKpiMetric[] = [
+    { id: 1, metric_key: "internal_quality", display_name: "Internal Quality", unit: "score", target_value: 85, direction: "higher_is_better", formula: "Manual score by SE", applies_to_roles: "SE,ED" },
+    { id: 2, metric_key: "external_quality", display_name: "External Quality", unit: "score", target_value: 85, direction: "higher_is_better", formula: "Client satisfaction", applies_to_roles: "SE,ED" },
+    { id: 3, metric_key: "revision_rate", display_name: "Revision Rate", unit: "percent", target_value: 15, direction: "lower_is_better", formula: "revisions / delivered × 100", applies_to_roles: "SE,ED,WR" },
+    { id: 4, metric_key: "turnaround_time", display_name: "Turnaround Time", unit: "days", target_value: 14, direction: "lower_is_better", formula: "avg(delivered − cb_approved)", applies_to_roles: "SE,ED" },
+    { id: 5, metric_key: "second_reviews", display_name: "Second Reviews", unit: "count", target_value: 5, direction: "higher_is_better", formula: "count(had_second_review)", applies_to_roles: "SE" },
+    { id: 6, metric_key: "ai_compliance", display_name: "AI Compliance", unit: "percent", target_value: 95, direction: "higher_is_better", formula: "FULL_PASS / total × 100", applies_to_roles: "SE,ED,WR" },
+    { id: 7, metric_key: "mentorship", display_name: "Mentorship", unit: "score", target_value: 80, direction: "higher_is_better", formula: "Mentorship effectiveness", applies_to_roles: "SE" },
+    { id: 8, metric_key: "feedback_adoption", display_name: "Feedback Adoption", unit: "score", target_value: 80, direction: "higher_is_better", formula: "Rate of feedback incorporation", applies_to_roles: "ED" },
+    { id: 9, metric_key: "capacity_utilization", display_name: "Capacity Utilization", unit: "percent", target_value: 82, direction: "band", formula: "projected / capacity × 100", applies_to_roles: "SE,ED,WR" },
+  ];
+  return { members, pods, clients, tiers, metrics };
+}
+
 /** Deterministic seed of weekly actuals so the grid + sparklines have data to
  *  show. Generates ~8 weeks of history per client for each month with pods. */
 function deriveSeedWeeklyActuals(
@@ -403,6 +522,12 @@ type CP2StoreCtx = {
     patch: { deliveredArticles?: number; goalArticles?: number },
   ) => void;
   importWeeklyFromSheet: () => void;
+
+  // Dims (admin-managed reference data)
+  dims: DimsShape;
+  addDimRow: <K extends DimKind>(kind: K, row: Omit<DimRow<K>, "id">) => void;
+  updateDimRow: <K extends DimKind>(kind: K, row: DimRow<K>) => void;
+  deleteDimRow: <K extends DimKind>(kind: K, id: number) => void;
 };
 
 const StoreContext = createContext<CP2StoreCtx | null>(null);
@@ -413,6 +538,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [leaves, setLeaves] = useState<Record<string, LeaveRow[]>>({});
   const [overrides, setOverrides] = useState<Record<string, OverrideRow[]>>({});
   const [weeklyActuals, setWeeklyActuals] = useState<Record<string, WeeklyActualRow[]>>({});
+  const [dims, setDims] = useState<DimsShape>(seedDims);
 
   const today = useMemo(currentMonthKey, []);
   const monthOptions = useMemo(() => monthRange(today, 6, 6), [today]);
@@ -448,6 +574,9 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     } else {
       setWeeklyActuals(storedWeekly);
     }
+
+    const storedDims = loadDims();
+    if (storedDims) setDims(storedDims);
 
     const fromStorage = loadSelectedMonth(today);
     setSelectedMonthState(urlMonth && /^\d{4}-\d{2}$/.test(urlMonth) ? urlMonth : fromStorage);
@@ -518,6 +647,48 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [weeklyActuals]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DIMS_KEY, JSON.stringify(dims));
+    } catch {
+      // ignore
+    }
+  }, [dims]);
+
+  const addDimRow = useCallback(<K extends DimKind>(
+    kind: K,
+    row: Omit<DimRow<K>, "id">,
+  ) => {
+    setDims((prev) => {
+      const list = prev[kind] as DimRow<K>[];
+      const nextId = list.reduce((mx, r) => Math.max(mx, r.id), 0) + 1;
+      const newRow = { ...row, id: nextId } as DimRow<K>;
+      return { ...prev, [kind]: [...list, newRow] } as DimsShape;
+    });
+  }, []);
+
+  const updateDimRow = useCallback(<K extends DimKind>(
+    kind: K,
+    row: DimRow<K>,
+  ) => {
+    setDims((prev) => {
+      const list = prev[kind] as DimRow<K>[];
+      const next = list.map((r) => (r.id === row.id ? row : r));
+      return { ...prev, [kind]: next } as DimsShape;
+    });
+  }, []);
+
+  const deleteDimRow = useCallback(<K extends DimKind>(
+    kind: K,
+    id: number,
+  ) => {
+    setDims((prev) => {
+      const list = prev[kind] as DimRow<K>[];
+      return { ...prev, [kind]: list.filter((r) => r.id !== id) } as DimsShape;
+    });
+  }, []);
+
   const isMonthClosed = useCallback(
     (m: string) => closedMonths.includes(m),
     [closedMonths],
@@ -546,6 +717,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     setLeaves(derived.leaves);
     setOverrides(derived.overrides);
     setWeeklyActuals(deriveSeedWeeklyActuals(fresh.monthly));
+    setDims(seedDims());
   }, []);
 
   const updateMember: CP2StoreCtx["updateMember"] = useCallback(
@@ -936,6 +1108,10 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       weeklyActuals,
       setWeeklyActual,
       importWeeklyFromSheet,
+      dims,
+      addDimRow,
+      updateDimRow,
+      deleteDimRow,
     }),
     [
       state,
@@ -965,6 +1141,10 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       weeklyActuals,
       setWeeklyActual,
       importWeeklyFromSheet,
+      dims,
+      addDimRow,
+      updateDimRow,
+      deleteDimRow,
     ],
   );
 
