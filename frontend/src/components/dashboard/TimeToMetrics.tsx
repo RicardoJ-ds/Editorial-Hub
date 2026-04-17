@@ -213,9 +213,9 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
             Month-over-Month Trend
           </p>
           <p className="text-[9px] font-mono text-[#606060] mt-0.5">
-            Average {metric.label.toLowerCase()} — bucketed by {REF_LABEL} cohort month.
+            Average {metric.label.toLowerCase()}, bucketed by each client&apos;s {REF_LABEL} month. Lower is better.
             {overallAvg !== null && (
-              <> Overall avg: <span className="text-white font-semibold">{overallAvg}d</span></>
+              <> Overall avg across all clients: <span className="text-white font-semibold">{overallAvg}d</span>.</>
             )}
           </p>
         </div>
@@ -241,69 +241,74 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
           Not enough data to compute a trend for the current filters.
         </p>
       ) : (
-        <div className="relative">
-          {/* Reference line (overall average) */}
-          {overallAvg !== null && overallAvg > 0 && (
-            <div
-              className="absolute left-0 right-0 pointer-events-none"
-              style={{
-                bottom: `${20 + (overallAvg / maxAvg) * 140}px`,
-                height: 1,
-                borderTop: "1px dashed #42CA80",
-                opacity: 0.5,
-              }}
-            >
-              <span
-                className="absolute right-0 -top-3 text-[8px] font-mono text-[#42CA80]"
-                style={{ transform: "translateY(-100%)" }}
-              >
-                Overall {overallAvg}d
-              </span>
+        <div>
+          {/* Chart area — bars + reference line share the same coordinate space */}
+          <div className="relative h-[180px]">
+            {/* Bars */}
+            <div className="absolute inset-0 flex items-end gap-2 pb-5">
+              {buckets.map((b) => {
+                const hPx = Math.max(2, Math.round((b.avg / maxAvg) * 140));
+                const above = overallAvg !== null && b.avg > overallAvg;
+                return (
+                  <div key={b.key} className="flex-1 flex flex-col items-center gap-1 min-w-0 group/bar">
+                    <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">{b.avg}d</span>
+                    <div
+                      className={cn(
+                        "w-full rounded-t transition-all",
+                        above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
+                        "group-hover/bar:opacity-80"
+                      )}
+                      style={{ height: hPx, opacity: 0.85 }}
+                      onMouseEnter={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setHover({ x: r.left + r.width / 2, y: r.top - 10, key: b.key, avg: b.avg, count: b.count });
+                      }}
+                      onMouseLeave={() => setHover(null)}
+                    />
+                    <span className="font-mono text-[8px] text-[#606060] truncate w-full text-center">
+                      {formatMonthKey(b.key)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-          )}
 
-          {/* Bars */}
-          <div className="flex items-end gap-2 h-[180px] pb-5">
-            {buckets.map((b) => {
-              const hPx = Math.max(2, Math.round((b.avg / maxAvg) * 140));
-              const above = overallAvg !== null && b.avg > overallAvg;
-              return (
-                <div key={b.key} className="flex-1 flex flex-col items-center gap-1 min-w-0 relative group/bar">
-                  <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">{b.avg}d</span>
-                  <div
-                    className={cn(
-                      "w-full rounded-t transition-all",
-                      above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
-                      "group-hover/bar:opacity-80"
-                    )}
-                    style={{ height: hPx, opacity: 0.85 }}
-                    onMouseEnter={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setHover({ x: r.left + r.width / 2, y: r.top - 10, key: b.key, avg: b.avg, count: b.count });
-                    }}
-                    onMouseLeave={() => setHover(null)}
-                  />
-                  <span className="font-mono text-[8px] text-[#606060] truncate w-full text-center">
-                    {formatMonthKey(b.key)}
-                  </span>
-                </div>
-              );
-            })}
+            {/* Reference line (overall average) — aligned with bar heights */}
+            {overallAvg !== null && overallAvg > 0 && (
+              <div
+                className="absolute left-0 right-0 pointer-events-none"
+                style={{
+                  bottom: `${20 + (overallAvg / maxAvg) * 140}px`,
+                  height: 0,
+                  borderTop: "1px dashed #42CA80",
+                  opacity: 0.7,
+                }}
+              >
+                <span
+                  className="absolute right-0 text-[8px] font-mono text-[#42CA80] bg-[#161616] px-1 whitespace-nowrap"
+                  style={{ top: -6 }}
+                >
+                  Overall avg · {overallAvg}d
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-4 mt-2 pt-2 border-t border-[#2a2a2a]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 pt-2 border-t border-[#2a2a2a]">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-sm bg-[#42CA80]" />
-              <span className="text-[8px] font-mono text-[#606060]">At or under overall avg</span>
+              <span className="text-[9px] font-mono text-[#C4BCAA]">Faster — month avg ≤ overall</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-sm bg-[#F5BC4E]" />
-              <span className="text-[8px] font-mono text-[#606060]">Above overall avg</span>
+              <span className="text-[9px] font-mono text-[#C4BCAA]">Slower — month avg &gt; overall</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-px border-t border-dashed border-[#42CA80]" />
-              <span className="text-[8px] font-mono text-[#606060]">Overall average</span>
+              <span className="text-[9px] font-mono text-[#C4BCAA]">
+                Overall average across all clients{overallAvg !== null ? ` (${overallAvg}d)` : ""}
+              </span>
             </div>
           </div>
 
