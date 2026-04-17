@@ -18,7 +18,7 @@ export default async function AppLayout({
     <div className="flex h-full min-h-screen">
       <TooltipProvider>
         <Sidebar />
-        <div className="ml-[240px] flex flex-1 flex-col overflow-auto">
+        <div className="ml-[64px] flex flex-1 flex-col overflow-auto">
           <div className="sticky top-0 z-30 bg-black">
             <Header user={user} />
           </div>

@@ -11,17 +11,17 @@ export function MonthPicker() {
   const next = () => setSelectedMonth(shiftMonth(selectedMonth, +1));
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] p-1">
+    <div className="flex min-w-0 max-w-full items-center gap-1 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] p-1">
       <button
         type="button"
         onClick={prev}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[#C4BCAA] transition-colors hover:bg-[#161616] hover:text-white"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#C4BCAA] transition-colors hover:bg-[#161616] hover:text-white"
         aria-label="Previous month"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
 
-      <div className="flex items-center gap-1 overflow-x-auto">
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {monthOptions.map((m) => {
           const active = m === selectedMonth;
           const isToday = m === today;
@@ -62,18 +62,18 @@ export function MonthPicker() {
       <button
         type="button"
         onClick={next}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[#C4BCAA] transition-colors hover:bg-[#161616] hover:text-white"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#C4BCAA] transition-colors hover:bg-[#161616] hover:text-white"
         aria-label="Next month"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
 
-      <div className="mx-1 h-5 w-px bg-[#1f1f1f]" />
+      <div className="mx-1 h-5 w-px shrink-0 bg-[#1f1f1f]" />
 
       <button
         type="button"
         onClick={goToCurrentMonth}
-        className="flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA] transition-colors hover:bg-[#161616] hover:text-white"
+        className="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA] transition-colors hover:bg-[#161616] hover:text-white"
         title="Jump to current month"
       >
         <CalendarClock className="h-3.5 w-3.5" />

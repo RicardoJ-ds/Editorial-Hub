@@ -22,9 +22,15 @@ export function SubNav() {
     !MONTH_AGNOSTIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      {showMonth && <MonthPicker />}
-      <GlobalSearch />
+    <div className="flex items-center gap-2">
+      {showMonth && (
+        <div className="min-w-0 flex-1">
+          <MonthPicker />
+        </div>
+      )}
+      <div className="shrink-0">
+        <GlobalSearch />
+      </div>
     </div>
   );
 }
