@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   "/capacity-planning/glossary": "KPI Glossary [Proposal]",
   "/capacity-planning/leave": "Leave [Proposal]",
   "/capacity-planning/overrides": "Overrides [Proposal]",
+  "/capacity-planning/weekly": "Weekly Actuals [Proposal]",
 };
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {

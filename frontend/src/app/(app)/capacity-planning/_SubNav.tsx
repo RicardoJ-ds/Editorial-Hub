@@ -11,6 +11,7 @@ import {
   BookOpen,
   Plane,
   Sliders,
+  CalendarRange,
 } from "lucide-react";
 import { MonthPicker } from "./_MonthPicker";
 
@@ -18,6 +19,7 @@ const TABS = [
   { href: "/capacity-planning", label: "Overview", icon: LayoutGrid },
   { href: "/capacity-planning/roster", label: "Roster", icon: Users },
   { href: "/capacity-planning/allocation", label: "Allocation", icon: Move3D },
+  { href: "/capacity-planning/weekly", label: "Weekly", icon: CalendarRange },
   { href: "/capacity-planning/leave", label: "Leave", icon: Plane },
   { href: "/capacity-planning/overrides", label: "Overrides", icon: Sliders },
   { href: "/capacity-planning/schema", label: "Schema", icon: Database },

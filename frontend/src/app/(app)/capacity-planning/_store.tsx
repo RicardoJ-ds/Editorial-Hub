@@ -36,6 +36,7 @@ const SELECTED_MONTH_KEY = "cp2.proposal.selectedMonth";
 const CLOSED_MONTHS_KEY = "cp2.proposal.closedMonths";
 const LEAVES_KEY = "cp2.proposal.leaves";
 const OVERRIDES_KEY = "cp2.proposal.overrides";
+const WEEKLY_KEY = "cp2.proposal.weeklyActuals";
 
 export type LeaveReason = "PTO" | "Parental" | "Sick" | "Other";
 
@@ -57,6 +58,16 @@ export type OverrideRow = {
   reason: string;
   createdBy: string;
   createdAt: string;
+};
+
+export type WeeklyActualRow = {
+  id: number;
+  weekKey: string;
+  clientId: number;
+  podId: number | null;
+  deliveredArticles: number;
+  goalArticles: number;
+  ingestedAt: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -88,6 +99,90 @@ export function monthLabel(monthKey: string): string {
   const [y, m] = monthKey.split("-").map((n) => parseInt(n, 10));
   const d = new Date(y, m - 1, 1);
   return `${d.toLocaleString("en-US", { month: "short" })} ${d.getFullYear()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Week helpers — ISO weeks keyed as YYYY-Www (e.g. 2026-W14).
+// ---------------------------------------------------------------------------
+
+function isoWeekOf(date: Date): { year: number; week: number } {
+  // Algorithm per ISO 8601.
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return { year: d.getUTCFullYear(), week };
+}
+
+export function weekKeyOf(date: Date): string {
+  const { year, week } = isoWeekOf(date);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+/** First day (Monday) of an ISO week. */
+function dateOfIsoWeek(year: number, week: number): Date {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dayOfWeek = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1 + (week - 1) * 7);
+  return monday;
+}
+
+/** Return all ISO weeks whose Thursday lies inside the given YYYY-MM. */
+export function weeksInMonth(monthKey: string): Array<{
+  weekKey: string;
+  start: Date;
+  end: Date;
+  label: string;
+}> {
+  const [y, m] = monthKey.split("-").map((n) => parseInt(n, 10));
+  const firstOfMonth = new Date(Date.UTC(y, m - 1, 1));
+  const lastOfMonth = new Date(Date.UTC(y, m, 0));
+  const { year: startYear, week: startWeek } = isoWeekOf(firstOfMonth);
+  const { year: endYear, week: endWeek } = isoWeekOf(lastOfMonth);
+
+  const weeks: Array<{ weekKey: string; start: Date; end: Date; label: string }> = [];
+  let yr = startYear;
+  let wk = startWeek;
+  while (yr < endYear || (yr === endYear && wk <= endWeek)) {
+    const start = dateOfIsoWeek(yr, wk);
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    weeks.push({
+      weekKey: `${yr}-W${String(wk).padStart(2, "0")}`,
+      start,
+      end,
+      label: `W${wk}`,
+    });
+    // advance
+    const next = new Date(start);
+    next.setUTCDate(start.getUTCDate() + 7);
+    const iso = isoWeekOf(next);
+    yr = iso.year;
+    wk = iso.week;
+    if (weeks.length > 6) break; // safety
+  }
+  return weeks;
+}
+
+/** Return the last N ISO week keys ending at (and including) weekKey. */
+export function previousWeeks(weekKey: string, count: number): string[] {
+  const m = /^(\d{4})-W(\d{2})$/.exec(weekKey);
+  if (!m) return [];
+  let yr = parseInt(m[1], 10);
+  let wk = parseInt(m[2], 10);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    out.unshift(`${yr}-W${String(wk).padStart(2, "0")}`);
+    wk -= 1;
+    if (wk <= 0) {
+      yr -= 1;
+      // Approx: most years have 52 weeks, some 53. Good enough for sparklines.
+      wk = 52;
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +250,48 @@ function loadOverrides(): Record<string, OverrideRow[]> {
   } catch {
     return {};
   }
+}
+
+function loadWeekly(): Record<string, WeeklyActualRow[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(WEEKLY_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, WeeklyActualRow[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Deterministic seed of weekly actuals so the grid + sparklines have data to
+ *  show. Generates ~8 weeks of history per client for each month with pods. */
+function deriveSeedWeeklyActuals(
+  monthly: Record<string, PodBoard[]>,
+): Record<string, WeeklyActualRow[]> {
+  const byWeek: Record<string, WeeklyActualRow[]> = {};
+  let seq = 1;
+  for (const [monthKey, pods] of Object.entries(monthly)) {
+    const weeks = weeksInMonth(monthKey);
+    for (const pod of pods) {
+      for (const client of pod.clients) {
+        const perWeekGoal = Math.max(1, Math.round(client.projectedArticles / weeks.length));
+        weeks.forEach(({ weekKey }, i) => {
+          // Slightly varied delivery around the goal for realism.
+          const jitter = ((client.id + i) % 3) - 1; // -1 | 0 | +1
+          const delivered = Math.max(0, perWeekGoal + jitter);
+          (byWeek[weekKey] ??= []).push({
+            id: seq++,
+            weekKey,
+            clientId: client.id,
+            podId: pod.id,
+            deliveredArticles: delivered,
+            goalArticles: perWeekGoal,
+            ingestedAt: new Date().toISOString(),
+          });
+        });
+      }
+    }
+  }
+  return byWeek;
 }
 
 /** Seed leaves + overrides from the flat MemberRow fields so the proposal
@@ -256,6 +393,16 @@ type CP2StoreCtx = {
     row: Omit<OverrideRow, "id" | "createdAt">,
   ) => void;
   removeOverride: (id: number) => void;
+
+  // Weekly actuals
+  weeklyActuals: Record<string, WeeklyActualRow[]>;
+  setWeeklyActual: (
+    weekKey: string,
+    clientId: number,
+    podId: number | null,
+    patch: { deliveredArticles?: number; goalArticles?: number },
+  ) => void;
+  importWeeklyFromSheet: () => void;
 };
 
 const StoreContext = createContext<CP2StoreCtx | null>(null);
@@ -265,6 +412,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [closedMonths, setClosedMonths] = useState<string[]>([]);
   const [leaves, setLeaves] = useState<Record<string, LeaveRow[]>>({});
   const [overrides, setOverrides] = useState<Record<string, OverrideRow[]>>({});
+  const [weeklyActuals, setWeeklyActuals] = useState<Record<string, WeeklyActualRow[]>>({});
 
   const today = useMemo(currentMonthKey, []);
   const monthOptions = useMemo(() => monthRange(today, 6, 6), [today]);
@@ -292,6 +440,13 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     } else {
       setLeaves(storedLeaves);
       setOverrides(storedOverrides);
+    }
+
+    const storedWeekly = loadWeekly();
+    if (Object.keys(storedWeekly).length === 0) {
+      setWeeklyActuals(deriveSeedWeeklyActuals(loaded.monthly));
+    } else {
+      setWeeklyActuals(storedWeekly);
     }
 
     const fromStorage = loadSelectedMonth(today);
@@ -354,6 +509,15 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [overrides]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(WEEKLY_KEY, JSON.stringify(weeklyActuals));
+    } catch {
+      // ignore
+    }
+  }, [weeklyActuals]);
+
   const isMonthClosed = useCallback(
     (m: string) => closedMonths.includes(m),
     [closedMonths],
@@ -381,6 +545,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     const derived = deriveSeedLeavesOverrides(fresh.monthly);
     setLeaves(derived.leaves);
     setOverrides(derived.overrides);
+    setWeeklyActuals(deriveSeedWeeklyActuals(fresh.monthly));
   }, []);
 
   const updateMember: CP2StoreCtx["updateMember"] = useCallback(
@@ -669,6 +834,51 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     [syncMemberOverride],
   );
 
+  // ------------------ Weekly actuals ------------------
+
+  const setWeeklyActual: CP2StoreCtx["setWeeklyActual"] = useCallback(
+    (weekKey, clientId, podId, patch) => {
+      setWeeklyActuals((prev) => {
+        const list = prev[weekKey] ?? [];
+        const existing = list.find((r) => r.clientId === clientId);
+        let nextList: WeeklyActualRow[];
+        if (existing) {
+          nextList = list.map((r) =>
+            r.clientId === clientId
+              ? {
+                  ...r,
+                  ...patch,
+                  podId: podId ?? r.podId,
+                  ingestedAt: new Date().toISOString(),
+                }
+              : r,
+          );
+        } else {
+          nextList = [
+            ...list,
+            {
+              id: Date.now() % 1_000_000_000,
+              weekKey,
+              clientId,
+              podId,
+              deliveredArticles: patch.deliveredArticles ?? 0,
+              goalArticles: patch.goalArticles ?? 0,
+              ingestedAt: new Date().toISOString(),
+            },
+          ];
+        }
+        return { ...prev, [weekKey]: nextList };
+      });
+    },
+    [],
+  );
+
+  const importWeeklyFromSheet: CP2StoreCtx["importWeeklyFromSheet"] = useCallback(() => {
+    // Proposal-only: rebuild from mock seed. In production this would call
+    // the backend endpoint that ingests Master Tracker "Goals vs Delivery".
+    setWeeklyActuals(deriveSeedWeeklyActuals(state.monthly));
+  }, [state.monthly]);
+
   const copyFromPreviousMonth: CP2StoreCtx["copyFromPreviousMonth"] = useCallback(
     (target) => {
       setState((s) => {
@@ -723,6 +933,9 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       removeLeave,
       addOverride,
       removeOverride,
+      weeklyActuals,
+      setWeeklyActual,
+      importWeeklyFromSheet,
     }),
     [
       state,
@@ -749,6 +962,9 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       removeLeave,
       addOverride,
       removeOverride,
+      weeklyActuals,
+      setWeeklyActual,
+      importWeeklyFromSheet,
     ],
   );
 
