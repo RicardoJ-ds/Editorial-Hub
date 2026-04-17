@@ -37,7 +37,6 @@ interface PodGoalAgg {
   adGoal: number;
   backlog: number;
   revisions: number;
-  monthYear: string | null;
 }
 
 interface PodPipelineAgg {
@@ -82,7 +81,6 @@ function aggregateGoalsByPod(
         pod, clientCount: 0, clientNames: [],
         cbDelivered: 0, cbGoal: 0, adDelivered: 0, adGoal: 0,
         backlog: 0, revisions: 0,
-        monthYear: r.month_year,
       });
     }
     const agg = byPod.get(pod)!;
@@ -169,12 +167,7 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-3 transition-colors hover:border-[#333] animate-fade-slide">
-      <div className="mb-2 flex items-center justify-between">
-        {data.monthYear && (
-          <p className="text-[9px] font-mono text-[#606060]">
-            {data.monthYear}
-          </p>
-        )}
+      <div className="mb-2 flex items-center justify-end">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger render={<span className="cursor-help" />}>
