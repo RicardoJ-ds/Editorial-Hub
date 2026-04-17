@@ -71,6 +71,7 @@ interface TooltipPayloadEntry {
   value: number | null;
   color: string;
   dataKey?: string;
+  payload?: Record<string, number | string | null>;
 }
 
 function CustomTooltip({
@@ -86,7 +87,6 @@ function CustomTooltip({
   const rows = payload
     .filter((p) => p.value != null)
     .sort((a, b) => {
-      // Show "All pods" first, then pods numerically
       if (a.name === ALL_KEY) return -1;
       if (b.name === ALL_KEY) return 1;
       return sortPodKey(a.name, b.name);
@@ -94,16 +94,25 @@ function CustomTooltip({
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 shadow-xl">
       <p className="mb-1 font-mono text-xs font-semibold text-white">{label}</p>
-      {rows.map((entry) => (
-        <div key={entry.name} className="flex items-center gap-2 font-mono text-[10px]">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-[#C4BCAA]">{entry.name}:</span>
-          <span className="font-semibold text-white">{Math.round(entry.value ?? 0)}%</span>
-        </div>
-      ))}
+      {rows.map((entry) => {
+        const rawKey = `${entry.name}__raw`;
+        const raw =
+          entry.payload && typeof entry.payload[rawKey] === "number"
+            ? (entry.payload[rawKey] as number)
+            : (entry.value ?? 0);
+        const clipped = raw > Y_CAP;
+        return (
+          <div key={entry.name} className="flex items-center gap-2 font-mono text-[10px]">
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-[#C4BCAA]">{entry.name}:</span>
+            <span className="font-semibold text-white">{Math.round(raw)}%</span>
+            {clipped && <span className="text-[#ED6958] font-semibold">↑</span>}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -114,6 +123,59 @@ interface DeliveryTrendChartProps {
 }
 
 type Mode = "monthly" | "cumulative";
+
+/** Y-axis cap. Anything above this gets clipped and marked with an up-arrow.
+ *  150% gives enough headroom to see a pod doing a catch-up invoice month
+ *  without letting a 3000% outlier flatten the rest of the series. */
+const Y_CAP = 150;
+
+/** Dot renderer: when the raw (un-clipped) value for this point exceeds the
+ *  cap, draw an up-arrow at the cap line so the clipped point is visible
+ *  with its real value tooltipped. Normal points render no dot. */
+function makeClippedDot(seriesKey: string) {
+  // Recharts types the dot props very loosely — accept anything and narrow here.
+  const DotComponent = (props: unknown) => {
+    const p = (props ?? {}) as {
+      cx?: number;
+      cy?: number;
+      stroke?: string;
+      payload?: Record<string, number | string | null>;
+    };
+    const { cx, cy, stroke, payload } = p;
+    if (cx == null || cy == null || !payload) return <g />;
+    const rawKey = `${seriesKey}__raw`;
+    const raw = payload[rawKey];
+    if (typeof raw !== "number" || raw <= Y_CAP) return <g />;
+    const color = stroke ?? "#ED6958";
+    // Arrow is rendered at the cap line (cy already clamped to Y_CAP by Recharts
+    // because we fed it Math.min(raw, Y_CAP)) — bump up a hair so the tip is
+    // clearly above the line.
+    const topY = cy - 9;
+    return (
+      <g>
+        <line
+          x1={cx}
+          x2={cx}
+          y1={cy - 2}
+          y2={topY + 3}
+          stroke={color}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+        <polyline
+          points={`${cx - 3},${topY + 4} ${cx},${topY} ${cx + 3},${topY + 4}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    );
+  };
+  DotComponent.displayName = `ClippedDot(${seriesKey})`;
+  return DotComponent;
+}
 
 export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChartProps) {
   const [mode, setMode] = useState<Mode>("monthly");
@@ -159,12 +221,20 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
   }, [deliverables, clientToPod]);
 
   // For each month, compute invoiced/delivered % per pod + for "All pods", either
-  // per-period or cumulative-to-date based on the mode toggle.
+  // per-period or cumulative-to-date based on the mode toggle. Values above
+  // Y_CAP are clipped to the cap on the rendered series; the unclipped value
+  // is preserved on a sibling `${key}__raw` field so the tooltip can show it
+  // and the dot renderer can draw an up-arrow marker.
   const chartData = useMemo(() => {
     type Row = Record<string, number | string | null>;
     const cumulative = new Map<string, { delivered: number; invoiced: number }>();
     let allCumDelivered = 0;
     let allCumInvoiced = 0;
+
+    const writeSeries = (row: Row, key: string, value: number | null) => {
+      row[`${key}__raw`] = value;
+      row[key] = value == null ? null : Math.min(value, Y_CAP);
+    };
 
     return months.map((m) => {
       const row: Row = { month: m.label };
@@ -176,38 +246,32 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
         monthDelivered += stats.delivered;
         monthInvoiced += stats.invoiced;
 
+        let value: number | null;
         if (mode === "monthly") {
-          row[pod] =
-            stats.delivered > 0
-              ? (stats.invoiced / stats.delivered) * 100
-              : null;
+          value = stats.delivered > 0 ? (stats.invoiced / stats.delivered) * 100 : null;
         } else {
           const prev = cumulative.get(pod) ?? { delivered: 0, invoiced: 0 };
           prev.delivered += stats.delivered;
           prev.invoiced += stats.invoiced;
           cumulative.set(pod, prev);
-          row[pod] =
-            prev.delivered > 0
-              ? (prev.invoiced / prev.delivered) * 100
-              : null;
+          value = prev.delivered > 0 ? (prev.invoiced / prev.delivered) * 100 : null;
         }
+        writeSeries(row, pod, value);
       }
 
+      let allValue: number | null;
       if (mode === "monthly") {
-        row[ALL_KEY] =
-          monthDelivered > 0 ? (monthInvoiced / monthDelivered) * 100 : null;
+        allValue = monthDelivered > 0 ? (monthInvoiced / monthDelivered) * 100 : null;
       } else {
         allCumDelivered += monthDelivered;
         allCumInvoiced += monthInvoiced;
-        row[ALL_KEY] =
-          allCumDelivered > 0
-            ? (allCumInvoiced / allCumDelivered) * 100
-            : null;
+        allValue =
+          allCumDelivered > 0 ? (allCumInvoiced / allCumDelivered) * 100 : null;
       }
+      writeSeries(row, ALL_KEY, allValue);
 
       return row;
     });
-    // rawByPodMonth unused but kept close for clarity
   }, [months, allPods, mode]);
 
   // Surface a lightweight legend so users can toggle pods on/off
@@ -250,7 +314,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
               />
             </CardTitle>
             <p className="mt-0.5 text-[10px] font-mono text-[#606060]">
-              Invoiced ÷ Delivered per pod, tracked over time. The white line is all pods combined. Toggle pods in the legend; switch between per-month and cumulative.
+              Invoiced ÷ Delivered per pod over time. White line = all pods combined. Y-axis capped at {Y_CAP}% so a single catch-up month can&apos;t flatten the rest — months exceeding the cap are marked with an <span className="text-[#ED6958]">↑</span>; hover to see the true %.
             </p>
           </div>
           <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5 shrink-0">
@@ -303,7 +367,9 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
               }}
               axisLine={{ stroke: "#2a2a2a" }}
               tickLine={false}
-              domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)]}
+              domain={[0, Y_CAP]}
+              ticks={[0, 25, 50, 75, 100, Y_CAP]}
+              allowDataOverflow
             />
             <Tooltip
               content={<CustomTooltip />}
@@ -329,7 +395,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                 stroke={POD_COLORS[pod] ?? "#606060"}
                 strokeWidth={hidden.has(pod) ? 0 : 1.6}
                 strokeOpacity={hidden.has(pod) ? 0 : 0.85}
-                dot={false}
+                dot={hidden.has(pod) ? false : makeClippedDot(pod)}
                 activeDot={{ r: 3, fill: POD_COLORS[pod] ?? "#606060" }}
                 connectNulls
                 isAnimationActive={false}
@@ -342,7 +408,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
               stroke={ALL_COLOR}
               strokeWidth={hidden.has(ALL_KEY) ? 0 : 2.5}
               strokeOpacity={hidden.has(ALL_KEY) ? 0 : 1}
-              dot={false}
+              dot={hidden.has(ALL_KEY) ? false : makeClippedDot(ALL_KEY)}
               activeDot={{ r: 4, fill: ALL_COLOR }}
               connectNulls
               isAnimationActive={false}
