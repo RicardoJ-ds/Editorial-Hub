@@ -442,8 +442,16 @@ function ClientEngagementTimeline({
   clients: Client[];
   clientProduction: ClientProductionRow[];
 }) {
-  const [view, setView] = useState<"cadence" | "delivered">("cadence");
   const [cumView, setCumView] = useState<"monthly" | "quarterly">("monthly");
+  // Current month in YYYY-MM — used to highlight the live column and split
+  // actual (historic) from projected (future). The Operating Model carries
+  // both numbers on every row, so we pick by calendar position.
+  const nowYm = useMemo(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  }, []);
+  const currentMonthKey = `${nowYm.year}-${String(nowYm.month).padStart(2, "0")}`;
+  const currentQuarterKey = `${nowYm.year}-Q${Math.floor(nowYm.month / 3) + 1}`;
 
   // Lookup per-client production rows (from ProductionHistory / Editorial Operating Model)
   const productionByClient = useMemo(() => {
@@ -525,91 +533,54 @@ function ClientEngagementTimeline({
     return months;
   }, [activeClients.length, minDate, maxDate]);
 
-  // Parse cadence into monthly targets per client
-  const clientMonthlyTargets = useMemo(() => {
-    return activeClients.map((client) => {
-      const months: { year: number; month: number; target: number }[] = [];
-      if (!client.start_date) return { client, months };
-      const start = new Date(client.start_date);
-      const termMonths = client.term_months ?? 12;
-
-      if (client.cadence_q1 != null) {
-        // Quarterly cadence: distribute evenly across 3 months per quarter
-        const quarters = [
-          client.cadence_q1,
-          client.cadence_q2,
-          client.cadence_q3,
-          client.cadence_q4,
-        ];
-        for (let q = 0; q < 4; q++) {
-          const qTarget = quarters[q] ?? 0;
-          if (qTarget <= 0) continue;
-          const base = Math.floor(qTarget / 3);
-          const remainder = qTarget - base * 3; // 0, 1, or 2 extra articles
-          for (let m = 0; m < 3; m++) {
-            const monthIdx = q * 3 + m;
-            if (monthIdx >= termMonths) break;
-            const d = new Date(start.getFullYear(), start.getMonth() + monthIdx, 1);
-            // Spread remainder across the first month(s) of the quarter
-            const target = base + (m < remainder ? 1 : 0);
-            months.push({ year: d.getFullYear(), month: d.getMonth(), target });
-          }
-        }
-      } else if (client.cadence) {
-        // Monthly cadence: parse "M1 = 20/ M2 = 20" format
-        const regex = /M(\d+)\s*=\s*(\d+)/g;
-        let match;
-        while ((match = regex.exec(client.cadence)) !== null) {
-          const monthIdx = parseInt(match[1]) - 1;
-          const target = parseInt(match[2]);
-          if (monthIdx < termMonths) {
-            const d = new Date(start.getFullYear(), start.getMonth() + monthIdx, 1);
-            months.push({ year: d.getFullYear(), month: d.getMonth(), target });
-          }
-        }
-      }
-
-      return { client, months };
-    });
-  }, [activeClients]);
-
-  // Cumulative: sum targets across all clients per month
+  // Cumulative: sum actual + projected across all filtered clients per month,
+  // straight from the Editorial Operating Model. Each month carries both an
+  // `actual` and `projected` value; we surface both so the top chart can stack
+  // them and mark the current month.
   const cumulativeByMonth = useMemo(() => {
-    const map = new Map<string, number>();
-    clientMonthlyTargets.forEach(({ months }) => {
-      months.forEach(({ year, month, target }) => {
+    const map = new Map<string, { actual: number; projected: number }>();
+    for (const c of activeClients) {
+      const prod = productionByClient.get(c.name);
+      if (!prod) continue;
+      for (const { year, month, actual, projected } of prod.monthly) {
         const key = `${year}-${String(month).padStart(2, "0")}`;
-        map.set(key, (map.get(key) ?? 0) + target);
-      });
-    });
+        const row = map.get(key) ?? { actual: 0, projected: 0 };
+        row.actual += actual;
+        row.projected += projected;
+        map.set(key, row);
+      }
+    }
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, total]) => ({ key, total }));
-  }, [clientMonthlyTargets]);
+      .map(([key, v]) => ({
+        key,
+        actual: v.actual,
+        projected: v.projected,
+        total: v.actual + v.projected,
+      }));
+  }, [activeClients, productionByClient]);
 
-  // Max target across all individual cells (for scaling cadence mini-bars)
-  const maxCellTarget = useMemo(() => {
-    let maxVal = 1;
-    clientMonthlyTargets.forEach(({ months }) => {
-      months.forEach(({ target }) => {
-        if (target > maxVal) maxVal = target;
-      });
-    });
-    return maxVal;
-  }, [clientMonthlyTargets]);
-
-  // Quarterly aggregation of cumulative data
+  // Quarterly aggregation of cumulative data — keep actual/projected split.
   const cumulativeByQuarter = useMemo(() => {
-    const map = new Map<string, number>();
-    cumulativeByMonth.forEach(({ key, total }) => {
+    const map = new Map<string, { actual: number; projected: number }>();
+    cumulativeByMonth.forEach(({ key, actual, projected }) => {
       const [y, m] = key.split("-").map(Number);
       const q = Math.floor(m / 3) + 1;
       const qKey = `${y}-Q${q}`;
-      map.set(qKey, (map.get(qKey) ?? 0) + total);
+      const row = map.get(qKey) ?? { actual: 0, projected: 0 };
+      row.actual += actual;
+      row.projected += projected;
+      map.set(qKey, row);
     });
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, total]) => ({ key, label: key.replace("-", " "), total }));
+      .map(([key, v]) => ({
+        key,
+        label: key.replace("-", " "),
+        actual: v.actual,
+        projected: v.projected,
+        total: v.actual + v.projected,
+      }));
   }, [cumulativeByMonth]);
 
   // Build quarterly timeline periods for per-client view
@@ -642,11 +613,6 @@ function ClientEngagementTimeline({
   }, [activeCumData]);
 
   if (activeClients.length === 0) return null;
-
-  const totalMs = maxDate.getTime() - minDate.getTime();
-
-  // Build a lookup: monthKey -> cumulative total (aligned to timelineMonths)
-  const cumulativeMap = new Map(cumulativeByMonth.map((c) => [c.key, c.total]));
 
   return (
     <div>
@@ -691,20 +657,26 @@ function ClientEngagementTimeline({
           <div className="mb-4">
             <div className="mb-2">
               <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
-                Cumulative Planned Articles
+                Cumulative Articles — Actual & Projected
               </p>
               <p className="text-[8px] font-mono text-[#606060] mt-0.5">
-                Total planned articles across all filtered clients, based on SOW cadence distribution
+                Solid = actual delivered, striped = projected. Source: Editorial Operating Model. Current month is highlighted.
               </p>
             </div>
             <div className="flex items-end gap-2">
               <span className="w-32 shrink-0 text-right pr-2 text-[9px] font-mono text-[#606060]">
                 {maxCumulative}
               </span>
-              {/* Bars — same flex-1 region as the client rows below so periods line up; the totals sidebar width is reserved on the right */}
+              {/* Actual delivered sits below projected, so the overall bar
+                  still visually totals to operating-model output. Actual is
+                  solid green; projected is a striped/translucent overlay. */}
               <div key={cumView} className="flex-1 flex items-end gap-px" style={{ height: 80 }}>
                 {activeCumData.map((item, idx) => {
-                  const heightPct = maxCumulative > 0 ? (item.total / maxCumulative) * 100 : 0;
+                  const actualPct = maxCumulative > 0 ? (item.actual / maxCumulative) * 100 : 0;
+                  const projectedPct = maxCumulative > 0 ? (item.projected / maxCumulative) * 100 : 0;
+                  const isCurrent = cumView === "quarterly"
+                    ? item.key === currentQuarterKey
+                    : item.key === currentMonthKey;
                   const label = cumView === "quarterly" ? item.key.replace("-", " ") : (() => {
                     const [y, m] = item.key.split("-").map(Number);
                     return new Date(y, m).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -712,23 +684,23 @@ function ClientEngagementTimeline({
                   return (
                     <div
                       key={item.key}
-                      className="flex-1 flex flex-col items-center justify-end animate-fade-slide"
+                      className={cn(
+                        "flex-1 flex flex-col items-center justify-end animate-fade-slide rounded-t-sm",
+                        isCurrent && "bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/40",
+                      )}
                       style={{ height: "100%", animationDelay: `${idx * 20}ms` }}
                     >
                       {item.total > 0 && (
-                        <span className="text-[7px] font-mono text-[#42CA80] mb-0.5">
+                        <span className={cn(
+                          "text-[7px] font-mono mb-0.5",
+                          isCurrent ? "text-[#65FFAA] font-semibold" : "text-[#42CA80]"
+                        )}>
                           {item.total}
                         </span>
                       )}
                       <div
-                        className="w-full rounded-t-sm cursor-default animate-bar-grow"
-                        style={{
-                          height: `${heightPct}%`,
-                          backgroundColor: "#42CA80",
-                          opacity: item.total > 0 ? 0.6 : 0,
-                          minHeight: item.total > 0 ? 2 : 0,
-                          animationDelay: `${idx * 20}ms`,
-                        }}
+                        className="relative w-full flex flex-col justify-end cursor-default"
+                        style={{ height: `${actualPct + projectedPct}%`, minHeight: item.total > 0 ? 2 : 0 }}
                         onMouseEnter={(e) => {
                           if (item.total <= 0) return;
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -738,14 +710,49 @@ function ClientEngagementTimeline({
                             content: (
                               <>
                                 <p className="text-[10px] font-semibold text-white">{label}</p>
-                                <p className="text-[10px] text-[#42CA80] font-mono">{item.total} articles planned</p>
-                                <p className="text-[9px] text-[#606060] font-mono">Sum of all client cadences</p>
+                                {item.actual > 0 && (
+                                  <p className="text-[10px] text-[#42CA80] font-mono">Actual: {item.actual}</p>
+                                )}
+                                {item.projected > 0 && (
+                                  <p className="text-[10px] text-[#8FB5D9] font-mono">Projected: {item.projected}</p>
+                                )}
+                                <p className="text-[9px] text-[#606060] font-mono mt-0.5">
+                                  Source: Editorial Operating Model
+                                </p>
                               </>
                             ),
                           });
                         }}
                         onMouseLeave={() => setTooltip(null)}
-                      />
+                      >
+                        {/* Projected (top portion) — striped overlay, softer */}
+                        {projectedPct > 0 && (
+                          <div
+                            className="w-full rounded-t-sm animate-bar-grow"
+                            style={{
+                              height: actualPct > 0 ? `${(projectedPct / (actualPct + projectedPct)) * 100}%` : "100%",
+                              backgroundImage: "repeating-linear-gradient(45deg, #8FB5D9 0 3px, transparent 3px 6px)",
+                              backgroundColor: "rgba(143, 181, 217, 0.18)",
+                              animationDelay: `${idx * 20}ms`,
+                            }}
+                          />
+                        )}
+                        {/* Actual (bottom portion) — solid */}
+                        {actualPct > 0 && (
+                          <div
+                            className={cn(
+                              "w-full animate-bar-grow",
+                              projectedPct === 0 && "rounded-t-sm",
+                            )}
+                            style={{
+                              height: projectedPct > 0 ? `${(actualPct / (actualPct + projectedPct)) * 100}%` : "100%",
+                              backgroundColor: "#42CA80",
+                              opacity: 0.85,
+                              animationDelay: `${idx * 20}ms`,
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -782,48 +789,20 @@ function ClientEngagementTimeline({
           </div>
         )}
 
-        {/* Per-client section title + Cadence / % Delivered toggle */}
+        {/* Per-client section title */}
         <div className="flex items-start justify-between mb-2">
           <div>
             <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
-              {view === "cadence" ? "Client Article Cadence" : "Client % Delivered vs Projected"}
+              Client Article Cadence
               {" "}
               <DataSourceBadge
                 type="live"
-                source={view === "cadence"
-                  ? "Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Planned article cadence per client derived from SOW quarterly/monthly cadence fields."
-                  : "Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Per-month actual vs projected article production. % = actual / projected."}
+                source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Per-month actual and projected article production per client; solid bar = actual, striped bar = projected."
               />
             </p>
             <p className="text-[8px] font-mono text-[#606060] mt-0.5">
-              {view === "cadence"
-                ? "Planned article delivery per client — bar height shows relative volume within each engagement."
-                : "Operating Model utilization per month: actual / projected. Green ≥100%, amber 75–99%, red <75%; empty = nothing projected for that month."}
+              Per-client monthly output from the Operating Model. Solid = actual, striped = projected. Current month is highlighted.
             </p>
-          </div>
-          <div className="flex gap-1 bg-[#0d0d0d] rounded-md p-0.5 shrink-0">
-            <button
-              onClick={() => setView("cadence")}
-              className={cn(
-                "px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider transition-colors",
-                view === "cadence"
-                  ? "bg-[#42CA80]/15 text-[#42CA80]"
-                  : "text-[#606060] hover:text-white"
-              )}
-            >
-              Cadence
-            </button>
-            <button
-              onClick={() => setView("delivered")}
-              className={cn(
-                "px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider transition-colors",
-                view === "delivered"
-                  ? "bg-[#42CA80]/15 text-[#42CA80]"
-                  : "text-[#606060] hover:text-white"
-              )}
-            >
-              % Delivered
-            </button>
           </div>
         </div>
 
@@ -854,11 +833,27 @@ function ClientEngagementTimeline({
           </div>
         </div>
 
-        <div key={`view-${view}-${cumView}`} className="max-h-[320px] overflow-y-auto space-y-1">
-          {(view === "cadence" ? clientMonthlyTargets : activeClients.map((c) => ({ client: c, months: [] as { year: number; month: number; target: number }[] }))).map((entry, clientIdx) => {
-            const client = entry.client;
+        <div key={`view-opmodel-${cumView}`} className="max-h-[320px] overflow-y-auto space-y-1">
+          {activeClients.map((client, clientIdx) => {
             const podColor = TIMELINE_POD_COLORS[client.editorial_pod ?? ""] ?? "#606060";
-            const totals = productionByClient.get(client.name)?.totals;
+            const prod = productionByClient.get(client.name);
+            const totals = prod?.totals;
+
+            // Group operating model rows into the active period (monthly or quarterly).
+            const perPeriod = new Map<string, { actual: number; projected: number }>();
+            (prod?.monthly ?? []).forEach(({ year, month, actual, projected }) => {
+              const key = cumView === "quarterly"
+                ? `${year}-Q${Math.floor(month / 3) + 1}`
+                : `${year}-${String(month).padStart(2, "0")}`;
+              const cell = perPeriod.get(key) ?? { actual: 0, projected: 0 };
+              cell.actual += actual;
+              cell.projected += projected;
+              perPeriod.set(key, cell);
+            });
+            const clientMax = Math.max(
+              1,
+              ...Array.from(perPeriod.values()).map((v) => v.actual + v.projected),
+            );
 
             return (
               <div
@@ -870,111 +865,91 @@ function ClientEngagementTimeline({
                   {client.name.length > 15 ? client.name.slice(0, 15) + "\u2026" : client.name}
                 </span>
 
-                {/* Chart cells — branch on view */}
+                {/* Chart cells — actual (solid) + projected (striped) per period */}
                 <div className="flex-1 flex items-end gap-px" style={{ height: 20 }}>
-                  {view === "cadence" ? (
-                    (() => {
-                      const months = entry.months;
-                      const periodTargets = new Map<string, number>();
-                      months.forEach(({ year, month, target }) => {
-                        let key: string;
-                        if (cumView === "quarterly") {
-                          const q = Math.floor(month / 3) + 1;
-                          key = `${year}-Q${q}`;
-                        } else {
-                          key = `${year}-${String(month).padStart(2, "0")}`;
-                        }
-                        periodTargets.set(key, (periodTargets.get(key) ?? 0) + target);
-                      });
-                      const clientMax = Math.max(1, ...Array.from(periodTargets.values()));
-                      return activePeriods.map((p) => {
-                        const val = periodTargets.get(p.key) ?? 0;
-                        const heightPct = val > 0 ? Math.max(20, (val / clientMax) * 100) : 0;
-                        return (
-                          <div key={p.key} className="flex-1 flex items-end justify-center" style={{ height: "100%" }}>
-                            {val > 0 && (
-                              <div
-                                className="w-full rounded-t-sm flex items-center justify-center cursor-default"
-                                style={{ height: `${heightPct}%`, backgroundColor: podColor, opacity: 0.7, minHeight: 4 }}
-                                onMouseEnter={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  setTooltip({
-                                    x: rect.left + rect.width / 2,
-                                    y: rect.bottom + 6,
-                                    content: (
-                                      <>
-                                        <p className="text-[10px] font-semibold text-white">{client.name}</p>
-                                        <p className="text-[9px] text-[#42CA80] font-mono">{p.label}</p>
-                                        <p className="text-[10px] text-[#C4BCAA] font-mono mt-0.5">{val} articles planned</p>
-                                      </>
-                                    ),
-                                  });
-                                }}
-                                onMouseLeave={() => setTooltip(null)}
-                              >
-                                {val >= 5 && <span className="text-[7px] font-mono text-white leading-none">{val}</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      });
-                    })()
-                  ) : (
-                    (() => {
-                      // % Delivered: actual / projected per period, from ProductionHistory
-                      const prod = productionByClient.get(client.name);
-                      const perPeriod = new Map<string, { actual: number; projected: number }>();
-                      (prod?.monthly ?? []).forEach(({ year, month, actual, projected }) => {
-                        const key = cumView === "quarterly"
-                          ? `${year}-Q${Math.floor(month / 3) + 1}`
-                          : `${year}-${String(month).padStart(2, "0")}`;
-                        const entry = perPeriod.get(key) ?? { actual: 0, projected: 0 };
-                        entry.actual += actual;
-                        entry.projected += projected;
-                        perPeriod.set(key, entry);
-                      });
-                      return activePeriods.map((p) => {
-                        const cell = perPeriod.get(p.key);
-                        const projected = cell?.projected ?? 0;
-                        const actual = cell?.actual ?? 0;
-                        if (projected <= 0) {
-                          return <div key={p.key} className="flex-1" style={{ height: "100%" }} />;
-                        }
-                        const pct = (actual / projected) * 100;
-                        const clampPct = Math.min(Math.max(pct, 0), 140);
-                        const heightPct = Math.max(20, (clampPct / 140) * 100);
-                        const color = pct >= 100 ? "#42CA80" : pct >= 75 ? "#F5BC4E" : "#ED6958";
-                        return (
-                          <div key={p.key} className="flex-1 flex items-end justify-center" style={{ height: "100%" }}>
+                  {activePeriods.map((p) => {
+                    const cell = perPeriod.get(p.key);
+                    const actual = cell?.actual ?? 0;
+                    const projected = cell?.projected ?? 0;
+                    const total = actual + projected;
+                    const isCurrent = cumView === "quarterly"
+                      ? p.key === currentQuarterKey
+                      : p.key === currentMonthKey;
+                    if (total <= 0) {
+                      return (
+                        <div
+                          key={p.key}
+                          className={cn(
+                            "flex-1 rounded-t-sm",
+                            isCurrent && "bg-[#42CA80]/5",
+                          )}
+                          style={{ height: "100%" }}
+                        />
+                      );
+                    }
+                    const heightPct = Math.max(20, (total / clientMax) * 100);
+                    const actualFrac = total > 0 ? actual / total : 0;
+                    const projectedFrac = 1 - actualFrac;
+                    return (
+                      <div
+                        key={p.key}
+                        className={cn(
+                          "flex-1 flex items-end justify-center rounded-t-sm",
+                          isCurrent && "bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/40",
+                        )}
+                        style={{ height: "100%" }}
+                      >
+                        <div
+                          className="relative w-full flex flex-col justify-end cursor-default"
+                          style={{ height: `${heightPct}%`, minHeight: 4 }}
+                          onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTooltip({
+                              x: rect.left + rect.width / 2,
+                              y: rect.bottom + 6,
+                              content: (
+                                <>
+                                  <p className="text-[10px] font-semibold text-white">{client.name}</p>
+                                  <p className="text-[9px] text-[#42CA80] font-mono">{p.label}</p>
+                                  {actual > 0 && (
+                                    <p className="text-[10px] text-[#42CA80] font-mono">Actual: {actual}</p>
+                                  )}
+                                  {projected > 0 && (
+                                    <p className="text-[10px] text-[#8FB5D9] font-mono">Projected: {projected}</p>
+                                  )}
+                                </>
+                              ),
+                            });
+                          }}
+                          onMouseLeave={() => setTooltip(null)}
+                        >
+                          {/* Projected (on top, striped) */}
+                          {projectedFrac > 0 && (
                             <div
-                              className="w-full rounded-t-sm cursor-default"
-                              style={{ height: `${heightPct}%`, backgroundColor: color, opacity: 0.85, minHeight: 4 }}
-                              onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setTooltip({
-                                  x: rect.left + rect.width / 2,
-                                  y: rect.bottom + 6,
-                                  content: (
-                                    <>
-                                      <p className="text-[10px] font-semibold text-white">{client.name}</p>
-                                      <p className="text-[9px] text-[#42CA80] font-mono">{p.label}</p>
-                                      <p className="text-[10px] font-mono mt-0.5" style={{ color }}>
-                                        {Math.round(pct)}% delivered
-                                      </p>
-                                      <p className="text-[10px] text-[#C4BCAA] font-mono">
-                                        Actual: <span className="text-white">{actual}</span> · Projected: <span className="text-white">{projected}</span>
-                                      </p>
-                                    </>
-                                  ),
-                                });
+                              className="w-full rounded-t-sm"
+                              style={{
+                                height: `${projectedFrac * 100}%`,
+                                backgroundImage: `repeating-linear-gradient(45deg, ${podColor} 0 3px, transparent 3px 6px)`,
+                                backgroundColor: `${podColor}1F`,
+                                opacity: 0.9,
                               }}
-                              onMouseLeave={() => setTooltip(null)}
                             />
-                          </div>
-                        );
-                      });
-                    })()
-                  )}
+                          )}
+                          {/* Actual (on bottom, solid pod color) */}
+                          {actualFrac > 0 && (
+                            <div
+                              className={cn("w-full", projectedFrac === 0 && "rounded-t-sm")}
+                              style={{
+                                height: `${actualFrac * 100}%`,
+                                backgroundColor: podColor,
+                                opacity: 0.85,
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Totals sidebar */}
@@ -998,35 +973,33 @@ function ClientEngagementTimeline({
           })}
         </div>
 
-        {/* Legend — adapts to the active view */}
-        <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-[#2a2a2a]">
-          {view === "cadence" ? (
-            Object.entries(TIMELINE_POD_COLORS).map(([pod, color]) => (
-              <div key={pod} className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color, opacity: 0.7 }} />
-                <span className="text-[10px] font-mono text-[#606060]">{pod}</span>
-              </div>
-            ))
-          ) : (
-            <>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "#42CA80" }} />
-                <span className="text-[10px] font-mono text-[#606060]">≥100% — delivered meets or exceeds projected</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "#F5BC4E" }} />
-                <span className="text-[10px] font-mono text-[#606060]">75–99% — slightly behind plan</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "#ED6958" }} />
-                <span className="text-[10px] font-mono text-[#606060]">&lt;75% — significantly behind plan</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm border border-[#2a2a2a]" />
-                <span className="text-[10px] font-mono text-[#606060]">empty — nothing projected this period</span>
-              </div>
-            </>
-          )}
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 pt-3 border-t border-[#2a2a2a]">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80] opacity-85" />
+            <span className="text-[10px] font-mono text-[#606060]">Actual — solid (pod color)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{
+                backgroundImage: "repeating-linear-gradient(45deg, #8FB5D9 0 2px, transparent 2px 4px)",
+                backgroundColor: "rgba(143, 181, 217, 0.18)",
+              }}
+            />
+            <span className="text-[10px] font-mono text-[#606060]">Projected — striped</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/40" />
+            <span className="text-[10px] font-mono text-[#606060]">Current month</span>
+          </div>
+          <span className="text-[#333]">·</span>
+          {Object.entries(TIMELINE_POD_COLORS).map(([pod, color]) => (
+            <div key={pod} className="flex items-center gap-1.5">
+              <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color, opacity: 0.85 }} />
+              <span className="text-[10px] font-mono text-[#606060]">{pod}</span>
+            </div>
+          ))}
         </div>
       </div>
 
