@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import { ValidationBanner } from "../_ValidationBanner";
 import { ClosedMonthBanner, CopyMonthMenu } from "../_MonthActions";
 import {
@@ -91,8 +90,7 @@ export default function RosterPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Roster editor — drag-and-drop members across pods and months. Splitting a chip captures shared capacity. (Editing ships in Phase 2.)" />
-      <SubNav />
+      <StickyPageChrome subtitle="Roster editor — drag-and-drop members across pods and months. Splitting a chip captures shared capacity. (Editing ships in Phase 2.)" />
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] px-4 py-3">
         <div className="flex items-center gap-3">

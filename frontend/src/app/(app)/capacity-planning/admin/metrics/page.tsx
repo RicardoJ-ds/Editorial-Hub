@@ -1,7 +1,6 @@
 "use client";
 
-import { ProposalBanner } from "../../_ProposalBanner";
-import { SubNav } from "../../_SubNav";
+import { StickyPageChrome } from "../../_StickyPageChrome";
 import { useCP2Store, type DimKpiMetric } from "../../_store";
 import { AdminNav } from "../_AdminNav";
 import { AdminTable, type AdminField } from "../_AdminTable";
@@ -49,8 +48,7 @@ export default function MetricsAdmin() {
   const { dims, addDimRow, updateDimRow, deleteDimRow } = useCP2Store();
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="KPI catalog. Each row here becomes a column of cp2_fact_kpi_score via metric_id. Edits to targets are audit-logged in production." />
-      <SubNav />
+      <StickyPageChrome subtitle="KPI catalog. Each row here becomes a column of cp2_fact_kpi_score via metric_id. Edits to targets are audit-logged in production." />
       <AdminNav />
       <AdminTable<DimKpiMetric>
         title="KPI metrics"

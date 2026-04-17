@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ProposalBanner } from "../../_ProposalBanner";
-import { SubNav } from "../../_SubNav";
+import { StickyPageChrome } from "../../_StickyPageChrome";
 import { useCP2Store, type DimClient } from "../../_store";
 import { AdminNav } from "../_AdminNav";
 import { AdminTable, type AdminField } from "../_AdminTable";
@@ -54,8 +53,7 @@ export default function ClientsAdmin() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="CP v2 client extensions — contract window, SOW cadence, engagement tier. client_id_fk points to the existing clients.id." />
-      <SubNav />
+      <StickyPageChrome subtitle="CP v2 client extensions — contract window, SOW cadence, engagement tier. client_id_fk points to the existing clients.id." />
       <AdminNav />
       <AdminTable<DimClient>
         title="Clients (cp2)"

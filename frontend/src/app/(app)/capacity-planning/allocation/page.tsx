@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { GripVertical, Pencil, Plus, RotateCcw } from "lucide-react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import { ValidationBanner } from "../_ValidationBanner";
 import { ClosedMonthBanner, CopyMonthMenu } from "../_MonthActions";
 import {
@@ -217,8 +216,7 @@ export default function AllocationPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Drag-and-drop clients between pods. Click pencil to edit a projection or change its source (SOW / OP MODEL / MANUAL)." />
-      <SubNav />
+      <StickyPageChrome subtitle="Drag-and-drop clients between pods. Click pencil to edit a projection or change its source (SOW / OP MODEL / MANUAL)." />
 
       <div className="flex flex-wrap items-center justify-end gap-2">
         <CopyMonthMenu />

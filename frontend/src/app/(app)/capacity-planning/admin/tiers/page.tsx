@@ -1,7 +1,6 @@
 "use client";
 
-import { ProposalBanner } from "../../_ProposalBanner";
-import { SubNav } from "../../_SubNav";
+import { StickyPageChrome } from "../../_StickyPageChrome";
 import { useCP2Store, type DimEngagementTier } from "../../_store";
 import { AdminNav } from "../_AdminNav";
 import { AdminTable, type AdminField } from "../_AdminTable";
@@ -17,8 +16,7 @@ export default function TiersAdmin() {
   const { dims, addDimRow, updateDimRow, deleteDimRow } = useCP2Store();
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Engagement tiers. Used to group clients by service level — Premium / Standard / Custom." />
-      <SubNav />
+      <StickyPageChrome subtitle="Engagement tiers. Used to group clients by service level — Premium / Standard / Custom." />
       <AdminNav />
       <AdminTable<DimEngagementTier>
         title="Engagement tiers"

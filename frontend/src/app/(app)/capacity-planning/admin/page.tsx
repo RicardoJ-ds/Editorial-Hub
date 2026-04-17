@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Briefcase, Building2, Gauge, Layers, Users } from "lucide-react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import { useCP2Store } from "../_store";
 
 export default function AdminIndex() {
@@ -54,8 +53,7 @@ export default function AdminIndex() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Admin is where the dim tables live. Edits here are proposal-only (localStorage) — when the real cp2 schema lands, these screens write to it directly." />
-      <SubNav />
+      <StickyPageChrome subtitle="Admin is where the dim tables live. Edits here are proposal-only (localStorage) — when the real cp2 schema lands, these screens write to it directly." />
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {CARDS.map((c) => (

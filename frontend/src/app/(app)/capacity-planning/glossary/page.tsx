@@ -35,17 +35,18 @@ export default function GlossaryPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">KPI Glossary</h2>
-          <p className="mt-1 text-sm text-[#C4BCAA]">
-            Every metric shown on current dashboards, mapped to the ERD table and columns that will feed it after the transition.
-          </p>
+      <div className="sticky top-14 z-20 flex flex-col gap-3 bg-black pb-3 pt-1">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-white">KPI Glossary</h2>
+            <p className="mt-1 text-sm text-[#C4BCAA]">
+              Every metric shown on current dashboards, mapped to the ERD table and columns that will feed it after the transition.
+            </p>
+          </div>
+          <SubNav />
         </div>
-        <SubNav />
+        <ProposalBanner />
       </div>
-
-      <ProposalBanner />
 
       {/* Filter */}
       <div className="flex items-center gap-2 font-mono text-xs">

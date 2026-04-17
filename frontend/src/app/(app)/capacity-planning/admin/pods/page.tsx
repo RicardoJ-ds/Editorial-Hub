@@ -1,7 +1,6 @@
 "use client";
 
-import { ProposalBanner } from "../../_ProposalBanner";
-import { SubNav } from "../../_SubNav";
+import { StickyPageChrome } from "../../_StickyPageChrome";
 import { useCP2Store, type DimPod } from "../../_store";
 import { AdminNav } from "../_AdminNav";
 import { AdminTable, type AdminField } from "../_AdminTable";
@@ -26,8 +25,7 @@ export default function PodsAdmin() {
   const { dims, addDimRow, updateDimRow, deleteDimRow } = useCP2Store();
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Pod catalog. active_to lets you retire a pod without deleting history." />
-      <SubNav />
+      <StickyPageChrome subtitle="Pod catalog. active_to lets you retire a pod without deleting history." />
       <AdminNav />
       <AdminTable<DimPod>
         title="Pods"

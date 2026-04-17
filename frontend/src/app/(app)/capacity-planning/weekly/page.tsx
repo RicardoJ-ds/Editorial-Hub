@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { Download, RotateCcw } from "lucide-react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import { ClosedMonthBanner } from "../_MonthActions";
 import {
   monthLabel,
@@ -133,8 +132,7 @@ export default function WeeklyPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Weekly actuals vs goals per client. Edit cells inline; row totals and the 8-week sparkline update live. In production this table is populated by the ingest pipeline from Master Tracker 'Goals vs Delivery'." />
-      <SubNav />
+      <StickyPageChrome subtitle="Weekly actuals vs goals per client. Edit cells inline; row totals and the 8-week sparkline update live. In production this table is populated by the ingest pipeline from Master Tracker 'Goals vs Delivery'." />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="font-mono text-[10px] uppercase tracking-widest text-[#606060]">

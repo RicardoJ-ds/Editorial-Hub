@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Sparkles, Trash2, X } from "lucide-react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import { ValidationBanner } from "../_ValidationBanner";
 import { ClosedMonthBanner } from "../_MonthActions";
 import { useAllMembers, useCP2Store, monthLabel } from "../_store";
@@ -41,8 +40,7 @@ export default function OverridesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Manual corrections to effective capacity. One row per override, signed delta in articles. Member-level overrides feed the Overview math; pod-level overrides are recorded but not yet summed into the pod card (proposal-only)." />
-      <SubNav />
+      <StickyPageChrome subtitle="Manual corrections to effective capacity. One row per override, signed delta in articles. Member-level overrides feed the Overview math; pod-level overrides are recorded but not yet summed into the pod card (proposal-only)." />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="font-mono text-[10px] uppercase tracking-widest text-[#606060]">

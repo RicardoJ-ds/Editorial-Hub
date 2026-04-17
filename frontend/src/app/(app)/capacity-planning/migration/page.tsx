@@ -10,8 +10,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import { useCP2Store, type DimClient, type DimMember } from "../_store";
 import { apiGet } from "@/lib/api";
 
@@ -240,8 +239,7 @@ export default function MigrationPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Dry-run migration validator. Checks live source counts vs what's in the proposal store. Nothing here writes to the production schema — cp2_* doesn't exist as SQL tables yet." />
-      <SubNav />
+      <StickyPageChrome subtitle="Dry-run migration validator. Checks live source counts vs what's in the proposal store. Nothing here writes to the production schema — cp2_* doesn't exist as SQL tables yet." />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="font-mono text-[10px] uppercase tracking-widest text-[#606060]">

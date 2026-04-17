@@ -47,18 +47,19 @@ export default function TablesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Data Tables</h2>
-          <p className="mt-1 text-sm text-[#C4BCAA]">
-            Every <span className="font-mono text-[#65FFAA]">cp2_*</span> table, grouped by domain.
-            Pick one to see its columns and a few mock rows.
-          </p>
+      <div className="sticky top-14 z-20 flex flex-col gap-3 bg-black pb-3 pt-1">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-white">Data Tables</h2>
+            <p className="mt-1 text-sm text-[#C4BCAA]">
+              Every <span className="font-mono text-[#65FFAA]">cp2_*</span> table, grouped by domain.
+              Pick one to see its columns and a few mock rows.
+            </p>
+          </div>
+          <SubNav />
         </div>
-        <SubNav />
+        <ProposalBanner />
       </div>
-
-      <ProposalBanner />
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         {/* Table list */}

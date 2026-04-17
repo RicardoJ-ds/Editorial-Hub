@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ProposalBanner } from "../_ProposalBanner";
-import { SubNav } from "../_SubNav";
+import { StickyPageChrome } from "../_StickyPageChrome";
 import {
   monthLabel,
   monthRange,
@@ -100,8 +99,7 @@ export default function QuarterPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Quarterly rollup. Summed monthly capacity + projected + delivered per pod, and per-client actuals across the three months." />
-      <SubNav />
+      <StickyPageChrome subtitle="Quarterly rollup. Summed monthly capacity + projected + delivered per pod, and per-client actuals across the three months." />
 
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-white">

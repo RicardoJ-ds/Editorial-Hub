@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, Info, Pencil, Plus, RotateCcw } from "lucide-react";
-import { ProposalBanner } from "./_ProposalBanner";
-import { SubNav } from "./_SubNav";
+import { StickyPageChrome } from "./_StickyPageChrome";
 import { ValidationBanner } from "./_ValidationBanner";
 import { ClosedMonthBanner, CloseMonthButton, CopyMonthMenu } from "./_MonthActions";
 import { DiffButton } from "./_MonthDiff";
@@ -295,8 +294,7 @@ export default function CapacityPlanningV2() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Editable prototype. All edits are stored in your browser (localStorage) — nothing is written to the database. Use Reset to restore seed data." />
-      <SubNav />
+      <StickyPageChrome subtitle="Editable prototype. All edits are stored in your browser (localStorage) — nothing is written to the database. Use Reset to restore seed data." />
 
       {/* Toolbar — month lives in the SubNav above; this row is just actions. */}
       <div className="flex flex-wrap items-center justify-end gap-2">

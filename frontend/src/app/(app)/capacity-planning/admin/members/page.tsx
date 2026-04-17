@@ -1,7 +1,6 @@
 "use client";
 
-import { ProposalBanner } from "../../_ProposalBanner";
-import { SubNav } from "../../_SubNav";
+import { StickyPageChrome } from "../../_StickyPageChrome";
 import { useCP2Store, type DimMember } from "../../_store";
 import { AdminNav } from "../_AdminNav";
 import { AdminTable, type AdminField } from "../_AdminTable";
@@ -43,8 +42,7 @@ export default function MembersAdmin() {
   const { dims, addDimRow, updateDimRow, deleteDimRow } = useCP2Store();
   return (
     <div className="flex flex-col gap-6">
-      <ProposalBanner subtitle="Team roster CRUD. Start/end month controls who appears on the roster matrix and the KPI cards." />
-      <SubNav />
+      <StickyPageChrome subtitle="Team roster CRUD. Start/end month controls who appears on the roster matrix and the KPI cards." />
       <AdminNav />
       <AdminTable<DimMember>
         title="Members"
