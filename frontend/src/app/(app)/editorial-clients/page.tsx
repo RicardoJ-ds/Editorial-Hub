@@ -707,12 +707,14 @@ function ClientEngagementTimeline({
                   const isCurrent = cumView === "quarterly"
                     ? p.key === currentQuarterKey
                     : p.key === currentMonthKey;
+                  const hasGridline = (cumView === "quarterly" || idx % 2 === 0) && !isCurrent;
                   const label = p.label;
                   return (
                     <div
                       key={p.key}
                       className={cn(
                         "relative flex-1 flex flex-col items-center justify-end animate-fade-slide",
+                        hasGridline && "border-l border-[#1a1a1a]",
                         isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                       )}
                       style={{ height: "100%", animationDelay: `${idx * 20}ms` }}
@@ -858,7 +860,9 @@ function ClientEngagementTimeline({
         </div>
 
         {/* Row layout: [client name 128px] [chart area flex-1] [totals sidebar 240px] */}
-        {/* Shared period axis — adapts to monthly/quarterly */}
+        {/* Shared period axis — adapts to monthly/quarterly. Gridline-dashes
+            on the left edge of labeled cells visually extend through the
+            client rows below, so every bar reads clearly against a month. */}
         <div key={`axis-${cumView}`} className="flex items-stretch gap-2 mb-2 animate-fade-slide">
           <span className="w-32 shrink-0" />
           <div className="flex-1 flex gap-px">
@@ -872,6 +876,7 @@ function ClientEngagementTimeline({
                   key={p.key}
                   className={cn(
                     "flex-1 text-center py-0.5",
+                    showLabel && !isCurrent && "border-l border-[#2a2a2a]",
                     isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                   )}
                 >
@@ -931,7 +936,7 @@ function ClientEngagementTimeline({
 
                 {/* Chart cells — actual (solid) + projected (striped) per period */}
                 <div className="flex-1 flex items-end gap-px" style={{ height: 20 }}>
-                  {activePeriods.map((p) => {
+                  {activePeriods.map((p, i) => {
                     const cell = perPeriod.get(p.key);
                     const actual = cell?.actual ?? 0;
                     const projected = cell?.projected ?? 0;
@@ -939,12 +944,18 @@ function ClientEngagementTimeline({
                     const isCurrent = cumView === "quarterly"
                       ? p.key === currentQuarterKey
                       : p.key === currentMonthKey;
+                    // Draw a gridline on the left edge of cells that carry
+                    // a month label in the axis row above — matches the
+                    // axis's every-other-month dashing so the reader can
+                    // trace a label straight down to its bar.
+                    const hasGridline = (cumView === "quarterly" || i % 2 === 0) && !isCurrent;
                     if (total <= 0) {
                       return (
                         <div
                           key={p.key}
                           className={cn(
                             "flex-1",
+                            hasGridline && "border-l border-[#1a1a1a]",
                             isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                           )}
                           style={{ height: "100%" }}
@@ -959,6 +970,7 @@ function ClientEngagementTimeline({
                         key={p.key}
                         className={cn(
                           "flex-1 flex items-end justify-center",
+                          hasGridline && "border-l border-[#1a1a1a]",
                           isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                         )}
                         style={{ height: "100%" }}
