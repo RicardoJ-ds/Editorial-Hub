@@ -3,6 +3,12 @@
 import React from "react";
 import type { CumulativeMetric } from "@/lib/types";
 import { podBadge, parsePctValue, pctColorNum } from "./shared-helpers";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -80,18 +86,49 @@ export function ClientPipelineCard({ data }: Props) {
       {/* Footer */}
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#2a2a2a]">
         {data.articles_difference != null && (
-          <span
-            className={cn(
-              "font-mono text-[10px] font-semibold",
-              data.articles_difference > 0 ? "text-[#42CA80]" : data.articles_difference < 0 ? "text-[#ED6958]" : "text-[#606060]"
-            )}
-          >
-            Diff: {data.articles_difference > 0 ? `+${data.articles_difference}` : data.articles_difference}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span
+                    className={cn(
+                      "font-mono text-[10px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
+                      data.articles_difference > 0
+                        ? "text-[#42CA80]"
+                        : data.articles_difference < 0
+                        ? "text-[#ED6958]"
+                        : "text-[#606060]"
+                    )}
+                  />
+                }
+              >
+                Diff: {data.articles_difference > 0 ? `+${data.articles_difference}` : data.articles_difference}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+                <strong>Articles sent − articles approved</strong>, stored verbatim from the Master Tracker&apos;s &quot;Diff&quot; column. Positive = articles delivered to the client that are still awaiting approval. Zero = approvals are caught up. Negative is rare and usually a sheet correction.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
-        <span className={cn("font-mono text-[10px] font-semibold", pctColorNum(overallPct))}>
-          Overall: {overallPct > 0 ? `${Math.round(overallPct)}%` : "—"}
-        </span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span
+                  className={cn(
+                    "font-mono text-[10px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
+                    pctColorNum(overallPct)
+                  )}
+                />
+              }
+            >
+              Overall: {overallPct > 0 ? `${Math.round(overallPct)}%` : "—"}
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+              Cumulative article approval rate for this client = articles approved ÷ articles sent.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

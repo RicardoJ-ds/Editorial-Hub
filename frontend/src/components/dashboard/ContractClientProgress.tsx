@@ -331,7 +331,7 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
               Δ: {data.articlesDifference > 0 ? `+${data.articlesDifference}` : data.articlesDifference}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              Signed delta between articles approved and articles sent (Master Tracker&apos;s Diff column).
+              <strong>Articles sent − articles approved</strong> (Master Tracker&apos;s &quot;Diff&quot; column), summed across the pod. Positive = articles delivered to clients that are still awaiting approval. Zero = approvals are caught up. Negative is rare and usually a sheet correction.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
