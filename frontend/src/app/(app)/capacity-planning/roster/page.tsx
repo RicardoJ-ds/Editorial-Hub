@@ -80,7 +80,7 @@ function buildRosterFromState(
 }
 
 export default function RosterPage() {
-  const { state, resetToSeed } = useCP2Store();
+  const { state, resetToSeed, selectedMonth } = useCP2Store();
   const [filter, setFilter] = useState("");
   const roster = useMemo(() => buildRosterFromState(state.monthly), [state.monthly]);
   const filtered = roster.filter((r) =>
@@ -129,14 +129,21 @@ export default function RosterPage() {
               <th className="px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-[#606060]">
                 Cap
               </th>
-              {MONTHS.map((m) => (
-                <th
-                  key={m}
-                  className="px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-[#606060]"
-                >
-                  {MONTH_LABELS[m]}
-                </th>
-              ))}
+              {MONTHS.map((m) => {
+                const isSelected = m === selectedMonth;
+                return (
+                  <th
+                    key={m}
+                    className={`px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider ${
+                      isSelected
+                        ? "bg-[#42CA80]/10 text-[#65FFAA]"
+                        : "text-[#606060]"
+                    }`}
+                  >
+                    {MONTH_LABELS[m]}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -156,8 +163,12 @@ export default function RosterPage() {
                 </td>
                 {MONTHS.map((m) => {
                   const cells = row.cellsByMonth[m as MonthKey] ?? [];
+                  const isSelected = m === selectedMonth;
                   return (
-                    <td key={m} className="px-3 py-2 align-middle">
+                    <td
+                      key={m}
+                      className={`px-3 py-2 align-middle ${isSelected ? "bg-[#42CA80]/5" : ""}`}
+                    >
                       {cells.length === 0 ? (
                         <span
                           className="font-mono text-[10px] text-[#404040]"

@@ -19,9 +19,11 @@ import {
   useMemo,
   useState,
 } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   MOCK_DATA,
   MONTHS,
+  MONTH_LABELS,
   UNASSIGNED_CLIENTS_BY_MONTH,
   type ClientChip,
   type MemberRow,
@@ -31,14 +33,49 @@ import {
 } from "./_mock";
 
 const STORAGE_KEY = "cp2.proposal.v1";
+const SELECTED_MONTH_KEY = "cp2.proposal.selectedMonth";
+
+// ---------------------------------------------------------------------------
+// Month range — computed ±6 months from "today" so the picker follows the
+// calendar, not a hardcoded window. Mocked months (MONTHS) still have data;
+// other months just render empty state.
+// ---------------------------------------------------------------------------
+
+export function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function shiftMonth(monthKey: string, delta: number): string {
+  const [y, m] = monthKey.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function monthRange(center: string, before: number, after: number): string[] {
+  const out: string[] = [];
+  for (let i = -before; i <= after; i++) out.push(shiftMonth(center, i));
+  return out;
+}
+
+export function monthLabel(monthKey: string): string {
+  // Prefer pre-baked label; otherwise format from Date.
+  if (monthKey in MONTH_LABELS) return MONTH_LABELS[monthKey as MonthKey];
+  const [y, m] = monthKey.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, m - 1, 1);
+  return `${d.toLocaleString("en-US", { month: "short" })} ${d.getFullYear()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
 
 type StoreShape = {
-  monthly: Record<MonthKey, PodBoard[]>;
-  unassigned: Record<MonthKey, ClientChip[]>;
+  monthly: Record<string, PodBoard[]>;
+  unassigned: Record<string, ClientChip[]>;
 };
 
 function seed(): StoreShape {
-  // Deep clone to avoid mutating the exported mock data at module scope.
   return JSON.parse(
     JSON.stringify({ monthly: MOCK_DATA, unassigned: UNASSIGNED_CLIENTS_BY_MONTH }),
   );
@@ -50,7 +87,6 @@ function load(): StoreShape {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    // Minimal shape check; if missing, reseed.
     if (parsed && parsed.monthly && parsed.unassigned) return parsed;
     return seed();
   } catch {
@@ -58,9 +94,25 @@ function load(): StoreShape {
   }
 }
 
+function loadSelectedMonth(fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  try {
+    return window.localStorage.getItem(SELECTED_MONTH_KEY) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 type CP2StoreCtx = {
   state: StoreShape;
   resetToSeed: () => void;
+
+  // Unified month context
+  selectedMonth: string;
+  setSelectedMonth: (m: string) => void;
+  goToCurrentMonth: () => void;
+  monthOptions: string[];
+
   // Membership
   updateMember: (
     month: MonthKey,
@@ -83,9 +135,7 @@ type CP2StoreCtx = {
     clientId: number,
     patch: Partial<ClientChip>,
   ) => void;
-  // Actual delivered (mock; real data comes from goals_vs_delivery)
   setActualDelivered: (month: MonthKey, podId: number, value: number) => void;
-  // Copy forward
   copyMonthForward: (source: MonthKey, count: number) => void;
 };
 
@@ -94,20 +144,60 @@ const StoreContext = createContext<CP2StoreCtx | null>(null);
 export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<StoreShape>(seed);
 
-  // Hydrate from localStorage after mount (avoids SSR mismatch).
+  const today = useMemo(currentMonthKey, []);
+  const monthOptions = useMemo(() => monthRange(today, 6, 6), [today]);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlMonth = searchParams.get("m");
+
+  // Initial selected month: URL > localStorage > today
+  const [selectedMonth, setSelectedMonthState] = useState<string>(today);
+
   useEffect(() => {
     setState(load());
+    const fromStorage = loadSelectedMonth(today);
+    setSelectedMonthState(urlMonth && /^\d{4}-\d{2}$/.test(urlMonth) ? urlMonth : fromStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist on every change.
+  // Keep URL in sync with selectedMonth (scroll: false so nav doesn't jump)
+  useEffect(() => {
+    if (!pathname) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.get("m") === selectedMonth) return;
+    params.set("m", selectedMonth);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [selectedMonth, pathname, router, searchParams]);
+
+  // Persist state + selected month
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // quota exceeded / private mode — ignore
+      // ignore quota errors
     }
   }, [state]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SELECTED_MONTH_KEY, selectedMonth);
+    } catch {
+      // ignore
+    }
+  }, [selectedMonth]);
+
+  const setSelectedMonth = useCallback((m: string) => {
+    if (!/^\d{4}-\d{2}$/.test(m)) return;
+    setSelectedMonthState(m);
+  }, []);
+
+  const goToCurrentMonth = useCallback(() => {
+    setSelectedMonthState(currentMonthKey());
+  }, []);
 
   const resetToSeed = useCallback(() => setState(seed()), []);
 
@@ -249,7 +339,6 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
         for (let i = 1; i <= count; i++) {
           const target = MONTHS[idx + i];
           if (!target) break;
-          // Carry membership + allocation; wipe actuals (they'd be pulled from ETL).
           newMonthly[target] = srcPods.map((p) => ({
             ...p,
             members: p.members.map((m) => ({ ...m, actualDelivered: 0 })),
@@ -268,6 +357,10 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     () => ({
       state,
       resetToSeed,
+      selectedMonth,
+      setSelectedMonth,
+      goToCurrentMonth,
+      monthOptions,
       updateMember,
       addMember,
       removeMember,
@@ -279,6 +372,10 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     [
       state,
       resetToSeed,
+      selectedMonth,
+      setSelectedMonth,
+      goToCurrentMonth,
+      monthOptions,
       updateMember,
       addMember,
       removeMember,

@@ -5,8 +5,6 @@ import { AlertTriangle, Copy, Info, Pencil, Plus, RotateCcw } from "lucide-react
 import { ProposalBanner } from "./_ProposalBanner";
 import { SubNav } from "./_SubNav";
 import {
-  MONTHS,
-  MONTH_LABELS,
   type ClientChip,
   type MemberRow,
   type MonthKey,
@@ -262,8 +260,8 @@ function PodCard({
 }
 
 export default function CapacityPlanningV2() {
-  const { state, resetToSeed, copyMonthForward } = useCP2Store();
-  const [month, setMonth] = useState<MonthKey>("2026-04");
+  const { state, resetToSeed, copyMonthForward, selectedMonth } = useCP2Store();
+  const month = selectedMonth as MonthKey;
 
   const pods = state.monthly[month] ?? [];
 
@@ -296,52 +294,28 @@ export default function CapacityPlanningV2() {
       <ProposalBanner subtitle="Editable prototype. All edits are stored in your browser (localStorage) — nothing is written to the database. Use Reset to restore seed data." />
       <SubNav />
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] px-4 py-3">
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-            Month
-          </span>
-          <div className="flex gap-1">
-            {MONTHS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMonth(m)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition-all ${
-                  m === month
-                    ? "border-[#42CA80]/40 bg-[#42CA80]/10 text-[#65FFAA]"
-                    : "border-[#2a2a2a] bg-[#161616] text-[#C4BCAA] hover:border-[#42CA80]/30 hover:text-white"
-                }`}
-              >
-                {MONTH_LABELS[m]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => copyMonthForward(month, 3)}
-            className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#42CA80]/40 hover:text-white"
-            title="Copy this month's roster and allocation into the next 3 months"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copy → next 3
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm("Reset all edits and restore seed data?")) resetToSeed();
-            }}
-            className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#ED6958]/40 hover:text-[#ED6958]"
-            title="Discard all edits"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </button>
-        </div>
+      {/* Toolbar — month lives in the SubNav above; this row is just actions. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => copyMonthForward(month, 3)}
+          className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#42CA80]/40 hover:text-white"
+          title="Copy this month's roster and allocation into the next 3 months"
+        >
+          <Copy className="h-3.5 w-3.5" />
+          Copy → next 3
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm("Reset all edits and restore seed data?")) resetToSeed();
+          }}
+          className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#ED6958]/40 hover:text-[#ED6958]"
+          title="Discard all edits"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-3">

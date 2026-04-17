@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, LogOut, RefreshCw, XCircle } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
 
@@ -55,10 +55,21 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function formatMonthKey(m: string): string | null {
+  if (!/^\d{4}-\d{2}$/.test(m)) return null;
+  const [y, mm] = m.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, mm - 1, 1);
+  return `${d.toLocaleString("en-US", { month: "short" })} ${y}`;
+}
+
 export function Header({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const title = pageTitles[pathname] || "Editorial Hub";
   const breadcrumbs = getBreadcrumbs(pathname);
+  const urlMonth = searchParams.get("m");
+  const monthChip =
+    pathname.startsWith("/capacity-planning") && urlMonth ? formatMonthKey(urlMonth) : null;
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -114,7 +125,14 @@ export function Header({ user }: { user: HeaderUser }) {
             <span className="text-[#404040]">/</span>
           </div>
         )}
-        <h1 className="text-sm font-semibold text-white">{title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-semibold text-white">{title}</h1>
+          {monthChip && (
+            <span className="rounded border border-[#42CA80]/40 bg-[#42CA80]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#65FFAA]">
+              {monthChip}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Right: Sync button + User info + avatar + logout */}

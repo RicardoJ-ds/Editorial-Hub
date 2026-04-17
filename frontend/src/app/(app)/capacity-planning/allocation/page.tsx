@@ -5,8 +5,6 @@ import { GripVertical, Pencil, Plus, RotateCcw } from "lucide-react";
 import { ProposalBanner } from "../_ProposalBanner";
 import { SubNav } from "../_SubNav";
 import {
-  MONTHS,
-  MONTH_LABELS,
   computeMemberEffective,
   type ClientChip,
   type MonthKey,
@@ -175,8 +173,8 @@ function PodColumn({
 }
 
 export default function AllocationPage() {
-  const { state, moveClient, resetToSeed } = useCP2Store();
-  const [month, setMonth] = useState<MonthKey>("2026-04");
+  const { state, moveClient, resetToSeed, selectedMonth } = useCP2Store();
+  const month = selectedMonth as MonthKey;
   const [dragging, setDragging] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<
     number | "unassigned" | null
@@ -215,29 +213,7 @@ export default function AllocationPage() {
       <ProposalBanner subtitle="Drag-and-drop clients between pods. Click pencil to edit a projection or change its source (SOW / OP MODEL / MANUAL)." />
       <SubNav />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a] px-4 py-3">
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-            Month
-          </span>
-          <div className="flex gap-1">
-            {MONTHS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMonth(m)}
-                className={`rounded-md border px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition-all ${
-                  m === month
-                    ? "border-[#42CA80]/40 bg-[#42CA80]/10 text-[#65FFAA]"
-                    : "border-[#2a2a2a] bg-[#161616] text-[#C4BCAA] hover:border-[#42CA80]/30 hover:text-white"
-                }`}
-              >
-                {MONTH_LABELS[m]}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <div className="flex flex-wrap items-center justify-end">
         <button
           type="button"
           onClick={() => {
