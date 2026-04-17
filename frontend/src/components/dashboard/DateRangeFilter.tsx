@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, ChevronLeft, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DateRange as RDPDateRange } from "react-day-picker";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,7 +19,7 @@ export interface DateRangeFilterProps {
   onChange: (range: DateRange) => void;
 }
 
-type View = "years" | "months" | "days";
+type View = "years" | "months";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -29,7 +27,6 @@ type View = "years" | "months" | "days";
 
 const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const PRESETS = [
   { label: "This Year", from: new Date(2026, 0, 1), to: new Date(2026, 11, 31) },
@@ -97,18 +94,16 @@ const STYLES = `
 
 export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<View>("years");
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(0);
+  const [view, setView] = useState<View>("months");
+  const [year, setYear] = useState(new Date().getFullYear());
   const [anim, setAnim] = useState("");
   const [animKey, setAnimKey] = useState(0);
+  // Range-building state while in month view: first click sets start, second
+  // click sets end. Reset by clicking the same month again or via Clear.
+  const [rangeAnchor, setRangeAnchor] = useState<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const isActive = value.type === "range";
-
-  const rdpSelected: RDPDateRange | undefined =
-    value.from && value.to ? { from: value.from, to: value.to }
-      : value.from ? { from: value.from, to: undefined } : undefined;
 
   // Zoom helpers
   const goTo = useCallback((v: View, dir: "in" | "out") => {
@@ -132,12 +127,40 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
     return () => document.removeEventListener("keydown", h);
   }, [open]);
 
-  // Reset on open — default to day view
-  useEffect(() => { if (open) { setView("days"); setAnim(""); } }, [open]);
+  // Reset on open — default to month view
+  useEffect(() => {
+    if (open) {
+      setView("months");
+      setAnim("");
+      setRangeAnchor(null);
+    }
+  }, [open]);
 
   const selectRange = (from: Date, to: Date, close = false) => {
     onChange({ type: "range", from, to });
     if (close) setTimeout(() => setOpen(false), 150);
+  };
+
+  /** Two-click month range builder:
+   *  1st click → anchor the start, mark the month
+   *  2nd click → finalize the range from min(anchor, click) through end of max(anchor, click)
+   *  Clicking the same month resets. */
+  const handleMonthClick = (i: number) => {
+    if (rangeAnchor === null) {
+      setRangeAnchor(i);
+      selectRange(new Date(year, i, 1), new Date(year, i + 1, 0));
+      return;
+    }
+    if (rangeAnchor === i) {
+      // Same month — lock in as a single-month range and close.
+      selectRange(new Date(year, i, 1), new Date(year, i + 1, 0), true);
+      setRangeAnchor(null);
+      return;
+    }
+    const startMonth = Math.min(rangeAnchor, i);
+    const endMonth = Math.max(rangeAnchor, i);
+    selectRange(new Date(year, startMonth, 1), new Date(year, endMonth + 1, 0), true);
+    setRangeAnchor(null);
   };
 
   return (
@@ -172,18 +195,18 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
 
       {/* Panel */}
       {open && (
-        <div className="absolute top-full left-0 z-50 mt-2 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] shadow-2xl drf-panel-in" style={{ width: view === "days" ? "auto" : 340 }}>
+        <div className="absolute top-full left-0 z-50 mt-2 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] shadow-2xl drf-panel-in" style={{ width: 340 }}>
 
           {/* Nav bar */}
           <div className="flex items-center h-10 px-3 border-b border-[#1e1e1e]">
             {view !== "years" ? (
               <button
                 type="button"
-                onClick={() => goTo(view === "days" ? "months" : "years", "out")}
+                onClick={() => goTo("years", "out")}
                 className="flex items-center gap-1 text-[11px] font-mono text-[#606060] hover:text-white transition-colors"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
-                {view === "days" ? `${MONTHS[month]} ${year}` : String(year)}
+                {String(year)}
               </button>
             ) : (
               <span className="text-[11px] font-mono font-semibold text-[#C4BCAA] uppercase tracking-wider">Select period</span>
@@ -194,7 +217,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
               )}
               <button
                 type="button"
-                onClick={() => { onChange({ type: "all" }); setOpen(false); }}
+                onClick={() => { onChange({ type: "all" }); setRangeAnchor(null); setOpen(false); }}
                 className="text-[10px] font-mono text-[#606060] hover:text-white transition-colors"
               >
                 Clear
@@ -257,22 +280,27 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
             {/* ===== MONTHS ===== */}
             {view === "months" && (
               <div className="p-3 space-y-3">
+                <p className="text-[9px] font-mono text-[#606060] text-center">
+                  Click a month to pick it. Click a second month to make a range.
+                </p>
                 <div className="grid grid-cols-4 gap-2">
                   {MONTHS.map((m, i) => {
                     const monthStart = new Date(year, i, 1);
                     const monthEnd = new Date(year, i + 1, 0);
                     const isInRange = value.from && value.to && monthEnd >= value.from && monthStart <= value.to;
+                    const isAnchor = rangeAnchor === i;
                     return (
                       <button
                         key={m}
                         type="button"
-                        onClick={() => { setMonth(i); goTo("days", "in"); }}
-                        onDoubleClick={() => selectRange(new Date(year, i, 1), new Date(year, i + 1, 0), true)}
+                        onClick={() => handleMonthClick(i)}
                         className={cn(
                           "flex flex-col items-center justify-center rounded-lg py-3 transition-all duration-200 border",
-                          isInRange
-                            ? "bg-[#42CA80]/10 text-[#42CA80] border-[#42CA80]/25"
-                            : "bg-[#111] text-[#C4BCAA] border-[#1e1e1e] hover:bg-[#1a1a1a] hover:text-white hover:border-[#333]"
+                          isAnchor
+                            ? "bg-[#42CA80]/25 text-[#65FFAA] border-[#42CA80] ring-1 ring-[#42CA80]/40"
+                            : isInRange
+                              ? "bg-[#42CA80]/10 text-[#42CA80] border-[#42CA80]/25"
+                              : "bg-[#111] text-[#C4BCAA] border-[#1e1e1e] hover:bg-[#1a1a1a] hover:text-white hover:border-[#333]"
                         )}
                       >
                         <span className="text-sm font-mono font-semibold">{m}</span>
@@ -286,47 +314,14 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                   <p className="text-[9px] font-mono text-[#606060]">Or select the full year</p>
                   <button
                     type="button"
-                    onClick={() => selectRange(new Date(year, 0, 1), new Date(year, 11, 31), true)}
+                    onClick={() => {
+                      selectRange(new Date(year, 0, 1), new Date(year, 11, 31), true);
+                      setRangeAnchor(null);
+                    }}
                     className="flex items-center gap-1 text-[10px] font-mono text-[#42CA80] hover:text-[#65FFAA] transition-colors"
                   >
                     <Check className="h-3 w-3" />
                     All of {year}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ===== DAYS ===== */}
-            {view === "days" && (
-              <div className="p-3 drf-cal">
-                <Calendar
-                  mode="range"
-                  selected={rdpSelected}
-                  onSelect={(range) => {
-                    if (!range?.from) return;
-                    onChange({ type: "range", from: range.from, to: range.to ?? range.from });
-                  }}
-                  numberOfMonths={2}
-                  defaultMonth={new Date(year, month)}
-                  className="bg-transparent"
-                />
-
-                {/* Actions */}
-                <div className="mt-2 pt-2.5 border-t border-[#1e1e1e] flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => selectRange(new Date(year, month, 1), new Date(year, month + 1, 0))}
-                    className="text-[10px] font-mono text-[#606060] hover:text-[#42CA80] transition-colors"
-                  >
-                    Select all of {MONTHS_FULL[month]}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-1.5 text-[11px] font-mono font-medium text-black bg-[#42CA80] hover:bg-[#65FFAA] rounded-full px-4 py-1.5 transition-all duration-200 shadow-md shadow-[#42CA80]/20"
-                  >
-                    <Check className="h-3 w-3" />
-                    Apply
                   </button>
                 </div>
               </div>

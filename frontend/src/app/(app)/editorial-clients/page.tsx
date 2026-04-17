@@ -446,12 +446,13 @@ function ClientEngagementTimeline({
   // Current month in YYYY-MM — used to highlight the live column and split
   // actual (historic) from projected (future). The Operating Model carries
   // both numbers on every row, so we pick by calendar position.
+  // Current year + 1-indexed month (matches the API + timelineMonths keys).
   const nowYm = useMemo(() => {
     const d = new Date();
-    return { year: d.getFullYear(), month: d.getMonth() };
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
   }, []);
   const currentMonthKey = `${nowYm.year}-${String(nowYm.month).padStart(2, "0")}`;
-  const currentQuarterKey = `${nowYm.year}-Q${Math.floor(nowYm.month / 3) + 1}`;
+  const currentQuarterKey = `${nowYm.year}-Q${Math.ceil(nowYm.month / 3)}`;
 
   // Lookup per-client production rows (from ProductionHistory / Editorial Operating Model)
   const productionByClient = useMemo(() => {
@@ -514,18 +515,21 @@ function ClientEngagementTimeline({
     return { minDate: min, maxDate: max, monthLabels: labels };
   }, [activeClients]);
 
-  // Build a list of all months in the timeline range (for cadence grid)
+  // Build a list of all months in the timeline range (for cadence grid).
+  // Keys use 1-indexed months to match the backend API (ClientProductionMonth.month
+  // is 1..12) so perPeriod.get(key) actually hits the right cell.
   const timelineMonths = useMemo(() => {
     const months: { year: number; month: number; key: string; label: string }[] = [];
     if (activeClients.length === 0) return months;
     const cursor = new Date(minDate);
     while (cursor <= maxDate) {
       const y = cursor.getFullYear();
-      const m = cursor.getMonth();
+      const m = cursor.getMonth(); // 0-indexed for Date math
+      const apiMonth = m + 1; // 1-indexed for key matching with the API
       months.push({
         year: y,
-        month: m,
-        key: `${y}-${String(m).padStart(2, "0")}`,
+        month: apiMonth,
+        key: `${y}-${String(apiMonth).padStart(2, "0")}`,
         label: cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
       });
       cursor.setMonth(cursor.getMonth() + 1);
@@ -565,7 +569,8 @@ function ClientEngagementTimeline({
     const map = new Map<string, { actual: number; projected: number }>();
     cumulativeByMonth.forEach(({ key, actual, projected }) => {
       const [y, m] = key.split("-").map(Number);
-      const q = Math.floor(m / 3) + 1;
+      // m is 1-indexed (Jan=1); Math.ceil(m / 3) → 1..4
+      const q = Math.ceil(m / 3);
       const qKey = `${y}-Q${q}`;
       const row = map.get(qKey) ?? { actual: 0, projected: 0 };
       row.actual += actual;
@@ -854,8 +859,9 @@ function ClientEngagementTimeline({
             // Group operating model rows into the active period (monthly or quarterly).
             const perPeriod = new Map<string, { actual: number; projected: number }>();
             (prod?.monthly ?? []).forEach(({ year, month, actual, projected }) => {
+              // month is 1-indexed coming from the API
               const key = cumView === "quarterly"
-                ? `${year}-Q${Math.floor(month / 3) + 1}`
+                ? `${year}-Q${Math.ceil(month / 3)}`
                 : `${year}-${String(month).padStart(2, "0")}`;
               const cell = perPeriod.get(key) ?? { actual: 0, projected: 0 };
               cell.actual += actual;
