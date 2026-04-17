@@ -38,7 +38,7 @@ function TableNodeInner({ data }: NodeProps<TableNodeType>) {
       >
         <span className="font-semibold tracking-wide">{table.name}</span>
         <span className="text-[9px] uppercase tracking-[0.14em] opacity-70">
-          {table.group}
+          {table.group} · {table.domain}
         </span>
       </div>
 

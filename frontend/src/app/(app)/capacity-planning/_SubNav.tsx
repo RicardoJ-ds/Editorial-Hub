@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Move3D, Users, Database } from "lucide-react";
+import { LayoutGrid, Move3D, Users, Database, Table2, BookOpen } from "lucide-react";
 
 const TABS = [
   { href: "/capacity-planning", label: "Overview", icon: LayoutGrid },
   { href: "/capacity-planning/roster", label: "Roster", icon: Users },
   { href: "/capacity-planning/allocation", label: "Allocation", icon: Move3D },
   { href: "/capacity-planning/schema", label: "Schema", icon: Database },
+  { href: "/capacity-planning/tables", label: "Tables", icon: Table2 },
+  { href: "/capacity-planning/glossary", label: "Glossary", icon: BookOpen },
 ];
 
 export function SubNav() {

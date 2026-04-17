@@ -196,12 +196,32 @@ GROUP BY a.pod_id, w.month_key;
 
 | Route | Purpose | Editable? |
 |---|---|---|
-| `/capacity-planning` | Overview Board (image #5 style) | Read-only + override modal |
-| `/capacity-planning/roster` | Roster editor (image #3 style) | Drag & drop members across pods/months |
-| `/capacity-planning/allocation` | Client → Pod kanban (image #4 style) | Drag & drop clients |
-| `/capacity-planning/members` | Team member CRUD | Yes |
-| `/capacity-planning/pods` | Pod CRUD | Yes |
-| `/capacity-planning/leave` | PTO / leave entry | Yes |
+| `/capacity-planning` | Overview Board | Read-only + override modal |
+| `/capacity-planning/roster` | Roster editor (member × month matrix) | Drag & drop members across pods/months |
+| `/capacity-planning/allocation` | Client → Pod kanban | Drag & drop clients |
+| `/capacity-planning/schema` | Interactive ERD viewer (React Flow) | Read-only |
+| `/capacity-planning/tables` | Browse every `cp2_*` table with mock rows | Read-only |
+| `/capacity-planning/glossary` | Dashboard-KPI → ERD column mapping | Read-only |
+| `/capacity-planning/members` | Team member CRUD *(phase 2)* | Yes |
+| `/capacity-planning/pods` | Pod CRUD *(phase 2)* | Yes |
+| `/capacity-planning/leave` | PTO / leave entry *(phase 2)* | Yes |
+
+## Coverage for current dashboards
+
+The ERD is sized to feed *every* metric on today's dashboards — not just capacity.
+
+| Dashboard metric | Source table | Key columns |
+|---|---|---|
+| Internal / External Quality, Mentorship, Feedback Adoption | `cp2_fact_kpi_score` | `score`, `metric_id` |
+| Revision Rate, Turnaround Time, Second Reviews | `cp2_fact_article` | `revision_count`, `turnaround_days`, `had_second_review` |
+| AI Compliance | `cp2_fact_ai_scan` | `recommendation`, `is_flagged` |
+| Capacity Utilization | `cp2_v_pod_monthly` (view) | `projected_use / total_capacity` |
+| Articles Delivered / Invoiced (monthly) | `cp2_fact_delivery_monthly` | `articles_delivered`, `articles_invoiced`, `variance` |
+| Weekly Goals vs Delivery | `cp2_fact_actuals_weekly` | `goal_articles`, `delivered_articles` |
+| Cumulative Pipeline | `cp2_fact_pipeline_snapshot` | `topics_submitted`, `cbs_approved`, `articles_published` |
+| Client Engagement Timeline | `cp2_dim_client` | `contract_start/end`, `cadence`, `sow_articles_total` |
+
+See `/capacity-planning/glossary` in-app for the authoritative mapping (including formulas and direction).
 
 ## Status
 
