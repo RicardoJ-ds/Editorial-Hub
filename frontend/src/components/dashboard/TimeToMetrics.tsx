@@ -5,6 +5,13 @@ import type { Client } from "@/lib/types";
 import { SummaryCard } from "./SummaryCard";
 import { DataSourceBadge } from "./DataSourceBadge";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TimeToMetricsProps {
   clients: Client[];
@@ -42,6 +49,26 @@ function fmtRange(s: ReturnType<typeof statsOf>): string | undefined {
 const REF_FIELD = "consulting_ko_date";
 const REF_LABEL = "Consulting KO";
 
+type MetricDef = {
+  key: string;
+  short: string;
+  label: string;
+  subtitle: string;
+  from?: string;
+  to: string;
+};
+
+const METRIC_DEFS: MetricDef[] = [
+  { key: "cko_eko", short: "CKO → EKO", label: "Consulting KO → Editorial KO", subtitle: "Growth-to-Editorial handoff time", to: "editorial_ko_date" },
+  { key: "cko_cb", short: "CKO → CB", label: "Consulting KO → First CB", subtitle: "Consulting kickoff to first content brief approved", to: "first_cb_approved_date" },
+  { key: "cko_art", short: "CKO → Article", label: "Consulting KO → First Article", subtitle: "Consulting kickoff to first article delivered", to: "first_article_delivered_date" },
+  { key: "cko_fb", short: "CKO → Feedback", label: "Consulting KO → First Feedback", subtitle: "Consulting kickoff to first client feedback", to: "first_feedback_date" },
+  { key: "cb_art", short: "CB → Article", label: "First CB → First Article", subtitle: "Content brief approval to article delivery", from: "first_cb_approved_date", to: "first_article_delivered_date" },
+  { key: "cko_pub", short: "CKO → Published", label: "Consulting KO → First Published", subtitle: "Full cycle from kickoff to live publication", to: "first_article_published_date" },
+  { key: "art_fb", short: "Article → Feedback", label: "First Article → First Feedback", subtitle: "Article delivery to client response time", from: "first_article_delivered_date", to: "first_feedback_date" },
+  { key: "fb_pub", short: "Feedback → Published", label: "Feedback → Published", subtitle: "Client feedback to article going live", from: "first_feedback_date", to: "first_article_published_date" },
+];
+
 // All milestones in chronological order after CKO
 const JOURNEY = [
   { key: "eko", label: "Editorial KO", short: "EKO", field: "editorial_ko_date", color: "#F28D59", shape: "diamond" as const },
@@ -54,17 +81,7 @@ const JOURNEY = [
 export function TimeToMetrics({ clients }: TimeToMetricsProps) {
   // Card metrics — all relative to Consulting KO
   const cards = useMemo(() => {
-    const defs = [
-      { key: "cko_eko", short: "CKO → EKO", label: "Consulting KO → Editorial KO", subtitle: "Growth-to-Editorial handoff time", to: "editorial_ko_date" },
-      { key: "cko_cb", short: "CKO → CB", label: "Consulting KO → First CB", subtitle: "Consulting kickoff to first content brief approved", to: "first_cb_approved_date" },
-      { key: "cko_art", short: "CKO → Article", label: "Consulting KO → First Article", subtitle: "Consulting kickoff to first article delivered", to: "first_article_delivered_date" },
-      { key: "cko_fb", short: "CKO → Feedback", label: "Consulting KO → First Feedback", subtitle: "Consulting kickoff to first client feedback", to: "first_feedback_date" },
-      { key: "cb_art", short: "CB → Article", label: "First CB → First Article", subtitle: "Content brief approval to article delivery", from: "first_cb_approved_date", to: "first_article_delivered_date" },
-      { key: "cko_pub", short: "CKO → Published", label: "Consulting KO → First Published", subtitle: "Full cycle from kickoff to live publication", to: "first_article_published_date" },
-      { key: "art_fb", short: "Article → Feedback", label: "First Article → First Feedback", subtitle: "Article delivery to client response time", from: "first_article_delivered_date", to: "first_feedback_date" },
-      { key: "fb_pub", short: "Feedback → Published", label: "Feedback → Published", subtitle: "Client feedback to article going live", from: "first_feedback_date", to: "first_article_published_date" },
-    ];
-    return defs.map((d) => {
+    return METRIC_DEFS.map((d) => {
       const from = d.from ?? REF_FIELD;
       const values = clients.map((c) =>
         daysBetween((c as unknown as Record<string, string | null>)[from], (c as unknown as Record<string, string | null>)[d.to])
@@ -118,8 +135,194 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
         ))}
       </div>
 
+      {/* Month-over-month trend */}
+      <TimeToTrendChart clients={clients} />
+
       {/* Waterfall chart */}
       {clientMilestones.length > 0 && <MilestoneWaterfall data={clientMilestones} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Month-over-month trend chart
+// ---------------------------------------------------------------------------
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthKey(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthKey(key: string): string {
+  const [y, m] = key.split("-");
+  const mi = parseInt(m, 10) - 1;
+  return `${MONTH_LABELS[mi] ?? ""} ${y.slice(2)}`;
+}
+
+function TimeToTrendChart({ clients }: { clients: Client[] }) {
+  const [metricKey, setMetricKey] = useState<string>("cko_art");
+
+  const metric = useMemo(
+    () => METRIC_DEFS.find((m) => m.key === metricKey) ?? METRIC_DEFS[0],
+    [metricKey]
+  );
+
+  const { buckets, overallAvg } = useMemo(() => {
+    const from = metric.from ?? REF_FIELD;
+    const grouped = new Map<string, number[]>();
+    const all: number[] = [];
+    for (const c of clients) {
+      const rec = c as unknown as Record<string, string | null>;
+      const days = daysBetween(rec[from], rec[metric.to]);
+      if (days === null) continue;
+      // Bucket by the Consulting KO month — gives a cohort view of contracts
+      const key = monthKey(c.consulting_ko_date);
+      if (!key) continue;
+      all.push(days);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(days);
+    }
+    const sortedKeys = Array.from(grouped.keys()).sort();
+    const buckets = sortedKeys.map((key) => {
+      const values = grouped.get(key)!;
+      const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+      return { key, avg, count: values.length };
+    });
+    const overallAvg = all.length
+      ? Math.round(all.reduce((a, b) => a + b, 0) / all.length)
+      : null;
+    return { buckets, overallAvg };
+  }, [clients, metric]);
+
+  const maxAvg = useMemo(
+    () => Math.max(1, overallAvg ?? 0, ...buckets.map((b) => b.avg)),
+    [buckets, overallAvg]
+  );
+
+  const [hover, setHover] = useState<{ x: number; y: number; key: string; avg: number; count: number } | null>(null);
+
+  return (
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Month-over-Month Trend
+          </p>
+          <p className="text-[9px] font-mono text-[#606060] mt-0.5">
+            Average {metric.label.toLowerCase()} — bucketed by {REF_LABEL} cohort month.
+            {overallAvg !== null && (
+              <> Overall avg: <span className="text-white font-semibold">{overallAvg}d</span></>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[9px] text-[#606060] uppercase tracking-wider">Metric</span>
+          <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
+            <SelectTrigger size="sm" className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {METRIC_DEFS.map((m) => (
+                <SelectItem key={m.key} value={m.key}>
+                  Avg {m.short}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {buckets.length === 0 ? (
+        <p className="text-center text-xs text-[#606060] py-10">
+          Not enough data to compute a trend for the current filters.
+        </p>
+      ) : (
+        <div className="relative">
+          {/* Reference line (overall average) */}
+          {overallAvg !== null && overallAvg > 0 && (
+            <div
+              className="absolute left-0 right-0 pointer-events-none"
+              style={{
+                bottom: `${20 + (overallAvg / maxAvg) * 140}px`,
+                height: 1,
+                borderTop: "1px dashed #42CA80",
+                opacity: 0.5,
+              }}
+            >
+              <span
+                className="absolute right-0 -top-3 text-[8px] font-mono text-[#42CA80]"
+                style={{ transform: "translateY(-100%)" }}
+              >
+                Overall {overallAvg}d
+              </span>
+            </div>
+          )}
+
+          {/* Bars */}
+          <div className="flex items-end gap-2 h-[180px] pb-5">
+            {buckets.map((b) => {
+              const hPx = Math.max(2, Math.round((b.avg / maxAvg) * 140));
+              const above = overallAvg !== null && b.avg > overallAvg;
+              return (
+                <div key={b.key} className="flex-1 flex flex-col items-center gap-1 min-w-0 relative group/bar">
+                  <span className="font-mono text-[9px] text-[#C4BCAA] tabular-nums">{b.avg}d</span>
+                  <div
+                    className={cn(
+                      "w-full rounded-t transition-all",
+                      above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
+                      "group-hover/bar:opacity-80"
+                    )}
+                    style={{ height: hPx, opacity: 0.85 }}
+                    onMouseEnter={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setHover({ x: r.left + r.width / 2, y: r.top - 10, key: b.key, avg: b.avg, count: b.count });
+                    }}
+                    onMouseLeave={() => setHover(null)}
+                  />
+                  <span className="font-mono text-[8px] text-[#606060] truncate w-full text-center">
+                    {formatMonthKey(b.key)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mt-2 pt-2 border-t border-[#2a2a2a]">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-sm bg-[#42CA80]" />
+              <span className="text-[8px] font-mono text-[#606060]">At or under overall avg</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-sm bg-[#F5BC4E]" />
+              <span className="text-[8px] font-mono text-[#606060]">Above overall avg</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-px border-t border-dashed border-[#42CA80]" />
+              <span className="text-[8px] font-mono text-[#606060]">Overall average</span>
+            </div>
+          </div>
+
+          {/* Tooltip */}
+          {hover && (
+            <div
+              className="fixed z-[9999] pointer-events-none"
+              style={{ left: hover.x, top: hover.y, transform: "translate(-50%, -100%)" }}
+            >
+              <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                <p className="text-[11px] font-mono font-semibold text-white">{formatMonthKey(hover.key)}</p>
+                <p className="text-[10px] font-mono text-[#C4BCAA] mt-0.5">
+                  Avg <span className="text-white">{hover.avg}d</span> · {hover.count} client{hover.count === 1 ? "" : "s"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

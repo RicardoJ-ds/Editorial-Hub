@@ -31,6 +31,7 @@ import { PacingBadge } from "@/components/dashboard/PacingBadge";
 import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
+import { ContractClientProgress } from "@/components/dashboard/ContractClientProgress";
 import { SortableHead as SortableHeadShared } from "@/components/dashboard/shared-helpers";
 import {
   Select,
@@ -969,29 +970,10 @@ function ClientEngagementTimeline({ clients }: { clients: Client[] }) {
 function ContractTimelineTab({ clients }: { clients: Client[] }) {
   const { sorted, toggleSort, getSortIcon } = useSortableData(clients);
 
-  const totalActive = clients.filter((c) => c.status === "ACTIVE").length;
-  const totalArticlesSow = clients.reduce(
-    (acc, c) => acc + (c.articles_sow ?? 0),
-    0
-  );
-  const totalArticlesDelivered = clients.reduce(
-    (acc, c) => acc + (c.articles_delivered ?? 0),
-    0
-  );
-
   return (
     <div className="mt-3 space-y-5">
-      {/* SOW Overview */}
-      <div>
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-3">
-          SOW Overview <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Client status, article counts, and SOW totals." />
-        </h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <SummaryCard title="Active Clients" value={totalActive} valueColor="green" />
-          <SummaryCard title="Articles SOW" value={totalArticlesSow.toLocaleString()} />
-          <SummaryCard title="Articles Delivered" value={totalArticlesDelivered.toLocaleString()} />
-        </div>
-      </div>
+      {/* Per-client progress — gauges + pipeline bars */}
+      <ContractClientProgress filteredClients={clients} />
 
       {/* Time-to Metrics */}
       <TimeToMetrics clients={clients} />
