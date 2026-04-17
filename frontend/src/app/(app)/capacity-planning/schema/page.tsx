@@ -28,14 +28,24 @@ function estimateHeight(table: TableSpec): number {
 
 function layout(tables: TableSpec[], relations: typeof RELATIONS) {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 120, marginx: 20, marginy: 20 });
+  g.setGraph({
+    rankdir: "LR",
+    nodesep: 120,
+    ranksep: 340,
+    edgesep: 80,
+    ranker: "network-simplex",
+    marginx: 40,
+    marginy: 40,
+  });
   g.setDefaultEdgeLabel(() => ({}));
 
   for (const t of tables) {
     g.setNode(t.id, { width: NODE_WIDTH, height: estimateHeight(t) });
   }
   for (const r of relations) {
-    g.setEdge(r.from, r.to);
+    // minlen=2 forces edges to span more of a gap, giving dagre room to route
+    // labels without clipping other nodes.
+    g.setEdge(r.from, r.to, { minlen: 2, weight: 1 });
   }
   dagre.layout(g);
 
@@ -56,16 +66,22 @@ function layout(tables: TableSpec[], relations: typeof RELATIONS) {
     source: r.from,
     target: r.to,
     label: r.label,
-    type: "smoothstep",
+    type: "bezier",
     animated: false,
-    style: { stroke: "#42CA80", strokeOpacity: 0.55, strokeWidth: 1.2 },
+    style: { stroke: "#42CA80", strokeOpacity: 0.5, strokeWidth: 1.1 },
     labelStyle: {
       fill: "#C4BCAA",
       fontFamily: "var(--font-jetbrains-mono)",
       fontSize: 10,
     },
-    labelBgStyle: { fill: "#0a0a0a" },
-    labelBgPadding: [4, 2] as [number, number],
+    labelBgStyle: {
+      fill: "#0a0a0a",
+      fillOpacity: 0.95,
+      stroke: "#1f1f1f",
+      strokeWidth: 1,
+    },
+    labelBgPadding: [6, 3] as [number, number],
+    labelBgBorderRadius: 3,
     markerEnd: {
       type: MarkerType.ArrowClosed,
       color: "#42CA80",
