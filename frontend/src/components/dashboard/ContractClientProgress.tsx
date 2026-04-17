@@ -61,7 +61,13 @@ function sortPodKey(a: string, b: string) {
   return a.localeCompare(b);
 }
 
-function aggregateGoalsByPod(rows: GoalsVsDeliveryRow[]): PodGoalAgg[] {
+/** Aggregate goal rows by CLIENT's editorial_pod (via the clientToPod map)
+ *  rather than the row's `editorial_team_pod` column, so filter semantics are
+ *  consistent with the FilterBar (which filters on Client.editorial_pod). */
+function aggregateGoalsByPod(
+  rows: GoalsVsDeliveryRow[],
+  clientToPod: Map<string, string>,
+): PodGoalAgg[] {
   // Latest week per client first
   const latestByClient = new Map<string, GoalsVsDeliveryRow>();
   for (const r of rows) {
@@ -70,7 +76,7 @@ function aggregateGoalsByPod(rows: GoalsVsDeliveryRow[]): PodGoalAgg[] {
   }
   const byPod = new Map<string, PodGoalAgg>();
   for (const r of latestByClient.values()) {
-    const pod = r.editorial_team_pod ?? "Unassigned";
+    const pod = clientToPod.get(r.client_name) ?? r.editorial_team_pod ?? "Unassigned";
     if (!byPod.has(pod)) {
       byPod.set(pod, {
         pod, clientCount: 0, clientNames: [],
@@ -92,10 +98,13 @@ function aggregateGoalsByPod(rows: GoalsVsDeliveryRow[]): PodGoalAgg[] {
   return Array.from(byPod.values()).sort((a, b) => sortPodKey(a.pod, b.pod));
 }
 
-function aggregatePipelineByPod(rows: CumulativeMetric[]): PodPipelineAgg[] {
+function aggregatePipelineByPod(
+  rows: CumulativeMetric[],
+  clientToPod: Map<string, string>,
+): PodPipelineAgg[] {
   const byPod = new Map<string, PodPipelineAgg>();
   for (const r of rows) {
-    const pod = r.account_team_pod ?? "Unassigned";
+    const pod = clientToPod.get(r.client_name) ?? r.account_team_pod ?? "Unassigned";
     if (!byPod.has(pod)) {
       byPod.set(pod, {
         pod, clientCount: 0, clientNames: [],
@@ -144,106 +153,99 @@ function InfoLabel({ text, hint }: { text: string; hint: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Pod goal card
+// Goal cell (compact card inside matrix)
 // ---------------------------------------------------------------------------
 
-function PodGoalCard({ data }: { data: PodGoalAgg }) {
+function GoalCell({ data }: { data: PodGoalAgg | null }) {
+  if (!data) {
+    return (
+      <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] p-3 text-center text-[10px] font-mono text-[#606060]">
+        No goal data
+      </div>
+    );
+  }
   const cbPct = data.cbGoal > 0 ? Math.round((data.cbDelivered / data.cbGoal) * 100) : 0;
   const adPct = data.adGoal > 0 ? Math.round((data.adDelivered / data.adGoal) * 100) : 0;
 
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 transition-colors hover:border-[#333] animate-fade-slide">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          {podBadge(data.pod)}
-          <span className="text-[10px] font-mono text-[#606060]">{data.clientCount} clients</span>
-        </div>
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-3 transition-colors hover:border-[#333] animate-fade-slide">
+      <div className="mb-2 flex items-center justify-between">
+        {data.monthYear && (
+          <p className="text-[9px] font-mono text-[#606060]">
+            {data.monthYear}
+          </p>
+        )}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger render={<span className="cursor-help" />}>
               {goalStatusBadge(cbPct, adPct)}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              Average of CB % and Article % for this pod this month. ≥75% = On Track, 50–74% = Behind, &lt;50% = At Risk.
+              Avg of CB % and Article % for the pod this month. ≥75% = On Track, 50–74% = Behind, &lt;50% = At Risk.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
-      {/* Month context */}
-      {data.monthYear && (
-        <p className="text-[9px] font-mono text-[#606060] mb-2">{data.monthYear} — latest week</p>
-      )}
-
-      {/* Progress arcs — totals across the pod's clients */}
-      <div className="flex items-center justify-center gap-6">
+      <div className="flex items-center justify-center gap-4">
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger
-              render={<div className="cursor-help" />}
-            >
+            <TooltipTrigger render={<div className="cursor-help" />}>
               <ProgressArc value={data.cbDelivered} max={data.cbGoal} label="CBs" />
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px] leading-relaxed">
-              Content Briefs delivered vs monthly goal, summed across {data.clientCount} client{data.clientCount === 1 ? "" : "s"} in this pod.
+              CBs delivered vs monthly goal, summed across {data.clientCount} client
+              {data.clientCount === 1 ? "" : "s"} in this pod.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger
-              render={<div className="cursor-help" />}
-            >
+            <TooltipTrigger render={<div className="cursor-help" />}>
               <ProgressArc value={data.adDelivered} max={data.adGoal} label="Articles" />
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px] leading-relaxed">
-              Articles delivered vs monthly goal, summed across {data.clientCount} client{data.clientCount === 1 ? "" : "s"} in this pod.
+              Articles delivered vs monthly goal, summed across {data.clientCount} client
+              {data.clientCount === 1 ? "" : "s"} in this pod.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
-      {/* Alert pills */}
-      <div className="flex items-center gap-2 mt-3 justify-center flex-wrap">
-        {data.revisions > 0 && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold bg-[#F5C542]/12 text-[#F5C542] cursor-help" />}>
-                Rev: {data.revisions}
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-                Article revision requests still open across the pod this month.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {data.backlog > 0 && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold bg-[#ED6958]/12 text-[#ED6958] cursor-help" />}>
-                Backlog: {data.backlog}
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-                Approved CBs not yet written into articles — the pod&apos;s build-up of in-flight work.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-
-      {/* Clients footer */}
-      <div className="mt-3 pt-2 border-t border-[#2a2a2a]">
-        <p className="text-[9px] font-mono text-[#606060] truncate" title={data.clientNames.join(", ")}>
-          {data.clientNames.join(" · ")}
-        </p>
-      </div>
+      {(data.revisions > 0 || data.backlog > 0) && (
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+          {data.revisions > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-mono font-semibold bg-[#F5C542]/12 text-[#F5C542] cursor-help" />}>
+                  Rev: {data.revisions}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+                  Open article revision requests this month across the pod.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {data.backlog > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-mono font-semibold bg-[#ED6958]/12 text-[#ED6958] cursor-help" />}>
+                  Backlog: {data.backlog}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+                  Approved CBs not yet written into articles.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Pod pipeline card
+// Pipeline cell (compact card inside matrix)
 // ---------------------------------------------------------------------------
 
 function PipelineBar({ label, hint, sent, approved }: { label: string; hint: string; sent: number; approved: number }) {
@@ -255,7 +257,7 @@ function PipelineBar({ label, hint, sent, approved }: { label: string; hint: str
         <Tooltip>
           <TooltipTrigger
             render={
-              <span className="text-[10px] text-[#C4BCAA] w-14 shrink-0 font-mono cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
+              <span className="text-[9px] text-[#C4BCAA] w-12 shrink-0 font-mono cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
             }
           >
             {label}
@@ -265,82 +267,60 @@ function PipelineBar({ label, hint, sent, approved }: { label: string; hint: str
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="flex-1 h-3 rounded-full bg-[#2a2a2a] overflow-hidden relative">
+      <div className="flex-1 h-2.5 rounded-full bg-[#2a2a2a] overflow-hidden relative">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color, opacity: 0.85 }}
         />
       </div>
-      <span className={cn("font-mono text-[10px] font-semibold w-10 text-right", pctColorNum(pct))}>
+      <span className={cn("font-mono text-[9px] font-semibold w-9 text-right", pctColorNum(pct))}>
         {pct > 0 ? `${Math.round(pct)}%` : "—"}
       </span>
-      <span className="font-mono text-[10px] text-[#606060] w-16 text-right">
+      <span className="font-mono text-[9px] text-[#606060] w-14 text-right">
         {approved}/{sent}
       </span>
     </div>
   );
 }
 
-function PodPipelineCard({ data }: { data: PodPipelineAgg }) {
+function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
+  if (!data) {
+    return (
+      <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] p-3 text-center text-[10px] font-mono text-[#606060]">
+        No pipeline data
+      </div>
+    );
+  }
   const overallPct = data.articlesSent > 0
     ? Math.round((data.articlesApproved / data.articlesSent) * 100)
     : 0;
 
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 animate-fade-slide hover:border-[#333] transition-colors">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          {podBadge(data.pod)}
-          <span className="text-[10px] font-mono text-[#606060]">{data.clientCount} clients</span>
-        </div>
-        <span className="text-[9px] font-mono text-[#606060] shrink-0">All-time</span>
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-3 animate-fade-slide hover:border-[#333] transition-colors">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[9px] font-mono text-[#606060]">All-time</span>
       </div>
-
-      {/* Pipeline bars */}
-      <div className="space-y-2">
-        <PipelineBar
-          label="Topics"
-          hint="Topics approved vs topics sent for approval — first stage of the editorial funnel."
-          sent={data.topicsSent}
-          approved={data.topicsApproved}
-        />
-        <PipelineBar
-          label="CBs"
-          hint="Content Briefs approved vs sent — second stage, before writing begins."
-          sent={data.cbsSent}
-          approved={data.cbsApproved}
-        />
-        <PipelineBar
-          label="Articles"
-          hint="Articles approved by client vs articles sent for review."
-          sent={data.articlesSent}
-          approved={data.articlesApproved}
-        />
-        <PipelineBar
-          label="Published"
-          hint="Articles published live vs approved — final stage of the funnel."
-          sent={data.articlesApproved}
-          approved={data.publishedLive}
-        />
+      <div className="space-y-1.5">
+        <PipelineBar label="Topics"    hint="Topics approved vs topics sent for approval — first stage of the funnel." sent={data.topicsSent}    approved={data.topicsApproved} />
+        <PipelineBar label="CBs"       hint="Content Briefs approved vs sent — second stage, before writing begins."    sent={data.cbsSent}       approved={data.cbsApproved} />
+        <PipelineBar label="Articles"  hint="Articles approved by client vs articles sent for review."                   sent={data.articlesSent}  approved={data.articlesApproved} />
+        <PipelineBar label="Published" hint="Articles published live vs approved — final stage of the funnel."           sent={data.articlesApproved} approved={data.publishedLive} />
       </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#2a2a2a]">
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#2a2a2a]">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger
               render={
                 <span className={cn(
-                  "font-mono text-[10px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
+                  "font-mono text-[9px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
                   data.articlesDifference > 0 ? "text-[#42CA80]" : data.articlesDifference < 0 ? "text-[#ED6958]" : "text-[#606060]"
                 )} />
               }
             >
-              Articles Δ: {data.articlesDifference > 0 ? `+${data.articlesDifference}` : data.articlesDifference}
+              Δ: {data.articlesDifference > 0 ? `+${data.articlesDifference}` : data.articlesDifference}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              Signed delta between articles approved and articles sent (Master Tracker&apos;s &quot;Diff&quot; column). Positive = surplus of approvals, negative = articles waiting on approval.
+              Signed delta between articles approved and articles sent (Master Tracker&apos;s Diff column).
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -349,7 +329,7 @@ function PodPipelineCard({ data }: { data: PodPipelineAgg }) {
             <TooltipTrigger
               render={
                 <span className={cn(
-                  "font-mono text-[10px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
+                  "font-mono text-[9px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
                   pctColorNum(overallPct)
                 )} />
               }
@@ -357,7 +337,7 @@ function PodPipelineCard({ data }: { data: PodPipelineAgg }) {
               Overall: {overallPct > 0 ? `${overallPct}%` : "—"}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              Cumulative article approval rate = articles approved ÷ articles sent across the whole pod.
+              Cumulative article approval rate = articles approved ÷ articles sent across the pod.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -367,7 +347,7 @@ function PodPipelineCard({ data }: { data: PodPipelineAgg }) {
 }
 
 // ---------------------------------------------------------------------------
-// Main section
+// Main section — matrix layout
 // ---------------------------------------------------------------------------
 
 export function ContractClientProgress({ filteredClients }: Props) {
@@ -390,6 +370,19 @@ export function ContractClientProgress({ filteredClients }: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  // Canonical source of truth for "what pod is this client on" is the filtered
+  // Client row's editorial_pod. Using this everywhere means the FilterBar's
+  // pod filter applies consistently to both matrix rows (goals + pipeline),
+  // regardless of whether the underlying sheet row stores editorial_team_pod
+  // or account_team_pod.
+  const clientToPod = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of filteredClients) {
+      if (c.editorial_pod) map.set(c.name, c.editorial_pod);
+    }
+    return map;
+  }, [filteredClients]);
+
   const filterNames = useMemo(
     () => new Set(filteredClients.map((c) => c.name)),
     [filteredClients]
@@ -397,85 +390,115 @@ export function ContractClientProgress({ filteredClients }: Props) {
 
   const goalPods = useMemo(() => {
     const filtered = goalRows.filter((r) => filterNames.has(r.client_name));
-    return aggregateGoalsByPod(filtered);
-  }, [goalRows, filterNames]);
+    return aggregateGoalsByPod(filtered, clientToPod);
+  }, [goalRows, filterNames, clientToPod]);
 
   const pipelinePods = useMemo(() => {
     const filtered = pipelineRows.filter((r) => filterNames.has(r.client_name));
-    return aggregatePipelineByPod(filtered);
-  }, [pipelineRows, filterNames]);
+    return aggregatePipelineByPod(filtered, clientToPod);
+  }, [pipelineRows, filterNames, clientToPod]);
+
+  // Matrix columns = union of pods present in either aggregation.
+  const podColumns = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of goalPods) set.add(g.pod);
+    for (const p of pipelinePods) set.add(p.pod);
+    return Array.from(set).sort(sortPodKey);
+  }, [goalPods, pipelinePods]);
+
+  const goalByPod = useMemo(() => {
+    const map = new Map<string, PodGoalAgg>();
+    for (const g of goalPods) map.set(g.pod, g);
+    return map;
+  }, [goalPods]);
+
+  const pipelineByPod = useMemo(() => {
+    const map = new Map<string, PodPipelineAgg>();
+    for (const p of pipelinePods) map.set(p.pod, p);
+    return map;
+  }, [pipelinePods]);
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <Skeleton className="h-[220px]" />
         <Skeleton className="h-[220px]" />
       </div>
     );
   }
 
+  if (podColumns.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] px-4 py-6 text-center text-sm text-[#606060]">
+        No pod data for the selected filters.
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Monthly goal gauges — aggregated per pod */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Current Month Goals — by Pod
+            Pod Matrix — Current Month Goals & Cumulative Pipeline
           </h3>
           <DataSourceBadge
             type="live"
-            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Latest week snapshot per client, summed by editorial pod."
+            source="Sheets: '[Month Year] Goals vs Delivery' (top row) + 'Cumulative' (bottom row) — Spreadsheet: Master Tracker. Grouped by the client's editorial_pod from the Client record."
           />
         </div>
-        <p className="text-[10px] text-[#606060] mb-3">
-          Each card sums CBs and articles delivered vs monthly goal across all the pod&apos;s clients.{" "}
-          <InfoLabel text="On Track / Behind / At Risk" hint="Buckets based on the pod's avg of CB % and Article %: ≥75% On Track, 50–74% Behind, <50% At Risk." />{" "}
+        <p className="text-[10px] text-[#606060]">
+          <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />{" "}
           ·{" "}
-          <InfoLabel text="Backlog" hint="Approved content briefs not yet turned into articles — the pod's work-in-flight." />
-          {" · "}
-          <InfoLabel text="Rev" hint="Open article revision requests this month." />
+          <InfoLabel text="Articles Δ / Overall %" hint="Pipeline deltas and cumulative approval rate." />
         </p>
-        {goalPods.length === 0 ? (
-          <p className="text-center text-sm text-[#606060] py-6">
-            No monthly goal data for the selected filters.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {goalPods.map((p) => (
-              <PodGoalCard key={`g-${p.pod}`} data={p} />
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Cumulative pipeline bars — aggregated per pod */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Cumulative Pipeline — by Pod
-          </h3>
-          <DataSourceBadge
-            type="live"
-            source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time per-client pipeline totals, summed by account pod."
-          />
-        </div>
-        <p className="text-[10px] text-[#606060] mb-3">
-          All-time funnel per pod: each bar shows approved ÷ sent at that stage.{" "}
-          <InfoLabel text="Articles Δ" hint="Signed delta between articles approved and articles sent — Master Tracker's own 'Diff' column. Positive = surplus of approvals; negative = articles awaiting approval." />{" "}
-          ·{" "}
-          <InfoLabel text="Overall %" hint="Cumulative article approval rate = articles approved ÷ articles sent across the whole pod." />
-        </p>
-        {pipelinePods.length === 0 ? (
-          <p className="text-center text-sm text-[#606060] py-6">
-            No cumulative pipeline data for the selected filters.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {pipelinePods.map((p) => (
-              <PodPipelineCard key={`p-${p.pod}`} data={p} />
-            ))}
+      {/* Matrix: one column per pod, two rows (Goals, Pipeline) */}
+      <div className="overflow-x-auto">
+        <div
+          className="grid gap-2"
+          style={{
+            gridTemplateColumns: `minmax(110px, auto) repeat(${podColumns.length}, minmax(240px, 1fr))`,
+          }}
+        >
+          {/* Header row — pod labels */}
+          <div />
+          {podColumns.map((pod) => {
+            const g = goalByPod.get(pod);
+            const p = pipelineByPod.get(pod);
+            const count = Math.max(g?.clientCount ?? 0, p?.clientCount ?? 0);
+            return (
+              <div
+                key={`h-${pod}`}
+                className="flex items-center justify-between rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
+              >
+                <div className="flex items-center gap-2">
+                  {podBadge(pod)}
+                  <span className="font-mono text-[10px] text-[#606060]">
+                    {count} client{count === 1 ? "" : "s"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Goals row */}
+          <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
+            Month Goals
           </div>
-        )}
+          {podColumns.map((pod) => (
+            <GoalCell key={`g-${pod}`} data={goalByPod.get(pod) ?? null} />
+          ))}
+
+          {/* Pipeline row */}
+          <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
+            Pipeline (all-time)
+          </div>
+          {podColumns.map((pod) => (
+            <PipelineCell key={`p-${pod}`} data={pipelineByPod.get(pod) ?? null} />
+          ))}
+        </div>
       </div>
     </div>
   );
