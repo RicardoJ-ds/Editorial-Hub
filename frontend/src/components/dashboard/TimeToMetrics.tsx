@@ -124,14 +124,26 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
       {/* Row 1: Primary — from Consulting KO */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.slice(0, 4).map((m) => (
-          <SummaryCard key={m.key} title={`Avg ${m.short}`} subtitle={m.subtitle} value={m.stats.avg !== null ? `${m.stats.avg} days` : "N/A"} description={fmtRange(m.stats) ?? m.label} />
+          <SummaryCard
+            key={m.key}
+            title={`Avg ${m.label}`}
+            subtitle={m.subtitle}
+            value={m.stats.avg !== null ? `${m.stats.avg} days` : "N/A"}
+            description={fmtRange(m.stats)}
+          />
         ))}
       </div>
 
       {/* Row 2: Secondary cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.slice(4).map((m) => (
-          <SummaryCard key={m.key} title={`Avg ${m.short}`} subtitle={m.subtitle} value={m.stats.avg !== null ? `${m.stats.avg} days` : "N/A"} description={fmtRange(m.stats) ?? m.label} />
+          <SummaryCard
+            key={m.key}
+            title={`Avg ${m.label}`}
+            subtitle={m.subtitle}
+            value={m.stats.avg !== null ? `${m.stats.avg} days` : "N/A"}
+            description={fmtRange(m.stats)}
+          />
         ))}
       </div>
 
