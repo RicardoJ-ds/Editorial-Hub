@@ -437,10 +437,12 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                   )}
                 </div>
 
-                {/* Labels — rotated 55° in client mode, centered in month mode.
-                    Matching width/gap to the bars so each label sits directly
-                    under its column. Ellipsis + native title tooltip for long
-                    names. */}
+                {/* Labels — rotated 50° in client mode, centered in month
+                    mode. In client mode each label is absolutely positioned
+                    so its top-left pivot sits at the CENTER of its bar. That
+                    way the label's starting point reads directly under the
+                    bar, with the tail extending down-right into the gutter
+                    below. */}
                 <div
                   className="flex mt-2"
                   style={{ gap: BAR_GAP, height: labelRowHeight }}
@@ -448,20 +450,30 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                   {buckets.map((b) => (
                     <div
                       key={`lbl-${b.key}`}
-                      className="flex justify-center"
+                      className="relative"
                       style={{ width: MIN_BAR_WIDTH, flex: "1 0 auto" }}
                     >
-                      <span
-                        title={b.sublabel ? `${b.label} · ${b.sublabel}` : b.label}
-                        className={cn(
-                          "font-mono text-[10px] leading-tight",
-                          groupMode === "client"
-                            ? "origin-top-left rotate-[50deg] whitespace-nowrap text-[#C4BCAA] hover:text-white"
-                            : "truncate text-center text-[#606060] max-w-full",
-                        )}
-                      >
-                        {b.label}
-                      </span>
+                      {groupMode === "client" ? (
+                        <span
+                          title={b.sublabel ? `${b.label} · ${b.sublabel}` : b.label}
+                          className="absolute font-mono text-[10px] leading-tight whitespace-nowrap text-[#C4BCAA] hover:text-white"
+                          style={{
+                            top: 2,
+                            left: "50%",
+                            transformOrigin: "top left",
+                            transform: "rotate(50deg)",
+                          }}
+                        >
+                          {b.label}
+                        </span>
+                      ) : (
+                        <span
+                          title={b.label}
+                          className="block truncate text-center font-mono text-[10px] leading-tight text-[#606060] max-w-full"
+                        >
+                          {b.label}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
