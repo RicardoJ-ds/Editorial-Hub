@@ -163,40 +163,78 @@ function formatMonthKey(key: string): string {
   return `${MONTH_LABELS[mi] ?? ""} ${y.slice(2)}`;
 }
 
+type GroupMode = "month" | "client";
+
+type TrendBucket = {
+  key: string;
+  label: string;
+  avg: number;
+  count: number;
+  sublabel?: string;
+};
+
 function TimeToTrendChart({ clients }: { clients: Client[] }) {
   const [metricKey, setMetricKey] = useState<string>("cko_art");
+  const [groupMode, setGroupMode] = useState<GroupMode>("month");
 
   const metric = useMemo(
     () => METRIC_DEFS.find((m) => m.key === metricKey) ?? METRIC_DEFS[0],
     [metricKey]
   );
 
-  const { buckets, overallAvg } = useMemo(() => {
+  const { buckets, overallAvg } = useMemo<{
+    buckets: TrendBucket[];
+    overallAvg: number | null;
+  }>(() => {
     const from = metric.from ?? REF_FIELD;
-    const grouped = new Map<string, number[]>();
     const all: number[] = [];
+
+    if (groupMode === "month") {
+      const grouped = new Map<string, number[]>();
+      for (const c of clients) {
+        const rec = c as unknown as Record<string, string | null>;
+        const days = daysBetween(rec[from], rec[metric.to]);
+        if (days === null) continue;
+        const key = monthKey(c.consulting_ko_date);
+        if (!key) continue;
+        all.push(days);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(days);
+      }
+      const sortedKeys = Array.from(grouped.keys()).sort();
+      const buckets: TrendBucket[] = sortedKeys.map((key) => {
+        const values = grouped.get(key)!;
+        const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+        return { key, label: formatMonthKey(key), avg, count: values.length };
+      });
+      const overallAvg = all.length
+        ? Math.round(all.reduce((a, b) => a + b, 0) / all.length)
+        : null;
+      return { buckets, overallAvg };
+    }
+
+    // groupMode === "client": one bar per client's individual delta.
+    const perClient: TrendBucket[] = [];
     for (const c of clients) {
       const rec = c as unknown as Record<string, string | null>;
       const days = daysBetween(rec[from], rec[metric.to]);
       if (days === null) continue;
-      // Bucket by the Consulting KO month — gives a cohort view of contracts
-      const key = monthKey(c.consulting_ko_date);
-      if (!key) continue;
       all.push(days);
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(days);
+      perClient.push({
+        key: `client-${c.id}`,
+        label: c.name,
+        avg: days,
+        count: 1,
+        sublabel: c.editorial_pod ?? undefined,
+      });
     }
-    const sortedKeys = Array.from(grouped.keys()).sort();
-    const buckets = sortedKeys.map((key) => {
-      const values = grouped.get(key)!;
-      const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-      return { key, avg, count: values.length };
-    });
+    // Slowest (highest value) first so outliers are obvious when "lower is better".
+    perClient.sort((a, b) => b.avg - a.avg);
     const overallAvg = all.length
       ? Math.round(all.reduce((a, b) => a + b, 0) / all.length)
       : null;
-    return { buckets, overallAvg };
-  }, [clients, metric]);
+    return { buckets: perClient, overallAvg };
+  }, [clients, metric, groupMode]);
 
   // Cap the y-axis so a single extreme cohort doesn't flatten everything else.
   // Use p90 of bucket averages with a sensible floor relative to the overall avg.
@@ -210,21 +248,33 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
     return { scaleMax, actualMax };
   }, [buckets, overallAvg]);
 
-  const [hover, setHover] = useState<{ x: number; y: number; key: string; avg: number; count: number } | null>(null);
+  const [hover, setHover] = useState<{
+    x: number;
+    y: number;
+    key: string;
+    label: string;
+    avg: number;
+    count: number;
+    sublabel?: string;
+  } | null>(null);
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
-            Month-over-Month Trend
+            {groupMode === "month" ? "Month-over-Month Trend" : "Per-Client Breakdown"}
             <DataSourceBadge
               type="live"
               source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published date columns."
             />
           </p>
           <p className="text-[9px] font-mono text-[#606060] mt-0.5">
-            Average {metric.label.toLowerCase()}, bucketed by each client&apos;s {REF_LABEL} month. Lower is better.
+            {groupMode === "month" ? (
+              <>Average {metric.label.toLowerCase()}, bucketed by each client&apos;s {REF_LABEL} month. Lower is better.</>
+            ) : (
+              <>{metric.label} per client, sorted slowest → fastest. Lower is better.</>
+            )}
             {overallAvg !== null && (
               <> Overall avg across all clients: <span className="text-white font-semibold">{overallAvg}d</span>.</>
             )}
@@ -233,31 +283,54 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] text-[#606060] uppercase tracking-wider">Metric</span>
-          <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
-            <SelectTrigger size="sm" className="w-[280px]">
-              <SelectValue>
-                <span className="text-xs">{metric.label}</span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {METRIC_DEFS.map((m) => (
-                <SelectItem key={m.key} value={m.key}>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium">{m.label}</span>
-                    <span className="font-mono text-[9px] text-[#606060]">{m.short} · {m.subtitle}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-3">
+          {/* Group by toggle */}
+          <div className="flex items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5">
+            <span className="pl-2 pr-1 font-mono text-[9px] text-[#606060] uppercase tracking-wider">
+              Group
+            </span>
+            {(["month", "client"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setGroupMode(m)}
+                type="button"
+                className={cn(
+                  "rounded px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-wider transition-colors",
+                  groupMode === m
+                    ? "bg-[#42CA80]/15 text-[#65FFAA]"
+                    : "text-[#C4BCAA] hover:bg-[#161616] hover:text-white",
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] text-[#606060] uppercase tracking-wider">Metric</span>
+            <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
+              <SelectTrigger size="sm" className="w-[280px]">
+                <SelectValue>
+                  <span className="text-xs">{metric.label}</span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {METRIC_DEFS.map((m) => (
+                  <SelectItem key={m.key} value={m.key}>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-medium">{m.label}</span>
+                      <span className="font-mono text-[9px] text-[#606060]">{m.short} · {m.subtitle}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       {buckets.length === 0 ? (
         <p className="text-center text-xs text-[#606060] py-10">
-          Not enough data to compute a trend for the current filters.
+          Not enough data to compute a {groupMode === "month" ? "trend" : "breakdown"} for the current filters.
         </p>
       ) : (
         <div>
@@ -285,7 +358,15 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                       style={{ height: hPx, opacity: 0.85 }}
                       onMouseEnter={(e) => {
                         const r = e.currentTarget.getBoundingClientRect();
-                        setHover({ x: r.left + r.width / 2, y: r.top - 10, key: b.key, avg: b.avg, count: b.count });
+                        setHover({
+                          x: r.left + r.width / 2,
+                          y: r.top - 10,
+                          key: b.key,
+                          label: b.label,
+                          avg: b.avg,
+                          count: b.count,
+                          sublabel: b.sublabel,
+                        });
                       }}
                       onMouseLeave={() => setHover(null)}
                     />
@@ -315,14 +396,21 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
             )}
           </div>
 
-          {/* Month labels — one per bar, aligned to the same flex widths */}
-          <div className="flex gap-2 mt-1">
+          {/* Labels — one per bar, aligned to the same flex widths.
+              Client labels rotate 45° so long names fit. */}
+          <div className={cn("flex gap-2", groupMode === "client" ? "mt-3 h-[56px]" : "mt-1")}>
             {buckets.map((b) => (
               <span
                 key={`lbl-${b.key}`}
-                className="flex-1 font-mono text-[8px] text-[#606060] truncate text-center min-w-0"
+                title={b.label}
+                className={cn(
+                  "flex-1 font-mono text-[8px] text-[#606060] min-w-0",
+                  groupMode === "client"
+                    ? "origin-top-left rotate-[45deg] whitespace-nowrap overflow-hidden text-ellipsis"
+                    : "truncate text-center",
+                )}
               >
-                {formatMonthKey(b.key)}
+                {b.label}
               </span>
             ))}
           </div>
@@ -331,11 +419,15 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 pt-2 border-t border-[#2a2a2a]">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-sm bg-[#42CA80]" />
-              <span className="text-[9px] font-mono text-[#C4BCAA]">Faster — month avg ≤ overall</span>
+              <span className="text-[9px] font-mono text-[#C4BCAA]">
+                Faster — {groupMode === "month" ? "month avg" : "client"} ≤ overall
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-sm bg-[#F5BC4E]" />
-              <span className="text-[9px] font-mono text-[#C4BCAA]">Slower — month avg &gt; overall</span>
+              <span className="text-[9px] font-mono text-[#C4BCAA]">
+                Slower — {groupMode === "month" ? "month avg" : "client"} &gt; overall
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-px border-t border-dashed border-[#42CA80]" />
@@ -352,9 +444,16 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
               style={{ left: hover.x, top: hover.y, transform: "translate(-50%, -100%)" }}
             >
               <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
-                <p className="text-[11px] font-mono font-semibold text-white">{formatMonthKey(hover.key)}</p>
+                <p className="text-[11px] font-mono font-semibold text-white">{hover.label}</p>
+                {hover.sublabel && (
+                  <p className="text-[9px] font-mono text-[#606060] mt-0.5">{hover.sublabel}</p>
+                )}
                 <p className="text-[10px] font-mono text-[#C4BCAA] mt-0.5">
-                  Avg <span className="text-white">{hover.avg}d</span> · {hover.count} client{hover.count === 1 ? "" : "s"}
+                  {groupMode === "month" ? (
+                    <>Avg <span className="text-white">{hover.avg}d</span> · {hover.count} client{hover.count === 1 ? "" : "s"}</>
+                  ) : (
+                    <><span className="text-white">{hover.avg}d</span></>
+                  )}
                 </p>
               </div>
             </div>
