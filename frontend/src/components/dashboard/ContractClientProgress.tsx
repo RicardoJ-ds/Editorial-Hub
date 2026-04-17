@@ -465,12 +465,14 @@ export function ContractClientProgress({ filteredClients }: Props) {
         </p>
       </div>
 
-      {/* Matrix: one column per pod, two rows (Goals, Pipeline) */}
+      {/* Matrix: one column per pod, two rows (Goals, Pipeline).
+          Pod columns have a capped max width so a single filtered pod doesn't
+          stretch across the whole page. */}
       <div className="overflow-x-auto">
         <div
           className="grid gap-2"
           style={{
-            gridTemplateColumns: `minmax(110px, auto) repeat(${podColumns.length}, minmax(240px, 1fr))`,
+            gridTemplateColumns: `minmax(110px, auto) repeat(${podColumns.length}, minmax(240px, 320px))`,
           }}
         >
           {/* Header row — pod labels */}
