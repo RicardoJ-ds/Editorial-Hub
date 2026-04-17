@@ -6,6 +6,7 @@ import { ProposalBanner } from "./_ProposalBanner";
 import { SubNav } from "./_SubNav";
 import { ValidationBanner } from "./_ValidationBanner";
 import { ClosedMonthBanner, CloseMonthButton, CopyMonthMenu } from "./_MonthActions";
+import { DiffButton } from "./_MonthDiff";
 import {
   type ClientChip,
   type MemberRow,
@@ -299,6 +300,7 @@ export default function CapacityPlanningV2() {
 
       {/* Toolbar — month lives in the SubNav above; this row is just actions. */}
       <div className="flex flex-wrap items-center justify-end gap-2">
+        <DiffButton />
         <CopyMonthMenu />
         <CloseMonthButton />
         <button

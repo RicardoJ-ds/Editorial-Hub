@@ -13,17 +13,22 @@ import {
   Sliders,
   CalendarRange,
   Settings,
+  GitPullRequest,
+  CalendarDays,
 } from "lucide-react";
 import { MonthPicker } from "./_MonthPicker";
+import { GlobalSearch } from "./_GlobalSearch";
 
 const TABS = [
   { href: "/capacity-planning", label: "Overview", icon: LayoutGrid },
+  { href: "/capacity-planning/quarter", label: "Quarter", icon: CalendarDays },
   { href: "/capacity-planning/roster", label: "Roster", icon: Users },
   { href: "/capacity-planning/allocation", label: "Allocation", icon: Move3D },
   { href: "/capacity-planning/weekly", label: "Weekly", icon: CalendarRange },
   { href: "/capacity-planning/leave", label: "Leave", icon: Plane },
   { href: "/capacity-planning/overrides", label: "Overrides", icon: Sliders },
   { href: "/capacity-planning/admin", label: "Admin", icon: Settings },
+  { href: "/capacity-planning/migration", label: "Migration", icon: GitPullRequest },
   { href: "/capacity-planning/schema", label: "Schema", icon: Database },
   { href: "/capacity-planning/tables", label: "Tables", icon: Table2 },
   { href: "/capacity-planning/glossary", label: "Glossary", icon: BookOpen },
@@ -35,6 +40,7 @@ const MONTH_AGNOSTIC_EXACT = new Set<string>([
   "/capacity-planning/schema",
   "/capacity-planning/tables",
   "/capacity-planning/glossary",
+  "/capacity-planning/migration",
 ]);
 const MONTH_AGNOSTIC_PREFIXES = ["/capacity-planning/admin"];
 
@@ -66,6 +72,7 @@ export function SubNav() {
         })}
       </div>
       {showMonth && <MonthPicker />}
+      <GlobalSearch />
     </div>
   );
 }
