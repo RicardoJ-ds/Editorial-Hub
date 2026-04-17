@@ -232,13 +232,18 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
         <div className="flex items-center gap-2">
           <span className="font-mono text-[9px] text-[#606060] uppercase tracking-wider">Metric</span>
           <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
-            <SelectTrigger size="sm" className="w-[220px]">
-              <SelectValue />
+            <SelectTrigger size="sm" className="w-[280px]">
+              <SelectValue>
+                <span className="text-xs">{metric.label}</span>
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {METRIC_DEFS.map((m) => (
                 <SelectItem key={m.key} value={m.key}>
-                  Avg {m.short}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium">{m.label}</span>
+                    <span className="font-mono text-[9px] text-[#606060]">{m.short} · {m.subtitle}</span>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
