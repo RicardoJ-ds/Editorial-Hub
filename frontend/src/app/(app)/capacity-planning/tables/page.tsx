@@ -14,6 +14,7 @@ const DOMAIN_LABEL: Record<TableSpec["domain"], string> = {
   pipeline: "Pipeline",
   ai: "AI Compliance",
   reference: "Reference",
+  rules: "Rules & Assumptions",
 };
 
 const DOMAIN_ACCENT: Record<TableSpec["domain"], string> = {
@@ -23,6 +24,7 @@ const DOMAIN_ACCENT: Record<TableSpec["domain"], string> = {
   pipeline: "text-[#CEBCF4] border-[#CEBCF4]/40",
   ai: "text-[#F28D59] border-[#F28D59]/40",
   reference: "text-[#C4BCAA] border-[#333]",
+  rules: "text-[#E6B450] border-[#E6B450]/40",
 };
 
 function formatCell(v: unknown): string {

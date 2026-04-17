@@ -208,18 +208,27 @@ GROUP BY a.pod_id, w.month_key;
 
 ## Coverage for current dashboards
 
-The ERD is sized to feed *every* metric on today's dashboards — not just capacity.
+The ERD is sized to feed *every* metric on today's two production dashboards — not just capacity. A full column-level audit is in [`CP2_COVERAGE_AUDIT.md`](CP2_COVERAGE_AUDIT.md).
+
+**Dashboards covered:** Editorial Clients (SOW Overview, Time-to metrics, Engagement Timeline, Contract & Timeline Detail, Delivery Overview, Production Trend, Client Delivery Matrix, Cumulative Pipeline, Weekly Goals vs Delivery, Pacing) and Team KPIs (9-KPI heatmap, per-client breakdown, Pod rollups, Capacity Projections tab, AI Compliance summary + breakdowns + flagged + rewrites + Surfer usage).
 
 | Dashboard metric | Source table | Key columns |
 |---|---|---|
-| Internal / External Quality, Mentorship, Feedback Adoption | `cp2_fact_kpi_score` | `score`, `metric_id` |
-| Revision Rate, Turnaround Time, Second Reviews | `cp2_fact_article` | `revision_count`, `turnaround_days`, `had_second_review` |
-| AI Compliance | `cp2_fact_ai_scan` | `recommendation`, `is_flagged` |
+| Internal / External Quality, Mentorship, Feedback Adoption | `cp2_fact_kpi_score` | `score`, `metric_id`, `client_id` (per-client breakdown) |
+| Revision Rate, Turnaround Time, Second Reviews | `cp2_fact_article` | `revision_count`, `turnaround_days`, `had_second_review`, `writer_id`, `editor_id`, `sr_editor_id` |
+| AI Compliance | `cp2_fact_ai_scan` | `recommendation`, `is_flagged`, `is_rewrite`, `surfer_v1_score`, `surfer_v2_score` |
+| AI Flagged / Rewrites tables | `cp2_fact_ai_scan` | `topic_title`, `article_link`, `writer_name`, `editor_name`, `action`, `manual_review_notes`, `date_processed` |
+| Surfer API Usage | `cp2_fact_surfer_api_usage` | `pod_1..pod_5`, `auditioning_writers`, `rewrites`, `total_spent`, `remaining_calls` |
 | Capacity Utilization | `cp2_v_pod_monthly` (view) | `projected_use / total_capacity` |
-| Articles Delivered / Invoiced (monthly) | `cp2_fact_delivery_monthly` | `articles_delivered`, `articles_invoiced`, `variance` |
-| Weekly Goals vs Delivery | `cp2_fact_actuals_weekly` | `goal_articles`, `delivered_articles` |
-| Cumulative Pipeline | `cp2_fact_pipeline_snapshot` | `topics_submitted`, `cbs_approved`, `articles_published` |
-| Client Engagement Timeline | `cp2_dim_client` | `contract_start/end`, `cadence`, `sow_articles_total` |
+| Articles Delivered / Invoiced / Paid (monthly) | `cp2_fact_delivery_monthly` | `articles_sow_target`, `articles_delivered`, `articles_invoiced`, `articles_paid`, `variance` |
+| Content Briefs (monthly) | `cp2_fact_delivery_monthly` | `content_briefs_delivered`, `content_briefs_goal` |
+| Production Trend (projected vs actual) | `cp2_fact_production_history` | `articles_actual`, `articles_projected`, `is_actual` |
+| Weekly CB + AD Goals vs Delivery | `cp2_fact_actuals_weekly` | `cb_*` (7 cols), `ad_*` (8 cols), `ratios`, `client_type`, `content_type` |
+| Cumulative Pipeline | `cp2_fact_pipeline_snapshot` | `topics_submitted/approved`, `cbs_submitted/approved`, `articles_sent/approved/delivered/published/killed`, `*_pct_*`, `comments` |
+| Pacing (vs template) | `cp2_dim_delivery_template` + `cp2_fact_delivery_monthly` | `delivery_cumulative` vs `sum(articles_delivered)` |
+| Time-to Milestones (8 date deltas) | `cp2_dim_client` | 6 milestone dates from `consulting_ko_date` to `first_article_published_date` |
+| Client Engagement Timeline | `cp2_dim_client` | `contract_start/end`, `term_months`, `cadence`, `cadence_q1..q4`, `sow_articles_total`, `word_count_min/max`, pod |
+| Contract & Timeline Detail (17 columns) | `cp2_dim_client` | `name`, `status`, `editorial_pod`, `growth_pod`, `sow_link`, `word_count_*`, all milestone dates, staffing (`managing_director` / `account_director` / `account_manager` / `jr_am` / `cs_team`) |
 
 See `/capacity-planning/glossary` in-app for the authoritative mapping (including formulas and direction).
 
