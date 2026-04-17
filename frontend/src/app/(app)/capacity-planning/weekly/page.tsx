@@ -181,7 +181,12 @@ export default function WeeklyPage() {
                     title={`${w.start.toISOString().slice(0, 10)} → ${w.end.toISOString().slice(0, 10)}`}
                     className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-[#606060]"
                   >
-                    {w.label}
+                    <div className="flex flex-col items-center leading-tight">
+                      <span>{w.label}</span>
+                      <span className="text-[9px] text-[#404040]">
+                        {w.start.toISOString().slice(5, 10)}
+                      </span>
+                    </div>
                   </th>
                 ))}
                 <th className="px-3 py-2 text-right font-mono text-[10px] uppercase tracking-wider text-[#606060]">
@@ -338,28 +343,44 @@ function WeekCell({
 
   return (
     <div
-      className={`mx-auto flex w-[70px] flex-col gap-0.5 rounded border ${tone} px-1 py-0.5 ${
+      className={`mx-auto flex w-[78px] flex-col gap-0.5 rounded border ${tone} px-1 py-0.5 ${
         disabled ? "opacity-60" : ""
       }`}
     >
-      <input
-        type="number"
-        min={0}
-        value={delivered}
-        disabled={disabled}
-        onChange={(e) => onChangeDelivered(parseInt(e.target.value || "0", 10))}
-        className="w-full bg-transparent text-center font-mono text-[11px] text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        title="Delivered"
-      />
-      <input
-        type="number"
-        min={0}
-        value={goal}
-        disabled={disabled}
-        onChange={(e) => onChangeGoal(parseInt(e.target.value || "0", 10))}
-        className="w-full bg-transparent text-center font-mono text-[10px] text-[#606060] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        title="Goal"
-      />
+      <label className="flex items-center gap-1">
+        <span
+          className="w-3 shrink-0 text-center font-mono text-[8px] uppercase tracking-wider text-[#65FFAA]"
+          title="Delivered"
+        >
+          D
+        </span>
+        <input
+          type="number"
+          min={0}
+          value={delivered}
+          disabled={disabled}
+          onChange={(e) => onChangeDelivered(parseInt(e.target.value || "0", 10))}
+          className="w-full bg-transparent text-center font-mono text-[11px] text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          title="Delivered this week"
+        />
+      </label>
+      <label className="flex items-center gap-1">
+        <span
+          className="w-3 shrink-0 text-center font-mono text-[8px] uppercase tracking-wider text-[#606060]"
+          title="Goal"
+        >
+          G
+        </span>
+        <input
+          type="number"
+          min={0}
+          value={goal}
+          disabled={disabled}
+          onChange={(e) => onChangeGoal(parseInt(e.target.value || "0", 10))}
+          className="w-full bg-transparent text-center font-mono text-[10px] text-[#606060] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          title="Goal for this week"
+        />
+      </label>
     </div>
   );
 }

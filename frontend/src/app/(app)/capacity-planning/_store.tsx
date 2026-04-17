@@ -317,8 +317,13 @@ export function monthLabel(monthKey: string): string {
 // ---------------------------------------------------------------------------
 
 function isoWeekOf(date: Date): { year: number; week: number } {
-  // Algorithm per ISO 8601.
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Algorithm per ISO 8601. Must use UTC accessors — using getFullYear()
+  // etc. reads the LOCAL date, so a midnight-UTC Monday becomes Sunday in
+  // TZs behind UTC, which belongs to the previous ISO week and made the
+  // week iterator loop back on itself.
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
   const day = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
