@@ -656,7 +656,10 @@ function ClientEngagementTimeline({
           </button>
         </div>
       </div>
-      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
+      <div
+        className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4"
+        style={{ ["--scrollbar-gutter" as never]: "13px" }}
+      >
         {/* Cumulative article load chart — aligned column-for-column with the
             per-client rows below by iterating the SAME activePeriods array
             (rather than just the months that have production data). */}
@@ -696,7 +699,13 @@ function ClientEngagementTimeline({
                 peak: {maxCumulative}
               </span>
             </div>
-            <div className="flex items-end gap-2">
+            {/* pr-[var] mirrors the scrollbar gutter reserved by the
+                scrollable client list below, so column x-positions match
+                between top chart, axis row, and every client row. */}
+            <div
+              className="flex items-end gap-2"
+              style={{ paddingRight: "var(--scrollbar-gutter)" }}
+            >
               {/* Mirrors the 128px client-name column below so the bar grid aligns */}
               <span className="w-32 shrink-0" />
               <div key={cumView} className="flex-1 flex items-end gap-px" style={{ height: 80 }}>
@@ -804,7 +813,11 @@ function ClientEngagementTimeline({
               </div>
             </div>
             {/* Period labels — aligned to the same flex grid as the bars */}
-            <div key={`labels-${cumView}`} className="flex items-center gap-2 mt-0.5 animate-fade-slide">
+            <div
+              key={`labels-${cumView}`}
+              className="flex items-center gap-2 mt-0.5 animate-fade-slide"
+              style={{ paddingRight: "var(--scrollbar-gutter)" }}
+            >
               <span className="w-32 shrink-0" />
               <div className="flex-1 flex gap-px">
                 {activePeriods.map((p, i) => {
@@ -863,7 +876,11 @@ function ClientEngagementTimeline({
         {/* Shared period axis — adapts to monthly/quarterly. Gridline-dashes
             on the left edge of labeled cells visually extend through the
             client rows below, so every bar reads clearly against a month. */}
-        <div key={`axis-${cumView}`} className="flex items-stretch gap-2 mb-2 animate-fade-slide">
+        <div
+          key={`axis-${cumView}`}
+          className="flex items-stretch gap-2 mb-2 animate-fade-slide"
+          style={{ paddingRight: "var(--scrollbar-gutter)" }}
+        >
           <span className="w-32 shrink-0" />
           <div className="flex-1 flex gap-px">
             {activePeriods.map((p, i) => {
@@ -901,7 +918,16 @@ function ClientEngagementTimeline({
           </div>
         </div>
 
-        <div key={`view-opmodel-${cumView}`} className="max-h-[320px] overflow-y-auto space-y-1">
+        {/* Reserve a stable vertical-scrollbar gutter so its width is always
+            claimed, whether or not the list is currently scrollable. Without
+            this the flex bars inside per-client rows shrink by ~13px when
+            the scrollbar appears, shifting every column left relative to
+            the top chart + axis row. */}
+        <div
+          key={`view-opmodel-${cumView}`}
+          className="max-h-[320px] overflow-y-scroll space-y-1"
+          style={{ scrollbarGutter: "stable" }}
+        >
           {activeClients.map((client, clientIdx) => {
             const podColor = TIMELINE_POD_COLORS[client.editorial_pod ?? ""] ?? "#606060";
             const prod = productionByClient.get(client.name);
