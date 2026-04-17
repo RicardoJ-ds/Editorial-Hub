@@ -22,7 +22,6 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   MOCK_DATA,
-  MONTHS,
   MONTH_LABELS,
   UNASSIGNED_CLIENTS_BY_MONTH,
   type ClientChip,
@@ -34,6 +33,7 @@ import {
 
 const STORAGE_KEY = "cp2.proposal.v1";
 const SELECTED_MONTH_KEY = "cp2.proposal.selectedMonth";
+const CLOSED_MONTHS_KEY = "cp2.proposal.closedMonths";
 
 // ---------------------------------------------------------------------------
 // Month range — computed ±6 months from "today" so the picker follows the
@@ -103,6 +103,16 @@ function loadSelectedMonth(fallback: string): string {
   }
 }
 
+function loadClosedMonths(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CLOSED_MONTHS_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 type CP2StoreCtx = {
   state: StoreShape;
   resetToSeed: () => void;
@@ -112,6 +122,12 @@ type CP2StoreCtx = {
   setSelectedMonth: (m: string) => void;
   goToCurrentMonth: () => void;
   monthOptions: string[];
+
+  // Close-month workflow
+  closedMonths: string[];
+  isMonthClosed: (m: string) => boolean;
+  closeMonth: (m: string) => void;
+  reopenMonth: (m: string) => void;
 
   // Membership
   updateMember: (
@@ -136,13 +152,15 @@ type CP2StoreCtx = {
     patch: Partial<ClientChip>,
   ) => void;
   setActualDelivered: (month: MonthKey, podId: number, value: number) => void;
-  copyMonthForward: (source: MonthKey, count: number) => void;
+  copyMonthForward: (source: string, count: number) => void;
+  copyFromPreviousMonth: (target: string) => void;
 };
 
 const StoreContext = createContext<CP2StoreCtx | null>(null);
 
 export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<StoreShape>(seed);
+  const [closedMonths, setClosedMonths] = useState<string[]>([]);
 
   const today = useMemo(currentMonthKey, []);
   const monthOptions = useMemo(() => monthRange(today, 6, 6), [today]);
@@ -157,6 +175,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setState(load());
+    setClosedMonths(loadClosedMonths());
     const fromStorage = loadSelectedMonth(today);
     setSelectedMonthState(urlMonth && /^\d{4}-\d{2}$/.test(urlMonth) ? urlMonth : fromStorage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +208,26 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
   }, [selectedMonth]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(CLOSED_MONTHS_KEY, JSON.stringify(closedMonths));
+    } catch {
+      // ignore
+    }
+  }, [closedMonths]);
+
+  const isMonthClosed = useCallback(
+    (m: string) => closedMonths.includes(m),
+    [closedMonths],
+  );
+  const closeMonth = useCallback((m: string) => {
+    setClosedMonths((prev) => (prev.includes(m) ? prev : [...prev, m]));
+  }, []);
+  const reopenMonth = useCallback((m: string) => {
+    setClosedMonths((prev) => prev.filter((x) => x !== m));
+  }, []);
 
   const setSelectedMonth = useCallback((m: string) => {
     if (!/^\d{4}-\d{2}$/.test(m)) return;
@@ -330,15 +369,13 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const copyMonthForward: CP2StoreCtx["copyMonthForward"] = useCallback(
     (source, count) => {
       setState((s) => {
-        const idx = MONTHS.indexOf(source);
-        if (idx === -1) return s;
-        const newMonthly = { ...s.monthly };
-        const newUnassigned = { ...s.unassigned };
         const srcPods = s.monthly[source] ?? [];
         const srcUnassigned = s.unassigned[source] ?? [];
+        if (srcPods.length === 0 && srcUnassigned.length === 0) return s;
+        const newMonthly = { ...s.monthly };
+        const newUnassigned = { ...s.unassigned };
         for (let i = 1; i <= count; i++) {
-          const target = MONTHS[idx + i];
-          if (!target) break;
+          const target = shiftMonth(source, i);
           newMonthly[target] = srcPods.map((p) => ({
             ...p,
             members: p.members.map((m) => ({ ...m, actualDelivered: 0 })),
@@ -353,6 +390,34 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const copyFromPreviousMonth: CP2StoreCtx["copyFromPreviousMonth"] = useCallback(
+    (target) => {
+      setState((s) => {
+        const source = shiftMonth(target, -1);
+        const srcPods = s.monthly[source] ?? [];
+        const srcUnassigned = s.unassigned[source] ?? [];
+        if (srcPods.length === 0 && srcUnassigned.length === 0) return s;
+        return {
+          ...s,
+          monthly: {
+            ...s.monthly,
+            [target]: srcPods.map((p) => ({
+              ...p,
+              members: p.members.map((m) => ({ ...m, actualDelivered: 0 })),
+              clients: p.clients.map((c) => ({ ...c })),
+              actualDeliveredTotal: 0,
+            })),
+          },
+          unassigned: {
+            ...s.unassigned,
+            [target]: srcUnassigned.map((c) => ({ ...c })),
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const value = useMemo<CP2StoreCtx>(
     () => ({
       state,
@@ -361,6 +426,10 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       setSelectedMonth,
       goToCurrentMonth,
       monthOptions,
+      closedMonths,
+      isMonthClosed,
+      closeMonth,
+      reopenMonth,
       updateMember,
       addMember,
       removeMember,
@@ -368,6 +437,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       updateClient,
       setActualDelivered,
       copyMonthForward,
+      copyFromPreviousMonth,
     }),
     [
       state,
@@ -376,6 +446,10 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       setSelectedMonth,
       goToCurrentMonth,
       monthOptions,
+      closedMonths,
+      isMonthClosed,
+      closeMonth,
+      reopenMonth,
       updateMember,
       addMember,
       removeMember,
@@ -383,6 +457,7 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       updateClient,
       setActualDelivered,
       copyMonthForward,
+      copyFromPreviousMonth,
     ],
   );
 

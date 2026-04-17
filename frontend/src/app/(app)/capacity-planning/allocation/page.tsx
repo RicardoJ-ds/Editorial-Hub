@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { GripVertical, Pencil, Plus, RotateCcw } from "lucide-react";
 import { ProposalBanner } from "../_ProposalBanner";
 import { SubNav } from "../_SubNav";
+import { ValidationBanner } from "../_ValidationBanner";
+import { ClosedMonthBanner, CopyMonthMenu } from "../_MonthActions";
 import {
   computeMemberEffective,
   type ClientChip,
@@ -173,8 +175,9 @@ function PodColumn({
 }
 
 export default function AllocationPage() {
-  const { state, moveClient, resetToSeed, selectedMonth } = useCP2Store();
+  const { state, moveClient, resetToSeed, selectedMonth, isMonthClosed } = useCP2Store();
   const month = selectedMonth as MonthKey;
+  const closed = isMonthClosed(month);
   const [dragging, setDragging] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<
     number | "unassigned" | null
@@ -197,13 +200,17 @@ export default function AllocationPage() {
   );
 
   const handleDragStart = (data: DragData, e: React.DragEvent) => {
+    if (closed) {
+      e.preventDefault();
+      return;
+    }
     setDragging(data);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(data.clientId));
   };
 
   const handleDrop = (to: number | "unassigned") => {
-    if (!dragging) return;
+    if (closed || !dragging) return;
     moveClient(month, dragging.fromPodId, to, dragging.clientId);
     setDragging(null);
   };
@@ -213,7 +220,8 @@ export default function AllocationPage() {
       <ProposalBanner subtitle="Drag-and-drop clients between pods. Click pencil to edit a projection or change its source (SOW / OP MODEL / MANUAL)." />
       <SubNav />
 
-      <div className="flex flex-wrap items-center justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <CopyMonthMenu />
         <button
           type="button"
           onClick={() => {
@@ -225,6 +233,9 @@ export default function AllocationPage() {
           Reset
         </button>
       </div>
+
+      <ClosedMonthBanner />
+      <ValidationBanner />
 
       {/* Kanban */}
       <div className="flex gap-4 overflow-x-auto pb-2">

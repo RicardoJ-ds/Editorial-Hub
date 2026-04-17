@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Copy, Info, Pencil, Plus, RotateCcw } from "lucide-react";
+import { AlertTriangle, Info, Pencil, Plus, RotateCcw } from "lucide-react";
 import { ProposalBanner } from "./_ProposalBanner";
 import { SubNav } from "./_SubNav";
+import { ValidationBanner } from "./_ValidationBanner";
+import { ClosedMonthBanner, CloseMonthButton, CopyMonthMenu } from "./_MonthActions";
 import {
   type ClientChip,
   type MemberRow,
@@ -260,8 +262,9 @@ function PodCard({
 }
 
 export default function CapacityPlanningV2() {
-  const { state, resetToSeed, copyMonthForward, selectedMonth } = useCP2Store();
+  const { state, resetToSeed, selectedMonth, isMonthClosed } = useCP2Store();
   const month = selectedMonth as MonthKey;
+  const closed = isMonthClosed(month);
 
   const pods = state.monthly[month] ?? [];
 
@@ -296,15 +299,8 @@ export default function CapacityPlanningV2() {
 
       {/* Toolbar — month lives in the SubNav above; this row is just actions. */}
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => copyMonthForward(month, 3)}
-          className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#42CA80]/40 hover:text-white"
-          title="Copy this month's roster and allocation into the next 3 months"
-        >
-          <Copy className="h-3.5 w-3.5" />
-          Copy → next 3
-        </button>
+        <CopyMonthMenu />
+        <CloseMonthButton />
         <button
           type="button"
           onClick={() => {
@@ -317,6 +313,9 @@ export default function CapacityPlanningV2() {
           Reset
         </button>
       </div>
+
+      <ClosedMonthBanner />
+      <ValidationBanner />
 
       <div className="grid grid-cols-4 gap-3">
         {[
@@ -366,11 +365,15 @@ export default function CapacityPlanningV2() {
               pod={pod}
               month={month}
               allPods={pods}
-              onEditMember={(m) => setEditMember({ podId: pod.id, member: m })}
-              onAddMember={() => setAddMemberPod(pod)}
-              onEditClient={(c) =>
-                setEditClient({ podId: pod.id, client: c })
-              }
+              onEditMember={(m) => {
+                if (!closed) setEditMember({ podId: pod.id, member: m });
+              }}
+              onAddMember={() => {
+                if (!closed) setAddMemberPod(pod);
+              }}
+              onEditClient={(c) => {
+                if (!closed) setEditClient({ podId: pod.id, client: c });
+              }}
             />
           ))
         )}

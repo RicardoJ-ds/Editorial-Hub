@@ -1,10 +1,10 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarClock, Lock } from "lucide-react";
 import { useCP2Store, currentMonthKey, monthLabel, shiftMonth } from "./_store";
 
 export function MonthPicker() {
-  const { selectedMonth, setSelectedMonth, goToCurrentMonth, monthOptions } = useCP2Store();
+  const { selectedMonth, setSelectedMonth, goToCurrentMonth, monthOptions, isMonthClosed } = useCP2Store();
   const today = currentMonthKey();
 
   const prev = () => setSelectedMonth(shiftMonth(selectedMonth, -1));
@@ -25,12 +25,19 @@ export function MonthPicker() {
         {monthOptions.map((m) => {
           const active = m === selectedMonth;
           const isToday = m === today;
+          const closed = isMonthClosed(m);
           return (
             <button
               key={m}
               type="button"
               onClick={() => setSelectedMonth(m)}
-              title={isToday ? "Current month" : monthLabel(m)}
+              title={
+                closed
+                  ? `${monthLabel(m)} (closed)`
+                  : isToday
+                    ? "Current month"
+                    : monthLabel(m)
+              }
               className={`relative flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider transition-all ${
                 active
                   ? "bg-[#42CA80]/15 text-[#65FFAA]"
@@ -40,7 +47,8 @@ export function MonthPicker() {
               }`}
             >
               {monthLabel(m)}
-              {isToday && !active && (
+              {closed && <Lock className="h-2.5 w-2.5 text-[#8EB0FF]" />}
+              {isToday && !active && !closed && (
                 <span
                   aria-hidden
                   className="h-1.5 w-1.5 rounded-full bg-[#65FFAA]"

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { ProposalBanner } from "../_ProposalBanner";
 import { SubNav } from "../_SubNav";
+import { ValidationBanner } from "../_ValidationBanner";
+import { ClosedMonthBanner, CopyMonthMenu } from "../_MonthActions";
 import {
   MONTHS,
   MONTH_LABELS,
@@ -104,17 +106,23 @@ export default function RosterPage() {
             className="h-8 w-56 rounded-md border border-[#2a2a2a] bg-[#161616] px-2 font-sans text-xs text-white placeholder:text-[#606060] outline-none focus:border-[#42CA80]/50"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (confirm("Reset all edits and restore seed data?")) resetToSeed();
-          }}
-          className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#ED6958]/40 hover:text-[#ED6958]"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Reset
-        </button>
+        <div className="flex items-center gap-2">
+          <CopyMonthMenu />
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("Reset all edits and restore seed data?")) resetToSeed();
+            }}
+            className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA] hover:border-[#ED6958]/40 hover:text-[#ED6958]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
+        </div>
       </div>
+
+      <ClosedMonthBanner />
+      <ValidationBanner />
 
       <div className="overflow-x-auto rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]">
         <table className="w-full min-w-[900px] border-collapse">
