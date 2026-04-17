@@ -17,6 +17,9 @@ from app.models import (
 from app.schemas import (
     CapacitySummary,
     ClientPacing,
+    ClientProductionMonth,
+    ClientProductionRow,
+    ClientProductionTotals,
     DashboardSummary,
     EngagementCompliance,
     ProductionTrendPoint,
@@ -138,6 +141,93 @@ async def kpis_capacity_summary(
         )
 
     return summaries
+
+
+@router.get("/client-production", response_model=list[ClientProductionRow])
+async def client_production(db: AsyncSession = Depends(get_db)):
+    """Per-client monthly production (actual vs projected from the Editorial
+    Operating Model) plus per-client totals used by the Client Engagement
+    Timeline's % Delivered view and its right-hand summary sidebar.
+
+    Shape:
+        [
+          {
+            client_name, editorial_pod,
+            monthly: [{year, month, actual, projected}, ...],
+            totals: {projected, delivered, sow, reconciliation},
+          },
+          ...
+        ]
+
+    Reconciliation is `sow - delivered - projected`; negative means the
+    client is over-committed relative to contract.
+    """
+    # Fetch every client that has an SOW or any production row — avoids missing
+    # clients whose Operating Model rows are all zero but have a SOW on file.
+    clients_result = await db.execute(
+        select(Client).order_by(Client.name)
+    )
+    clients = list(clients_result.scalars().all())
+
+    # Load all production history rows in one shot, group in-memory by client.
+    ph_result = await db.execute(
+        select(
+            ProductionHistory.client_id,
+            ProductionHistory.year,
+            ProductionHistory.month,
+            ProductionHistory.articles_actual,
+            ProductionHistory.articles_projected,
+        )
+    )
+    ph_by_client: dict[int, list[ClientProductionMonth]] = {}
+    actual_totals: dict[int, int] = {}
+    projected_totals: dict[int, int] = {}
+    for client_id, year, month, actual, projected in ph_result.all():
+        actual_int = int(actual or 0)
+        projected_int = int(projected or 0)
+        ph_by_client.setdefault(client_id, []).append(
+            ClientProductionMonth(
+                year=int(year),
+                month=int(month),
+                actual=actual_int,
+                projected=projected_int,
+            )
+        )
+        actual_totals[client_id] = actual_totals.get(client_id, 0) + actual_int
+        projected_totals[client_id] = projected_totals.get(client_id, 0) + projected_int
+
+    rows: list[ClientProductionRow] = []
+    for client in clients:
+        monthly = sorted(
+            ph_by_client.get(client.id, []),
+            key=lambda m: (m.year, m.month),
+        )
+        # Prefer ProductionHistory sum for delivered when available, otherwise
+        # fall back to the Client.articles_delivered column.
+        delivered = actual_totals.get(client.id, 0) or int(client.articles_delivered or 0)
+        projected = projected_totals.get(client.id, 0)
+        sow = int(client.articles_sow or 0)
+        reconciliation = sow - delivered - projected
+
+        # Skip clients with no SOW and no production history entirely.
+        if not monthly and sow == 0 and delivered == 0 and projected == 0:
+            continue
+
+        rows.append(
+            ClientProductionRow(
+                client_name=client.name,
+                editorial_pod=client.editorial_pod,
+                monthly=monthly,
+                totals=ClientProductionTotals(
+                    projected=projected,
+                    delivered=delivered,
+                    sow=sow,
+                    reconciliation=reconciliation,
+                ),
+            )
+        )
+
+    return rows
 
 
 @router.get("/production-trend", response_model=list[ProductionTrendPoint])

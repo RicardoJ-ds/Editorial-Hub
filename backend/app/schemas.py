@@ -338,6 +338,27 @@ class EngagementCompliance(BaseModel):
     details: list[dict]  # [{rule_number, rule_name, met: bool}]
 
 
+class ClientProductionMonth(BaseModel):
+    year: int
+    month: int
+    actual: int
+    projected: int
+
+
+class ClientProductionTotals(BaseModel):
+    projected: int  # Sum of ProductionHistory.articles_projected (forward-looking)
+    delivered: int  # Sum of ProductionHistory.articles_actual to date
+    sow: int  # Client.articles_sow
+    reconciliation: int  # sow - delivered - projected; negative = over-committed
+
+
+class ClientProductionRow(BaseModel):
+    client_name: str
+    editorial_pod: str | None = None
+    monthly: list[ClientProductionMonth]
+    totals: ClientProductionTotals
+
+
 # --- AI Monitoring schemas ---
 class AIMonitoringRecordResponse(BaseModel):
     id: int
