@@ -1319,7 +1319,7 @@ function DeliverablesSOWTab({
         {productionTrend.length > 0 && (
           <ProductionTrendChart data={productionTrend} />
         )}
-        <DeliveryTrendChart deliverables={deliverables} />
+        <DeliveryTrendChart deliverables={deliverables} clients={clients} />
       </div>
       {/* Per-client cards — same data as the table below, with pacing badge + bars */}
       <ClientDeliveryCards rows={rows} pacingMap={pacingMap} />
