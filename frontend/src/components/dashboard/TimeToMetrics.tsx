@@ -216,8 +216,12 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
             Month-over-Month Trend
+            <DataSourceBadge
+              type="live"
+              source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published date columns."
+            />
           </p>
           <p className="text-[9px] font-mono text-[#606060] mt-0.5">
             Average {metric.label.toLowerCase()}, bucketed by each client&apos;s {REF_LABEL} month. Lower is better.
@@ -402,7 +406,13 @@ function MilestoneWaterfall({ data }: { data: { client: Client; milestones: { ke
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5 overflow-hidden relative z-0" style={{ isolation: "isolate" }}>
       <div className="mb-5">
-        <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">Client Milestone Journey</p>
+        <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
+          Client Milestone Journey
+          <DataSourceBadge
+            type="live"
+            source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One dot per milestone date per active client. Distance from Day 0 = elapsed days from Consulting KO."
+          />
+        </p>
         <p className="text-[8px] font-mono text-[#606060] mt-0.5">Days from Consulting KO (day 0) through each milestone to publication. Sorted by fastest to first article.</p>
       </div>
 

@@ -251,6 +251,27 @@ export interface ProductionTrendPoint {
   is_actual: boolean;
 }
 
+export interface ClientProductionMonth {
+  year: number;
+  month: number;
+  actual: number;
+  projected: number;
+}
+
+export interface ClientProductionTotals {
+  projected: number;
+  delivered: number;
+  sow: number;
+  reconciliation: number;
+}
+
+export interface ClientProductionRow {
+  client_name: string;
+  editorial_pod: string | null;
+  monthly: ClientProductionMonth[];
+  totals: ClientProductionTotals;
+}
+
 export interface DeliveryTemplate {
   id: number;
   sow_size: number;

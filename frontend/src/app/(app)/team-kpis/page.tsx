@@ -808,6 +808,9 @@ function KpiPerformanceTab({
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
           KPI Overview <DataSourceBadge type="live" source="Sheet: 'Notion' — Spreadsheet: Notion Database Export. Revision Rate, Turnaround Time, and Second Reviews computed from 13K+ article records. Other KPIs (Internal/External Quality, Mentorship, Feedback) use simulated data pending scoring rubric." />
         </h3>
+        <p className="text-[10px] font-mono text-[#606060] -mt-1">
+          One row per team member with one cell per KPI. Green ≥ target, amber within 10% of target, red below. Click any cell to scroll to that member&apos;s detailed card.
+        </p>
         <div className="table-scroll rounded-xl border border-[#2a2a2a] bg-[#161616]">
           <table className="w-full border-collapse">
             <thead>
@@ -1044,9 +1047,14 @@ function CapacityProjectionsTab({
   return (
     <div className="mt-3 space-y-5">
       {/* Summary Row */}
-      <div className="mb-1 flex items-center gap-2">
-        <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Capacity Summary</span>
-        <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections, utilization, and available bandwidth." />
+      <div className="mb-1">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Capacity Summary</span>
+          <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections, utilization, and available bandwidth." />
+        </div>
+        <p className="text-[10px] font-mono text-[#606060] mt-0.5">
+          Roll-ups across all pods: avg utilization, pods in the 80–85% optimal band, pods over 100%, and total available bandwidth for the current month.
+        </p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
@@ -1086,9 +1094,14 @@ function CapacityProjectionsTab({
 
       {/* Capacity Chart */}
       <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
-        <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-4">
-          Utilization by Pod <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections and utilization." />
-        </h4>
+        <div className="mb-4">
+          <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+            Utilization by Pod <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections and utilization." />
+          </h4>
+          <p className="text-[10px] font-mono text-[#606060] mt-0.5">
+            Per-pod monthly utilization = projected workload ÷ pod capacity. Reference bands at 80% and 100% show the optimal zone and the over-capacity line.
+          </p>
+        </div>
         <CapacityChart data={capacity} />
       </div>
 

@@ -19,6 +19,21 @@
   - Removed SOW Overview cards (Active / Articles SOW / Delivered)
   - Added per-client monthly-goal gauges + cumulative-pipeline bars (grouped alphabetically, FilterBar-aware) via `ContractClientProgress`
   - Added MoM trend chart to Time-to Metrics with a 8-option metric selector and overall-average reference line
+- [x] Apr 17 — Pod Matrix (evolution of the above):
+  - Rebuilt `ContractClientProgress` as a pod × chart-type matrix (pod columns, Month Goals + Pipeline rows) with per-metric tooltips
+  - Added `normalizePod()` helper and applied it in the matrix aggregation + `FilterBar` dropdown + filter comparison so "1" / "Pod 1" / "pod 1" collapse into one bucket
+  - Capped pod column width at `minmax(240px, 320px)` and set the grid to `width: fit-content` so a single filtered pod sticks to the left edge
+  - Dropped the per-cell month subtitle — the matrix has only pod × chart-type dimensions
+- [x] Apr 17 — Time-to Metrics improvements:
+  - Fixed MoM bar/reference-line baseline mismatch (move month labels into their own row below the chart)
+  - Cap Y-axis at max(p90, 2× overall avg) so outlier cohorts don't flatten the rest; clipped bars marked with ↑ and a red inset ring
+  - Metric selector shows the human-readable label (e.g. "Consulting KO → First Article") instead of the raw key
+- [x] Apr 17 — Client Engagement Timeline overhaul:
+  - New backend endpoint `GET /api/dashboard/client-production` returning per-client monthly actual vs projected + totals {projected, delivered, sow, reconciliation}
+  - Replaced the Duration toggle with `% Delivered` — per month actual/projected utilization bars colored ≥100 / 75–99 / <75
+  - Added a per-client totals sidebar (Projected · Delivered · SOW · Reconciliation) with tooltips and red/green reconciliation
+  - Data source: Editorial Operating Model (stored in `ProductionHistory`)
+- [x] Apr 17 — Badge + subtitle pass on dashboards: added DataSourceBadge + subtitles to Month-over-Month Trend, Client Milestone Journey, KPI Overview, Capacity Summary, Utilization by Pod, Client Engagement Timeline root heading
 
 ## Pending — P1
 
