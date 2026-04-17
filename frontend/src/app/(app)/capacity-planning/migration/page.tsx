@@ -162,11 +162,17 @@ export default function MigrationPage() {
       // Pull real clients and map the ones not yet in dims.clients into cp2 shape.
       type RawClient = {
         id: number;
+        name?: string;
+        domain?: string;
+        status?: string;
+        growth_pod?: string;
+        editorial_pod?: string;
         articles_sow?: number;
         articles_per_month?: number;
         cadence?: string;
         start_date?: string;
         end_date?: string;
+        term_months?: number;
       };
       const clients = await apiGet<RawClient[]>("/api/clients/");
       const existingIds = new Set(dims.clients.map((c) => c.client_id_fk));
@@ -175,13 +181,42 @@ export default function MigrationPage() {
         if (existingIds.has(c.id)) continue;
         const row: Omit<DimClient, "id"> = {
           client_id_fk: c.id,
+          name: c.name ?? `Client #${c.id}`,
+          domain: c.domain ?? null,
+          status: (c.status as DimClient["status"]) ?? "ACTIVE",
+          growth_pod: c.growth_pod ?? null,
+          editorial_pod: c.editorial_pod ?? null,
           engagement_tier_id: null,
+          project_type: null,
           cadence: (c.cadence as DimClient["cadence"]) ?? "monthly",
+          cadence_q1: null,
+          cadence_q2: null,
+          cadence_q3: null,
+          cadence_q4: null,
+          term_months: c.term_months ?? null,
           sow_articles_total: c.articles_sow ?? 0,
           sow_articles_per_month: c.articles_per_month ?? 0,
+          word_count_min: null,
+          word_count_max: null,
+          sow_link: null,
           contract_start: c.start_date ?? "",
           contract_end: c.end_date ?? "",
+          consulting_ko_date: null,
+          editorial_ko_date: null,
+          first_cb_approved_date: null,
+          first_article_delivered_date: null,
+          first_feedback_date: null,
+          first_article_published_date: null,
+          managing_director: null,
+          account_director: null,
+          account_manager: null,
+          jr_am: null,
+          cs_team: null,
+          articles_delivered: 0,
+          articles_invoiced: 0,
+          articles_paid: 0,
           is_active_in_cp2: true,
+          comments: null,
         };
         addDimRow("clients", row);
         addedClients += 1;

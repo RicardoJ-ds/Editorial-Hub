@@ -12,6 +12,8 @@ const MONTH_AGNOSTIC_EXACT = new Set<string>([
   "/capacity-planning/tables",
   "/capacity-planning/glossary",
   "/capacity-planning/migration",
+  "/capacity-planning/gantt",
+  "/capacity-planning/pipeline",
 ]);
 const MONTH_AGNOSTIC_PREFIXES = ["/capacity-planning/admin"];
 

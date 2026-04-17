@@ -38,6 +38,12 @@ const LEAVES_KEY = "cp2.proposal.leaves";
 const OVERRIDES_KEY = "cp2.proposal.overrides";
 const WEEKLY_KEY = "cp2.proposal.weeklyActuals";
 const DIMS_KEY = "cp2.proposal.dims";
+const DELIVERY_KEY = "cp2.proposal.deliveryMonthly";
+const KPI_SCORES_KEY = "cp2.proposal.kpiScores";
+const ARTICLES_KEY = "cp2.proposal.articles";
+const AI_SCANS_KEY = "cp2.proposal.aiScans";
+const SURFER_KEY = "cp2.proposal.surferUsage";
+const PIPELINE_KEY = "cp2.proposal.pipelineSnapshots";
 
 export type LeaveReason = "PTO" | "Parental" | "Sick" | "Other";
 
@@ -71,6 +77,108 @@ export type WeeklyActualRow = {
   ingestedAt: string;
 };
 
+export type DeliveryMonthlyRow = {
+  id: number;
+  monthKey: string;
+  clientId: number;
+  articlesSowTarget: number;
+  articlesDelivered: number;
+  articlesInvoiced: number;
+  articlesPaid: number;
+  articlesProjected: number | null;
+  isActual: boolean;
+  contentBriefsDelivered: number;
+  contentBriefsGoal: number;
+  notes: string;
+};
+
+export type KpiScoreRow = {
+  id: number;
+  monthKey: string;
+  teamMemberId: number;
+  metricId: number;
+  clientId: number | null;
+  score: number | null;
+  targetSnapshot: number;
+  source: "manual" | "notion" | "ai_scan" | "capacity";
+  enteredBy: string | null;
+  enteredAt: string;
+  notes: string;
+};
+
+export type ArticleStatus = "drafting" | "review" | "delivered" | "published" | "killed";
+
+export type ArticleRow = {
+  id: number;
+  notionCaseId: string;
+  clientId: number;
+  podId: number | null;
+  writerId: number | null;
+  editorId: number | null;
+  srEditorId: number | null;
+  monthKey: string;
+  title: string;
+  cbApprovedDate: string | null;
+  deliveredDate: string | null;
+  publishedDate: string | null;
+  turnaroundDays: number | null;
+  revisionCount: number;
+  hadSecondReview: boolean;
+  status: ArticleStatus;
+  notionUrl: string;
+};
+
+export type AiRecommendation = "FULL_PASS" | "PARTIAL_PASS" | "REVIEW_REWRITE";
+
+export type AiScanRow = {
+  id: number;
+  articleId: number | null;
+  clientId: number;
+  podId: number | null;
+  monthKey: string;
+  topicTitle: string;
+  writerName: string;
+  editorName: string;
+  dateProcessed: string;
+  surferV1Score: number | null;
+  surferV2Score: number | null;
+  recommendation: AiRecommendation;
+  isRewrite: boolean;
+  isFlagged: boolean;
+  action: string;
+  notes: string;
+};
+
+export type SurferUsageRow = {
+  id: number;
+  yearMonthKey: string;
+  pod1: number;
+  pod2: number;
+  pod3: number;
+  pod4: number;
+  pod5: number;
+  auditioningWriters: number;
+  rewrites: number;
+  totalSpent: number;
+  remainingCalls: number | null;
+};
+
+export type PipelineSnapshotRow = {
+  id: number;
+  snapshotDate: string;
+  clientId: number;
+  topicsSubmitted: number;
+  topicsApproved: number;
+  cbsSubmitted: number;
+  cbsApproved: number;
+  articlesSent: number;
+  articlesApproved: number;
+  articlesDelivered: number;
+  articlesPublished: number;
+  articlesKilled: number;
+  comments: string;
+};
+
 // ---------------------------------------------------------------------------
 // Dim tables — admin-managed reference data.
 // ---------------------------------------------------------------------------
@@ -96,16 +204,52 @@ export type DimPod = {
   notes: string;
 };
 
+export type ClientStatus =
+  | "ACTIVE"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "SOON_TO_BE_ACTIVE"
+  | "INACTIVE";
+
 export type DimClient = {
   id: number;
   client_id_fk: number;
+  name: string;
+  domain: string | null;
+  status: ClientStatus;
+  growth_pod: string | null;
+  editorial_pod: string | null;
   engagement_tier_id: number | null;
+  project_type: string | null;
   cadence: "quarterly" | "monthly" | "custom";
+  cadence_q1: number | null;
+  cadence_q2: number | null;
+  cadence_q3: number | null;
+  cadence_q4: number | null;
+  term_months: number | null;
   sow_articles_total: number;
   sow_articles_per_month: number;
+  word_count_min: number | null;
+  word_count_max: number | null;
+  sow_link: string | null;
   contract_start: string;
   contract_end: string;
+  consulting_ko_date: string | null;
+  editorial_ko_date: string | null;
+  first_cb_approved_date: string | null;
+  first_article_delivered_date: string | null;
+  first_feedback_date: string | null;
+  first_article_published_date: string | null;
+  managing_director: string | null;
+  account_director: string | null;
+  account_manager: string | null;
+  jr_am: string | null;
+  cs_team: string | null;
+  articles_delivered: number;
+  articles_invoiced: number;
+  articles_paid: number;
   is_active_in_cp2: boolean;
+  comments: string | null;
 };
 
 export type DimEngagementTier = {
@@ -329,6 +473,16 @@ function loadWeekly(): Record<string, WeeklyActualRow[]> {
   }
 }
 
+function loadJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function loadDims(): DimsShape | null {
   if (typeof window === "undefined") return null;
   try {
@@ -363,9 +517,58 @@ function seedDims(): DimsShape {
     { id: 3, name: "Custom", description: "Bespoke SOW — see notes" },
   ];
   const clients: DimClient[] = [
-    { id: 1, client_id_fk: 42, engagement_tier_id: 1, cadence: "monthly", sow_articles_total: 300, sow_articles_per_month: 25, contract_start: "2025-01-01", contract_end: "2026-12-31", is_active_in_cp2: true },
-    { id: 2, client_id_fk: 58, engagement_tier_id: 2, cadence: "quarterly", sow_articles_total: 60, sow_articles_per_month: 5, contract_start: "2025-06-01", contract_end: "2026-06-30", is_active_in_cp2: true },
-    { id: 3, client_id_fk: 71, engagement_tier_id: 1, cadence: "monthly", sow_articles_total: 120, sow_articles_per_month: 10, contract_start: "2025-04-01", contract_end: "2026-10-31", is_active_in_cp2: true },
+    {
+      id: 1, client_id_fk: 42, name: "College of BP", domain: "collegeofbp.com",
+      status: "ACTIVE", growth_pod: "growth-1", editorial_pod: "editorial-1",
+      engagement_tier_id: 1, project_type: "content-program",
+      cadence: "monthly", cadence_q1: 60, cadence_q2: 60, cadence_q3: 60, cadence_q4: 60,
+      term_months: 12, sow_articles_total: 300, sow_articles_per_month: 25,
+      word_count_min: 1500, word_count_max: 2500,
+      sow_link: "https://docs.google.com/document/d/abc123",
+      contract_start: "2025-01-01", contract_end: "2026-12-31",
+      consulting_ko_date: "2024-12-10", editorial_ko_date: "2024-12-20",
+      first_cb_approved_date: "2025-01-18", first_article_delivered_date: "2025-02-02",
+      first_feedback_date: "2025-02-08", first_article_published_date: "2025-02-10",
+      managing_director: "Sarah Chen", account_director: "Marcus Wang",
+      account_manager: "Priya Shah", jr_am: "Luis Ortiz",
+      cs_team: "Emma Park, Dan Levitt",
+      articles_delivered: 312, articles_invoiced: 310, articles_paid: 295,
+      is_active_in_cp2: true, comments: "",
+    },
+    {
+      id: 2, client_id_fk: 58, name: "Harvard", domain: "harvard.edu",
+      status: "ACTIVE", growth_pod: "growth-2", editorial_pod: "editorial-1",
+      engagement_tier_id: 2, project_type: "thought-leadership",
+      cadence: "quarterly", cadence_q1: 15, cadence_q2: 15, cadence_q3: 15, cadence_q4: 15,
+      term_months: 12, sow_articles_total: 60, sow_articles_per_month: 5,
+      word_count_min: 2000, word_count_max: 3000,
+      sow_link: "https://docs.google.com/document/d/def456",
+      contract_start: "2025-06-01", contract_end: "2026-06-30",
+      consulting_ko_date: "2025-05-15", editorial_ko_date: "2025-05-28",
+      first_cb_approved_date: "2025-06-14", first_article_delivered_date: "2025-06-28",
+      first_feedback_date: "2025-07-05", first_article_published_date: null,
+      managing_director: "Sarah Chen", account_director: "Jonathan Park",
+      account_manager: "Fatima Rahman", jr_am: null, cs_team: "Dan Levitt",
+      articles_delivered: 50, articles_invoiced: 50, articles_paid: 45,
+      is_active_in_cp2: true, comments: "",
+    },
+    {
+      id: 3, client_id_fk: 71, name: "Cornell", domain: "cornell.edu",
+      status: "ACTIVE", growth_pod: "growth-3", editorial_pod: "editorial-1",
+      engagement_tier_id: 1, project_type: "content-program",
+      cadence: "monthly", cadence_q1: 30, cadence_q2: 30, cadence_q3: 30, cadence_q4: 30,
+      term_months: 18, sow_articles_total: 120, sow_articles_per_month: 10,
+      word_count_min: 1500, word_count_max: 2500,
+      sow_link: null,
+      contract_start: "2025-04-01", contract_end: "2026-10-31",
+      consulting_ko_date: null, editorial_ko_date: null,
+      first_cb_approved_date: null, first_article_delivered_date: null,
+      first_feedback_date: null, first_article_published_date: null,
+      managing_director: null, account_director: null,
+      account_manager: null, jr_am: null, cs_team: null,
+      articles_delivered: 60, articles_invoiced: 55, articles_paid: 50,
+      is_active_in_cp2: true, comments: "",
+    },
   ];
   const metrics: DimKpiMetric[] = [
     { id: 1, metric_key: "internal_quality", display_name: "Internal Quality", unit: "score", target_value: 85, direction: "higher_is_better", formula: "Manual score by SE", applies_to_roles: "SE,ED" },
@@ -411,6 +614,193 @@ function deriveSeedWeeklyActuals(
     }
   }
   return byWeek;
+}
+
+/** Seed delivery monthly, kpi scores, articles, ai scans, surfer, pipeline —
+ *  deterministic values derived from the mock pods + clients so every editor
+ *  has rows to show on first load. */
+function deriveSeedMaintainData(
+  monthly: Record<string, PodBoard[]>,
+  dims: DimsShape,
+): {
+  delivery: DeliveryMonthlyRow[];
+  kpi: KpiScoreRow[];
+  articles: ArticleRow[];
+  aiScans: AiScanRow[];
+  surfer: SurferUsageRow[];
+  pipeline: PipelineSnapshotRow[];
+} {
+  const delivery: DeliveryMonthlyRow[] = [];
+  const kpi: KpiScoreRow[] = [];
+  const articles: ArticleRow[] = [];
+  const aiScans: AiScanRow[] = [];
+  const surfer: SurferUsageRow[] = [];
+  const pipeline: PipelineSnapshotRow[] = [];
+
+  let dSeq = 1;
+  let kSeq = 1;
+  let aSeq = 1;
+  let sSeq = 1;
+  let sufSeq = 1;
+  let pSeq = 1;
+
+  // Delivery monthly — one row per (client, month) for each month that has pods.
+  const seenClients = new Set<number>();
+  for (const [monthKey, pods] of Object.entries(monthly)) {
+    for (const pod of pods) {
+      for (const client of pod.clients) {
+        seenClients.add(client.id);
+        const target = Math.max(3, Math.round(client.projectedArticles * 0.9));
+        const delivered = Math.max(0, target - ((client.id + monthKey.length) % 3));
+        const invoiced = Math.max(0, delivered - 1);
+        const paid = Math.max(0, invoiced - 1);
+        delivery.push({
+          id: dSeq++,
+          monthKey,
+          clientId: client.id,
+          articlesSowTarget: target,
+          articlesDelivered: delivered,
+          articlesInvoiced: invoiced,
+          articlesPaid: paid,
+          articlesProjected: target,
+          isActual: true,
+          contentBriefsDelivered: Math.max(0, delivered - 1),
+          contentBriefsGoal: target,
+          notes: "",
+        });
+      }
+    }
+  }
+
+  // KPI scores — every active member × every metric × current seeded months.
+  const MONTHS_FOR_KPI = Object.keys(monthly).filter(
+    (k) => (monthly[k] ?? []).length > 0,
+  );
+  for (const monthKey of MONTHS_FOR_KPI) {
+    for (const member of dims.members) {
+      if (!member.is_active) continue;
+      for (const metric of dims.metrics) {
+        // Simple deterministic score around the target.
+        const jitter = ((member.id + metric.id) % 7) - 3;
+        const raw = metric.direction === "lower_is_better"
+          ? Math.max(0, metric.target_value + jitter * 0.2)
+          : Math.min(100, metric.target_value + jitter);
+        kpi.push({
+          id: kSeq++,
+          monthKey,
+          teamMemberId: member.id,
+          metricId: metric.id,
+          clientId: null,
+          score: Math.round(raw * 10) / 10,
+          targetSnapshot: metric.target_value,
+          source: metric.metric_key === "ai_compliance" ? "ai_scan" :
+            metric.metric_key.startsWith("revision_") || metric.metric_key.startsWith("turnaround") || metric.metric_key.startsWith("second_")
+              ? "notion" : "manual",
+          enteredBy: null,
+          enteredAt: new Date().toISOString(),
+          notes: "",
+        });
+      }
+    }
+  }
+
+  // Articles — 2 per (pod, month) using pod.clients.
+  for (const [monthKey, pods] of Object.entries(monthly)) {
+    for (const pod of pods) {
+      for (const client of pod.clients.slice(0, 2)) {
+        const members = pod.members;
+        const writer = members.find((m) => m.role === "WR") ?? members[members.length - 1];
+        const editor = members.find((m) => m.role === "ED");
+        const srEditor = members.find((m) => m.role === "SE");
+        const revisions = (client.id + monthKey.length) % 3;
+        articles.push({
+          id: aSeq++,
+          notionCaseId: `CASE-${String(aSeq).padStart(5, "0")}`,
+          clientId: client.id,
+          podId: pod.id,
+          writerId: writer?.id ?? null,
+          editorId: editor?.id ?? null,
+          srEditorId: srEditor?.id ?? null,
+          monthKey,
+          title: `${client.name} · Draft ${aSeq}`,
+          cbApprovedDate: `${monthKey}-02`,
+          deliveredDate: `${monthKey}-${String(10 + revisions * 4).padStart(2, "0")}`,
+          publishedDate: revisions === 0 ? `${monthKey}-20` : null,
+          turnaroundDays: 8 + revisions * 3,
+          revisionCount: revisions,
+          hadSecondReview: revisions === 0,
+          status: revisions === 0 ? "published" : "delivered",
+          notionUrl: `https://notion.so/case-${aSeq}`,
+        });
+      }
+    }
+  }
+
+  // AI scans — one per article, deterministic.
+  for (const a of articles) {
+    const s1 = 2 + (a.id % 20);
+    const s2 = s1 - 1;
+    const pass: AiRecommendation = s1 < 5 ? "FULL_PASS" : s1 < 12 ? "PARTIAL_PASS" : "REVIEW_REWRITE";
+    aiScans.push({
+      id: sSeq++,
+      articleId: a.id,
+      clientId: a.clientId,
+      podId: a.podId,
+      monthKey: a.monthKey,
+      topicTitle: a.title,
+      writerName: dims.members.find((m) => m.id === a.writerId)?.full_name ?? "",
+      editorName: dims.members.find((m) => m.id === a.editorId)?.full_name ?? "",
+      dateProcessed: a.deliveredDate ?? `${a.monthKey}-15`,
+      surferV1Score: s1,
+      surferV2Score: s2,
+      recommendation: pass,
+      isRewrite: false,
+      isFlagged: pass !== "FULL_PASS",
+      action: pass === "FULL_PASS" ? "publish" : "revise",
+      notes: "",
+    });
+  }
+
+  // Surfer API usage — one row per month with activity.
+  for (const monthKey of MONTHS_FOR_KPI) {
+    surfer.push({
+      id: sufSeq++,
+      yearMonthKey: monthKey,
+      pod1: 60 + ((sufSeq * 7) % 20),
+      pod2: 70 + ((sufSeq * 5) % 20),
+      pod3: 55 + ((sufSeq * 3) % 20),
+      pod4: 0,
+      pod5: 0,
+      auditioningWriters: 8 + (sufSeq % 6),
+      rewrites: 12 + (sufSeq % 8),
+      totalSpent: 220 + ((sufSeq * 11) % 30),
+      remainingCalls: 180 - ((sufSeq * 11) % 30),
+    });
+  }
+
+  // Pipeline snapshots — latest snapshot per client that appears in mock.
+  const snapshotDate = new Date().toISOString().slice(0, 10);
+  for (const clientId of seenClients) {
+    const c = dims.clients.find((cc) => cc.id === clientId);
+    const total = c?.sow_articles_total ?? 200;
+    pipeline.push({
+      id: pSeq++,
+      snapshotDate,
+      clientId,
+      topicsSubmitted: total + 20,
+      topicsApproved: total + 10,
+      cbsSubmitted: total + 5,
+      cbsApproved: total + 3,
+      articlesSent: total - 5,
+      articlesApproved: total - 8,
+      articlesDelivered: total - 5,
+      articlesPublished: Math.max(0, total - 30),
+      articlesKilled: 5,
+      comments: "",
+    });
+  }
+
+  return { delivery, kpi, articles, aiScans, surfer, pipeline };
 }
 
 /** Seed leaves + overrides from the flat MemberRow fields so the proposal
@@ -528,6 +918,50 @@ type CP2StoreCtx = {
   addDimRow: <K extends DimKind>(kind: K, row: Omit<DimRow<K>, "id">) => void;
   updateDimRow: <K extends DimKind>(kind: K, row: DimRow<K>) => void;
   deleteDimRow: <K extends DimKind>(kind: K, id: number) => void;
+
+  // Delivery monthly — editable client × month grid
+  deliveryMonthly: DeliveryMonthlyRow[];
+  upsertDelivery: (
+    monthKey: string,
+    clientId: number,
+    patch: Partial<Omit<DeliveryMonthlyRow, "id" | "monthKey" | "clientId">>,
+  ) => void;
+
+  // KPI scores — editable member × month × metric matrix
+  kpiScores: KpiScoreRow[];
+  upsertKpiScore: (
+    monthKey: string,
+    teamMemberId: number,
+    metricId: number,
+    clientId: number | null,
+    patch: Partial<Pick<KpiScoreRow, "score" | "targetSnapshot" | "source" | "notes">>,
+  ) => void;
+
+  // Articles (workflow rows)
+  articles: ArticleRow[];
+  addArticle: (row: Omit<ArticleRow, "id">) => void;
+  updateArticle: (id: number, patch: Partial<ArticleRow>) => void;
+  deleteArticle: (id: number) => void;
+
+  // AI scans
+  aiScans: AiScanRow[];
+  addAiScan: (row: Omit<AiScanRow, "id">) => void;
+  updateAiScan: (id: number, patch: Partial<AiScanRow>) => void;
+  deleteAiScan: (id: number) => void;
+
+  // Surfer usage — single row per month
+  surferUsage: SurferUsageRow[];
+  upsertSurferUsage: (
+    yearMonthKey: string,
+    patch: Partial<Omit<SurferUsageRow, "id" | "yearMonthKey">>,
+  ) => void;
+
+  // Pipeline snapshots — latest per client
+  pipelineSnapshots: PipelineSnapshotRow[];
+  upsertPipelineSnapshot: (
+    clientId: number,
+    patch: Partial<Omit<PipelineSnapshotRow, "id" | "clientId">>,
+  ) => void;
 };
 
 const StoreContext = createContext<CP2StoreCtx | null>(null);
@@ -539,6 +973,12 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [overrides, setOverrides] = useState<Record<string, OverrideRow[]>>({});
   const [weeklyActuals, setWeeklyActuals] = useState<Record<string, WeeklyActualRow[]>>({});
   const [dims, setDims] = useState<DimsShape>(seedDims);
+  const [deliveryMonthly, setDeliveryMonthly] = useState<DeliveryMonthlyRow[]>([]);
+  const [kpiScores, setKpiScores] = useState<KpiScoreRow[]>([]);
+  const [articles, setArticles] = useState<ArticleRow[]>([]);
+  const [aiScans, setAiScans] = useState<AiScanRow[]>([]);
+  const [surferUsage, setSurferUsage] = useState<SurferUsageRow[]>([]);
+  const [pipelineSnapshots, setPipelineSnapshots] = useState<PipelineSnapshotRow[]>([]);
 
   const today = useMemo(currentMonthKey, []);
   const monthOptions = useMemo(() => monthRange(today, 6, 6), [today]);
@@ -576,7 +1016,38 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     const storedDims = loadDims();
+    const activeDims = storedDims ?? seedDims();
     if (storedDims) setDims(storedDims);
+
+    // Delivery / KPI / Articles / AI / Surfer / Pipeline — seed from mocks
+    // if nothing in storage, else hydrate.
+    const storedDelivery = loadJson<DeliveryMonthlyRow[]>(DELIVERY_KEY, []);
+    const storedKpi = loadJson<KpiScoreRow[]>(KPI_SCORES_KEY, []);
+    const storedArticles = loadJson<ArticleRow[]>(ARTICLES_KEY, []);
+    const storedAi = loadJson<AiScanRow[]>(AI_SCANS_KEY, []);
+    const storedSurfer = loadJson<SurferUsageRow[]>(SURFER_KEY, []);
+    const storedPipeline = loadJson<PipelineSnapshotRow[]>(PIPELINE_KEY, []);
+
+    if (
+      storedDelivery.length === 0 &&
+      storedKpi.length === 0 &&
+      storedArticles.length === 0
+    ) {
+      const derived = deriveSeedMaintainData(loaded.monthly, activeDims);
+      setDeliveryMonthly(derived.delivery);
+      setKpiScores(derived.kpi);
+      setArticles(derived.articles);
+      setAiScans(derived.aiScans);
+      setSurferUsage(derived.surfer);
+      setPipelineSnapshots(derived.pipeline);
+    } else {
+      setDeliveryMonthly(storedDelivery);
+      setKpiScores(storedKpi);
+      setArticles(storedArticles);
+      setAiScans(storedAi);
+      setSurferUsage(storedSurfer);
+      setPipelineSnapshots(storedPipeline);
+    }
 
     const fromStorage = loadSelectedMonth(today);
     setSelectedMonthState(urlMonth && /^\d{4}-\d{2}$/.test(urlMonth) ? urlMonth : fromStorage);
@@ -656,6 +1127,60 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [dims]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DELIVERY_KEY, JSON.stringify(deliveryMonthly));
+    } catch {
+      // ignore
+    }
+  }, [deliveryMonthly]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(KPI_SCORES_KEY, JSON.stringify(kpiScores));
+    } catch {
+      // ignore
+    }
+  }, [kpiScores]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(ARTICLES_KEY, JSON.stringify(articles));
+    } catch {
+      // ignore
+    }
+  }, [articles]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(AI_SCANS_KEY, JSON.stringify(aiScans));
+    } catch {
+      // ignore
+    }
+  }, [aiScans]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SURFER_KEY, JSON.stringify(surferUsage));
+    } catch {
+      // ignore
+    }
+  }, [surferUsage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(PIPELINE_KEY, JSON.stringify(pipelineSnapshots));
+    } catch {
+      // ignore
+    }
+  }, [pipelineSnapshots]);
+
   const addDimRow = useCallback(<K extends DimKind>(
     kind: K,
     row: Omit<DimRow<K>, "id">,
@@ -689,6 +1214,188 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // ------------------ Delivery monthly ------------------
+  const upsertDelivery: CP2StoreCtx["upsertDelivery"] = useCallback(
+    (monthKey, clientId, patch) => {
+      setDeliveryMonthly((prev) => {
+        const existing = prev.find(
+          (r) => r.monthKey === monthKey && r.clientId === clientId,
+        );
+        if (existing) {
+          return prev.map((r) =>
+            r.id === existing.id ? { ...r, ...patch } : r,
+          );
+        }
+        const defaults: DeliveryMonthlyRow = {
+          id: Date.now() % 1_000_000_000,
+          monthKey,
+          clientId,
+          articlesSowTarget: 0,
+          articlesDelivered: 0,
+          articlesInvoiced: 0,
+          articlesPaid: 0,
+          articlesProjected: null,
+          isActual: true,
+          contentBriefsDelivered: 0,
+          contentBriefsGoal: 0,
+          notes: "",
+          ...patch,
+        };
+        return [...prev, defaults];
+      });
+    },
+    [],
+  );
+
+  // ------------------ KPI scores ------------------
+  const upsertKpiScore: CP2StoreCtx["upsertKpiScore"] = useCallback(
+    (monthKey, teamMemberId, metricId, clientId, patch) => {
+      setKpiScores((prev) => {
+        const existing = prev.find(
+          (r) =>
+            r.monthKey === monthKey &&
+            r.teamMemberId === teamMemberId &&
+            r.metricId === metricId &&
+            r.clientId === clientId,
+        );
+        if (existing) {
+          return prev.map((r) =>
+            r.id === existing.id
+              ? { ...r, ...patch, enteredAt: new Date().toISOString() }
+              : r,
+          );
+        }
+        const row: KpiScoreRow = {
+          id: Date.now() % 1_000_000_000,
+          monthKey,
+          teamMemberId,
+          metricId,
+          clientId,
+          score: patch.score ?? null,
+          targetSnapshot: patch.targetSnapshot ?? 0,
+          source: patch.source ?? "manual",
+          enteredBy: null,
+          enteredAt: new Date().toISOString(),
+          notes: patch.notes ?? "",
+        };
+        return [...prev, row];
+      });
+    },
+    [],
+  );
+
+  // ------------------ Articles ------------------
+  const addArticle: CP2StoreCtx["addArticle"] = useCallback((row) => {
+    setArticles((prev) => [
+      ...prev,
+      { ...row, id: Date.now() % 1_000_000_000 },
+    ]);
+  }, []);
+  const updateArticle: CP2StoreCtx["updateArticle"] = useCallback(
+    (id, patch) => {
+      setArticles((prev) =>
+        prev.map((a) => {
+          if (a.id !== id) return a;
+          const next = { ...a, ...patch };
+          // Auto-compute turnaround when both dates present.
+          if (next.cbApprovedDate && next.deliveredDate) {
+            const d1 = new Date(next.cbApprovedDate).getTime();
+            const d2 = new Date(next.deliveredDate).getTime();
+            if (!Number.isNaN(d1) && !Number.isNaN(d2)) {
+              next.turnaroundDays = Math.max(0, Math.round((d2 - d1) / 86400000));
+            }
+          }
+          return next;
+        }),
+      );
+    },
+    [],
+  );
+  const deleteArticle: CP2StoreCtx["deleteArticle"] = useCallback((id) => {
+    setArticles((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  // ------------------ AI scans ------------------
+  const addAiScan: CP2StoreCtx["addAiScan"] = useCallback((row) => {
+    setAiScans((prev) => [
+      ...prev,
+      { ...row, id: Date.now() % 1_000_000_000 },
+    ]);
+  }, []);
+  const updateAiScan: CP2StoreCtx["updateAiScan"] = useCallback(
+    (id, patch) => {
+      setAiScans((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+      );
+    },
+    [],
+  );
+  const deleteAiScan: CP2StoreCtx["deleteAiScan"] = useCallback((id) => {
+    setAiScans((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  // ------------------ Surfer usage ------------------
+  const upsertSurferUsage: CP2StoreCtx["upsertSurferUsage"] = useCallback(
+    (yearMonthKey, patch) => {
+      setSurferUsage((prev) => {
+        const existing = prev.find((r) => r.yearMonthKey === yearMonthKey);
+        if (existing) {
+          return prev.map((r) =>
+            r.id === existing.id ? { ...r, ...patch } : r,
+          );
+        }
+        const row: SurferUsageRow = {
+          id: Date.now() % 1_000_000_000,
+          yearMonthKey,
+          pod1: 0,
+          pod2: 0,
+          pod3: 0,
+          pod4: 0,
+          pod5: 0,
+          auditioningWriters: 0,
+          rewrites: 0,
+          totalSpent: 0,
+          remainingCalls: null,
+          ...patch,
+        };
+        return [...prev, row];
+      });
+    },
+    [],
+  );
+
+  // ------------------ Pipeline snapshots ------------------
+  const upsertPipelineSnapshot: CP2StoreCtx["upsertPipelineSnapshot"] =
+    useCallback((clientId, patch) => {
+      setPipelineSnapshots((prev) => {
+        const existing = prev.find((r) => r.clientId === clientId);
+        if (existing) {
+          return prev.map((r) =>
+            r.id === existing.id
+              ? { ...r, ...patch, snapshotDate: new Date().toISOString().slice(0, 10) }
+              : r,
+          );
+        }
+        const row: PipelineSnapshotRow = {
+          id: Date.now() % 1_000_000_000,
+          snapshotDate: new Date().toISOString().slice(0, 10),
+          clientId,
+          topicsSubmitted: 0,
+          topicsApproved: 0,
+          cbsSubmitted: 0,
+          cbsApproved: 0,
+          articlesSent: 0,
+          articlesApproved: 0,
+          articlesDelivered: 0,
+          articlesPublished: 0,
+          articlesKilled: 0,
+          comments: "",
+          ...patch,
+        };
+        return [...prev, row];
+      });
+    }, []);
+
   const isMonthClosed = useCallback(
     (m: string) => closedMonths.includes(m),
     [closedMonths],
@@ -717,7 +1424,15 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     setLeaves(derived.leaves);
     setOverrides(derived.overrides);
     setWeeklyActuals(deriveSeedWeeklyActuals(fresh.monthly));
-    setDims(seedDims());
+    const freshDims = seedDims();
+    setDims(freshDims);
+    const maint = deriveSeedMaintainData(fresh.monthly, freshDims);
+    setDeliveryMonthly(maint.delivery);
+    setKpiScores(maint.kpi);
+    setArticles(maint.articles);
+    setAiScans(maint.aiScans);
+    setSurferUsage(maint.surfer);
+    setPipelineSnapshots(maint.pipeline);
   }, []);
 
   const updateMember: CP2StoreCtx["updateMember"] = useCallback(
@@ -1112,6 +1827,22 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       addDimRow,
       updateDimRow,
       deleteDimRow,
+      deliveryMonthly,
+      upsertDelivery,
+      kpiScores,
+      upsertKpiScore,
+      articles,
+      addArticle,
+      updateArticle,
+      deleteArticle,
+      aiScans,
+      addAiScan,
+      updateAiScan,
+      deleteAiScan,
+      surferUsage,
+      upsertSurferUsage,
+      pipelineSnapshots,
+      upsertPipelineSnapshot,
     }),
     [
       state,
@@ -1145,6 +1876,22 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       addDimRow,
       updateDimRow,
       deleteDimRow,
+      deliveryMonthly,
+      upsertDelivery,
+      kpiScores,
+      upsertKpiScore,
+      articles,
+      addArticle,
+      updateArticle,
+      deleteArticle,
+      aiScans,
+      addAiScan,
+      updateAiScan,
+      deleteAiScan,
+      surferUsage,
+      upsertSurferUsage,
+      pipelineSnapshots,
+      upsertPipelineSnapshot,
     ],
   );
 

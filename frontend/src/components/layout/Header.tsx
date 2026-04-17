@@ -32,6 +32,13 @@ const pageTitles: Record<string, string> = {
   "/capacity-planning/admin/metrics": "KPI Metrics [Admin]",
   "/capacity-planning/migration": "Migration [Proposal]",
   "/capacity-planning/quarter": "Quarterly Rollup [Proposal]",
+  "/capacity-planning/gantt": "Client Gantt [Proposal]",
+  "/capacity-planning/delivery": "Delivery Monthly [Proposal]",
+  "/capacity-planning/kpi-scores": "KPI Scores Entry [Proposal]",
+  "/capacity-planning/articles": "Articles Workflow [Proposal]",
+  "/capacity-planning/ai-scans": "AI Scans [Proposal]",
+  "/capacity-planning/surfer": "Surfer API Usage [Proposal]",
+  "/capacity-planning/pipeline": "Pipeline Snapshots [Proposal]",
 };
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
