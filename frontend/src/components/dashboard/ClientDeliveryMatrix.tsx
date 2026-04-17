@@ -332,7 +332,7 @@ export function ClientDeliveryMatrix({ filteredClients }: Props) {
                   <TableHead className="text-xs text-[#C4BCAA] w-6" />
                   <TableHead className="text-xs text-[#C4BCAA]">Client</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">Status</TableHead>
-                  <TableHead className="text-xs text-[#C4BCAA]">Pod</TableHead>
+                  <TableHead className="text-xs text-[#C4BCAA]">Editorial Pod</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">SOW</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">Delivered</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">Invoiced</TableHead>
@@ -523,7 +523,7 @@ export function ClientDeliveryMatrix({ filteredClients }: Props) {
                 <TableRow className="border-[#2a2a2a] hover:bg-transparent">
                   <TableHead className="text-xs text-[#C4BCAA]">Client</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">Status</TableHead>
-                  <TableHead className="text-xs text-[#C4BCAA]">Pod</TableHead>
+                  <TableHead className="text-xs text-[#C4BCAA]">Editorial Pod</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">SOW</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">Delivered</TableHead>
                   <TableHead className="text-xs text-[#C4BCAA]">Topics</TableHead>

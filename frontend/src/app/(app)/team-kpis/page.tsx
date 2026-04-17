@@ -1124,7 +1124,7 @@ function CapacityProjectionsTab({
         <Table>
           <TableHeader>
             <TableRow className="border-[#2a2a2a] hover:bg-transparent">
-              <TableHead className="text-xs text-[#C4BCAA]">Pod</TableHead>
+              <TableHead className="text-xs text-[#C4BCAA]">Editorial Pod</TableHead>
               <TableHead className="text-xs text-[#C4BCAA]">Month</TableHead>
               <TableHead className="text-xs text-[#C4BCAA]">
                 Total Capacity

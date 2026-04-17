@@ -227,8 +227,8 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
           updateParams("editorial_pod", v);
         }}
       >
-        <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
-          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Pod</span>
+        <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-0 bg-transparent gap-1 px-2">
+          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Editorial Pod</span>
           {editorialPod !== "All" ? (
             <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
               {editorialPod}
@@ -253,8 +253,8 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
           updateParams("growth_pod", v);
         }}
       >
-        <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
-          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Growth</span>
+        <SelectTrigger className="h-7 w-auto min-w-[100px] text-xs border-0 bg-transparent gap-1 px-2">
+          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Growth Pod</span>
           {growthPod !== "All" ? (
             <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
               {growthPod}
