@@ -34,6 +34,30 @@ import {
 const STORAGE_KEY = "cp2.proposal.v1";
 const SELECTED_MONTH_KEY = "cp2.proposal.selectedMonth";
 const CLOSED_MONTHS_KEY = "cp2.proposal.closedMonths";
+const LEAVES_KEY = "cp2.proposal.leaves";
+const OVERRIDES_KEY = "cp2.proposal.overrides";
+
+export type LeaveReason = "PTO" | "Parental" | "Sick" | "Other";
+
+export type LeaveRow = {
+  id: number;
+  teamMemberId: number;
+  monthKey: string;
+  leaveShare: number;
+  reason: LeaveReason;
+  notes?: string;
+};
+
+export type OverrideRow = {
+  id: number;
+  monthKey: string;
+  teamMemberId: number | null;
+  podId: number | null;
+  deltaArticles: number;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+};
 
 // ---------------------------------------------------------------------------
 // Month range — computed ±6 months from "today" so the picker follows the
@@ -113,6 +137,68 @@ function loadClosedMonths(): string[] {
   }
 }
 
+function loadLeaves(): Record<string, LeaveRow[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(LEAVES_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, LeaveRow[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadOverrides(): Record<string, OverrideRow[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(OVERRIDES_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, OverrideRow[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Seed leaves + overrides from the flat MemberRow fields so the proposal
+ *  pages have example rows to show on day 1. */
+function deriveSeedLeavesOverrides(
+  monthly: Record<string, PodBoard[]>,
+): { leaves: Record<string, LeaveRow[]>; overrides: Record<string, OverrideRow[]> } {
+  const leaves: Record<string, LeaveRow[]> = {};
+  const overrides: Record<string, OverrideRow[]> = {};
+  let leaveSeq = 1;
+  let overrideSeq = 1;
+
+  for (const [monthKey, pods] of Object.entries(monthly)) {
+    const seenLeaveMembers = new Set<number>();
+    for (const pod of pods) {
+      for (const m of pod.members) {
+        if (m.leaveShare > 0 && !seenLeaveMembers.has(m.id)) {
+          (leaves[monthKey] ??= []).push({
+            id: leaveSeq++,
+            teamMemberId: m.id,
+            monthKey,
+            leaveShare: m.leaveShare,
+            reason: "PTO",
+          });
+          seenLeaveMembers.add(m.id);
+        }
+        if (m.overrideDelta !== 0) {
+          (overrides[monthKey] ??= []).push({
+            id: overrideSeq++,
+            monthKey,
+            teamMemberId: m.id,
+            podId: null,
+            deltaArticles: m.overrideDelta,
+            reason: "Seed data",
+            createdBy: "system",
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+  return { leaves, overrides };
+}
+
 type CP2StoreCtx = {
   state: StoreShape;
   resetToSeed: () => void;
@@ -154,6 +240,22 @@ type CP2StoreCtx = {
   setActualDelivered: (month: MonthKey, podId: number, value: number) => void;
   copyMonthForward: (source: string, count: number) => void;
   copyFromPreviousMonth: (target: string) => void;
+
+  // Leaves + overrides — separate arrays mirroring the cp2 schema.
+  leaves: Record<string, LeaveRow[]>;
+  overrides: Record<string, OverrideRow[]>;
+  setLeave: (
+    teamMemberId: number,
+    monthKey: string,
+    leaveShare: number,
+    reason: LeaveReason,
+    notes?: string,
+  ) => void;
+  removeLeave: (teamMemberId: number, monthKey: string) => void;
+  addOverride: (
+    row: Omit<OverrideRow, "id" | "createdAt">,
+  ) => void;
+  removeOverride: (id: number) => void;
 };
 
 const StoreContext = createContext<CP2StoreCtx | null>(null);
@@ -161,6 +263,8 @@ const StoreContext = createContext<CP2StoreCtx | null>(null);
 export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<StoreShape>(seed);
   const [closedMonths, setClosedMonths] = useState<string[]>([]);
+  const [leaves, setLeaves] = useState<Record<string, LeaveRow[]>>({});
+  const [overrides, setOverrides] = useState<Record<string, OverrideRow[]>>({});
 
   const today = useMemo(currentMonthKey, []);
   const monthOptions = useMemo(() => monthRange(today, 6, 6), [today]);
@@ -174,8 +278,22 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
   const [selectedMonth, setSelectedMonthState] = useState<string>(today);
 
   useEffect(() => {
-    setState(load());
+    const loaded = load();
+    setState(loaded);
     setClosedMonths(loadClosedMonths());
+
+    const storedLeaves = loadLeaves();
+    const storedOverrides = loadOverrides();
+    if (Object.keys(storedLeaves).length === 0 && Object.keys(storedOverrides).length === 0) {
+      // First-time hydration — seed from the flat MemberRow fields.
+      const derived = deriveSeedLeavesOverrides(loaded.monthly);
+      setLeaves(derived.leaves);
+      setOverrides(derived.overrides);
+    } else {
+      setLeaves(storedLeaves);
+      setOverrides(storedOverrides);
+    }
+
     const fromStorage = loadSelectedMonth(today);
     setSelectedMonthState(urlMonth && /^\d{4}-\d{2}$/.test(urlMonth) ? urlMonth : fromStorage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,6 +336,24 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [closedMonths]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(LEAVES_KEY, JSON.stringify(leaves));
+    } catch {
+      // ignore
+    }
+  }, [leaves]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+    } catch {
+      // ignore
+    }
+  }, [overrides]);
+
   const isMonthClosed = useCallback(
     (m: string) => closedMonths.includes(m),
     [closedMonths],
@@ -238,7 +374,14 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     setSelectedMonthState(currentMonthKey());
   }, []);
 
-  const resetToSeed = useCallback(() => setState(seed()), []);
+  const resetToSeed = useCallback(() => {
+    const fresh = seed();
+    setState(fresh);
+    setClosedMonths([]);
+    const derived = deriveSeedLeavesOverrides(fresh.monthly);
+    setLeaves(derived.leaves);
+    setOverrides(derived.overrides);
+  }, []);
 
   const updateMember: CP2StoreCtx["updateMember"] = useCallback(
     (month, podId, memberId, patch) => {
@@ -390,6 +533,142 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // ------------------ Leaves ------------------
+
+  // Apply a member's aggregate leaveShare to every MemberRow that references
+  // that member in a given month. Keeps computeMemberEffective honest.
+  const syncMemberLeave = useCallback(
+    (teamMemberId: number, monthKey: string, leaveShare: number) => {
+      setState((s) => {
+        const pods = (s.monthly[monthKey] ?? []).map((p) => ({
+          ...p,
+          members: p.members.map((m) =>
+            m.id === teamMemberId ? { ...m, leaveShare } : m,
+          ),
+        }));
+        return { ...s, monthly: { ...s.monthly, [monthKey]: pods } };
+      });
+    },
+    [],
+  );
+
+  const setLeave: CP2StoreCtx["setLeave"] = useCallback(
+    (teamMemberId, monthKey, leaveShare, reason, notes) => {
+      setLeaves((prev) => {
+        const list = prev[monthKey] ?? [];
+        const existing = list.find((l) => l.teamMemberId === teamMemberId);
+        let nextList: LeaveRow[];
+        if (leaveShare <= 0) {
+          nextList = list.filter((l) => l.teamMemberId !== teamMemberId);
+        } else if (existing) {
+          nextList = list.map((l) =>
+            l.teamMemberId === teamMemberId
+              ? { ...l, leaveShare, reason, notes }
+              : l,
+          );
+        } else {
+          const nextId = Date.now() % 1_000_000_000;
+          nextList = [
+            ...list,
+            { id: nextId, teamMemberId, monthKey, leaveShare, reason, notes },
+          ];
+        }
+        return { ...prev, [monthKey]: nextList };
+      });
+      syncMemberLeave(teamMemberId, monthKey, Math.max(0, leaveShare));
+    },
+    [syncMemberLeave],
+  );
+
+  const removeLeave: CP2StoreCtx["removeLeave"] = useCallback(
+    (teamMemberId, monthKey) => {
+      setLeaves((prev) => {
+        const list = prev[monthKey] ?? [];
+        return {
+          ...prev,
+          [monthKey]: list.filter((l) => l.teamMemberId !== teamMemberId),
+        };
+      });
+      syncMemberLeave(teamMemberId, monthKey, 0);
+    },
+    [syncMemberLeave],
+  );
+
+  // ------------------ Overrides ------------------
+
+  // Sum all member-level overrides for a given (member, month) and write that
+  // sum back onto every MemberRow instance of that member in the month.
+  const syncMemberOverride = useCallback(
+    (
+      teamMemberId: number,
+      monthKey: string,
+      nextOverridesForMonth: OverrideRow[],
+    ) => {
+      const delta = nextOverridesForMonth
+        .filter((o) => o.teamMemberId === teamMemberId)
+        .reduce((s, o) => s + o.deltaArticles, 0);
+      setState((s) => {
+        const pods = (s.monthly[monthKey] ?? []).map((p) => ({
+          ...p,
+          members: p.members.map((m) =>
+            m.id === teamMemberId ? { ...m, overrideDelta: delta } : m,
+          ),
+        }));
+        return { ...s, monthly: { ...s.monthly, [monthKey]: pods } };
+      });
+    },
+    [],
+  );
+
+  const addOverride: CP2StoreCtx["addOverride"] = useCallback((row) => {
+    setOverrides((prev) => {
+      const list = prev[row.monthKey] ?? [];
+      const nextList: OverrideRow[] = [
+        ...list,
+        {
+          ...row,
+          id: Date.now() % 1_000_000_000,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      if (row.teamMemberId !== null) {
+        // Defer the sync so the `overrides` state update is visible when
+        // computing the cumulative delta.
+        queueMicrotask(() => syncMemberOverride(row.teamMemberId!, row.monthKey, nextList));
+      }
+      return { ...prev, [row.monthKey]: nextList };
+    });
+  }, [syncMemberOverride]);
+
+  const removeOverride: CP2StoreCtx["removeOverride"] = useCallback(
+    (id) => {
+      setOverrides((prev) => {
+        let touched: { teamMemberId: number; monthKey: string } | null = null;
+        const next: Record<string, OverrideRow[]> = {};
+        for (const [monthKey, list] of Object.entries(prev)) {
+          const filtered = list.filter((o) => {
+            if (o.id === id) {
+              if (o.teamMemberId !== null) {
+                touched = { teamMemberId: o.teamMemberId, monthKey };
+              }
+              return false;
+            }
+            return true;
+          });
+          next[monthKey] = filtered;
+        }
+        if (touched) {
+          const t = touched as { teamMemberId: number; monthKey: string };
+          queueMicrotask(() =>
+            syncMemberOverride(t.teamMemberId, t.monthKey, next[t.monthKey] ?? []),
+          );
+        }
+        return next;
+      });
+    },
+    [syncMemberOverride],
+  );
+
   const copyFromPreviousMonth: CP2StoreCtx["copyFromPreviousMonth"] = useCallback(
     (target) => {
       setState((s) => {
@@ -438,6 +717,12 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       setActualDelivered,
       copyMonthForward,
       copyFromPreviousMonth,
+      leaves,
+      overrides,
+      setLeave,
+      removeLeave,
+      addOverride,
+      removeOverride,
     }),
     [
       state,
@@ -458,6 +743,12 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
       setActualDelivered,
       copyMonthForward,
       copyFromPreviousMonth,
+      leaves,
+      overrides,
+      setLeave,
+      removeLeave,
+      addOverride,
+      removeOverride,
     ],
   );
 

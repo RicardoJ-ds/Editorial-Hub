@@ -2,13 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Move3D, Users, Database, Table2, BookOpen } from "lucide-react";
+import {
+  LayoutGrid,
+  Move3D,
+  Users,
+  Database,
+  Table2,
+  BookOpen,
+  Plane,
+  Sliders,
+} from "lucide-react";
 import { MonthPicker } from "./_MonthPicker";
 
 const TABS = [
   { href: "/capacity-planning", label: "Overview", icon: LayoutGrid },
   { href: "/capacity-planning/roster", label: "Roster", icon: Users },
   { href: "/capacity-planning/allocation", label: "Allocation", icon: Move3D },
+  { href: "/capacity-planning/leave", label: "Leave", icon: Plane },
+  { href: "/capacity-planning/overrides", label: "Overrides", icon: Sliders },
   { href: "/capacity-planning/schema", label: "Schema", icon: Database },
   { href: "/capacity-planning/tables", label: "Tables", icon: Table2 },
   { href: "/capacity-planning/glossary", label: "Glossary", icon: BookOpen },

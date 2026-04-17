@@ -21,6 +21,8 @@ const pageTitles: Record<string, string> = {
   "/capacity-planning/schema": "Data Model [Proposal]",
   "/capacity-planning/tables": "Data Tables [Proposal]",
   "/capacity-planning/glossary": "KPI Glossary [Proposal]",
+  "/capacity-planning/leave": "Leave [Proposal]",
+  "/capacity-planning/overrides": "Overrides [Proposal]",
 };
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
