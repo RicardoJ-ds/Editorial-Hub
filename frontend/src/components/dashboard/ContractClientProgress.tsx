@@ -54,10 +54,28 @@ interface PodPipelineAgg {
 }
 
 function sortPodKey(a: string, b: string) {
+  // Unassigned last, then numerically
+  if (a === "Unassigned" && b !== "Unassigned") return 1;
+  if (b === "Unassigned" && a !== "Unassigned") return -1;
   const na = parseInt(a.replace(/\D/g, ""), 10);
   const nb = parseInt(b.replace(/\D/g, ""), 10);
   if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
   return a.localeCompare(b);
+}
+
+/** Collapse every variant ("1", "pod 1", "Pod 1", "P1", " Pod  1 ") into a
+ *  canonical "Pod N"; blanks/dashes fall through to "Unassigned". This keeps
+ *  the matrix columns — and the FilterBar pod filter — consistent regardless
+ *  of which sheet column the pod value originated from. */
+function normalizePod(raw: string | null | undefined): string {
+  if (raw == null) return "Unassigned";
+  const trimmed = String(raw).trim();
+  if (!trimmed || trimmed === "-" || trimmed === "—") return "Unassigned";
+  const pureNum = trimmed.match(/^(\d+)$/);
+  if (pureNum) return `Pod ${pureNum[1]}`;
+  const podNum = trimmed.match(/^p(?:od)?\s*(\d+)$/i);
+  if (podNum) return `Pod ${podNum[1]}`;
+  return trimmed;
 }
 
 /** Aggregate goal rows by CLIENT's editorial_pod (via the clientToPod map)
@@ -75,7 +93,7 @@ function aggregateGoalsByPod(
   }
   const byPod = new Map<string, PodGoalAgg>();
   for (const r of latestByClient.values()) {
-    const pod = clientToPod.get(r.client_name) ?? r.editorial_team_pod ?? "Unassigned";
+    const pod = normalizePod(clientToPod.get(r.client_name) ?? r.editorial_team_pod);
     if (!byPod.has(pod)) {
       byPod.set(pod, {
         pod, clientCount: 0, clientNames: [],
@@ -102,7 +120,7 @@ function aggregatePipelineByPod(
 ): PodPipelineAgg[] {
   const byPod = new Map<string, PodPipelineAgg>();
   for (const r of rows) {
-    const pod = clientToPod.get(r.client_name) ?? r.account_team_pod ?? "Unassigned";
+    const pod = normalizePod(clientToPod.get(r.client_name) ?? r.account_team_pod);
     if (!byPod.has(pod)) {
       byPod.set(pod, {
         pod, clientCount: 0, clientNames: [],
@@ -371,7 +389,7 @@ export function ContractClientProgress({ filteredClients }: Props) {
   const clientToPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients) {
-      if (c.editorial_pod) map.set(c.name, c.editorial_pod);
+      if (c.editorial_pod) map.set(c.name, normalizePod(c.editorial_pod));
     }
     return map;
   }, [filteredClients]);

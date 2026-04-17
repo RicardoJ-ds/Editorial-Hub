@@ -252,10 +252,10 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
         </p>
       ) : (
         <div>
-          {/* Chart area — bars + reference line share the same coordinate space */}
-          <div className="relative h-[180px]">
-            {/* Bars */}
-            <div className="absolute inset-0 flex items-end gap-2 pb-5">
+          {/* Chart area — bars + reference line share the same baseline (container bottom) */}
+          <div className="relative h-[160px]">
+            {/* Bars: column has [label, bar]; the bar sits at the very bottom of the 160px area */}
+            <div className="absolute inset-0 flex items-end gap-2">
               {buckets.map((b) => {
                 const clipped = b.avg > scaleMax;
                 const ratio = clipped ? 1 : b.avg / scaleMax;
@@ -280,20 +280,17 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                       }}
                       onMouseLeave={() => setHover(null)}
                     />
-                    <span className="font-mono text-[8px] text-[#606060] truncate w-full text-center">
-                      {formatMonthKey(b.key)}
-                    </span>
                   </div>
                 );
               })}
             </div>
 
-            {/* Reference line (overall average) — aligned with bar heights */}
+            {/* Reference line (overall average) — measured from the same bottom the bars sit on */}
             {overallAvg !== null && overallAvg > 0 && (
               <div
                 className="absolute left-0 right-0 pointer-events-none"
                 style={{
-                  bottom: `${20 + Math.min(1, overallAvg / scaleMax) * 140}px`,
+                  bottom: `${Math.min(1, overallAvg / scaleMax) * 140}px`,
                   height: 0,
                   borderTop: "1px dashed #42CA80",
                   opacity: 0.7,
@@ -307,6 +304,18 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Month labels — one per bar, aligned to the same flex widths */}
+          <div className="flex gap-2 mt-1">
+            {buckets.map((b) => (
+              <span
+                key={`lbl-${b.key}`}
+                className="flex-1 font-mono text-[8px] text-[#606060] truncate text-center min-w-0"
+              >
+                {formatMonthKey(b.key)}
+              </span>
+            ))}
           </div>
 
           {/* Legend */}

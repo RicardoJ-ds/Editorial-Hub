@@ -17,6 +17,18 @@ import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
 
 const STATUS_OPTIONS = ["All", "Active", "Inactive/Completed"] as const;
 
+/** Collapse pod variants ("1", "pod 1", "Pod 1") into canonical "Pod N". */
+function normalizePod(raw: string | null | undefined): string {
+  if (raw == null) return "";
+  const t = String(raw).trim();
+  if (!t || t === "-" || t === "—") return "";
+  const n = t.match(/^(\d+)$/);
+  if (n) return `Pod ${n[1]}`;
+  const p = t.match(/^p(?:od)?\s*(\d+)$/i);
+  if (p) return `Pod ${p[1]}`;
+  return t;
+}
+
 interface FilterBarProps {
   clients: Client[];
   onFilterChange: (filtered: Client[]) => void;
@@ -38,17 +50,29 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
   );
   const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
 
-  // Derive pods from actual data
+  // Derive pods from actual data — normalize so "1" and "Pod 1" collapse into one option
+  const sortPodOptions = (a: string, b: string) => {
+    const na = parseInt(a.replace(/\D/g, ""), 10);
+    const nb = parseInt(b.replace(/\D/g, ""), 10);
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+    return a.localeCompare(b);
+  };
   const editorialPods = useMemo(() => {
     const pods = new Set<string>();
-    clients.forEach((c) => { if (c.editorial_pod) pods.add(c.editorial_pod); });
-    return ["All", ...Array.from(pods).sort()];
+    clients.forEach((c) => {
+      const v = normalizePod(c.editorial_pod);
+      if (v) pods.add(v);
+    });
+    return ["All", ...Array.from(pods).sort(sortPodOptions)];
   }, [clients]);
 
   const growthPods = useMemo(() => {
     const pods = new Set<string>();
-    clients.forEach((c) => { if (c.growth_pod) pods.add(c.growth_pod); });
-    return ["All", ...Array.from(pods).sort()];
+    clients.forEach((c) => {
+      const v = normalizePod(c.growth_pod);
+      if (v) pods.add(v);
+    });
+    return ["All", ...Array.from(pods).sort(sortPodOptions)];
   }, [clients]);
 
   const updateParams = useCallback(
@@ -73,11 +97,11 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
     }
 
     if (editorialPod !== "All") {
-      filtered = filtered.filter((c) => c.editorial_pod === editorialPod);
+      filtered = filtered.filter((c) => normalizePod(c.editorial_pod) === editorialPod);
     }
 
     if (growthPod !== "All") {
-      filtered = filtered.filter((c) => c.growth_pod === growthPod);
+      filtered = filtered.filter((c) => normalizePod(c.growth_pod) === growthPod);
     }
 
     if (status === "Active") {
