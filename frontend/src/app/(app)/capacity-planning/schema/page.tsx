@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dagre from "dagre";
 import {
   ReactFlow,
@@ -12,6 +12,7 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { Maximize2, Minimize2, X } from "lucide-react";
 
 import { SubNav } from "../_SubNav";
 import { ProposalBanner } from "../_ProposalBanner";
@@ -95,8 +96,110 @@ function layout(tables: TableSpec[], relations: typeof RELATIONS) {
 
 const NODE_TYPES = { table: TableNode };
 
+/** Lookup every column on `tableId` that is marked as a connector key:
+ *  `pk`, `pk-fk`, or `fk`. Used to emphasize the join surface when a
+ *  neighbor of the selected table is highlighted. */
+function connectorColumns(tableId: string): Set<string> {
+  const table = TABLES.find((t) => t.id === tableId);
+  if (!table) return new Set();
+  return new Set(
+    table.columns
+      .filter((c) => c.kind === "pk" || c.kind === "pk-fk" || c.kind === "fk")
+      .map((c) => c.name),
+  );
+}
+
 export default function SchemaPage() {
-  const { nodes, edges } = useMemo(() => layout(TABLES, RELATIONS), []);
+  const base = useMemo(() => layout(TABLES, RELATIONS), []);
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Sync fullscreen flag with browser state (Esc, F11, programmatic exits)
+  useEffect(() => {
+    function onChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const el = canvasRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await el.requestFullscreen();
+    }
+  }, []);
+
+  const neighborIds = useMemo(() => {
+    if (!selectedId) return new Set<string>();
+    const set = new Set<string>();
+    for (const r of RELATIONS) {
+      if (r.from === selectedId) set.add(r.to);
+      else if (r.to === selectedId) set.add(r.from);
+    }
+    return set;
+  }, [selectedId]);
+
+  // Apply highlight state to each node based on current selection
+  const nodes = useMemo<Node[]>(() => {
+    return base.nodes.map((n) => {
+      const tableData = (n.data as { table: TableSpec }).table;
+      let state: "idle" | "selected" | "neighbor" | "dim" = "idle";
+      let highlightCols: Set<string> | undefined;
+      if (selectedId) {
+        if (n.id === selectedId) {
+          state = "selected";
+          highlightCols = connectorColumns(n.id);
+        } else if (neighborIds.has(n.id)) {
+          state = "neighbor";
+          highlightCols = connectorColumns(n.id);
+        } else {
+          state = "dim";
+        }
+      }
+      return {
+        ...n,
+        type: "table",
+        selected: n.id === selectedId,
+        data: { table: tableData, state, highlightCols },
+      } as TableNodeType;
+    });
+  }, [base.nodes, selectedId, neighborIds]);
+
+  // Re-style edges based on selection
+  const edges = useMemo<Edge[]>(() => {
+    return base.edges.map((e) => {
+      const touchesSelection =
+        !!selectedId && (e.source === selectedId || e.target === selectedId);
+      const anySelection = !!selectedId;
+      const stroke = touchesSelection ? "#F5C542" : "#42CA80";
+      const strokeOpacity = !anySelection ? 0.5 : touchesSelection ? 0.95 : 0.08;
+      const strokeWidth = touchesSelection ? 1.8 : 1.1;
+      return {
+        ...e,
+        animated: touchesSelection,
+        style: { ...(e.style ?? {}), stroke, strokeOpacity, strokeWidth },
+        labelStyle: {
+          ...(e.labelStyle ?? {}),
+          fill: touchesSelection ? "#F5C542" : "#C4BCAA",
+          opacity: !anySelection ? 1 : touchesSelection ? 1 : 0.25,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: touchesSelection ? "#F5C542" : "#42CA80",
+          width: 14,
+          height: 14,
+        },
+      };
+    });
+  }, [base.edges, selectedId]);
+
+  const selectedTable = selectedId ? TABLES.find((t) => t.id === selectedId) : undefined;
 
   return (
     <div className="flex h-[calc(100vh-9rem)] flex-col gap-4">
@@ -105,7 +208,7 @@ export default function SchemaPage() {
           <h2 className="text-2xl font-bold tracking-tight text-white">Data Model</h2>
           <p className="mt-1 text-sm text-[#C4BCAA]">
             ERD for the proposed <span className="font-mono text-[#65FFAA]">cp2_*</span> schema.
-            Drag tables to rearrange; scroll to zoom.
+            Click a table to highlight its connections. Drag to rearrange; scroll to zoom.
           </p>
         </div>
         <SubNav />
@@ -120,7 +223,38 @@ export default function SchemaPage() {
         <LegendChip color="#8EB0FF" label="Foreign key" />
       </div>
 
-      <div className="flex-1 overflow-hidden rounded-xl border border-[#1f1f1f] bg-[#050505]">
+      <div
+        ref={canvasRef}
+        className={`relative flex-1 overflow-hidden rounded-xl border border-[#1f1f1f] bg-[#050505] ${
+          isFullscreen ? "!h-screen !w-screen !rounded-none" : ""
+        }`}
+      >
+        {/* Top-right overlay: selection info + fullscreen toggle */}
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2 font-mono text-[11px]">
+          {selectedTable && (
+            <div className="flex items-center gap-2 rounded-md border border-[#F5C542]/40 bg-[#0a0a0a]/95 px-3 py-1.5 text-[#F5C542] shadow-lg">
+              <span className="uppercase tracking-wider text-[9px] text-[#F5C542]/70">Selected</span>
+              <span>{selectedTable.name}</span>
+              <span className="text-[9px] text-[#606060]">{neighborIds.size} linked</span>
+              <button
+                onClick={() => setSelectedId(null)}
+                className="ml-1 text-[#606060] hover:text-[#F5C542]"
+                aria-label="Clear selection"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1.5 rounded-md border border-[#1f1f1f] bg-[#0a0a0a]/95 px-2.5 py-1.5 text-[#C4BCAA] shadow-lg hover:border-[#42CA80]/50 hover:text-white transition-colors"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            <span>{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
+          </button>
+        </div>
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -134,6 +268,10 @@ export default function SchemaPage() {
           nodesConnectable={false}
           elementsSelectable
           colorMode="dark"
+          onNodeClick={(_, node) => {
+            setSelectedId((prev) => (prev === node.id ? null : node.id));
+          }}
+          onPaneClick={() => setSelectedId(null)}
         >
           <Background color="#1f1f1f" gap={24} />
           <MiniMap
