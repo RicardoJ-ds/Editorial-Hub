@@ -350,10 +350,17 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
           // whole chart widens past the container and scrolls horizontally —
           // much better than squeezing 70+ bars into 1000px and losing
           // labels/values entirely.
-          const MIN_BAR_WIDTH = groupMode === "client" ? 32 : 28;
+          const MIN_BAR_WIDTH = groupMode === "client" ? 40 : 28;
           const BAR_GAP = 6;
           const minWidthPx = buckets.length * (MIN_BAR_WIDTH + BAR_GAP);
-          const labelRowHeight = groupMode === "client" ? 96 : 20;
+          // Fit the longest client name, rotated at 50°. We measure by char
+          // count × ~6.5px/char and map to vertical height = sin(50°) × len.
+          const longestLabel = groupMode === "client"
+            ? Math.max(...buckets.map((b) => b.label.length), 10)
+            : 0;
+          const labelRowHeight = groupMode === "client"
+            ? Math.min(220, Math.round(longestLabel * 6.5 * 0.77) + 24)
+            : 20;
           return (
             <div className="overflow-x-auto">
               <div style={{ minWidth: minWidthPx }}>
@@ -449,7 +456,7 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                         className={cn(
                           "font-mono text-[10px] leading-tight",
                           groupMode === "client"
-                            ? "origin-top-left rotate-[55deg] whitespace-nowrap overflow-hidden text-ellipsis text-[#C4BCAA] hover:text-white max-w-[140px]"
+                            ? "origin-top-left rotate-[50deg] whitespace-nowrap text-[#C4BCAA] hover:text-white"
                             : "truncate text-center text-[#606060] max-w-full",
                         )}
                       >
