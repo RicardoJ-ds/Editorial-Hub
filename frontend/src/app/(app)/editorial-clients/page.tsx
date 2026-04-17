@@ -319,6 +319,11 @@ export default function EditorialClientsPage() {
         </TabsContent>
 
         <TabsContent value="deliverables-sow">
+          {/* Aggregated pod matrix — Month Goals (top row) + Cumulative Pipeline (bottom row) */}
+          <div className="mb-6">
+            <ContractClientProgress filteredClients={filteredClients} />
+          </div>
+
           {/* Delivery Overview: summary cards + charts */}
           <DeliverablesSOWTab
             clients={filteredClients}
@@ -1059,9 +1064,6 @@ function ContractTimelineTab({
 
   return (
     <div className="mt-3 space-y-5">
-      {/* Per-client progress — gauges + pipeline bars */}
-      <ContractClientProgress filteredClients={clients} />
-
       {/* Time-to Metrics */}
       <TimeToMetrics clients={clients} />
 
