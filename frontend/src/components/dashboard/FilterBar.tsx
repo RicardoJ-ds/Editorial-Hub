@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { Search, X } from "lucide-react";
 import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
+export type { DateRange } from "./DateRangeFilter";
 
 const STATUS_OPTIONS = ["All", "Active", "Inactive/Completed"] as const;
 
@@ -32,9 +33,10 @@ function normalizePod(raw: string | null | undefined): string {
 interface FilterBarProps {
   clients: Client[];
   onFilterChange: (filtered: Client[]) => void;
+  onDateRangeChange?: (range: DateRange) => void;
 }
 
-export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
+export function FilterBar({ clients, onFilterChange, onDateRangeChange }: FilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -138,6 +140,10 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
 
     onFilterChange(filtered);
   }, [clients, search, editorialPod, growthPod, status, dateRange, onFilterChange]);
+
+  useEffect(() => {
+    onDateRangeChange?.(dateRange);
+  }, [dateRange, onDateRangeChange]);
 
   // Combobox state
   const [showDropdown, setShowDropdown] = useState(false);

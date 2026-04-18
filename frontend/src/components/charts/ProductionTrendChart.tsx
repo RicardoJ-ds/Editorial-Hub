@@ -11,7 +11,8 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import type { ProductionTrendPoint } from "@/lib/types";
+import type { Client, ClientProductionRow, ProductionTrendPoint } from "@/lib/types";
+import type { DateRange } from "@/components/dashboard/DateRangeFilter";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 
 // ---------------------------------------------------------------------------
@@ -84,17 +85,97 @@ function CustomTooltip({
 // ---------------------------------------------------------------------------
 
 interface ProductionTrendChartProps {
+  /** All-clients aggregate from /api/dashboard/production-trend (legacy, used when no filter is active). */
   data: ProductionTrendPoint[];
+  /** Per-client monthly actual/projected — re-aggregated client-side so the chart honors the FilterBar selection. */
+  clientProduction?: ClientProductionRow[];
+  filteredClients?: Client[];
+  dateRange?: DateRange;
 }
 
-export function ProductionTrendChart({ data }: ProductionTrendChartProps) {
-  const { chartData, boundaryLabel } = useMemo(() => {
-    const sorted = [...data].sort(
-      (a, b) => a.year * 100 + a.month - (b.year * 100 + b.month),
-    );
+export function ProductionTrendChart({
+  data,
+  clientProduction,
+  filteredClients,
+  dateRange,
+}: ProductionTrendChartProps) {
+  const { chartData, boundaryLabel, source } = useMemo(() => {
+    // Decide whether a filter is actively narrowing the dataset. If any of:
+    //   - a non-empty client subset (not all clients selected)
+    //   - a bounded date range
+    // is present, re-aggregate from clientProduction so the chart matches the
+    // filter. Otherwise fall back to the backend's all-clients series.
+    const hasClientFilter =
+      clientProduction &&
+      filteredClients &&
+      clientProduction.length > 0 &&
+      filteredClients.length > 0 &&
+      filteredClients.length < clientProduction.length;
+    const hasDateFilter = dateRange?.type === "range" && !!dateRange.from;
+    const useClientProduction = !!clientProduction && (hasClientFilter || hasDateFilter);
+
+    const inRange = (y: number, m: number) => {
+      if (!dateRange || dateRange.type !== "range" || !dateRange.from) return true;
+      const cell = new Date(y, m - 1, 1);
+      const from = new Date(
+        dateRange.from.getFullYear(),
+        dateRange.from.getMonth(),
+        1,
+      );
+      const toSrc = dateRange.to ?? dateRange.from;
+      const to = new Date(toSrc.getFullYear(), toSrc.getMonth() + 1, 0);
+      return cell >= from && cell <= to;
+    };
 
     // Find the last actual data point to place the "Now" reference line
     let lastActualLabel = "";
+
+    if (useClientProduction && clientProduction) {
+      const names = filteredClients
+        ? new Set(filteredClients.map((c) => c.name))
+        : null;
+      const rows = names
+        ? clientProduction.filter((r) => names.has(r.client_name))
+        : clientProduction;
+      const byMonth = new Map<
+        string,
+        { year: number; month: number; actual: number; projected: number }
+      >();
+      for (const r of rows) {
+        for (const m of r.monthly) {
+          if (!inRange(m.year, m.month)) continue;
+          const key = `${m.year}-${String(m.month).padStart(2, "0")}`;
+          const bucket = byMonth.get(key) ?? {
+            year: m.year,
+            month: m.month,
+            actual: 0,
+            projected: 0,
+          };
+          bucket.actual += m.actual ?? 0;
+          bucket.projected += m.projected ?? 0;
+          byMonth.set(key, bucket);
+        }
+      }
+      const sorted = Array.from(byMonth.values()).sort(
+        (a, b) => a.year * 100 + a.month - (b.year * 100 + b.month),
+      );
+      const mapped = sorted.map((pt) => {
+        const label = formatLabel(pt.year, pt.month);
+        // Treat a month as "actual" when actual > 0 (projected-only future months stay null here)
+        const isActual = pt.actual > 0;
+        if (isActual) lastActualLabel = label;
+        return {
+          month: label,
+          Actual: isActual ? pt.actual : null,
+          Projected: !isActual ? pt.projected : null,
+        };
+      });
+      return { chartData: mapped, boundaryLabel: lastActualLabel, source: "filtered" as const };
+    }
+
+    const sorted = [...data]
+      .filter((pt) => inRange(pt.year, pt.month))
+      .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month));
 
     const mapped = sorted.map((pt) => {
       const label = formatLabel(pt.year, pt.month);
@@ -106,8 +187,8 @@ export function ProductionTrendChart({ data }: ProductionTrendChartProps) {
       };
     });
 
-    return { chartData: mapped, boundaryLabel: lastActualLabel };
-  }, [data]);
+    return { chartData: mapped, boundaryLabel: lastActualLabel, source: "all" as const };
+  }, [data, clientProduction, filteredClients, dateRange]);
 
   if (chartData.length === 0) {
     return (
@@ -123,10 +204,12 @@ export function ProductionTrendChart({ data }: ProductionTrendChartProps) {
     <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
       <div className="mb-4">
         <h3 className="text-base font-semibold text-white">
-          Production History <DataSourceBadge type="live" source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output across all clients, actual vs projected (Oct 2022–Feb 2027)." />
+          Production History <DataSourceBadge type="live" source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output, actual vs projected. Honors the Client + Time-period filters above." />
         </h3>
         <p className="mt-0.5 text-xs text-[#606060]">
-          Monthly article output across all clients
+          {source === "filtered"
+            ? "Monthly article output for the selected clients and time range"
+            : "Monthly article output across all clients"}
         </p>
       </div>
       <ResponsiveContainer width="100%" height={300}>

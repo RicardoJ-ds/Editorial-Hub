@@ -7,16 +7,12 @@ import type { Client, DeliverableMonthly } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Redesign rationale (Apr 2026):
-// The previous implementation was a line chart with 7 overlapping pod series.
-// Pods invoice in bursts — a single catch-up month would spike to 300% and
-// crush the rest of the series into a flat band. Users asked for something
-// readable; a heatmap serves this shape of data far better than a line chart:
-// - One color-coded cell per (pod × month) = easy month/pod scan
-// - Bursts stand out instead of warping the axis
-// - An "All pods" header row gives the portfolio view alongside the detail
-// - Tooltip carries the raw % + the invoiced/delivered numbers behind it
-// The "Per month" / "Cumulative" toggle is preserved.
+// Formula: Delivered ÷ Invoiced. Mirrors the sheet's `Variance = Delivered −
+// Invoiced` so under-delivery reads as <100% (red) and balance sits at 100%.
+// Retainer billing fires ahead of delivery by design, so a healthy cumulative
+// zone is ~80–100%. A running total <60% signals real under-delivery risk.
+// Heatmap instead of line chart because pods invoice in bursts — a single
+// catch-up month spiking to ∞/0 would otherwise crush every other series.
 // ---------------------------------------------------------------------------
 
 const MONTH_NAMES = [
@@ -59,24 +55,28 @@ function sortPodKey(a: string, b: string) {
 
 type HeatBands = { thresholds: number[]; labels: string[] };
 
-// Color bands are *mode-aware* because 110% means different things depending
-// on whether you're looking at a single month (catch-up burst) or the running
-// total (normal retainer billing pattern).
+// Color bands are *mode-aware* because "80%" means different things depending
+// on whether you're looking at a single period (in-month / in-quarter burst)
+// or the running total across the whole range.
+// Formula is Delivered ÷ Invoiced, so <100% = delivery lagging billing.
 const HEAT_BANDS: Record<Mode, HeatBands> = {
   monthly: {
-    thresholds: [25, 50, 75, 90, 110, 150],
-    labels: ["<25%", "25–50%", "50–75%", "75–90%", "90–110%", "110–150%", ">150%"],
+    // A single period can dip low during a slow month; 60–120% is the busy zone.
+    thresholds: [40, 60, 80, 100, 120, 150],
+    labels: ["<40%", "40–60%", "60–80%", "80–100%", "100–120%", "120–150%", ">150%"],
   },
   cumulative: {
     // Retainer clients invoice monthly commitments ahead of delivery, so the
-    // cumulative ratio naturally sits between 100% and 125%. Shift bands so
-    // 100–125% is the healthy green zone.
-    thresholds: [60, 85, 95, 100, 125, 150],
-    labels: ["<60%", "60–85%", "85–95%", "95–100%", "100–125%", "125–150%", ">150%"],
+    // cumulative Delivered/Invoiced ratio naturally sits between 80% and 100%.
+    // That's the healthy green band. Sustained <60% is real under-delivery.
+    thresholds: [50, 70, 80, 100, 110, 130],
+    labels: ["<50%", "50–70%", "70–80%", "80–100%", "100–110%", "110–130%", ">130%"],
   },
 };
 
 // Map a % into a dark-theme heatmap color using the active mode's bands.
+// Bad = red, Healthy = green, Over-delivery = cyan/blue (rarer but possible
+// when a pod catches up a backlog mid-quarter).
 function heatColor(
   pct: number | null,
   mode: Mode,
@@ -86,10 +86,10 @@ function heatColor(
   if (pct < t[0]) return { bg: "#5b1e1e", fg: "#FFB8B0", border: "#7a2828" };
   if (pct < t[1]) return { bg: "#6d2727", fg: "#F5A99A", border: "#8a3434" };
   if (pct < t[2]) return { bg: "#6d4a1e", fg: "#F5BC4E", border: "#8a6128" };
-  if (pct < t[3]) return { bg: "#5e5721", fg: "#F5E078", border: "#78702c" };
-  if (pct < t[4]) return { bg: "#1f4d2e", fg: "#65FFAA", border: "#2a6b3f" };
-  if (pct < t[5]) return { bg: "#1f4a4d", fg: "#7FE8D6", border: "#2a6568" };
-  return { bg: "#1f3a6b", fg: "#8FB5D9", border: "#2a4f8c" };
+  if (pct < t[3]) return { bg: "#1f4d2e", fg: "#65FFAA", border: "#2a6b3f" };
+  if (pct < t[4]) return { bg: "#1f4a4d", fg: "#7FE8D6", border: "#2a6568" };
+  if (pct < t[5]) return { bg: "#1f3a6b", fg: "#8FB5D9", border: "#2a4f8c" };
+  return { bg: "#3a2452", fg: "#CEBCF4", border: "#4e3272" };
 }
 
 function pctLabel(pct: number | null): string {
@@ -103,6 +103,7 @@ interface DeliveryTrendChartProps {
 }
 
 type Mode = "monthly" | "cumulative";
+type Granularity = "month" | "quarter";
 
 type Cell = {
   delivered: number;
@@ -122,20 +123,34 @@ type Tooltip = {
 
 const MODE_COPY: Record<Mode, { label: string; tooltip: string }> = {
   monthly: {
-    label: "In-month",
+    label: "In-period",
     tooltip:
-      "Invoiced ÷ Delivered for THIS month only. Answers: 'Did we bill the work we shipped this month?' Spiky because pods invoice in bursts — catch-up months show as >100%.",
+      "Delivered ÷ Invoiced for THIS period only. Answers: 'Of what we billed this month/quarter, how much shipped?' Spiky because pods deliver in bursts — slow months dip below 100%.",
   },
   cumulative: {
     label: "Running total",
     tooltip:
-      "Invoiced ÷ Delivered from the start through this month. Answers: 'Overall, are invoices keeping up with delivery?' Most clients are on monthly retainers, so this runs 105–120% by design — retainer fees bill ahead of actual delivery.",
+      "Delivered ÷ Invoiced from the start of the range through this period. Answers: 'Overall, is delivery keeping up with billing?' Retainer clients bill ahead of delivery, so this typically runs 80–100% by design.",
   },
 };
 
+const GRAN_COPY: Record<Granularity, { label: string }> = {
+  quarter: { label: "Quarter" },
+  month: { label: "Month" },
+};
+
+function quarterOf(month: number): number {
+  return Math.floor((month - 1) / 3) + 1;
+}
+
+function quarterLabel(year: number, q: number): string {
+  return `Q${q} ${String(year).slice(-2)}`;
+}
+
 export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChartProps) {
-  // Default to cumulative — less noisy, matches how Finance looks at the book.
+  // Default: Running total + Quarter granularity — matches how Finance reads the book.
   const [mode, setMode] = useState<Mode>("cumulative");
+  const [granularity, setGranularity] = useState<Granularity>("quarter");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
 
   const clientToPod = useMemo(() => {
@@ -144,27 +159,36 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
     return map;
   }, [clients]);
 
-  // Build the grid: rows = pods (+ All pods header), columns = months.
+  // Build the grid: rows = pods (+ All pods header), columns = periods (month or quarter).
   const { rows, columns } = useMemo(() => {
-    // Per-month per-pod aggregation
-    type MonthBucket = {
+    type PeriodBucket = {
       sortKey: number;
       label: string;
       pods: Map<string, { delivered: number; invoiced: number }>;
     };
-    const byMonth = new Map<string, MonthBucket>();
+    const byPeriod = new Map<string, PeriodBucket>();
     const podSet = new Set<string>();
 
     for (const d of deliverables) {
       const pod = clientToPod.get(d.client_id) ?? "Unassigned";
       podSet.add(pod);
-      const key = `${d.year}-${String(d.month).padStart(2, "0")}`;
-      const label = `${MONTH_NAMES[d.month]} ${String(d.year).slice(-2)}`;
-      const sortKey = d.year * 100 + d.month;
-      let m = byMonth.get(key);
+      let key: string;
+      let label: string;
+      let sortKey: number;
+      if (granularity === "quarter") {
+        const q = quarterOf(d.month);
+        key = `${d.year}-Q${q}`;
+        label = quarterLabel(d.year, q);
+        sortKey = d.year * 10 + q;
+      } else {
+        key = `${d.year}-${String(d.month).padStart(2, "0")}`;
+        label = `${MONTH_NAMES[d.month]} ${String(d.year).slice(-2)}`;
+        sortKey = d.year * 100 + d.month;
+      }
+      let m = byPeriod.get(key);
       if (!m) {
         m = { sortKey, label, pods: new Map() };
-        byMonth.set(key, m);
+        byPeriod.set(key, m);
       }
       let p = m.pods.get(pod);
       if (!p) {
@@ -175,19 +199,23 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
       p.invoiced += d.articles_invoiced ?? 0;
     }
 
-    const months = Array.from(byMonth.values()).sort((a, b) => a.sortKey - b.sortKey);
+    const periods = Array.from(byPeriod.values()).sort((a, b) => a.sortKey - b.sortKey);
     const allPods = Array.from(podSet).sort(sortPodKey);
+
+    // Formula: Delivered ÷ Invoiced. Guard against invoiced=0 (returns null).
+    const ratio = (delivered: number, invoiced: number): number | null =>
+      invoiced > 0 ? (delivered / invoiced) * 100 : null;
 
     // Running cumulative state per pod (for cumulative mode)
     const cumByPod = new Map<string, { delivered: number; invoiced: number }>();
-    let cumAll = { delivered: 0, invoiced: 0 };
+    const cumAll = { delivered: 0, invoiced: 0 };
 
-    const columns = months.map((m) => ({ key: m.label, label: m.label }));
+    const columns = periods.map((m) => ({ key: m.label, label: m.label }));
 
-    // All-pods row first (aggregate across every pod for each month)
     const rows: Array<{ pod: string; cells: Cell[] }> = [];
 
-    const allCells: Cell[] = months.map((m) => {
+    // All-pods row first (aggregate across every pod for each period)
+    const allCells: Cell[] = periods.map((m) => {
       let d = 0;
       let i = 0;
       for (const pod of allPods) {
@@ -202,21 +230,15 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
         return {
           delivered: cumAll.delivered,
           invoiced: cumAll.invoiced,
-          pct: cumAll.delivered > 0
-            ? (cumAll.invoiced / cumAll.delivered) * 100
-            : null,
+          pct: ratio(cumAll.delivered, cumAll.invoiced),
         };
       }
-      return {
-        delivered: d,
-        invoiced: i,
-        pct: d > 0 ? (i / d) * 100 : null,
-      };
+      return { delivered: d, invoiced: i, pct: ratio(d, i) };
     });
     rows.push({ pod: ALL_KEY, cells: allCells });
 
     for (const pod of allPods) {
-      const cells: Cell[] = months.map((m) => {
+      const cells: Cell[] = periods.map((m) => {
         const stats = m.pods.get(pod) ?? { delivered: 0, invoiced: 0 };
         if (mode === "cumulative") {
           const prev = cumByPod.get(pod) ?? { delivered: 0, invoiced: 0 };
@@ -226,30 +248,29 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
           return {
             delivered: prev.delivered,
             invoiced: prev.invoiced,
-            pct: prev.delivered > 0
-              ? (prev.invoiced / prev.delivered) * 100
-              : null,
+            pct: ratio(prev.delivered, prev.invoiced),
           };
         }
         return {
           delivered: stats.delivered,
           invoiced: stats.invoiced,
-          pct: stats.delivered > 0
-            ? (stats.invoiced / stats.delivered) * 100
-            : null,
+          pct: ratio(stats.delivered, stats.invoiced),
         };
       });
       rows.push({ pod, cells });
     }
     return { rows, columns };
-  }, [deliverables, clientToPod, mode]);
+  }, [deliverables, clientToPod, mode, granularity]);
 
-  if (rows.length === 0) {
+  if (rows.length === 0 || columns.length === 0) {
     return (
       <Card className="border-[#2a2a2a] bg-[#161616]">
+        <CardHeader>
+          <CardTitle className="text-white">Delivery vs Invoicing %</CardTitle>
+        </CardHeader>
         <CardContent className="pt-0">
           <p className="text-center text-sm text-[#606060]">
-            No delivery data available for chart.
+            No delivery data in the selected client and time-range filter.
           </p>
         </CardContent>
       </Card>
@@ -262,30 +283,46 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-[720px]">
             <CardTitle className="text-white">
-              Invoicing vs Delivery %{" "}
+              Delivery vs Invoicing %{" "}
               <DataSourceBadge
                 type="live"
-                source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Monthly articles_invoiced ÷ articles_delivered per editorial pod."
+                source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Each cell = articles_delivered ÷ articles_invoiced (mirrors the sheet's Variance = Delivered − Invoiced). Respects the Client + Time-period filters above."
               />
             </CardTitle>
             <p className="mt-1 text-[10px] font-mono text-[#C4BCAA] leading-relaxed">
               {mode === "monthly" ? (
                 <>
-                  <b className="text-white">In-month view</b> — Invoiced ÷ Delivered for each month in isolation.
-                  Answers: <i>did we bill the work we shipped this month?</i> Expect spikes: pods invoice in bursts,
-                  so a quiet billing month followed by a catch-up month is normal.
+                  <b className="text-white">In-{granularity} view</b> — Delivered ÷ Invoiced for each {granularity} in isolation.
+                  Answers: <i>of what we billed, how much shipped?</i> Expect dips: pods deliver in bursts,
+                  so a slow {granularity} followed by a catch-up {granularity} is normal.
                 </>
               ) : (
                 <>
-                  <b className="text-white">Running total</b> — Invoiced ÷ Delivered from the start of the range
-                  through this month. Most clients are on monthly retainers, so <b className="text-white">105–120%</b> is
-                  healthy — retainer fees bill slightly ahead of actual delivery by design. Sustained &lt;90% would
-                  mean under-billing; &gt;130% would mean over-billing.
+                  <b className="text-white">Running total</b> — Delivered ÷ Invoiced from the start of the range
+                  through this {granularity}. Most clients are on monthly retainers, so{" "}
+                  <b className="text-white">80–100%</b> is healthy — retainer fees bill slightly ahead of delivery
+                  by design. Sustained &lt;60% means real under-delivery; &gt;110% means catching up a backlog.
                 </>
               )}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
+              {(["quarter", "month"] as const).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGranularity(g)}
+                  className={cn(
+                    "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                    granularity === g
+                      ? "bg-[#8FB5D9]/15 text-[#8FB5D9]"
+                      : "text-[#606060] hover:text-white",
+                  )}
+                >
+                  {GRAN_COPY[g].label}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
               {(["monthly", "cumulative"] as const).map((m) => (
                 <button
@@ -304,7 +341,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
               ))}
             </div>
             <span className="font-mono text-[9px] text-[#606060] italic">
-              Hover a toggle for definitions
+              Hover for definitions
             </span>
           </div>
         </div>
@@ -316,7 +353,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 bg-[#161616] px-2 pb-2 text-left font-mono text-[9px] uppercase tracking-wider text-[#606060]">
-                  Pod
+                  Pod {granularity === "quarter" ? "· By quarter" : "· By month"}
                 </th>
                 {columns.map((c) => (
                   <th
@@ -410,7 +447,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
         {/* Color legend — bands follow the active mode */}
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[9px] text-[#606060]">
           <span className="uppercase tracking-wider">
-            Color scale ({mode === "monthly" ? "in-month" : "running total"})
+            Color scale ({mode === "monthly" ? `in-${granularity}` : "running total"})
           </span>
           {(() => {
             const bands = HEAT_BANDS[mode];
@@ -454,13 +491,13 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
               </p>
               <p className="mt-0.5 font-mono text-[10px] text-[#C4BCAA]">
                 {tooltip.pct == null ? (
-                  <>No delivery this {mode === "cumulative" ? "period-to-date" : "month"}</>
+                  <>No invoicing this {mode === "cumulative" ? "period-to-date" : granularity}</>
                 ) : (
                   <>
-                    Invoiced / Delivered:{" "}
-                    <span className="text-white">{tooltip.invoiced}</span>
-                    {" / "}
+                    Delivered / Invoiced:{" "}
                     <span className="text-white">{tooltip.delivered}</span>
+                    {" / "}
+                    <span className="text-white">{tooltip.invoiced}</span>
                     {" = "}
                     <span
                       style={{ color: heatColor(tooltip.pct, mode).fg }}
