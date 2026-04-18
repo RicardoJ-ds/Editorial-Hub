@@ -283,7 +283,13 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
           </p>
           <p className="text-[9px] font-mono text-[#606060] mt-0.5">
             {groupMode === "month" ? (
-              <>Average {metric.label.toLowerCase()}, bucketed by each client&apos;s {REF_LABEL} month. Lower is better.</>
+              <>
+                Average {metric.label.toLowerCase()}. Each bar is a cohort of clients whose{" "}
+                <span className="text-[#C4BCAA]">{REF_LABEL}</span> landed in that month — not the month of{" "}
+                {metric.from ? <span className="text-[#C4BCAA]">{metric.label.split(" → ")[0]}</span> : <span className="text-[#C4BCAA]">{REF_LABEL}</span>}
+                {" "}or{" "}
+                <span className="text-[#C4BCAA]">{metric.label.split(" → ")[1] ?? metric.label}</span>. Lower is better.
+              </>
             ) : (
               <>{metric.label} per client, sorted slowest → fastest. Lower is better.</>
             )}
@@ -523,6 +529,11 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                           <><span className="text-white">{hover.avg}d</span></>
                         )}
                       </p>
+                      {groupMode === "month" && (
+                        <p className="text-[9px] font-mono text-[#606060] mt-1 pt-1 border-t border-[#1e1e1e]">
+                          Cohort = clients whose {REF_LABEL} was in {hover.label}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
