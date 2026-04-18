@@ -11,11 +11,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { normalizePod, sortPodKey } from "./ContractClientProgress";
+import { podBadge } from "./shared-helpers";
 
 export interface ClientDeliveryCardRow {
   id: number;
   name: string;
   status: string;
+  editorial_pod: string | null;
   articles_sow: number;
   articles_delivered: number;
   articles_invoiced: number;
@@ -276,16 +279,41 @@ export function ClientDeliveryCards({ rows, pacingMap }: Props) {
         })}
       </div>
 
-      {/* Cards grid */}
+      {/* Per-pod subsections — same grouping the other Deliverables-vs-SOW
+          sections use so the layout is consistent end-to-end. Within each
+          pod the existing risk-first → lowest-complete sort is preserved. */}
       {totalVisible === 0 ? (
         <p className="text-center text-xs text-[#606060] py-6">
           No clients match the current filter.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visible.map(({ row, pacing }) => (
-            <ClientDeliveryCard key={row.id} row={row} pacing={pacing} />
-          ))}
+        <div className="space-y-5">
+          {(() => {
+            const groups = new Map<string, typeof visible>();
+            for (const v of visible) {
+              const pod = normalizePod(v.row.editorial_pod);
+              const list = groups.get(pod);
+              if (list) list.push(v);
+              else groups.set(pod, [v]);
+            }
+            return Array.from(groups.entries())
+              .sort(([a], [b]) => sortPodKey(a, b))
+              .map(([pod, items]) => (
+                <div key={`pod-group-${pod}`} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {podBadge(pod)}
+                    <span className="font-mono text-[10px] text-[#606060]">
+                      {items.length} client{items.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {items.map(({ row, pacing }) => (
+                      <ClientDeliveryCard key={row.id} row={row} pacing={pacing} />
+                    ))}
+                  </div>
+                </div>
+              ));
+          })()}
         </div>
       )}
     </div>

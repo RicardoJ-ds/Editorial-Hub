@@ -1299,6 +1299,7 @@ interface ClientDeliverableSummary {
   id: number;
   name: string;
   status: string;
+  editorial_pod: string | null;
   articles_sow: number;
   articles_delivered: number;
   articles_invoiced: number;
@@ -1340,6 +1341,7 @@ function DeliverablesSOWTab({
         id: c.id,
         name: c.name,
         status: c.status,
+        editorial_pod: c.editorial_pod,
         articles_sow: sow,
         articles_delivered: delivered,
         articles_invoiced: invoiced,
