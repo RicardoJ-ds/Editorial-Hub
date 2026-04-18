@@ -1,6 +1,13 @@
 # Google Sheets Data Source Inventory
 
-Complete mapping of all Google Sheets used (and not used) by the Editorial Hub application.
+> **Last reviewed:** 2026-04-18
+> **Companion docs:**
+> - [`.docs/dashboard-data-flow.md`](dashboard-data-flow.md) — dashboard → source mapping + CP v2 migration plan
+> - [`../frontend/docs/SHEETS_DOCUMENTATION.md`](../frontend/docs/SHEETS_DOCUMENTATION.md) — per-sheet column reference
+
+Complete mapping of all Google Sheets used (and not used) by the Editorial Hub.
+All ingestion is **one-time via CSV seed** (`backend/scripts/seed_data.py`); the
+app is the source of truth going forward.
 
 ---
 
@@ -33,7 +40,7 @@ Complete mapping of all Google Sheets used (and not used) by the Editorial Hub a
 | v2 Article delivery schedule | NO | — | — | Overlaps with Spreadsheet 1 "Editorial Operating Model" |
 | Delivered vs Invoiced | NO | — | — | Overlaps with Spreadsheet 1 "Delivered vs Invoiced v2" |
 | Editorial Engagement Requirements | NO | — | — | Same as Spreadsheet 1 |
-| Notion Database | NOT YET | — | 13,232 | Article workflow tracking from Notion export — could feed Turnaround Time + Revision Rate KPIs in future |
+| Notion Database | NO (direct Notion API instead) | — | — | Historical sheet export, no longer used. Live Notion connector at `backend/app/services/notion_import.py` feeds `notion_articles` directly (paginated read + bulk upsert — fix shipped `612c854` Apr 16). |
 | Monthly Cumulative 2025 | NO | — | — | Month-by-month breakdown (Cumulative sheet is sufficient for all-time view) |
 | Automated Cumulative | NO | — | — | Older automated version of Cumulative |
 | Client Comparison | NO | — | — | Old vs New client tracking metadata |
@@ -47,8 +54,8 @@ Complete mapping of all Google Sheets used (and not used) by the Editorial Hub a
 | [Month] Deliverables database | NO | — | — | Monthly deliverables database |
 
 **Decision notes:**
-- The v2 SOW and v2 Article delivery sheets have newer data but the same structure as Spreadsheet 1. We keep Spreadsheet 1 as the primary source to avoid duplicating imports. If the team wants to switch, we can point the import function at the Master Tracker version.
-- The Notion Database (13K+ rows) is the richest potential data source for Article Turnaround Time and Revision Rate KPIs. It tracks workflow statuses, assignments, dates, and editors. Integration is deferred for a future sprint.
+- The v2 SOW and v2 Article delivery sheets have newer data but the same structure as Spreadsheet 1. Spreadsheet 1 remains the ingestion source. If the team wants to switch, point `seed_data.py::seed_clients()` at the Master Tracker export instead.
+- **Notion Database** is now integrated via direct API (not sheet export) — see `backend/app/services/notion_import.py`. The "Notion Database" tab in Master Tracker is a stale historical export and should be ignored.
 
 ---
 

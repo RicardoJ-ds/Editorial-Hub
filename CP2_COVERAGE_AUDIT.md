@@ -1,5 +1,7 @@
 # Capacity Planning v2 — Dashboard Coverage Audit
 
+> **Last reviewed:** 2026-04-18
+>
 > **Purpose.** Prove that the proposed `cp2_*` schema can feed every metric on the
 > two current production dashboards (Editorial Clients, Team KPIs). Written
 > against the live source of truth: `backend/app/models.py` and the frontend
@@ -9,8 +11,28 @@
 > **Method.** Three parallel audits:
 > 1. Enumerate every field / chart / filter on the Editorial Clients dashboard.
 > 2. Same for Team KPIs (3 tabs).
-> 3. Dump the full backend SQLAlchemy schema (15 tables, 250+ columns).
+> 3. Dump the full backend SQLAlchemy schema (16 tables, 250+ columns).
 > 4. Cross-check against the current cp2_* ERD (`_erd.ts`).
+>
+> **Reality check (2026-04-18).** This audit remains the canonical coverage
+> spec. What has changed since it was first written:
+> - **Zero `cp2_*` tables exist yet** in `backend/app/models.py` — phases 1–8
+>   of the CP v2 UI are shipped but entirely `localStorage`-backed.
+> - The ERD source of truth is split between this file +
+>   [`/CAPACITY_PLANNING_V2.md`](CAPACITY_PLANNING_V2.md) +
+>   `frontend/src/app/(app)/capacity-planning/_erd.ts` — they are consistent.
+> - The **Contract & Timeline detail table was reduced from 17 → 9 columns**
+>   (commit `dc278ae`, Apr 16). The 9-column shape is still fully covered by
+>   `cp2_dim_client`; the extra 8 columns remain on `cp2_dim_client` for
+>   optional future re-expansion.
+> - The **Client Delivery Detail table** under Deliverables vs SOW was removed
+>   (commit `4e3e14a`) because the per-client cards above it carry the same
+>   data. No coverage impact — same fields, different UI.
+> - The **Delivery-vs-Invoicing chart** was flipped to `Delivered ÷ Invoiced`
+>   (commit `3a07fa2`). `cp2_fact_delivery_monthly` exposes both numerator and
+>   denominator, so the direction is a UI choice; coverage unchanged.
+> - See [`.docs/dashboard-data-flow.md`](.docs/dashboard-data-flow.md) for the
+>   per-metric migration sequence from today's legacy tables onto `cp2_*`.
 
 ---
 

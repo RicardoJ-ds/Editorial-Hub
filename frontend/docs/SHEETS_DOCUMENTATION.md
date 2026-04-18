@@ -1,11 +1,22 @@
 # Editorial Hub — Source Sheets Reference
 
-Field-by-field explanation of every Google Sheet that feeds the Hub. Same style
-as the Capacity Planning v2 column legend. When an entry says "derived," that
-column is a formula in the sheet and should become a SQL view in the Hub.
+> **Last reviewed:** 2026-04-18
+> **Companion docs:**
+> - [`/.docs/dashboard-data-flow.md`](../../.docs/dashboard-data-flow.md) — dashboard → source mapping + CP v2 migration plan
+> - [`/.docs/sheet-inventory.md`](../../.docs/sheet-inventory.md) — which sheets we use vs skip
+> - [`/CAPACITY_PLANNING_V2.md`](../../CAPACITY_PLANNING_V2.md) — target `cp2_*` schema
+
+Field-by-field explanation of every Google Sheet that feeds the Hub. When an
+entry says "derived," that column is a formula in the sheet and should become a
+SQL view in the Hub.
+
+**Ingestion model (2026-04-18):** all sheet ingest is one-time via CSV seed
+(`backend/scripts/seed_data.py`). The app is the source of truth going forward.
+Sheet rewrites DO NOT propagate to the DB unless someone reseeds or enters the
+change through `/data-management/*`.
 
 > ⚠️ Some column descriptions are inferred from schema + screenshots. Where I'm
-> guessing, I've marked it with **[verify]** — please correct and I'll update.
+> guessing, I've marked it with **[verify]**.
 
 ---
 
@@ -290,13 +301,13 @@ API cost/quota tracking.
 
 ---
 
-## Spreadsheet 4 — Notion Database
+## Spreadsheet 4 — Notion Database (direct API, not a sheet anymore)
 
-**ID:** `1O4VqZFyFh_LjeLL_OM68cO1ZOmMP2mKdVbXevjrTjwU`
-**Purpose:** Export of the Notion editorial workflow database — every article
-from ideation → publication.
-**Maintained by:** Automated ETL from Notion (you mentioned this is working).
-**Update cadence:** Continuous / near-real-time.
+**Purpose:** Every article from ideation → publication.
+**Source:** Direct Notion API via `backend/app/services/notion_import.py`
+(paginated read + bulk upsert — fix landed `612c854`, Apr 16).
+**Maintained by:** Automated import triggered on seed + manual rerun.
+**Update cadence:** On-demand (no scheduler yet).
 **Row count:** ~23,143 rows, 38 columns.
 
 ### 4.1 · Notion tab → `notion_articles`
@@ -358,6 +369,28 @@ that's fully automated end-to-end.
    `goals_vs_delivery` rollup, skip the sheet entirely.
 
 ---
+
+## CP v2 migration map (where each sheet goes)
+
+When the `cp2_*` tables land (see `CAPACITY_PLANNING_V2.md` Status section),
+each sheet above gets one canonical destination:
+
+| Sheet | Legacy table | Target `cp2_*` table | Notes |
+|---|---|---|---|
+| Editorial SOW overview | `clients` | `cp2_dim_client` (+ retain `clients`) | Dim + denorm of staffing cols |
+| Delivered vs Invoiced v2 | `deliverables_monthly` | `cp2_fact_delivery_monthly` | Monthly grain |
+| ET CP 2026 | `team_members` + `capacity_projections` | `cp2_dim_team_member` + `cp2_fact_pod_membership` + `cp2_fact_capacity_override` | Pod is now per-month, not a static string |
+| Model Assumptions | `model_assumptions` | `cp2_dim_model_assumption` | Rename-only |
+| Editorial Operating Model | `production_history` | `cp2_fact_production_history` | Keep separate from delivery_monthly via `is_actual` |
+| Delivery Schedules | `delivery_templates` | `cp2_dim_delivery_template` | Rename-only |
+| Editorial Engagement Requirements | `engagement_rules` | `cp2_dim_engagement_rule` | Rename-only |
+| Meta Calendar Month Deliveries | `deliverables_monthly` (subset) | `cp2_fact_delivery_monthly` | Merges cleanly |
+| Master Tracker Cumulative | `cumulative_metrics` | `cp2_fact_pipeline_snapshot` | Month-scoped (was all-time) |
+| Master Tracker Goals vs Delivery (×9) | `goals_vs_delivery` | `cp2_fact_actuals_weekly` | Add `week_key` FK |
+| Writer AI Monitoring | `ai_monitoring_records`, `surfer_api_usage` | `cp2_fact_ai_scan`, `cp2_fact_surfer_api_usage` | Add writer/editor FKs |
+| Notion Database | `notion_articles` | `cp2_fact_article` | Fuzzy-match writer/editor names to FK |
+
+See [`/.docs/dashboard-data-flow.md`](../../.docs/dashboard-data-flow.md) for the phased cutover order.
 
 ## How to update this doc
 

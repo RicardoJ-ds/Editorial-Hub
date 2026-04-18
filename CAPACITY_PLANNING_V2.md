@@ -1,8 +1,13 @@
 # Capacity Planning v2 — Proposal
 
-> **Status:** Proposal. Lives alongside existing dashboards, no touches to current
-> data or UI. New route `/capacity-planning`, new tables prefixed `cp2_`, trivially
-> removable.
+> **Status (2026-04-18):** UI prototype of **Phases 1–8 is shipped** to production
+> under `/capacity-planning`, backed by `localStorage` + mock data. **Zero `cp2_*`
+> tables exist in the database.** The spec below is still the canonical plan; the
+> "Status" section at the bottom tracks what's built vs outstanding and includes
+> the dashboard-migration sequence.
+>
+> Production alias: `editorial-hub-kappa.vercel.app/capacity-planning`.
+> Source of truth for what's actually built: `frontend/src/app/(app)/capacity-planning/`.
 
 ## Design principles
 
@@ -192,19 +197,35 @@ JOIN cp2_dim_week w ON w.week_key = a.week_key
 GROUP BY a.pod_id, w.month_key;
 ```
 
-## Routes (all under `/capacity-planning`, new sidebar "Proposal" section)
+## Routes (all under `/capacity-planning`, behind the "Proposal" left-rail section)
 
-| Route | Purpose | Editable? |
+All routes are built and navigable. Edit affordances differ by route — most write
+to the `localStorage`-backed store (`_store.tsx`), none hit the DB yet.
+
+| Route | Purpose | Edit state |
 |---|---|---|
-| `/capacity-planning` | Overview Board | Read-only + override modal |
-| `/capacity-planning/roster` | Roster editor (member × month matrix) | Drag & drop members across pods/months |
-| `/capacity-planning/allocation` | Client → Pod kanban | Drag & drop clients |
-| `/capacity-planning/schema` | Interactive ERD viewer (React Flow) | Read-only |
-| `/capacity-planning/tables` | Browse every `cp2_*` table with mock rows | Read-only |
+| `/capacity-planning` | Overview Board + override modal | Editable (overrides) |
+| `/capacity-planning/roster` | Roster editor (member × month) | Read-only prototype — drag/drop stubbed, Phase 2 work |
+| `/capacity-planning/allocation` | Client → Pod kanban | Editable |
+| `/capacity-planning/leave` | PTO / leave entry grid | Editable |
+| `/capacity-planning/overrides` | Capacity override list + new-override modal | Editable |
+| `/capacity-planning/weekly` | Weekly actuals grid | Editable |
+| `/capacity-planning/quarter` | Quarterly roll-up | Read-only |
+| `/capacity-planning/gantt` | Client Gantt timeline | Read-only |
+| `/capacity-planning/migration` | Legacy → `cp2_*` dry-run validator | Read-only |
+| `/capacity-planning/schema` | Interactive ERD viewer (React Flow, fullscreen + highlight) | Read-only |
+| `/capacity-planning/tables` | Browse every proposed `cp2_*` table with mock rows | Read-only |
 | `/capacity-planning/glossary` | Dashboard-KPI → ERD column mapping | Read-only |
-| `/capacity-planning/members` | Team member CRUD *(phase 2)* | Yes |
-| `/capacity-planning/pods` | Pod CRUD *(phase 2)* | Yes |
-| `/capacity-planning/leave` | PTO / leave entry *(phase 2)* | Yes |
+| `/capacity-planning/pipeline` | Cumulative Pipeline view over mock data | Read-only |
+| `/capacity-planning/delivery` | Monthly delivery view over mock data | Read-only |
+| `/capacity-planning/articles` | Per-article (Notion) view | Read-only |
+| `/capacity-planning/kpi-scores` | Per-member KPI scores grid | Read-only |
+| `/capacity-planning/ai-scans` | AI scan records | Read-only |
+| `/capacity-planning/surfer` | Surfer API usage | Read-only |
+| `/capacity-planning/admin/{clients,members,pods,tiers,metrics}` | Dim-table CRUD | Editable |
+
+"Editable" above means the UI lets you write to `localStorage`. No route
+currently POSTs to `/api/cp2/*` — those endpoints don't exist yet (see Status).
 
 ## Coverage for current dashboards
 
@@ -234,11 +255,37 @@ See `/capacity-planning/glossary` in-app for the authoritative mapping (includin
 
 ## Status
 
-- **Phase 1 (this commit):** Read-only prototype of the Overview Board with mock
-  data. No schema changes, no ingestion.
-- **Phase 2:** Apply migrations for `cp2_*` tables + views; build admin editors
-  (Roster, Allocation, Members, Pods, Leave).
-- **Phase 3:** One-time ingestion from existing Sheets to populate dims.
-- **Phase 4:** Wire actuals-weekly ETL from Master Tracker `goals_vs_delivery`.
-- **Phase 5:** User testing with maintainer; iterate.
-- **Phase 6:** Approval gate → decide whether to retire the spreadsheet.
+### ✅ Shipped (front-end only, `localStorage` + mock data)
+
+| Phase | Scope | Landed |
+|---|---|---|
+| **Phase 1** — Unified month context | `MonthPicker`, URL `?m=YYYY-MM`, persist to store, "Go to current month" | `ac9834c` |
+| **Phase 2** — Copy-forward + validation | "Copy from previous month" / "Copy to next N months" buttons, inline validation banners, close-month snapshot | `e103c0c` |
+| **Phase 3** — Leave + Override editors | `/leave`, `/overrides` pages with delta preview | `32bca76` |
+| **Phase 4** — Weekly actuals grid | `/weekly` with auto-totals and sparklines | `edd52d7` |
+| **Phase 5** — Admin dim CRUD | Clients / Members / Pods / Tiers / KPI Metrics | `e076ad6` |
+| **Phase 6** — Migration validator + diff | Legacy → `cp2_*` dry-run, month-diff view | `23d1020` |
+| **Phase 7** — Polish | Global search (`⌘K`), quarterly roll-up, fullscreen ERD + click-highlight | `23d1020`, `5f5bb42` |
+| **Phase 8** — Maintain-tab editability | Every dashboard-feeding fact editable in Maintain | `c675fbd` |
+
+Interactive ERD, Tables, Glossary — all shipped.
+
+### 🚧 NOT yet built
+
+- **No Alembic migrations.** `backend/app/models.py` has zero `cp2_*` classes. Everything above writes to `localStorage` only.
+- **No ETL.** `backend/scripts/` has no `cp2_migrate.py`. The `/migration` page dry-runs shape validation over mock rows.
+- **No CP2 routers.** `backend/app/routers/` exposes the legacy tables only; no `/api/cp2/*` endpoints.
+- **No dashboard rewiring.** Editorial Clients and Team KPIs still read from `clients`, `deliverables_monthly`, `goals_vs_delivery`, `cumulative_metrics`, etc.
+
+### 📋 Go-live sequence (post-approval)
+
+1. **Schema:** Alembic migration for all `cp2_dim_*` + `cp2_fact_*` tables + views (`cp2_v_member_effective_capacity`, `cp2_v_pod_monthly`, `cp2_v_pod_monthly_actuals`).
+2. **One-time backfill:** ETL from `clients`, `team_members`, `deliverables_monthly`, `capacity_projections`, `goals_vs_delivery`, `cumulative_metrics`, `production_history`, `ai_monitoring_records`, `surfer_api_usage`, `kpi_scores`, `notion_articles` → `cp2_*`. Write script is `backend/scripts/cp2_backfill.py` (to be created).
+3. **CP2 routers:** `/api/cp2/dims/*` CRUD + `/api/cp2/facts/*` upsert + `/api/cp2/views/*` reads. Rewire the front-end store (`_store.tsx`) off `localStorage`.
+4. **Parallel run:** Keep legacy tables live. Dashboards read from `cp2_*` via new service wrappers; A/B compare against legacy for one sprint.
+5. **Cutover:** Flip each dashboard endpoint. See `.docs/dashboard-data-flow.md` for the per-metric sequence.
+6. **Decommission:** Drop seed ingestion for sheets whose data is now owned by the app (`deliverables_monthly`, `capacity_projections`, `kpi_scores` first — they're already editable). Retire `cumulative_metrics` + `goals_vs_delivery` last since they're currently read-only.
+
+The phase-1–8 front-end works against a store that already models the `cp2_*`
+shape, so steps 3–4 are mostly swapping `localStorage.getItem()` calls for
+`apiGet()` calls — no UI rewrite expected.

@@ -1,114 +1,139 @@
 # Editorial Hub — Task Tracker
 
-## Completed
-- [x] Phase 0: Project scaffolding (Next.js + FastAPI + PostgreSQL + Docker Compose)
-- [x] Phase 1: Seed database from CSVs (77 clients, 394 deliverables, 12 team, 65 capacity, 528 KPIs)
+> **Last reviewed:** 2026-04-18
+> **Related docs:**
+> - [`/CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) — CP v2 schema + phase status
+> - [`/.docs/dashboard-data-flow.md`](../.docs/dashboard-data-flow.md) — migration plan
+> - [`/.docs/prd-compliance-audit.md`](../.docs/prd-compliance-audit.md) — PRD coverage
+> - [`/CLAUDE.md`](../CLAUDE.md) — project overview
+
+---
+
+## ✅ Completed
+
+### Foundation
+- [x] Phase 0: Scaffolding (Next.js + FastAPI + PostgreSQL + Docker Compose)
+- [x] Phase 1: Seed DB from CSVs (77 clients, 394 deliverables, 12 team, 65 capacity, 528 KPIs)
 - [x] Phase 1: Data Management CRUD UI (Clients, Deliverables, Capacity, KPI Entry)
 - [x] Phase 2: Dashboard 1 — Editorial Clients (Contract & Timeline + Deliverables vs SOW)
-- [x] Phase 3: Dashboard 2 — Team KPIs (KPI Performance + Capacity Projections)
+- [x] Phase 3: Dashboard 2 — Team KPIs (KPI Performance + Capacity Projections + AI Compliance)
 - [x] Phase 4: BigQuery sync service + Home page + Admin endpoints
-- [x] UI/UX Overhaul — Graphite DS, logo, dark theme, redesigned sidebar/header
-- [x] Enhanced dashboards — Charts (donut, area, bar, heatmap), sparklines, pacing badges
-- [x] Google Sheets Import Wizard — 5-step wizard pulling from Sheets API (8 sheets)
-- [x] Missing sheets integration — Operating Model, Delivery Schedules, Engagement Requirements, Meta Deliveries
-- [x] PRD gap fixes — All P0 items (missing columns, capacity metrics, tooltips, filters, per-client KPIs)
-- [x] PRD compliance tracker created and maintained
-- [x] CLAUDE.md with project links and architecture
+- [x] UI/UX: Graphite DS, logo, dark theme, sidebar/header
+- [x] Chart library: donut, area, bar, heatmap, sparklines, pacing badges
+- [x] Google Sheets Import Wizard — 5-step flow over Sheets API
+- [x] Operating Model, Delivery Schedules, Engagement Requirements, Meta Deliveries sheets integrated
 - [x] Handoff documentation
-- [x] Apr 17 — Editorial Clients / Contract & Timeline facelift:
-  - Removed SOW Overview cards (Active / Articles SOW / Delivered)
-  - Added per-client monthly-goal gauges + cumulative-pipeline bars (grouped alphabetically, FilterBar-aware) via `ContractClientProgress`
-  - Added MoM trend chart to Time-to Metrics with a 8-option metric selector and overall-average reference line
-- [x] Apr 17 — Pod Matrix (evolution of the above):
-  - Rebuilt `ContractClientProgress` as a pod × chart-type matrix (pod columns, Month Goals + Pipeline rows) with per-metric tooltips
-  - Added `normalizePod()` helper and applied it in the matrix aggregation + `FilterBar` dropdown + filter comparison so "1" / "Pod 1" / "pod 1" collapse into one bucket
-  - Capped pod column width at `minmax(240px, 320px)` and set the grid to `width: fit-content` so a single filtered pod sticks to the left edge
-  - Dropped the per-cell month subtitle — the matrix has only pod × chart-type dimensions
-- [x] Apr 17 — Time-to Metrics improvements:
-  - Fixed MoM bar/reference-line baseline mismatch (move month labels into their own row below the chart)
-  - Cap Y-axis at max(p90, 2× overall avg) so outlier cohorts don't flatten the rest; clipped bars marked with ↑ and a red inset ring
-  - Metric selector shows the human-readable label (e.g. "Consulting KO → First Article") instead of the raw key
-- [x] Apr 17 — Client Engagement Timeline overhaul:
-  - New backend endpoint `GET /api/dashboard/client-production` returning per-client monthly actual vs projected + totals {projected, delivered, sow, reconciliation}
-  - Replaced the Duration toggle with `% Delivered` — per month actual/projected utilization bars colored ≥100 / 75–99 / <75
-  - Added a per-client totals sidebar (Projected · Delivered · SOW · Reconciliation) with tooltips and red/green reconciliation
-  - Data source: Editorial Operating Model (stored in `ProductionHistory`)
-- [x] Apr 17 — Badge + subtitle pass on dashboards: added DataSourceBadge + subtitles to Month-over-Month Trend, Client Milestone Journey, KPI Overview, Capacity Summary, Utilization by Pod, Client Engagement Timeline root heading
+- [x] CLAUDE.md + PRD compliance audit
 
-## Pending — P1
+### Auth (Apr 9)
+- [x] Google OAuth shipped (`e1ae4bf`) — domain-restricted to `@graphitehq.com`, JWT cookie via `AUTH_SECRET`. **Role-based access still deferred.**
 
-### Notion Database import failure (Apr 16) — ✅ shipped in `612c854`
-- [x] Paginate Sheets API read for "Notion" tab (5K-row chunks)
-- [x] Bulk `INSERT ... ON CONFLICT DO UPDATE` for upsert
-- [ ] Deploy to Railway and verify rows_imported > 20,000
+### Dashboard refinements (Apr 14–18)
+- [x] Contract & Timeline table: 17 → 9 columns + source sheet link (`dc278ae`, `6667d67`, `3a9aa13`)
+- [x] Client Delivery Detail table removed — duplicated by cards above (`4e3e14a`)
+- [x] Deliverables vs SOW: per-client cards above the detail section (`51413cb`, `e2dbb16`)
+- [x] Pod-grouped layout with pod aggregate sitting directly above per-client cards (`8f42a75`, `58ead94`, `e631c0d`)
+- [x] Pod Matrix moved from Contract to Deliverables tab; pod labels normalized end-to-end (`50e3028`, `91e4235`, `969c998`)
+- [x] DeliveryTrendChart refactored to heatmap; formula flipped to Delivered ÷ Invoiced with Month/Quarter toggle (`34867f4`, `3a07fa2`)
+- [x] Pipeline by Pod redesigned as compact approval-rate grid (`df158a0`)
+- [x] Cumulative Pipeline + Weekly Breakdown Matrix surface every CB / AD column (`6796be3`)
+- [x] Client Engagement Timeline: % Delivered view + totals sidebar (`9dc6996`)
+- [x] Time-to Metrics: MoM trend + 8-option metric selector + outlier y-cap (`f57960c`, `9090b1f`, `044b4dc`)
+- [x] FilterBar: month-range slider default current ±6, month-granular only (`beb3b76`, `9e5587d`)
+- [x] Tooltip explicit dark surfaces, Diff tooltip rewritten (`7aa4771`, `708575d`, `14ce0bc`)
+- [x] New backend endpoint `GET /api/dashboard/client-production` (`bb5af44`)
 
-### CP v2 — maintenance UX overhaul (Apr 16, planning)
-Goal: everything a maintainer needs to keep monthly + weekly data current, with minimum clicks and maximum clarity. Each phase is independently shippable.
+### Capacity Planning v2 prototype (Apr 9–18) — all frontend/`localStorage`
+- [x] Phase 1 — Unified month context (`ac9834c`)
+- [x] Phase 2 — Copy-forward + validation + close-month (`e103c0c`)
+- [x] Phase 3 — Leave + Overrides editors (`32bca76`)
+- [x] Phase 4 — Weekly actuals grid (`edd52d7`)
+- [x] Phase 5 — Admin CRUD for 5 dim tables (`e076ad6`)
+- [x] Phase 6 + 7 — Migration validator, diff view, global search, quarter rollup (`23d1020`)
+- [x] Phase 8 — All dashboard-feeding tables editable in Maintain (`c675fbd`)
+- [x] Schema page: fullscreen toggle + click-to-highlight table + its joins (`5f5bb42`)
+- [x] Left-rail nav, sticky chrome (`54153af`, `83dcc69`, `1fd7b75`, `bb1c5e1`)
 
-**Phase 1 — Unified month context & navigation (small, high leverage)**
-- [ ] Lift month selection into the store; persist in localStorage + URL (`?m=2026-04`)
-- [ ] Shared `MonthPicker` component in the SubNav header (Feb-Jun chips + "next month" / "prev month" arrows)
-- [ ] Breadcrumb shows current month in all CP v2 pages
-- [ ] Extend month range to ±6 months relative to "today" (computed, not hardcoded)
-- [ ] "Go to current month" button
+### Infra
+- [x] Notion import: paginate + bulk upsert (`612c854`)
+- [x] Railway Dockerfile COPY paths fixed (`6ce65ff`, `99fb796`)
 
-**Phase 2 — Copy-forward + validation (monthly close workflow)**
-- [ ] "Copy from previous month" button on Roster, Allocation, Leave (carry memberships, allocations, leave patterns)
-- [ ] "Copy to next 1/3/6 months" bulk propagate
-- [ ] Inline validation banners per page:
-  - Pod over-capacity (projected > effective) — red
-  - Member share total > 1.0 across pods — red
-  - Client unallocated for the month — yellow
-  - Leave > 0.5 without a backup on the pod — yellow
-- [ ] "Close month" action: snapshot the current month into an immutable snapshot record; subsequent edits require an override rather than overwriting history
+---
 
-**Phase 3 — Leave + Override dedicated editors**
-- [ ] `/capacity-planning/leave` — team-wide PTO grid (members × months). Click a cell to set leave_share + reason.
-- [ ] `/capacity-planning/overrides` — list all capacity overrides for the current month, with reason + author. New-override modal with "delta preview" (shows before/after effective capacity).
-- [ ] Overrides on Overview page: inline-create without leaving the row.
+## 🚧 Pending — P1
 
-**Phase 4 — Weekly actuals grid**
-- [ ] `/capacity-planning/weekly` — grid of client × week for the selected month. Editable cells: `delivered_articles`, `goal_articles`. Auto-row-total and auto-pod-total.
-- [ ] "Import actuals from Goals vs Delivery sheet" button (reuses existing backend pipeline but writes to `cp2_fact_actuals_weekly` instead).
-- [ ] Sparkline per client showing 8-week trend inline.
-- [ ] Variance highlighting (delivered < goal by >1 = red, ≥ goal = green).
+### CP v2 — backend + cutover (this is the big one)
 
-**Phase 5 — Admin / dim CRUD screens**
-- [ ] `/capacity-planning/admin/members` — team roster CRUD (join/leave dates, default capacity, role).
-- [ ] `/capacity-planning/admin/pods` — pod lifecycle (active_from, active_to, display name).
-- [ ] `/capacity-planning/admin/clients` — cp2 client extensions (cadence, SOW total, engagement tier).
-- [ ] `/capacity-planning/admin/engagement-tiers` — tier list CRUD.
-- [ ] `/capacity-planning/admin/kpi-metrics` — targets + formulas (edit rarely; audit-logged).
+Ship the UI's promise. Everything below is a no-UI-change swap: `localStorage`
+→ DB. See `.docs/dashboard-data-flow.md` for the sequence.
 
-**Phase 6 — Migration path (read-only validator, not destructive)**
-- [ ] `/capacity-planning/migration` — side-by-side view of existing tables vs proposed `cp2_*`. Shows row-count diffs and flags mismatches.
-- [ ] One-click dry-run populate from existing tables into `cp2_*` (backend endpoint, writes to a scratch schema).
-- [ ] Approval gate: "Promote to production schema" only after validator is all-green.
+**Phase A — Schema foundation**
+- [ ] Alembic migration: all `cp2_dim_*` + `cp2_dim_month` + `cp2_dim_week`. Seed `cp2_dim_month` (2022-01 → 2028-12) and `cp2_dim_week`.
+- [ ] Alembic migration: all `cp2_fact_*` tables
+- [ ] Alembic migration: SQL views `cp2_v_member_effective_capacity`, `cp2_v_pod_monthly`, `cp2_v_pod_monthly_actuals`
+- [ ] `backend/scripts/cp2_backfill.py` — one function per legacy → cp2 mapping, idempotent
 
-**Phase 7 — Polish + review tooling**
-- [ ] Diff view: "what changed between this month and last month" (additions, removals, share deltas).
-- [ ] Search / filter bar across all CP v2 pages (by member name, pod, client, role).
-- [ ] Quarterly roll-up dashboard at `/capacity-planning?view=quarter`.
-- [ ] Keyboard shortcuts: `j/k` to navigate months, `e` to edit the focused row, `/` to search.
+**Phase B — Editable tables move first** (already app-managed, no UX regressions)
+- [ ] Backfill `cp2_dim_{client,team_member,pod,engagement_tier}` from existing tables
+- [ ] Backfill `cp2_fact_delivery_monthly` from `deliverables_monthly` + `production_history` (union on `client_id × month`)
+- [ ] Backfill `cp2_fact_{pod_membership,client_allocation}` from `team_members.pod` + `clients.editorial_pod`
+- [ ] Backfill `cp2_fact_kpi_score` from `kpi_scores` (1:1 + nullable `client_id`)
+- [ ] New routers `/api/cp2/{dims,facts,views}/*`
+- [ ] Rewire `_store.tsx` from `localStorage` to `apiGet` / `apiPost`
 
-**Out of scope for this overhaul (split into separate Linear tickets if needed):**
-- Real database migrations and ingestion ETL — that's the phase-2 work in `CAPACITY_PLANNING_V2.md`
-- Dashboard rewiring to read from `cp2_*` — only after migration lands
-- External feedback form for External Quality scoring
+**Phase C — Dashboard cutover** (A/B against legacy endpoints for one sprint)
+- [ ] `/api/dashboard/client-production` → read from `cp2_fact_production_history` + `cp2_fact_delivery_monthly`
+- [ ] `/api/deliverables/` → `cp2_fact_delivery_monthly`
+- [ ] `/api/capacity/` → `cp2_v_pod_monthly`
+- [ ] `/api/kpis/` → `cp2_fact_kpi_score`
+- [ ] Diff responses in prod for 1 sprint; flip the reader
 
-- [ ] Init git repo + push to GitHub (exclude sa-key.json, .env)
-- [ ] Deploy to AWS using existing template
-- [ ] Date range picker for Dashboard 1
-- [ ] Wire Capacity Utilization KPI card to real capacity data
-- [ ] Make SOW links clickable (add URL field or mapping)
+**Phase D — Move the read-only sources**
+- [ ] Build Maintain UI for `cp2_fact_pipeline_snapshot` (monthly pipeline). Backfill from `cumulative_metrics`
+- [ ] Build Maintain UI for `cp2_fact_actuals_weekly`. Backfill from `goals_vs_delivery`
+- [ ] Retire Master Tracker ingestion
 
+**Phase E — Long tail**
+- [ ] `cp2_fact_article` backfill from `notion_articles` (writer/editor string → FK)
+- [ ] `cp2_fact_{ai_scan,surfer_api_usage}` — rename + add FKs
+- [ ] Drop legacy tables from `models.py` + `seed_data.py`
 
-## Pending — P2 (External Dependencies)
-- [ ] Identify and integrate Master Tracker sheet
-- [ ] Import Writer AI Monitoring 2.0 sheet (AI Compliance real data)
-- [ ] Notion API integration (Revision Rate, Turnaround, Second Reviews)
-- [ ] Build client feedback form (External Quality)
-- [ ] Build SE mentorship form (Mentorship)
-- [ ] Auth system with role-based permissions
-- [ ] Quarter-based date selection
-- [ ] Dynamic forecast month detection
+**Decisions blocking Phase A** (see `.docs/dashboard-data-flow.md` §6)
+- [ ] Confirm month/week key format (`YYYY-MM` / `YYYY-Www`)
+- [ ] Keep `production_history` separate or merge into `delivery_monthly.is_actual`?
+- [ ] Notion string → FK: fuzzy matcher, or store `raw_writer_name` + null FK?
+- [ ] External sheet edits after cutover: hard-stop or audit-only ingest for 1 quarter?
+
+### Small P1 items (unrelated to CP v2)
+- [ ] Quarter picker on D2 (PRD §5 D2 Filters) — ~2h
+- [ ] Auto-detect latest CP version (PRD §5 D2 Data Sources) — ~3h
+- [ ] Revision Rate accuracy — needs daily snapshot infra
+- [ ] Article browser (PRD §11 nice-to-have) — ~4h; data already in DB
+- [ ] Deploy to Railway with the Notion pagination fix and verify rows_imported > 20,000
+
+---
+
+## ⏳ Pending — P2 (external deps)
+
+- [ ] External feedback form for External Quality scoring
+- [ ] SE mentorship form (Mentorship KPI)
+- [ ] Auth: role-based permissions (Editor sees own / SE sees pod+clients / CP+Leadership sees all)
+- [ ] Audit logs for dashboard access/usage
+- [ ] Notifications for broken links or metric changes
+
+---
+
+## 🧊 Deferred / icebox
+
+- Editable `team_members` CRUD (currently hardcoded in `seed_data.py`)
+- `engagement_rules`, `delivery_templates`, `model_assumptions` CRUD (rarely change)
+- Daily article-status snapshots (for accurate Revision Rate)
+
+---
+
+## How to work with this file
+
+Mark items `[x]` the moment they land in `main`. When a task spans multiple
+commits, list them inline (e.g. `(e103c0c, 32bca76)`). Re-review every other
+Friday; archive completed sections older than a month into a `tasks/archive/`
+folder when they crowd the top.
