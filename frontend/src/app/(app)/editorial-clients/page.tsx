@@ -46,7 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import {
   Tooltip,
@@ -1149,9 +1149,20 @@ function ContractTimelineTab({
       <ClientEngagementTimeline clients={clients} clientProduction={clientProduction} />
 
       {/* Detail table */}
-      <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-        Contract &amp; Timeline Detail <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. All SOW contracts, dates, pod assignments, and milestone dates." />
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+          Contract &amp; Timeline Detail <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Milestone dates are visualized in the Time-to Metrics cards above." />
+        </h3>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1I6fNQMjs2y4l6IyOxd9QL-QBjB2zGi0mcoV840JDmkI/edit#gid=0"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] hover:border-[#42CA80]/40 hover:text-[#42CA80] transition-colors"
+        >
+          Open source sheet
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
       <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
         <Table>
           <TableHeader>
@@ -1160,119 +1171,101 @@ function ContractTimelineTab({
               <SortableHead<Client> label="Status" field="status" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Editorial Pod" field="editorial_pod" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Growth Pod" field="growth_pod" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="Start Date" field="start_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="End Date" field="end_date" toggle={toggleSort} icon={getSortIcon} />
+              <SortableHead<Client> label="Contract Window" field="start_date" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Term" field="term_months" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Articles SOW" field="articles_sow" toggle={toggleSort} icon={getSortIcon} />
               <TableHead className="text-xs text-[#C4BCAA]">Cadence</TableHead>
               <TableHead className="text-xs text-[#C4BCAA]">SOW Link</TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">Word Count</TableHead>
-              <SortableHead<Client> label="Consulting KO" field="consulting_ko_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="Editorial KO" field="editorial_ko_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="First CB Approved" field="first_cb_approved_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="First Article Delivered" field="first_article_delivered_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="First Feedback" field="first_feedback_date" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="First Published" field="first_article_published_date" toggle={toggleSort} icon={getSortIcon} />
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={17} className="text-center text-[#606060]">
+                <TableCell colSpan={9} className="text-center text-[#606060]">
                   No clients match the selected filters.
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((client) => (
-                <TableRow
-                  key={client.id}
-                  className="border-[#2a2a2a] hover:bg-[#1F1F1F]"
-                >
-                  <TableCell className="font-semibold text-white">
-                    {client.name}
-                  </TableCell>
-                  <TableCell>{statusBadge(client.status)}</TableCell>
-                  <TableCell>{podBadge(client.editorial_pod)}</TableCell>
-                  <TableCell className="text-xs text-[#C4BCAA]">
-                    {client.growth_pod ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.start_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.end_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {client.term_months != null
-                      ? `${client.term_months}mo`
-                      : "\u2014"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {client.articles_sow ?? "\u2014"}
-                  </TableCell>
-                  <TableCell className="max-w-[160px]">
-                    {client.cadence ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <span className="block truncate font-mono text-[10px] text-[#C4BCAA] cursor-default" />
-                            }
-                          >
-                            {client.cadence}
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            {client.cadence}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <span className="text-xs text-[#606060]">{"\u2014"}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {client.sow_link ? (
-                      client.sow_link.startsWith("http") ? (
-                        <a href={client.sow_link} target="_blank" rel="noopener noreferrer">
-                          <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[10px] cursor-pointer hover:bg-[#5B9BF5]/20 transition-colors">
-                            {client.name} SOW ↗
-                          </Badge>
-                        </a>
+              sorted.map((client) => {
+                const words = wordCountDisplay(client.word_count_min, client.word_count_max);
+                const cadenceTooltip = [
+                  client.cadence ? `Cadence: ${client.cadence}` : null,
+                  words !== "\u2014" ? `Word count: ${words}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <TableRow
+                    key={client.id}
+                    className="border-[#2a2a2a] hover:bg-[#1F1F1F]"
+                  >
+                    <TableCell className="font-semibold text-white">
+                      {client.name}
+                    </TableCell>
+                    <TableCell>{statusBadge(client.status)}</TableCell>
+                    <TableCell>{podBadge(client.editorial_pod)}</TableCell>
+                    <TableCell className="text-xs text-[#C4BCAA]">
+                      {client.growth_pod ?? "\u2014"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-[#C4BCAA] whitespace-nowrap">
+                      {client.start_date || client.end_date ? (
+                        <>
+                          {formatDate(client.start_date)}
+                          <span className="text-[#606060]"> → </span>
+                          {formatDate(client.end_date)}
+                        </>
                       ) : (
-                        <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[10px]">
-                          {client.sow_link}
-                        </Badge>
-                      )
-                    ) : (
-                      <span className="text-[#606060]">{"\u2014"}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {wordCountDisplay(
-                      client.word_count_min,
-                      client.word_count_max
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.consulting_ko_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.editorial_ko_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.first_cb_approved_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.first_article_delivered_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.first_feedback_date)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                    {formatDate(client.first_article_published_date)}
-                  </TableCell>
-                </TableRow>
-              ))
+                        "\u2014"
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-[#C4BCAA]">
+                      {client.term_months != null
+                        ? `${client.term_months}mo`
+                        : "\u2014"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-white">
+                      {client.articles_sow ?? "\u2014"}
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      {cadenceTooltip ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <span className="block truncate font-mono text-[10px] text-[#C4BCAA] cursor-default" />
+                              }
+                            >
+                              {client.cadence ?? words}
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              {cadenceTooltip}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span className="text-xs text-[#606060]">{"\u2014"}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {client.sow_link ? (
+                        client.sow_link.startsWith("http") ? (
+                          <a href={client.sow_link} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[10px] cursor-pointer hover:bg-[#5B9BF5]/20 transition-colors">
+                              {client.name} SOW ↗
+                            </Badge>
+                          </a>
+                        ) : (
+                          <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[10px]">
+                            {client.sow_link}
+                          </Badge>
+                        )
+                      ) : (
+                        <span className="text-[#606060]">{"\u2014"}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
