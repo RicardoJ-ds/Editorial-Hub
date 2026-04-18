@@ -70,15 +70,6 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
-function wordCountDisplay(min: number | null, max: number | null): string {
-  if (min == null && max == null) return "\u2014";
-  if (min != null && max != null) {
-    if (min === max) return min.toLocaleString();
-    return `${min.toLocaleString()}\u2013${max.toLocaleString()}`;
-  }
-  return (min ?? max)!.toLocaleString();
-}
-
 type StatusVariant = "default" | "secondary" | "destructive" | "outline";
 
 function statusBadge(status: string) {
@@ -1171,29 +1162,29 @@ function ContractTimelineTab({
               <SortableHead<Client> label="Status" field="status" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Editorial Pod" field="editorial_pod" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Growth Pod" field="growth_pod" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="Contract Window" field="start_date" toggle={toggleSort} icon={getSortIcon} />
+              <SortableHead<Client> label="Start Date" field="start_date" toggle={toggleSort} icon={getSortIcon} />
+              <SortableHead<Client> label="End Date" field="end_date" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Term" field="term_months" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Articles SOW" field="articles_sow" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Cadence</TableHead>
+              <SortableHead<Client> label="Delivered" field="articles_delivered" toggle={toggleSort} icon={getSortIcon} />
+              <SortableHead<Client> label="Account Manager" field="account_manager" toggle={toggleSort} icon={getSortIcon} />
               <TableHead className="text-xs text-[#C4BCAA]">SOW Link</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-[#606060]">
+                <TableCell colSpan={11} className="text-center text-[#606060]">
                   No clients match the selected filters.
                 </TableCell>
               </TableRow>
             ) : (
               sorted.map((client) => {
-                const words = wordCountDisplay(client.word_count_min, client.word_count_max);
-                const cadenceTooltip = [
-                  client.cadence ? `Cadence: ${client.cadence}` : null,
-                  words !== "\u2014" ? `Word count: ${words}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ");
+                const delivered = client.articles_delivered ?? 0;
+                const sow = client.articles_sow ?? 0;
+                const pct = sow > 0 ? Math.round((delivered / sow) * 100) : null;
+                const deliveredColor =
+                  pct == null ? "#606060" : pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
                 return (
                   <TableRow
                     key={client.id}
@@ -1208,15 +1199,10 @@ function ContractTimelineTab({
                       {client.growth_pod ?? "\u2014"}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-[#C4BCAA] whitespace-nowrap">
-                      {client.start_date || client.end_date ? (
-                        <>
-                          {formatDate(client.start_date)}
-                          <span className="text-[#606060]"> → </span>
-                          {formatDate(client.end_date)}
-                        </>
-                      ) : (
-                        "\u2014"
-                      )}
+                      {formatDate(client.start_date)}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-[#C4BCAA] whitespace-nowrap">
+                      {formatDate(client.end_date)}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-[#C4BCAA]">
                       {client.term_months != null
@@ -1226,25 +1212,14 @@ function ContractTimelineTab({
                     <TableCell className="font-mono text-xs text-white">
                       {client.articles_sow ?? "\u2014"}
                     </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      {cadenceTooltip ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <span className="block truncate font-mono text-[10px] text-[#C4BCAA] cursor-default" />
-                              }
-                            >
-                              {client.cadence ?? words}
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              {cadenceTooltip}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <span className="text-xs text-[#606060]">{"\u2014"}</span>
+                    <TableCell className="font-mono text-xs whitespace-nowrap tabular-nums" style={{ color: deliveredColor }}>
+                      {client.articles_delivered ?? 0}
+                      {pct != null && (
+                        <span className="ml-1 text-[10px] text-[#606060]">({pct}%)</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-xs text-[#C4BCAA] whitespace-nowrap">
+                      {client.account_manager ?? "\u2014"}
                     </TableCell>
                     <TableCell className="text-xs">
                       {client.sow_link ? (
