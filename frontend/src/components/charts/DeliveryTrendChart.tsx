@@ -57,21 +57,38 @@ function sortPodKey(a: string, b: string) {
   return a.localeCompare(b);
 }
 
-// Map a % into a dark-theme heatmap color:
-//   <25%   = deep red       (severely behind on invoicing)
-//   25–75% = red/amber ramp
-//   75–100% = amber/green ramp
-//   ≈100% = healthy green (optimal: delivered = invoiced)
-//   >100% = cyan/blue (catch-up month — invoicing past work)
-// Returns a background color + text color for contrast.
-function heatColor(pct: number | null): { bg: string; fg: string; border: string } {
+type HeatBands = { thresholds: number[]; labels: string[] };
+
+// Color bands are *mode-aware* because 110% means different things depending
+// on whether you're looking at a single month (catch-up burst) or the running
+// total (normal retainer billing pattern).
+const HEAT_BANDS: Record<Mode, HeatBands> = {
+  monthly: {
+    thresholds: [25, 50, 75, 90, 110, 150],
+    labels: ["<25%", "25–50%", "50–75%", "75–90%", "90–110%", "110–150%", ">150%"],
+  },
+  cumulative: {
+    // Retainer clients invoice monthly commitments ahead of delivery, so the
+    // cumulative ratio naturally sits between 100% and 125%. Shift bands so
+    // 100–125% is the healthy green zone.
+    thresholds: [60, 85, 95, 100, 125, 150],
+    labels: ["<60%", "60–85%", "85–95%", "95–100%", "100–125%", "125–150%", ">150%"],
+  },
+};
+
+// Map a % into a dark-theme heatmap color using the active mode's bands.
+function heatColor(
+  pct: number | null,
+  mode: Mode,
+): { bg: string; fg: string; border: string } {
   if (pct == null) return { bg: "#0f0f0f", fg: "#404040", border: "#1a1a1a" };
-  if (pct < 25) return { bg: "#5b1e1e", fg: "#FFB8B0", border: "#7a2828" };
-  if (pct < 50) return { bg: "#6d2727", fg: "#F5A99A", border: "#8a3434" };
-  if (pct < 75) return { bg: "#6d4a1e", fg: "#F5BC4E", border: "#8a6128" };
-  if (pct < 90) return { bg: "#5e5721", fg: "#F5E078", border: "#78702c" };
-  if (pct < 110) return { bg: "#1f4d2e", fg: "#65FFAA", border: "#2a6b3f" };
-  if (pct < 150) return { bg: "#1f4a4d", fg: "#7FE8D6", border: "#2a6568" };
+  const t = HEAT_BANDS[mode].thresholds;
+  if (pct < t[0]) return { bg: "#5b1e1e", fg: "#FFB8B0", border: "#7a2828" };
+  if (pct < t[1]) return { bg: "#6d2727", fg: "#F5A99A", border: "#8a3434" };
+  if (pct < t[2]) return { bg: "#6d4a1e", fg: "#F5BC4E", border: "#8a6128" };
+  if (pct < t[3]) return { bg: "#5e5721", fg: "#F5E078", border: "#78702c" };
+  if (pct < t[4]) return { bg: "#1f4d2e", fg: "#65FFAA", border: "#2a6b3f" };
+  if (pct < t[5]) return { bg: "#1f4a4d", fg: "#7FE8D6", border: "#2a6568" };
   return { bg: "#1f3a6b", fg: "#8FB5D9", border: "#2a4f8c" };
 }
 
@@ -103,8 +120,22 @@ type Tooltip = {
   pct: number | null;
 } | null;
 
+const MODE_COPY: Record<Mode, { label: string; tooltip: string }> = {
+  monthly: {
+    label: "In-month",
+    tooltip:
+      "Invoiced ÷ Delivered for THIS month only. Answers: 'Did we bill the work we shipped this month?' Spiky because pods invoice in bursts — catch-up months show as >100%.",
+  },
+  cumulative: {
+    label: "Running total",
+    tooltip:
+      "Invoiced ÷ Delivered from the start through this month. Answers: 'Overall, are invoices keeping up with delivery?' Most clients are on monthly retainers, so this runs 105–120% by design — retainer fees bill ahead of actual delivery.",
+  },
+};
+
 export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChartProps) {
-  const [mode, setMode] = useState<Mode>("monthly");
+  // Default to cumulative — less noisy, matches how Finance looks at the book.
+  const [mode, setMode] = useState<Mode>("cumulative");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
 
   const clientToPod = useMemo(() => {
@@ -229,33 +260,52 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
     <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="max-w-[720px]">
             <CardTitle className="text-white">
               Invoicing vs Delivery %{" "}
               <DataSourceBadge
                 type="live"
-                source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Monthly articles_invoiced ÷ articles_delivered per editorial pod. 100% = every delivered article is invoiced in-period; <100% = work still unbilled; >100% = catch-up invoicing for earlier months."
+                source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Monthly articles_invoiced ÷ articles_delivered per editorial pod."
               />
             </CardTitle>
-            <p className="mt-0.5 text-[10px] font-mono text-[#C4BCAA]">
-              Each cell = Invoiced ÷ Delivered for that pod × month. Red = behind on billing, green ≈ healthy, teal/blue = catch-up month. Hover for the raw counts.
+            <p className="mt-1 text-[10px] font-mono text-[#C4BCAA] leading-relaxed">
+              {mode === "monthly" ? (
+                <>
+                  <b className="text-white">In-month view</b> — Invoiced ÷ Delivered for each month in isolation.
+                  Answers: <i>did we bill the work we shipped this month?</i> Expect spikes: pods invoice in bursts,
+                  so a quiet billing month followed by a catch-up month is normal.
+                </>
+              ) : (
+                <>
+                  <b className="text-white">Running total</b> — Invoiced ÷ Delivered from the start of the range
+                  through this month. Most clients are on monthly retainers, so <b className="text-white">105–120%</b> is
+                  healthy — retainer fees bill slightly ahead of actual delivery by design. Sustained &lt;90% would
+                  mean under-billing; &gt;130% would mean over-billing.
+                </>
+              )}
             </p>
           </div>
-          <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5 shrink-0">
-            {(["monthly", "cumulative"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={cn(
-                  "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
-                  mode === m
-                    ? "bg-[#42CA80]/15 text-[#42CA80]"
-                    : "text-[#606060] hover:text-white",
-                )}
-              >
-                {m === "monthly" ? "Per month" : "Cumulative"}
-              </button>
-            ))}
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
+              {(["monthly", "cumulative"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  title={MODE_COPY[m].tooltip}
+                  className={cn(
+                    "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                    mode === m
+                      ? "bg-[#42CA80]/15 text-[#42CA80]"
+                      : "text-[#606060] hover:text-white",
+                  )}
+                >
+                  {MODE_COPY[m].label}
+                </button>
+              ))}
+            </div>
+            <span className="font-mono text-[9px] text-[#606060] italic">
+              Hover a toggle for definitions
+            </span>
           </div>
         </div>
       </CardHeader>
@@ -310,7 +360,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                       </span>
                     </td>
                     {row.cells.map((cell, ci) => {
-                      const { bg, fg, border } = heatColor(cell.pct);
+                      const { bg, fg, border } = heatColor(cell.pct, mode);
                       return (
                         <td
                           key={`${row.pod}-${ci}`}
@@ -357,29 +407,35 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
           </table>
         </div>
 
-        {/* Color legend */}
+        {/* Color legend — bands follow the active mode */}
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[9px] text-[#606060]">
-          <span className="uppercase tracking-wider">Color scale</span>
-          {[
-            { label: "<25%", color: heatColor(10) },
-            { label: "25–50%", color: heatColor(35) },
-            { label: "50–75%", color: heatColor(60) },
-            { label: "75–90%", color: heatColor(82) },
-            { label: "90–110%", color: heatColor(100) },
-            { label: "110–150%", color: heatColor(130) },
-            { label: ">150%", color: heatColor(180) },
-          ].map((s) => (
-            <span key={s.label} className="inline-flex items-center gap-1">
-              <span
-                className="inline-block h-2.5 w-3 rounded-[3px]"
-                style={{
-                  backgroundColor: s.color.bg,
-                  border: `1px solid ${s.color.border}`,
-                }}
-              />
-              {s.label}
-            </span>
-          ))}
+          <span className="uppercase tracking-wider">
+            Color scale ({mode === "monthly" ? "in-month" : "running total"})
+          </span>
+          {(() => {
+            const bands = HEAT_BANDS[mode];
+            // Sample color at the midpoint of each band so legend matches cells.
+            const sampleAt = (i: number): number => {
+              if (i === 0) return Math.max(0, bands.thresholds[0] / 2);
+              if (i === bands.thresholds.length) return bands.thresholds[i - 1] + 20;
+              return (bands.thresholds[i - 1] + bands.thresholds[i]) / 2;
+            };
+            return bands.labels.map((label, i) => {
+              const color = heatColor(sampleAt(i), mode);
+              return (
+                <span key={label} className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-3 rounded-[3px]"
+                    style={{
+                      backgroundColor: color.bg,
+                      border: `1px solid ${color.border}`,
+                    }}
+                  />
+                  {label}
+                </span>
+              );
+            });
+          })()}
         </div>
 
         {/* Floating tooltip */}
@@ -407,7 +463,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                     <span className="text-white">{tooltip.delivered}</span>
                     {" = "}
                     <span
-                      style={{ color: heatColor(tooltip.pct).fg }}
+                      style={{ color: heatColor(tooltip.pct, mode).fg }}
                       className="font-semibold"
                     >
                       {pctLabel(tooltip.pct)}
