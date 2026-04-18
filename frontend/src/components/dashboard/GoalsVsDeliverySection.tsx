@@ -16,7 +16,8 @@ import { DataSourceBadge } from "./DataSourceBadge";
 import { ClientGoalCard } from "./ClientGoalCard";
 import { GoalsDeliveryChart } from "@/components/charts/GoalsDeliveryChart";
 import { WeeklyBreakdownMatrix } from "./WeeklyBreakdownMatrix";
-import { parsePctValue } from "./shared-helpers";
+import { parsePctValue, podBadge } from "./shared-helpers";
+import { normalizePod, sortPodKey } from "./ContractClientProgress";
 
 interface Props {
   filteredClients?: Client[];
@@ -82,6 +83,29 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards }: P
     const names = new Set(filteredClients.map((c) => c.name));
     return clientRows.filter((r) => names.has(r.client_name));
   }, [clientRows, filteredClients]);
+
+  // Canonical pod for each client — pulled from the Client record so the
+  // grouping below uses the same editorial_pod as the pod-aggregate row
+  // rendered right above.
+  const clientToEditorialPod = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of filteredClients ?? []) {
+      if (c.editorial_pod) map.set(c.name, normalizePod(c.editorial_pod));
+    }
+    return map;
+  }, [filteredClients]);
+
+  const rowsByPod = useMemo(() => {
+    const map = new Map<string, typeof displayRows>();
+    for (const r of displayRows) {
+      const pod = clientToEditorialPod.get(r.client_name)
+        ?? normalizePod(r.editorial_team_pod);
+      const list = map.get(pod);
+      if (list) list.push(r);
+      else map.set(pod, [r]);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => sortPodKey(a, b));
+  }, [displayRows, clientToEditorialPod]);
 
   // Every week × every client for the selected month — feeds WeeklyBreakdownMatrix
   const monthRowsFiltered = useMemo(() => {
@@ -155,15 +179,27 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards }: P
       {/* Pod-aggregate row (if slotted) sits immediately above per-client detail */}
       {beforeClientCards}
 
-      {/* Client Goal Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {displayRows.map((row) => (
-          <ClientGoalCard key={row.id} data={row} />
-        ))}
-      </div>
-
-      {displayRows.length === 0 && (
+      {/* Per-client cards — grouped into discrete pod subsections */}
+      {rowsByPod.length === 0 ? (
         <p className="text-center text-sm text-[#606060] py-8">No data available for the selected period.</p>
+      ) : (
+        <div className="space-y-5">
+          {rowsByPod.map(([pod, rows]) => (
+            <div key={`pod-group-${pod}`} className="space-y-2">
+              <div className="flex items-center gap-2">
+                {podBadge(pod)}
+                <span className="font-mono text-[10px] text-[#606060]">
+                  {rows.length} client{rows.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {rows.map((row) => (
+                  <ClientGoalCard key={row.id} data={row} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

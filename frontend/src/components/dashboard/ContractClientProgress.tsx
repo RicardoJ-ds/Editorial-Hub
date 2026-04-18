@@ -53,7 +53,7 @@ interface PodPipelineAgg {
   publishedLive: number;
 }
 
-function sortPodKey(a: string, b: string) {
+export function sortPodKey(a: string, b: string) {
   // Unassigned last, then numerically
   if (a === "Unassigned" && b !== "Unassigned") return 1;
   if (b === "Unassigned" && a !== "Unassigned") return -1;
@@ -67,7 +67,7 @@ function sortPodKey(a: string, b: string) {
  *  canonical "Pod N"; blanks/dashes fall through to "Unassigned". This keeps
  *  the matrix columns — and the FilterBar pod filter — consistent regardless
  *  of which sheet column the pod value originated from. */
-function normalizePod(raw: string | null | undefined): string {
+export function normalizePod(raw: string | null | undefined): string {
   if (raw == null) return "Unassigned";
   const trimmed = String(raw).trim();
   if (!trimmed || trimmed === "-" || trimmed === "—") return "Unassigned";
@@ -447,7 +447,7 @@ export function PodGoalsRow({ filteredClients }: Props) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h4 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#C4BCAA]">
@@ -462,34 +462,20 @@ export function PodGoalsRow({ filteredClients }: Props) {
           <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <div
-          className="grid gap-2"
-          style={{
-            gridTemplateColumns: `110px repeat(${goalPods.length}, minmax(240px, 320px))`,
-            width: "fit-content",
-          }}
-        >
-          <div />
-          {goalPods.map((g) => (
-            <div
-              key={`h-${g.pod}`}
-              className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
-            >
+      {/* Responsive grid — no horizontal scroll. Each pod is its own card with
+          header + month-goal gauges stacked. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {goalPods.map((g) => (
+          <div key={`g-${g.pod}`} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-1.5">
               {podBadge(g.pod)}
               <span className="font-mono text-[10px] text-[#606060]">
                 {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
               </span>
             </div>
-          ))}
-
-          <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
-            Month Goals
+            <GoalCell data={g} />
           </div>
-          {goalPods.map((g) => (
-            <GoalCell key={`g-${g.pod}`} data={g} />
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -512,7 +498,7 @@ export function PodPipelineRow({ filteredClients }: Props) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h4 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#C4BCAA]">
@@ -529,34 +515,19 @@ export function PodPipelineRow({ filteredClients }: Props) {
           <InfoLabel text="Overall %" hint="Cumulative article approval rate = articles approved ÷ articles sent across the pod." />
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <div
-          className="grid gap-2"
-          style={{
-            gridTemplateColumns: `110px repeat(${pipelinePods.length}, minmax(240px, 320px))`,
-            width: "fit-content",
-          }}
-        >
-          <div />
-          {pipelinePods.map((p) => (
-            <div
-              key={`h-${p.pod}`}
-              className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
-            >
+      {/* Responsive grid — no horizontal scroll. Each pod is its own card. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {pipelinePods.map((p) => (
+          <div key={`p-${p.pod}`} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-1.5">
               {podBadge(p.pod)}
               <span className="font-mono text-[10px] text-[#606060]">
                 {p.clientCount} client{p.clientCount === 1 ? "" : "s"}
               </span>
             </div>
-          ))}
-
-          <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
-            Pipeline (all-time)
+            <PipelineCell data={p} />
           </div>
-          {pipelinePods.map((p) => (
-            <PipelineCell key={`p-${p.pod}`} data={p} />
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   );

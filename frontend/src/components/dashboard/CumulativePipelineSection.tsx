@@ -7,6 +7,8 @@ import type { Client, CumulativeMetric } from "@/lib/types";
 import { SummaryCard } from "./SummaryCard";
 import { ClientPipelineCard } from "./ClientPipelineCard";
 import { PipelineFunnelChart } from "@/components/charts/PipelineFunnelChart";
+import { normalizePod, sortPodKey } from "./ContractClientProgress";
+import { podBadge } from "./shared-helpers";
 
 interface Props {
   filteredClients?: Client[];
@@ -27,20 +29,45 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
       .finally(() => setLoading(false));
   }, []);
 
+  // Use the CLIENT's editorial_pod (from filteredClients) as the canonical
+  // pod for grouping, so the per-section layout matches the pod-aggregate
+  // row which also uses editorial_pod.
+  const clientToEditorialPod = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of filteredClients ?? []) {
+      if (c.editorial_pod) map.set(c.name, normalizePod(c.editorial_pod));
+    }
+    return map;
+  }, [filteredClients]);
+
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
-      const podA = a.account_team_pod ?? "";
-      const podB = b.account_team_pod ?? "";
-      if (podA !== podB) return podA.localeCompare(podB);
+      const podA = clientToEditorialPod.get(a.client_name) ?? normalizePod(a.account_team_pod);
+      const podB = clientToEditorialPod.get(b.client_name) ?? normalizePod(b.account_team_pod);
+      if (podA !== podB) return sortPodKey(podA, podB);
       return a.client_name.localeCompare(b.client_name);
     });
-  }, [rows]);
+  }, [rows, clientToEditorialPod]);
 
   const displayRows = useMemo(() => {
     if (!filteredClients?.length) return sortedRows;
     const names = new Set(filteredClients.map((c) => c.name));
     return sortedRows.filter((r) => names.has(r.client_name));
   }, [sortedRows, filteredClients]);
+
+  // Group displayRows by the client's editorial_pod so we can render
+  // discrete subsections per pod instead of a flat alphabetical grid.
+  const rowsByPod = useMemo(() => {
+    const map = new Map<string, typeof displayRows>();
+    for (const r of displayRows) {
+      const pod = clientToEditorialPod.get(r.client_name)
+        ?? normalizePod(r.account_team_pod);
+      const list = map.get(pod);
+      if (list) list.push(r);
+      else map.set(pod, [r]);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => sortPodKey(a, b));
+  }, [displayRows, clientToEditorialPod]);
 
   // Summary
   const totalClients = new Set(displayRows.map((r) => r.client_name)).size;
@@ -95,15 +122,28 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
       {/* Pod-aggregate row (if slotted) sits immediately above per-client detail */}
       {beforeClientCards}
 
-      {/* Client Pipeline Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {displayRows.map((row) => (
-          <ClientPipelineCard key={row.id} data={row} />
-        ))}
-      </div>
-
-      {displayRows.length === 0 && (
+      {/* Per-client cards — grouped into discrete subsections per pod so you
+          can scan one pod at a time instead of a flat alphabetical grid. */}
+      {rowsByPod.length === 0 ? (
         <p className="text-center text-sm text-[#606060] py-8">No cumulative pipeline data available.</p>
+      ) : (
+        <div className="space-y-5">
+          {rowsByPod.map(([pod, rows]) => (
+            <div key={`pod-group-${pod}`} className="space-y-2">
+              <div className="flex items-center gap-2">
+                {podBadge(pod)}
+                <span className="font-mono text-[10px] text-[#606060]">
+                  {rows.length} client{rows.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {rows.map((row) => (
+                  <ClientPipelineCard key={row.id} data={row} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
