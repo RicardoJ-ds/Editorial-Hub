@@ -48,7 +48,13 @@ export function FilterBar({ clients, onFilterChange }: FilterBarProps) {
   const [status, setStatus] = useState(
     searchParams.get("status") ?? "All"
   );
-  const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    // End-of-month for (current + 6): start-of-month for (current + 7) minus 1 day
+    const to = new Date(now.getFullYear(), now.getMonth() + 7, 0);
+    return { type: "range", from, to };
+  });
 
   // Derive pods from actual data — normalize so "1" and "Pod 1" collapse into one option
   const sortPodOptions = (a: string, b: string) => {

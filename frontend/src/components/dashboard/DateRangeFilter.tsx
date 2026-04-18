@@ -28,6 +28,23 @@ type View = "years" | "months";
 const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+// Slider spans every month covered by YEARS. Index 0 = Jan of YEARS[0],
+// last index = Dec of YEARS[last].
+const SLIDER_START_YEAR = YEARS[0];
+const SLIDER_MONTH_COUNT = YEARS.length * 12;
+
+function idxToMonthStart(idx: number): Date {
+  const clamped = Math.max(0, Math.min(SLIDER_MONTH_COUNT - 1, idx));
+  return new Date(SLIDER_START_YEAR + Math.floor(clamped / 12), clamped % 12, 1);
+}
+function idxToMonthEnd(idx: number): Date {
+  const clamped = Math.max(0, Math.min(SLIDER_MONTH_COUNT - 1, idx));
+  return new Date(SLIDER_START_YEAR + Math.floor(clamped / 12), (clamped % 12) + 1, 0);
+}
+function dateToIdx(d: Date): number {
+  return (d.getFullYear() - SLIDER_START_YEAR) * 12 + d.getMonth();
+}
+
 const PRESETS = [
   { label: "This Year", from: new Date(2026, 0, 1), to: new Date(2026, 11, 31) },
   { label: "Last Year", from: new Date(2025, 0, 1), to: new Date(2025, 11, 31) },
@@ -91,6 +108,128 @@ const STYLES = `
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Dual-handle month slider (keeps click-grid intact, adds drag-based selection)
+// ---------------------------------------------------------------------------
+
+function MonthRangeSlider({
+  value,
+  onChange,
+}: {
+  value: DateRange;
+  onChange: (r: DateRange) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<"from" | "to" | null>(null);
+  const maxIdx = SLIDER_MONTH_COUNT - 1;
+
+  const fromIdx = value.type === "range" && value.from ? dateToIdx(value.from) : 0;
+  const toIdx = value.type === "range" && value.to ? dateToIdx(value.to) : maxIdx;
+
+  const idxFromPointer = (clientX: number): number => {
+    const track = trackRef.current;
+    if (!track) return 0;
+    const rect = track.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / rect.width;
+    return Math.max(0, Math.min(maxIdx, Math.round(ratio * maxIdx)));
+  };
+
+  const updateRange = (next: { from?: number; to?: number }) => {
+    const nextFrom = next.from ?? fromIdx;
+    const nextTo = next.to ?? toIdx;
+    const a = Math.min(nextFrom, nextTo);
+    const b = Math.max(nextFrom, nextTo);
+    onChange({ type: "range", from: idxToMonthStart(a), to: idxToMonthEnd(b) });
+  };
+
+  useEffect(() => {
+    if (!drag) return;
+    const move = (e: PointerEvent) => {
+      const idx = idxFromPointer(e.clientX);
+      if (drag === "from") updateRange({ from: idx });
+      else updateRange({ to: idx });
+    };
+    const up = () => setDrag(null);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag, fromIdx, toIdx]);
+
+  // Click on track: move nearest thumb to that spot
+  const onTrackPointerDown = (e: React.PointerEvent) => {
+    const idx = idxFromPointer(e.clientX);
+    const distFrom = Math.abs(idx - fromIdx);
+    const distTo = Math.abs(idx - toIdx);
+    const which: "from" | "to" = distFrom <= distTo ? "from" : "to";
+    if (which === "from") updateRange({ from: idx });
+    else updateRange({ to: idx });
+    setDrag(which);
+  };
+
+  const pct = (idx: number) => (maxIdx === 0 ? 0 : (idx / maxIdx) * 100);
+
+  return (
+    <div className="select-none">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[9px] font-mono text-[#606060] uppercase tracking-wider">Drag to pick a range</p>
+        <p className="text-[10px] font-mono text-[#42CA80]">
+          {fmtShort(idxToMonthStart(fromIdx))} – {fmtShort(idxToMonthEnd(toIdx))}
+        </p>
+      </div>
+      <div
+        ref={trackRef}
+        onPointerDown={onTrackPointerDown}
+        className="relative h-6 flex items-center cursor-pointer touch-none"
+      >
+        {/* Track background */}
+        <div className="absolute inset-x-0 h-1 bg-[#1e1e1e] rounded-full" />
+        {/* Active fill */}
+        <div
+          className="absolute h-1 bg-[#42CA80]/60 rounded-full"
+          style={{ left: `${pct(Math.min(fromIdx, toIdx))}%`, right: `${100 - pct(Math.max(fromIdx, toIdx))}%` }}
+        />
+        {/* Thumbs */}
+        {(["from", "to"] as const).map((handle) => {
+          const idx = handle === "from" ? fromIdx : toIdx;
+          const active = drag === handle;
+          return (
+            <div
+              key={handle}
+              onPointerDown={(e) => { e.stopPropagation(); setDrag(handle); }}
+              role="slider"
+              aria-valuemin={0}
+              aria-valuemax={maxIdx}
+              aria-valuenow={idx}
+              tabIndex={0}
+              className={cn(
+                "absolute -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#42CA80] border-2 border-[#0a0a0a] cursor-grab transition-shadow",
+                active && "cursor-grabbing shadow-[0_0_0_4px_rgba(66,202,128,0.2)]"
+              )}
+              style={{ left: `${pct(idx)}%` }}
+            />
+          );
+        })}
+      </div>
+      {/* Year ticks */}
+      <div className="relative h-3 mt-1">
+        {YEARS.map((y, i) => (
+          <span
+            key={y}
+            className="absolute -translate-x-1/2 text-[9px] font-mono text-[#606060]"
+            style={{ left: `${(i / (YEARS.length - 1)) * 100}%` }}
+          >
+            {String(y).slice(2)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false);
@@ -307,6 +446,11 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                       </button>
                     );
                   })}
+                </div>
+
+                {/* Range slider — alternative to two-click grid selection */}
+                <div className="border-t border-[#1e1e1e] pt-3">
+                  <MonthRangeSlider value={value} onChange={onChange} />
                 </div>
 
                 {/* Select full year */}
