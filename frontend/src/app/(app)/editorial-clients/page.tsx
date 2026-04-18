@@ -1166,25 +1166,18 @@ function ContractTimelineTab({
               <SortableHead<Client> label="End Date" field="end_date" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Term" field="term_months" toggle={toggleSort} icon={getSortIcon} />
               <SortableHead<Client> label="Articles SOW" field="articles_sow" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="Delivered" field="articles_delivered" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<Client> label="Account Manager" field="account_manager" toggle={toggleSort} icon={getSortIcon} />
               <TableHead className="text-xs text-[#C4BCAA]">SOW Link</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center text-[#606060]">
+                <TableCell colSpan={9} className="text-center text-[#606060]">
                   No clients match the selected filters.
                 </TableCell>
               </TableRow>
             ) : (
               sorted.map((client) => {
-                const delivered = client.articles_delivered ?? 0;
-                const sow = client.articles_sow ?? 0;
-                const pct = sow > 0 ? Math.round((delivered / sow) * 100) : null;
-                const deliveredColor =
-                  pct == null ? "#606060" : pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
                 return (
                   <TableRow
                     key={client.id}
@@ -1211,15 +1204,6 @@ function ContractTimelineTab({
                     </TableCell>
                     <TableCell className="font-mono text-xs text-white">
                       {client.articles_sow ?? "\u2014"}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs whitespace-nowrap tabular-nums" style={{ color: deliveredColor }}>
-                      {client.articles_delivered ?? 0}
-                      {pct != null && (
-                        <span className="ml-1 text-[10px] text-[#606060]">({pct}%)</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-[#C4BCAA] whitespace-nowrap">
-                      {client.account_manager ?? "\u2014"}
                     </TableCell>
                     <TableCell className="text-xs">
                       {client.sow_link ? (
