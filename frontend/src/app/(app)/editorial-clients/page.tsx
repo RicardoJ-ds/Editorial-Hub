@@ -33,7 +33,10 @@ import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards"
 import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
-import { ContractClientProgress } from "@/components/dashboard/ContractClientProgress";
+import {
+  PodGoalsRow,
+  PodPipelineRow,
+} from "@/components/dashboard/ContractClientProgress";
 import { SortableHead as SortableHeadShared } from "@/components/dashboard/shared-helpers";
 import {
   Select,
@@ -319,11 +322,6 @@ export default function EditorialClientsPage() {
         </TabsContent>
 
         <TabsContent value="deliverables-sow">
-          {/* Aggregated pod matrix — Month Goals (top row) + Cumulative Pipeline (bottom row) */}
-          <div className="mb-6">
-            <ContractClientProgress filteredClients={filteredClients} />
-          </div>
-
           {/* Delivery Overview: summary cards + charts */}
           <DeliverablesSOWTab
             clients={filteredClients}
@@ -343,25 +341,31 @@ export default function EditorialClientsPage() {
             <ClientDeliveryMatrix filteredClients={filteredClients} />
           </div>
 
-          {/* Cumulative Pipeline section — card-based redesign */}
+          {/* Cumulative Pipeline — pod roll-up on top, per-client detail below */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
             <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
-              Cumulative Pipeline <DataSourceBadge type="live" source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline metrics per client: topics, CBs, articles sent/approved." />
+              Cumulative Pipeline <DataSourceBadge type="live" source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline metrics per pod (aggregate) and per client (detail)." />
             </h3>
             <p className="text-xs text-[#606060] mb-4">
-              All-time pipeline progression per client — topics through publication with approval rates at each stage.
+              All-time pipeline progression — pod totals on top, per-client detail below. Topics through publication with approval rates at each stage.
             </p>
+            <div className="mb-6">
+              <PodPipelineRow filteredClients={filteredClients} />
+            </div>
             <CumulativePipelineSection filteredClients={filteredClients} />
           </div>
 
-          {/* Weekly Goals vs Delivery section — card-based redesign */}
+          {/* Weekly Goals vs Delivery — pod gauges on top, per-client detail below */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
             <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
-              Weekly Goals vs Delivery <DataSourceBadge type="live" source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Weekly delivery tracking against monthly goals." />
+              Weekly Goals vs Delivery <DataSourceBadge type="live" source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Pod gauges aggregate the latest week; per-client cards show the same week's detail." />
             </h3>
             <p className="text-xs text-[#606060] mb-4">
-              Weekly delivery tracking against monthly goals for content briefs and articles by client.
+              Pod gauges on top, per-client detail below. Weekly CB and article delivery vs monthly goal.
             </p>
+            <div className="mb-6">
+              <PodGoalsRow filteredClients={filteredClients} />
+            </div>
             <GoalsVsDeliverySection filteredClients={filteredClients} />
           </div>
         </TabsContent>

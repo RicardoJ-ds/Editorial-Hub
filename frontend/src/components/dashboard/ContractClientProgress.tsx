@@ -371,10 +371,11 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
 }
 
 // ---------------------------------------------------------------------------
-// Main section — matrix layout
+// Shared data hook — both per-pod rows fetch the same two endpoints and
+// aggregate by the client's editorial_pod.
 // ---------------------------------------------------------------------------
 
-export function ContractClientProgress({ filteredClients }: Props) {
+function usePodAggregates(filteredClients: Client[]) {
   const [goalRows, setGoalRows] = useState<GoalsVsDeliveryRow[]>([]);
   const [pipelineRows, setPipelineRows] = useState<CumulativeMetric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -395,10 +396,8 @@ export function ContractClientProgress({ filteredClients }: Props) {
   }, []);
 
   // Canonical source of truth for "what pod is this client on" is the filtered
-  // Client row's editorial_pod. Using this everywhere means the FilterBar's
-  // pod filter applies consistently to both matrix rows (goals + pipeline),
-  // regardless of whether the underlying sheet row stores editorial_team_pod
-  // or account_team_pod.
+  // Client row's editorial_pod. Keeps the FilterBar's POD filter consistent
+  // across both aggregations regardless of how the sheet column was named.
   const clientToPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients) {
@@ -409,52 +408,40 @@ export function ContractClientProgress({ filteredClients }: Props) {
 
   const filterNames = useMemo(
     () => new Set(filteredClients.map((c) => c.name)),
-    [filteredClients]
+    [filteredClients],
   );
 
-  const goalPods = useMemo(() => {
-    const filtered = goalRows.filter((r) => filterNames.has(r.client_name));
-    return aggregateGoalsByPod(filtered, clientToPod);
-  }, [goalRows, filterNames, clientToPod]);
+  const goalPods = useMemo(
+    () => aggregateGoalsByPod(
+      goalRows.filter((r) => filterNames.has(r.client_name)),
+      clientToPod,
+    ),
+    [goalRows, filterNames, clientToPod],
+  );
 
-  const pipelinePods = useMemo(() => {
-    const filtered = pipelineRows.filter((r) => filterNames.has(r.client_name));
-    return aggregatePipelineByPod(filtered, clientToPod);
-  }, [pipelineRows, filterNames, clientToPod]);
+  const pipelinePods = useMemo(
+    () => aggregatePipelineByPod(
+      pipelineRows.filter((r) => filterNames.has(r.client_name)),
+      clientToPod,
+    ),
+    [pipelineRows, filterNames, clientToPod],
+  );
 
-  // Matrix columns = union of pods present in either aggregation.
-  const podColumns = useMemo(() => {
-    const set = new Set<string>();
-    for (const g of goalPods) set.add(g.pod);
-    for (const p of pipelinePods) set.add(p.pod);
-    return Array.from(set).sort(sortPodKey);
-  }, [goalPods, pipelinePods]);
+  return { loading, goalPods, pipelinePods };
+}
 
-  const goalByPod = useMemo(() => {
-    const map = new Map<string, PodGoalAgg>();
-    for (const g of goalPods) map.set(g.pod, g);
-    return map;
-  }, [goalPods]);
+// ---------------------------------------------------------------------------
+// Per-pod Month Goals row
+// ---------------------------------------------------------------------------
 
-  const pipelineByPod = useMemo(() => {
-    const map = new Map<string, PodPipelineAgg>();
-    for (const p of pipelinePods) map.set(p.pod, p);
-    return map;
-  }, [pipelinePods]);
+export function PodGoalsRow({ filteredClients }: Props) {
+  const { loading, goalPods } = usePodAggregates(filteredClients);
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        <Skeleton className="h-[220px]" />
-        <Skeleton className="h-[220px]" />
-      </div>
-    );
-  }
-
-  if (podColumns.length === 0) {
+  if (loading) return <Skeleton className="h-[180px]" />;
+  if (goalPods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] px-4 py-6 text-center text-sm text-[#606060]">
-        No pod data for the selected filters.
+        No pod-level goal data for the selected filters.
       </div>
     );
   }
@@ -463,73 +450,124 @@ export function ContractClientProgress({ filteredClients }: Props) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Pod Matrix — Current Month Goals & Cumulative Pipeline
-          </h3>
+          <h4 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Aggregated by pod
+          </h4>
           <DataSourceBadge
             type="live"
-            source="Sheets: '[Month Year] Goals vs Delivery' (top row) + 'Cumulative' (bottom row) — Spreadsheet: Master Tracker. Grouped by the client's editorial_pod from the Client record."
+            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Latest week snapshot per client, summed by the client's editorial_pod."
           />
         </div>
         <p className="text-[10px] text-[#606060]">
-          <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />{" "}
-          ·{" "}
+          <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <div
+          className="grid gap-2"
+          style={{
+            gridTemplateColumns: `110px repeat(${goalPods.length}, minmax(240px, 320px))`,
+            width: "fit-content",
+          }}
+        >
+          <div />
+          {goalPods.map((g) => (
+            <div
+              key={`h-${g.pod}`}
+              className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
+            >
+              {podBadge(g.pod)}
+              <span className="font-mono text-[10px] text-[#606060]">
+                {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
+              </span>
+            </div>
+          ))}
+
+          <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
+            Month Goals
+          </div>
+          {goalPods.map((g) => (
+            <GoalCell key={`g-${g.pod}`} data={g} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Per-pod Cumulative Pipeline row
+// ---------------------------------------------------------------------------
+
+export function PodPipelineRow({ filteredClients }: Props) {
+  const { loading, pipelinePods } = usePodAggregates(filteredClients);
+
+  if (loading) return <Skeleton className="h-[220px]" />;
+  if (pipelinePods.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] px-4 py-6 text-center text-sm text-[#606060]">
+        No pod-level pipeline data for the selected filters.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h4 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Aggregated by pod
+          </h4>
+          <DataSourceBadge
+            type="live"
+            source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time per-client pipeline totals, summed by the client's editorial_pod."
+          />
+        </div>
+        <p className="text-[10px] text-[#606060]">
           <InfoLabel text="Articles Δ" hint="Articles sent minus articles approved — how many articles the pod has delivered that are still awaiting client approval. Summed across the pod's clients." />
           {" · "}
           <InfoLabel text="Overall %" hint="Cumulative article approval rate = articles approved ÷ articles sent across the pod." />
         </p>
       </div>
-
-      {/* Matrix: one column per pod, two rows (Goals, Pipeline).
-          Pod columns have a capped max width so a single filtered pod doesn't
-          stretch across the whole page, and the grid uses fit-content so the
-          tracks hug the left edge instead of right-aligning in the parent. */}
       <div className="overflow-x-auto">
         <div
           className="grid gap-2"
           style={{
-            gridTemplateColumns: `110px repeat(${podColumns.length}, minmax(240px, 320px))`,
+            gridTemplateColumns: `110px repeat(${pipelinePods.length}, minmax(240px, 320px))`,
             width: "fit-content",
           }}
         >
-          {/* Header row — pod labels */}
           <div />
-          {podColumns.map((pod) => {
-            const g = goalByPod.get(pod);
-            const p = pipelineByPod.get(pod);
-            const count = Math.max(g?.clientCount ?? 0, p?.clientCount ?? 0);
-            return (
-              <div
-                key={`h-${pod}`}
-                className="flex items-center justify-between rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  {podBadge(pod)}
-                  <span className="font-mono text-[10px] text-[#606060]">
-                    {count} client{count === 1 ? "" : "s"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Goals row */}
-          <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
-            Month Goals
-          </div>
-          {podColumns.map((pod) => (
-            <GoalCell key={`g-${pod}`} data={goalByPod.get(pod) ?? null} />
+          {pipelinePods.map((p) => (
+            <div
+              key={`h-${p.pod}`}
+              className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
+            >
+              {podBadge(p.pod)}
+              <span className="font-mono text-[10px] text-[#606060]">
+                {p.clientCount} client{p.clientCount === 1 ? "" : "s"}
+              </span>
+            </div>
           ))}
 
-          {/* Pipeline row */}
           <div className="flex items-center px-2 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
             Pipeline (all-time)
           </div>
-          {podColumns.map((pod) => (
-            <PipelineCell key={`p-${pod}`} data={pipelineByPod.get(pod) ?? null} />
+          {pipelinePods.map((p) => (
+            <PipelineCell key={`p-${p.pod}`} data={p} />
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Backwards-compat alias — used by older call sites. Renders both rows stacked.
+export function ContractClientProgress(props: Props) {
+  return (
+    <div className="space-y-4">
+      <PodGoalsRow {...props} />
+      <PodPipelineRow {...props} />
     </div>
   );
 }
