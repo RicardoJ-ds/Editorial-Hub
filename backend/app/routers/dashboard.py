@@ -164,9 +164,7 @@ async def client_production(db: AsyncSession = Depends(get_db)):
     """
     # Fetch every client that has an SOW or any production row — avoids missing
     # clients whose Operating Model rows are all zero but have a SOW on file.
-    clients_result = await db.execute(
-        select(Client).order_by(Client.name)
-    )
+    clients_result = await db.execute(select(Client).order_by(Client.name))
     clients = list(clients_result.scalars().all())
 
     # Load all production history rows in one shot, group in-memory by client.

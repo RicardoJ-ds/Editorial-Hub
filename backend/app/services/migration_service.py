@@ -414,7 +414,9 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
     ssid, tab_name = _resolve_sheet_source(sheet_name)
     # Empty tab_name → resolve to the first (non-hidden) tab of the spreadsheet.
     if not tab_name:
-        meta_pre = service.spreadsheets().get(spreadsheetId=ssid, fields="sheets.properties").execute()
+        meta_pre = (
+            service.spreadsheets().get(spreadsheetId=ssid, fields="sheets.properties").execute()
+        )
         for s in meta_pre.get("sheets", []):
             props = s.get("properties", {})
             if not props.get("hidden"):
@@ -2664,9 +2666,7 @@ def import_team_pods(session: Session) -> ImportResult:
         pod_col = col_of("POD NUMBER", "POD #", "POD")
         client_col = col_of("CLIENT")
         if pod_col is None or client_col is None:
-            result.errors.append(
-                f"Missing POD NUMBER or CLIENT column — headers: {headers}"
-            )
+            result.errors.append(f"Missing POD NUMBER or CLIENT column — headers: {headers}")
             result.success = False
             return result
 
@@ -2674,7 +2674,7 @@ def import_team_pods(session: Session) -> ImportResult:
         # (merged cells in the sheet), so carry forward.
         client_to_pod: dict[str, str] = {}
         current_pod: str | None = None
-        for r in rows[header_idx + 1:]:
+        for r in rows[header_idx + 1 :]:
             result.rows_parsed += 1
             raw_pod = _cell(r, pod_col)
             raw_client = _cell(r, client_col)
