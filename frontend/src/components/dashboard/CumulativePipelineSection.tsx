@@ -10,9 +10,13 @@ import { PipelineFunnelChart } from "@/components/charts/PipelineFunnelChart";
 
 interface Props {
   filteredClients?: Client[];
+  /** Rendered immediately above the per-client card grid. Use this to inject
+   *  a pod-aggregate row so reviewers see pod totals right before the
+   *  per-client detail they roll up from. */
+  beforeClientCards?: React.ReactNode;
 }
 
-export function CumulativePipelineSection({ filteredClients }: Props) {
+export function CumulativePipelineSection({ filteredClients, beforeClientCards }: Props) {
   const [rows, setRows] = useState<CumulativeMetric[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,6 +91,9 @@ export function CumulativePipelineSection({ filteredClients }: Props) {
 
       {/* Funnel chart */}
       <PipelineFunnelChart data={displayRows} />
+
+      {/* Pod-aggregate row (if slotted) sits immediately above per-client detail */}
+      {beforeClientCards}
 
       {/* Client Pipeline Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

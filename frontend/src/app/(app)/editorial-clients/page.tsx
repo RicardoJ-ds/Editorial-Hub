@@ -341,32 +341,38 @@ export default function EditorialClientsPage() {
             <ClientDeliveryMatrix filteredClients={filteredClients} />
           </div>
 
-          {/* Cumulative Pipeline — pod roll-up on top, per-client detail below */}
+          {/* Cumulative Pipeline — summary + funnel, then pod aggregate
+              right above per-client detail cards */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
             <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
               Cumulative Pipeline <DataSourceBadge type="live" source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline metrics per pod (aggregate) and per client (detail)." />
             </h3>
             <p className="text-xs text-[#606060] mb-4">
-              All-time pipeline progression — pod totals on top, per-client detail below. Topics through publication with approval rates at each stage.
+              All-time pipeline progression. Portfolio summary on top, pod aggregate next, then per-client detail.
             </p>
-            <div className="mb-6">
-              <PodPipelineRow filteredClients={filteredClients} />
-            </div>
-            <CumulativePipelineSection filteredClients={filteredClients} />
+            <CumulativePipelineSection
+              filteredClients={filteredClients}
+              beforeClientCards={
+                <PodPipelineRow filteredClients={filteredClients} />
+              }
+            />
           </div>
 
-          {/* Weekly Goals vs Delivery — pod gauges on top, per-client detail below */}
+          {/* Weekly Goals vs Delivery — summary + weekly matrix, then pod
+              aggregate right above per-client detail cards */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
             <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
               Weekly Goals vs Delivery <DataSourceBadge type="live" source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Pod gauges aggregate the latest week; per-client cards show the same week's detail." />
             </h3>
             <p className="text-xs text-[#606060] mb-4">
-              Pod gauges on top, per-client detail below. Weekly CB and article delivery vs monthly goal.
+              Weekly CB and article delivery vs monthly goal. Summary on top, pod aggregate next, then per-client detail.
             </p>
-            <div className="mb-6">
-              <PodGoalsRow filteredClients={filteredClients} />
-            </div>
-            <GoalsVsDeliverySection filteredClients={filteredClients} />
+            <GoalsVsDeliverySection
+              filteredClients={filteredClients}
+              beforeClientCards={
+                <PodGoalsRow filteredClients={filteredClients} />
+              }
+            />
           </div>
         </TabsContent>
       </Tabs>

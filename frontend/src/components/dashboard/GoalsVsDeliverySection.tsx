@@ -20,9 +20,12 @@ import { parsePctValue } from "./shared-helpers";
 
 interface Props {
   filteredClients?: Client[];
+  /** Rendered right above the per-client cards so pod aggregates sit
+   *  adjacent to the detail they roll up from. */
+  beforeClientCards?: React.ReactNode;
 }
 
-export function GoalsVsDeliverySection({ filteredClients }: Props) {
+export function GoalsVsDeliverySection({ filteredClients, beforeClientCards }: Props) {
   const [months, setMonths] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedWeek, setSelectedWeek] = useState<string>("latest");
@@ -148,6 +151,9 @@ export function GoalsVsDeliverySection({ filteredClients }: Props) {
 
       {/* Weekly breakdown — surfaces every Week N: CB / Week N: AD column from the sheet */}
       <WeeklyBreakdownMatrix rows={monthRowsFiltered} monthLabel={selectedMonth} />
+
+      {/* Pod-aggregate row (if slotted) sits immediately above per-client detail */}
+      {beforeClientCards}
 
       {/* Client Goal Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
