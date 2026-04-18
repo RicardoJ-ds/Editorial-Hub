@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
 import { apiGet } from "@/lib/api";
 import type {
   Client,
@@ -23,12 +22,11 @@ import type {
   CumulativeMetric,
   ClientProductionRow,
 } from "@/lib/types";
-import { FilterBar } from "@/components/dashboard/FilterBar";
+import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { DeliveryTrendChart } from "@/components/charts/DeliveryTrendChart";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
-import { PacingBadge } from "@/components/dashboard/PacingBadge";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
 import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
@@ -225,6 +223,7 @@ export default function EditorialClientsPage() {
   const [productionTrend, setProductionTrend] = useState<ProductionTrendPoint[]>([]);
   const [pacingData, setPacingData] = useState<ClientPacing[]>([]);
   const [clientProduction, setClientProduction] = useState<ClientProductionRow[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
   const fetchData = useCallback(async () => {
     try {
       const [clientsData, deliverablesData] = await Promise.all([
@@ -265,6 +264,10 @@ export default function EditorialClientsPage() {
     setFilteredClients(filtered);
   }, []);
 
+  const handleDateRangeChange = useCallback((range: DateRange) => {
+    setDateRange(range);
+  }, []);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -285,7 +288,11 @@ export default function EditorialClientsPage() {
         <div className="sticky top-14 z-20 bg-black pb-3 -mx-8 px-8 pt-1">
           {/* Compact header: filters + tabs in one tight block */}
           <div className="flex items-center justify-between mb-3">
-            <FilterBar clients={clients} onFilterChange={handleFilterChange} />
+            <FilterBar
+              clients={clients}
+              onFilterChange={handleFilterChange}
+              onDateRangeChange={handleDateRangeChange}
+            />
             {lastUpdated && (
               <p className="text-[10px] text-[#606060] font-mono shrink-0 ml-4">
                 {lastUpdated.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
@@ -319,6 +326,8 @@ export default function EditorialClientsPage() {
             deliverables={deliverables}
             productionTrend={productionTrend}
             pacingData={pacingData}
+            clientProduction={clientProduction}
+            dateRange={dateRange}
           />
 
           {/* Unified Client Delivery Matrix (joined data from all sources) */}
@@ -1264,12 +1273,38 @@ function DeliverablesSOWTab({
   deliverables,
   productionTrend,
   pacingData,
+  clientProduction,
+  dateRange,
 }: {
   clients: Client[];
   deliverables: DeliverableMonthly[];
   productionTrend: ProductionTrendPoint[];
   pacingData: ClientPacing[];
+  clientProduction: ClientProductionRow[];
+  dateRange: DateRange;
 }) {
+  // Trim deliverables to the FilterBar selection (client set + date range).
+  // FilterBar emits a filtered `clients` array — anything not in that set
+  // is hidden by contract (status, pod, search, engagement overlap).
+  const filteredDeliverables = useMemo(() => {
+    const clientIds = new Set(clients.map((c) => c.id));
+    const inRange = (y: number, m: number) => {
+      if (dateRange.type !== "range" || !dateRange.from) return true;
+      const cell = new Date(y, m - 1, 1);
+      const from = new Date(
+        dateRange.from.getFullYear(),
+        dateRange.from.getMonth(),
+        1
+      );
+      const toSrc = dateRange.to ?? dateRange.from;
+      // End-of-month for the "to" boundary so the selected month is included
+      const to = new Date(toSrc.getFullYear(), toSrc.getMonth() + 1, 0);
+      return cell >= from && cell <= to;
+    };
+    return deliverables.filter(
+      (d) => clientIds.has(d.client_id) && inRange(d.year, d.month)
+    );
+  }, [deliverables, clients, dateRange]);
   const pacingMap = useMemo(() => {
     const m = new Map<string, ClientPacing>();
     for (const p of pacingData) m.set(p.client_name, p);
@@ -1302,9 +1337,6 @@ function DeliverablesSOWTab({
       };
     });
   }, [clients, deliverables]);
-
-  const { sorted, toggleSort, getSortIcon } =
-    useSortableData<ClientDeliverableSummary>(rows);
 
   const totalSow = rows.reduce((a, r) => a + r.articles_sow, 0);
   const totalDelivered = rows.reduce((a, r) => a + r.articles_delivered, 0);
@@ -1350,96 +1382,19 @@ function DeliverablesSOWTab({
 
       {/* Charts side by side on larger screens */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {productionTrend.length > 0 && (
-          <ProductionTrendChart data={productionTrend} />
-        )}
-        <DeliveryTrendChart deliverables={deliverables} clients={clients} />
+        <ProductionTrendChart
+          data={productionTrend}
+          clientProduction={clientProduction}
+          filteredClients={clients}
+          dateRange={dateRange}
+        />
+        <DeliveryTrendChart
+          deliverables={filteredDeliverables}
+          clients={clients}
+        />
       </div>
-      {/* Per-client cards — same data as the table below, with pacing badge + bars */}
+      {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete */}
       <ClientDeliveryCards rows={rows} pacingMap={pacingMap} />
-
-      <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-        Client Delivery Detail <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Per-client articles delivered, invoiced, CB delivery, pacing, and time-to metrics." />
-      </h3>
-      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-[#2a2a2a] hover:bg-transparent">
-              <SortableHead<ClientDeliverableSummary> label="Client" field="name" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="Status" field="status" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="Articles SOW" field="articles_sow" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="Delivered" field="articles_delivered" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="Invoiced" field="articles_invoiced" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="Variance" field="variance" toggle={toggleSort} icon={getSortIcon} />
-              <SortableHead<ClientDeliverableSummary> label="% Complete" field="pct_complete" toggle={toggleSort} icon={getSortIcon} />
-              <TableHead className="text-xs text-[#C4BCAA]">Pacing</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center text-[#606060]">
-                  No clients match the selected filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              sorted.map((row, idx) => (
-                <TableRow
-                  key={row.id}
-                  className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide"
-                  style={{ animationDelay: `${idx * 30}ms` }}
-                >
-                  <TableCell className="font-semibold text-white">
-                    {row.name}
-                  </TableCell>
-                  <TableCell>{statusBadge(row.status)}</TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.articles_sow}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.articles_delivered}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-white">
-                    {row.articles_invoiced}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "font-mono text-xs font-semibold",
-                      row.variance > 0
-                        ? "text-[#42CA80]"
-                        : row.variance < 0
-                          ? "text-[#ED6958]"
-                          : "text-[#C4BCAA]"
-                    )}
-                  >
-                    {row.variance > 0 ? `+${row.variance}` : row.variance}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-white w-10">
-                        {row.pct_complete}%
-                      </span>
-                      <div className="w-20">
-                        <Progress value={row.pct_complete} className="h-1.5" />
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {pacingMap.has(row.name) ? (
-                      <PacingBadge
-                        status={pacingMap.get(row.name)!.status}
-                        deltaPct={pacingMap.get(row.name)!.delta_pct}
-                      />
-                    ) : (
-                      <span className="text-[#606060]">{"\u2014"}</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
     </div>
   );
 }
