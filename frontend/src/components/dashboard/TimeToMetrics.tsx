@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import type { Client } from "@/lib/types";
 import { SummaryCard } from "./SummaryCard";
 import { DataSourceBadge } from "./DataSourceBadge";
@@ -45,6 +45,53 @@ function fmtRange(s: ReturnType<typeof statsOf>): string | undefined {
   return `Min: ${s.min}d / Max: ${s.max}d`;
 }
 
+// Pod helpers shared across dashboards — keep in sync with FilterBar/ContractClientProgress.
+const POD_COLORS: Record<string, string> = {
+  "Pod 1": "#8FB5D9",
+  "Pod 2": "#42CA80",
+  "Pod 3": "#F5C542",
+  "Pod 4": "#F28D59",
+  "Pod 5": "#ED6958",
+  "Pod 6": "#CEBCF4",
+  "Pod 7": "#7FE8D6",
+  Unassigned: "#606060",
+};
+
+function normalizePod(raw: string | null | undefined): string {
+  if (raw == null) return "Unassigned";
+  const t = String(raw).trim();
+  if (!t || t === "-" || t === "—") return "Unassigned";
+  const n = t.match(/^(\d+)$/);
+  if (n) return `Pod ${n[1]}`;
+  const p = t.match(/^p(?:od)?\s*(\d+)$/i);
+  if (p) return `Pod ${p[1]}`;
+  return t;
+}
+
+function sortPodKey(a: string, b: string): number {
+  if (a === "Unassigned" && b !== "Unassigned") return 1;
+  if (b === "Unassigned" && a !== "Unassigned") return -1;
+  const na = parseInt(a.replace(/\D/g, ""), 10);
+  const nb = parseInt(b.replace(/\D/g, ""), 10);
+  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+  return a.localeCompare(b);
+}
+
+function fmtDateShort(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+}
+
+type Contributor = {
+  clientName: string;
+  pod: string;
+  fromDate: string;
+  toDate: string;
+  days: number;
+};
+
 // Reference: Consulting KO (day 0) — always comes first
 const REF_FIELD = "consulting_ko_date";
 const REF_LABEL = "Consulting KO";
@@ -78,17 +125,59 @@ const JOURNEY = [
   { key: "published", label: "First Published", short: "Published", field: "first_article_published_date", color: "#CEBCF4", shape: "circle" as const },
 ] as const;
 
+type MetricCard = MetricDef & {
+  stats: ReturnType<typeof statsOf>;
+  contributors: Contributor[];
+};
+
 export function TimeToMetrics({ clients }: TimeToMetricsProps) {
-  // Card metrics — all relative to Consulting KO
-  const cards = useMemo(() => {
+  // Per-card stats AND the full list of contributing clients, so the hover
+  // tooltip can show every (client, from-date → to-date, days) triple used.
+  const cards = useMemo<MetricCard[]>(() => {
     return METRIC_DEFS.map((d) => {
-      const from = d.from ?? REF_FIELD;
-      const values = clients.map((c) =>
-        daysBetween((c as unknown as Record<string, string | null>)[from], (c as unknown as Record<string, string | null>)[d.to])
-      );
-      return { ...d, stats: statsOf(values) };
+      const fromField = d.from ?? REF_FIELD;
+      const contributors: Contributor[] = [];
+      const values: (number | null)[] = [];
+      for (const c of clients) {
+        const a = (c as unknown as Record<string, string | null>)[fromField];
+        const b = (c as unknown as Record<string, string | null>)[d.to];
+        const days = daysBetween(a, b);
+        values.push(days);
+        if (days !== null && a && b) {
+          contributors.push({
+            clientName: c.name,
+            pod: normalizePod(c.editorial_pod),
+            fromDate: a,
+            toDate: b,
+            days,
+          });
+        }
+      }
+      contributors.sort((x, y) => y.days - x.days);
+      return { ...d, stats: statsOf(values), contributors };
     });
   }, [clients]);
+
+  // Single shared tooltip instance for all 8 cards — avoids mounting 8 portals.
+  // Mouse-out schedules a short close delay so the user can move into the
+  // tooltip itself and scroll without it disappearing.
+  const [tip, setTip] = useState<{ x: number; y: number; card: MetricCard } | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setTip(null), 150);
+  };
+  const openTip = (e: React.MouseEvent<HTMLDivElement>, card: MetricCard) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    cancelClose();
+    setTip({ x: r.left + r.width / 2, y: r.bottom + 8, card });
+  };
 
   // Per-client milestone data — all days from CKO
   const clientMilestones = useMemo(() => {
@@ -124,26 +213,14 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
       {/* Row 1: Primary — from Consulting KO */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.slice(0, 4).map((m) => (
-          <SummaryCard
-            key={m.key}
-            title={`Avg ${m.label}`}
-            subtitle={m.subtitle}
-            value={m.stats.avg !== null ? `${m.stats.avg} days` : "N/A"}
-            description={fmtRange(m.stats)}
-          />
+          <HoverableMetricCard key={m.key} card={m} onEnter={openTip} onLeave={scheduleClose} />
         ))}
       </div>
 
       {/* Row 2: Secondary cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.slice(4).map((m) => (
-          <SummaryCard
-            key={m.key}
-            title={`Avg ${m.label}`}
-            subtitle={m.subtitle}
-            value={m.stats.avg !== null ? `${m.stats.avg} days` : "N/A"}
-            description={fmtRange(m.stats)}
-          />
+          <HoverableMetricCard key={m.key} card={m} onEnter={openTip} onLeave={scheduleClose} />
         ))}
       </div>
 
@@ -152,6 +229,116 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
 
       {/* Waterfall chart */}
       {clientMilestones.length > 0 && <MilestoneWaterfall data={clientMilestones} />}
+
+      {/* Shared hover tooltip — fixed-position portal so parent overflow
+          never clips it. Pointer events enabled on the popup so the user
+          can move into it to scroll through long client lists. */}
+      {tip && (
+        <div
+          className="fixed z-[9999]"
+          style={{ left: tip.x, top: tip.y, transform: "translate(-50%, 0)" }}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        >
+          <MetricContributorsPopup card={tip.card} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HoverableMetricCard({
+  card,
+  onEnter,
+  onLeave,
+}: {
+  card: MetricCard;
+  onEnter: (e: React.MouseEvent<HTMLDivElement>, card: MetricCard) => void;
+  onLeave: () => void;
+}) {
+  return (
+    <div
+      className="cursor-default"
+      onMouseEnter={(e) => onEnter(e, card)}
+      onMouseLeave={onLeave}
+    >
+      <SummaryCard
+        title={`Avg ${card.label}`}
+        subtitle={card.subtitle}
+        value={card.stats.avg !== null ? `${card.stats.avg} days` : "N/A"}
+        description={fmtRange(card.stats)}
+      />
+    </div>
+  );
+}
+
+function MetricContributorsPopup({ card }: { card: MetricCard }) {
+  const byPod = new Map<string, Contributor[]>();
+  for (const row of card.contributors) {
+    const arr = byPod.get(row.pod) ?? [];
+    arr.push(row);
+    byPod.set(row.pod, arr);
+  }
+  for (const arr of byPod.values()) {
+    arr.sort((a, b) => b.days - a.days);
+  }
+  const pods = Array.from(byPod.keys()).sort(sortPodKey);
+
+  const parts = card.label.split(" → ");
+  const fromLabel = parts[0] ?? "From";
+  const toLabel = parts[1] ?? "To";
+  const count = card.contributors.length;
+
+  return (
+    <div className="flex max-h-[440px] w-[460px] flex-col overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl shadow-black/60">
+      <div className="border-b border-[#2a2a2a] px-3.5 py-2.5">
+        <p className="font-mono text-[11px] font-semibold text-white">{card.label}</p>
+        <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
+          Avg {card.stats.avg ?? "—"}d across {count} client{count === 1 ? "" : "s"} with both dates set.
+          {card.stats.min !== null && card.stats.max !== null && (
+            <>  · Min {card.stats.min}d · Max {card.stats.max}d</>
+          )}
+        </p>
+      </div>
+      {count === 0 ? (
+        <p className="px-3.5 py-4 text-center font-mono text-[10px] text-[#606060]">
+          No clients have both {fromLabel} and {toLabel} dates recorded yet.
+        </p>
+      ) : (
+        <div className="space-y-2.5 overflow-y-auto px-3.5 py-2.5">
+          {pods.map((pod) => {
+            const rows = byPod.get(pod) ?? [];
+            const color = POD_COLORS[pod] ?? "#606060";
+            return (
+              <div key={pod}>
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                  <span
+                    className="font-mono text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color }}
+                  >
+                    {pod}
+                  </span>
+                  <span className="font-mono text-[9px] text-[#606060]">({rows.length})</span>
+                </div>
+                <div className="ml-3.5 space-y-0.5">
+                  {rows.map((r) => (
+                    <div key={r.clientName} className="flex items-center gap-2 font-mono text-[10px]">
+                      <span className="w-[120px] shrink-0 truncate text-[#C4BCAA]" title={r.clientName}>
+                        {r.clientName}
+                      </span>
+                      <span className="shrink-0 text-[#606060] tabular-nums">
+                        {fmtDateShort(r.fromDate)} → {fmtDateShort(r.toDate)}
+                      </span>
+                      <span className="ml-auto font-semibold tabular-nums text-white">{r.days}d</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -334,10 +521,7 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
               <SelectContent>
                 {METRIC_DEFS.map((m) => (
                   <SelectItem key={m.key} value={m.key}>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-medium">{m.label}</span>
-                      <span className="font-mono text-[9px] text-[#606060]">{m.short} · {m.subtitle}</span>
-                    </div>
+                    <span className="text-xs font-medium">{m.label}</span>
                   </SelectItem>
                 ))}
               </SelectContent>

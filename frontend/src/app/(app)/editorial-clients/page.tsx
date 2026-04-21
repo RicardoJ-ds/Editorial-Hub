@@ -25,8 +25,9 @@ import type {
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
-import { DeliveryTrendChart } from "@/components/charts/DeliveryTrendChart";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
+import { ClientNotesPanel, hasClientNote } from "@/components/dashboard/ClientNotesPanel";
+import { FilterContextCard } from "@/components/dashboard/FilterContextCard";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
 import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
@@ -439,6 +440,30 @@ function TotalsCell({
   );
 }
 
+function TotalsPercentCell({
+  delivered,
+  sow,
+}: {
+  delivered: number | undefined;
+  sow: number | undefined;
+}) {
+  if (sow == null || sow <= 0 || delivered == null) {
+    return (
+      <span className="font-mono text-[10px] text-[#404040] text-right tabular-nums">—</span>
+    );
+  }
+  const pct = Math.round((delivered / sow) * 100);
+  const color = pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
+  return (
+    <span
+      className="font-mono text-[10px] font-semibold text-right tabular-nums"
+      style={{ color }}
+    >
+      {pct}%
+    </span>
+  );
+}
+
 interface TimelineTooltip {
   x: number;
   y: number;
@@ -806,10 +831,11 @@ function ClientEngagementTimeline({
                 })}
               </div>
               {/* Totals sidebar — aggregate across every client in the view */}
-              <div className="w-[260px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-4 gap-1 items-end">
+              <div className="w-[320px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-5 gap-1 items-end">
                 <TotalsCell value={agg.projected} />
                 <TotalsCell value={agg.delivered} />
                 <TotalsCell value={agg.sow} muted />
+                <TotalsPercentCell delivered={agg.delivered} sow={agg.sow} />
                 <TotalsCell
                   value={agg.reconciliation}
                   color={
@@ -853,10 +879,11 @@ function ClientEngagementTimeline({
                 })}
               </div>
               {/* Mirror the totals sidebar width so labels don't drift */}
-              <div className="w-[260px] shrink-0 pl-3 grid grid-cols-4 gap-1">
+              <div className="w-[320px] shrink-0 pl-3 grid grid-cols-5 gap-1">
                 <TotalsHeader label="Projected" hint="Sum of articles_projected across every active client." />
                 <TotalsHeader label="Delivered" hint="Sum of articles_actual across every active client." />
                 <TotalsHeader label="SOW" hint="Sum of contracted articles_sow across every active client." />
+                <TotalsHeader label="% SOW" hint="Delivered ÷ SOW. Contract completion across every active client." />
                 <TotalsHeader label="Reconcile" hint="sow − delivered − projected across every active client." />
               </div>
             </div>
@@ -920,10 +947,11 @@ function ClientEngagementTimeline({
             })}
           </div>
           {/* Totals column header */}
-          <div className="w-[260px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-4 gap-1">
+          <div className="w-[320px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-5 gap-1">
             <TotalsHeader label="Projected" hint="Sum of articles_projected from the Editorial Operating Model — planned output still in front of us." />
             <TotalsHeader label="Delivered" hint="Sum of articles_actual from the Operating Model (falls back to Client.articles_delivered if no rows)." />
             <TotalsHeader label="SOW" hint="Client.articles_sow — contracted article total." />
+            <TotalsHeader label="% SOW" hint="Delivered ÷ SOW. Contract completion so far — green ≥75%, yellow ≥50%, red below." />
             <TotalsHeader label="Reconcile" hint="sow − delivered − projected. Negative = pod is over-committed to this client." />
           </div>
         </div>
@@ -1064,10 +1092,11 @@ function ClientEngagementTimeline({
                 </div>
 
                 {/* Totals sidebar */}
-                <div className="w-[260px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-4 gap-1 items-center">
+                <div className="w-[320px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-5 gap-1 items-center">
                   <TotalsCell value={totals?.projected} />
                   <TotalsCell value={totals?.delivered} />
                   <TotalsCell value={totals?.sow} muted />
+                  <TotalsPercentCell delivered={totals?.delivered} sow={totals?.sow} />
                   <TotalsCell
                     value={totals?.reconciliation}
                     color={
@@ -1266,6 +1295,8 @@ interface ClientDeliverableSummary {
   articles_invoiced: number;
   variance: number;
   pct_complete: number;
+  start_date?: string | null;
+  term_months?: number | null;
 }
 
 function DeliverablesSOWTab({
@@ -1311,18 +1342,27 @@ function DeliverablesSOWTab({
     return m;
   }, [pacingData]);
   const rows: ClientDeliverableSummary[] = useMemo(() => {
+    // SOW is the fixed contract total from the SOW sheet, independent of the
+    // date filter. Delivered / Invoiced / Variance sum from the monthly
+    // Delivered-vs-Invoiced rows that fall inside the active date range, so
+    // the card reflects "what happened in the selected window" while still
+    // measuring against the full contract.
     return clients.map((c) => {
       const sow = c.articles_sow ?? 0;
-      const delivered = c.articles_delivered ?? 0;
-      const invoiced = c.articles_invoiced ?? 0;
-      const pct = sow > 0 ? Math.round((delivered / sow) * 100) : 0;
-
-      // Sum variance from deliverables for this client (from sheet)
-      const clientDeliverables = deliverables.filter((d) => d.client_id === c.id);
+      const clientDeliverables = filteredDeliverables.filter((d) => d.client_id === c.id);
+      const delivered = clientDeliverables.reduce(
+        (acc, d) => acc + (d.articles_delivered ?? 0),
+        0,
+      );
+      const invoiced = clientDeliverables.reduce(
+        (acc, d) => acc + (d.articles_invoiced ?? 0),
+        0,
+      );
       const totalVariance = clientDeliverables.reduce(
         (acc, d) => acc + (d.variance ?? 0),
-        0
+        0,
       );
+      const pct = sow > 0 ? Math.round((delivered / sow) * 100) : 0;
 
       return {
         id: c.id,
@@ -1334,9 +1374,11 @@ function DeliverablesSOWTab({
         articles_invoiced: invoiced,
         variance: totalVariance,
         pct_complete: pct,
+        start_date: c.start_date,
+        term_months: c.term_months,
       };
     });
-  }, [clients, deliverables]);
+  }, [clients, filteredDeliverables]);
 
   const totalSow = rows.reduce((a, r) => a + r.articles_sow, 0);
   const totalDelivered = rows.reduce((a, r) => a + r.articles_delivered, 0);
@@ -1358,7 +1400,8 @@ function DeliverablesSOWTab({
           Monthly article delivery progress against SOW targets, invoicing balance, and pacing status per client.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <FilterContextCard clients={clients} rows={rows} />
         <SummaryCard
           title="Total Delivered vs SOW"
           value={`${totalDelivered.toLocaleString()} / ${totalSow.toLocaleString()}`}
@@ -1380,21 +1423,29 @@ function DeliverablesSOWTab({
         />
       </div>
 
-      {/* Charts side by side on larger screens */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      {/* Production History + Client Notes. When no filtered client has a
+          note, Production History spans full width instead of leaving a big
+          blank pane next to it. */}
+      {clients.some(hasClientNote) ? (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <ProductionTrendChart
+            data={productionTrend}
+            clientProduction={clientProduction}
+            filteredClients={clients}
+            dateRange={dateRange}
+          />
+          <ClientNotesPanel clients={clients} />
+        </div>
+      ) : (
         <ProductionTrendChart
           data={productionTrend}
           clientProduction={clientProduction}
           filteredClients={clients}
           dateRange={dateRange}
         />
-        <DeliveryTrendChart
-          deliverables={filteredDeliverables}
-          clients={clients}
-        />
-      </div>
+      )}
       {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete */}
-      <ClientDeliveryCards rows={rows} pacingMap={pacingMap} />
+      <ClientDeliveryCards rows={rows} />
     </div>
   );
 }

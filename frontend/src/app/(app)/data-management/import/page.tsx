@@ -827,6 +827,83 @@ function StepComplete({
 // Main Page
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Historical resync card (Advanced)
+// ---------------------------------------------------------------------------
+
+function HistoricalResyncCard() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [result, setResult] = useState<ImportResultItem | null>(null);
+
+  const run = useCallback(async () => {
+    setStatus("running");
+    setResult(null);
+    try {
+      const r = await apiPost<ImportResultItem>(
+        "/api/migrate/goals-historical-resync",
+        {},
+      );
+      setResult(r);
+      setStatus(r.success ? "done" : "error");
+    } catch (err) {
+      setResult({
+        sheet: "Master Tracker - Goals vs Delivery",
+        rows_parsed: 0,
+        rows_imported: 0,
+        success: false,
+        errors: [err instanceof Error ? err.message : "Resync failed"],
+      });
+      setStatus("error");
+    }
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-xl">
+          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Re-sync historical Goals vs Delivery months
+          </h3>
+          <p className="mt-1 text-xs text-[#606060]">
+            The normal <b className="text-white">Sync</b> button only re-imports the
+            current month. Use this when an older month&apos;s numbers were retroactively
+            edited in the sheet and you want the dashboard to reflect the corrections.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={run}
+          disabled={status === "running"}
+          className="shrink-0"
+        >
+          {status === "running" ? (
+            <>
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              Re-syncing…
+            </>
+          ) : (
+            <>
+              <RotateCcw className="mr-2 h-3.5 w-3.5" />
+              Re-sync all past months
+            </>
+          )}
+        </Button>
+      </div>
+      {result && status === "done" && (
+        <p className="mt-3 font-mono text-[11px] text-[#42CA80]">
+          ✓ {result.rows_imported.toLocaleString()} rows imported across every month tab.
+        </p>
+      )}
+      {result && status === "error" && (
+        <p className="mt-3 font-mono text-[11px] text-[#ED6958]">
+          ✗ {result.errors.join("; ") || "Resync failed"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ImportWizardPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [sheets, setSheets] = useState<SheetInfo[]>([]);
@@ -868,6 +945,9 @@ export default function ImportWizardPage() {
           Import data from Google Sheets into the Editorial Hub.
         </p>
       </div>
+
+      {/* Advanced: historical re-sync for month-partitioned sheets */}
+      <HistoricalResyncCard />
 
       {/* Step indicator */}
       <StepIndicator currentStep={currentStep} />

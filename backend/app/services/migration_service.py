@@ -27,6 +27,7 @@ from app.models import (
     ModelAssumption,
     NotionArticle,
     ProductionHistory,
+    SheetSyncHistory,
     SurferAPIUsage,
     TeamMember,
 )
@@ -246,6 +247,73 @@ def _extract_hyperlinks(service, spreadsheet_id: str, range_str: str) -> dict[in
         return links
     except Exception:
         logger.warning("Could not extract hyperlinks from %s", range_str)
+        return {}
+
+
+def _cell_to_markdown(cell) -> str:
+    """Convert a Sheets API CellData to markdown, preserving inline hyperlinks.
+
+    Google Sheets stores per-cell rich text as `textFormatRuns`: each run carries
+    a `startIndex` into `formattedValue` and a `format` that may contain
+    `link.uri`. We convert linked runs into `[text](url)` markdown so the URL
+    survives into the database (plain `.values().get()` would drop it).
+
+    Cells whose entire content is a single hyperlink expose the URL on the
+    cell's top-level `hyperlink` field instead of on runs.
+    """
+    text = cell.get("formattedValue", "") or ""
+    if not text:
+        return ""
+
+    runs = cell.get("textFormatRuns") or []
+    if not runs:
+        whole = cell.get("hyperlink")
+        return f"[{text}]({whole})" if whole else text
+
+    # Each run covers [startIndex, next_start_index). Linked runs get wrapped.
+    parts: list[str] = []
+    for i, run in enumerate(runs):
+        start = run.get("startIndex", 0)
+        end = runs[i + 1].get("startIndex", len(text)) if i + 1 < len(runs) else len(text)
+        segment = text[start:end]
+        if not segment:
+            continue
+        uri = (run.get("format") or {}).get("link", {}).get("uri")
+        parts.append(f"[{segment}]({uri})" if uri else segment)
+    return "".join(parts)
+
+
+def _extract_rich_text_column(
+    service, spreadsheet_id: str, range_str: str
+) -> dict[int, str]:
+    """Fetch a column as markdown, preserving inline hyperlinks on each cell.
+
+    Returns {row_offset_within_range: markdown_string} so callers can align
+    with their own iteration index.
+    """
+    try:
+        resp = (
+            service.spreadsheets()
+            .get(
+                spreadsheetId=spreadsheet_id,
+                ranges=[range_str],
+                fields="sheets.data.rowData.values(formattedValue,hyperlink,textFormatRuns(startIndex,format(link)))",
+            )
+            .execute()
+        )
+        out: dict[int, str] = {}
+        for sheet in resp.get("sheets", []):
+            for block in sheet.get("data", []):
+                for i, row in enumerate(block.get("rowData", [])):
+                    vals = row.get("values", [])
+                    if not vals:
+                        continue
+                    md = _cell_to_markdown(vals[0])
+                    if md:
+                        out[i] = md
+        return out
+    except Exception:
+        logger.warning("Could not extract rich text from %s", range_str, exc_info=True)
         return {}
 
 
@@ -490,6 +558,12 @@ def import_sow_overview(session: Session) -> ImportResult:
         # Extract hyperlinks from SOW column (col S = col 19, 1-indexed)
         # Rows 7+ in sheet = data rows (sheet is 1-indexed, so row 7 = index 0 in data_rows)
         sow_hyperlinks = _extract_hyperlinks(service, SPREADSHEET_ID, f"'{sheet_name}'!S7:S200")
+        # Comments live in col R (col 18, 1-indexed) and often contain inline
+        # hyperlinks ("see here" linked to a doc). Fetch as markdown so URLs
+        # survive; plain .values() drops them.
+        comments_md = _extract_rich_text_column(
+            service, SPREADSHEET_ID, f"'{sheet_name}'!R7:R200"
+        )
 
         for row in data_rows:
             result.rows_parsed += 1
@@ -538,7 +612,7 @@ def import_sow_overview(session: Session) -> ImportResult:
                 first_article_delivered_date=parse_date(_cell(row, 14)),
                 first_feedback_date=parse_date(_cell(row, 15)),
                 first_article_published_date=parse_date(_cell(row, 16)),
-                comments=_cell(row, 17) or None,
+                comments=comments_md.get(result.rows_parsed - 1, _cell(row, 17)) or None,
                 sow_link=sow_hyperlinks.get(result.rows_parsed - 1, _cell(row, 18)) or None,
                 updated_by="sheets_migration",
             )
@@ -612,9 +686,14 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
             if canonical in name_lookup and alias not in name_lookup:
                 name_lookup[alias] = name_lookup[canonical]
 
-        # Data starts at row index 3, groups of 6 rows per client
+        # Data starts at row index 3, groups of 6 rows per client.
+        # Columns: 0..6 are metadata; month data starts at col 7 and extends
+        # as far as the sheet is filled — Y2 contracts (renewals, multi-year
+        # engagements like Gainbridge) use M13+ in additional columns. Hard
+        # cap of 36 months is a safety limit that far exceeds today's
+        # longest contracts.
         row_idx = 3
-        max_months = 12
+        MAX_MONTH_LIMIT = 36
 
         while row_idx + 5 < len(all_rows):
             header_row = all_rows[row_idx]
@@ -660,7 +739,15 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
             deliveries_row = all_rows[row_idx + 3] if row_idx + 3 < len(all_rows) else []
             variance_row = all_rows[row_idx + 4] if row_idx + 4 < len(all_rows) else []
 
-            for m_offset in range(max_months):
+            # Iterate months until we exhaust the populated columns. Y2+
+            # contracts extend past M12 so a fixed cap silently dropped those
+            # rows before; now we read as many months as the sheet carries.
+            widest_row = max(
+                len(sow_row), len(invoicing_row), len(deliveries_row), len(variance_row)
+            )
+            months_available = max(0, min(widest_row - 7, MAX_MONTH_LIMIT))
+
+            for m_offset in range(months_available):
                 col_idx = 7 + m_offset
 
                 # Calculate actual year/month
@@ -2058,7 +2145,17 @@ def import_cumulative(session: Session) -> ImportResult:
 # ---------------------------------------------------------------------------
 
 
-def import_goals_vs_delivery(session: Session) -> ImportResult:
+def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportResult:
+    """Import the per-month Goals vs Delivery tabs from the Master Tracker.
+
+    mode="current" (default) — only re-import the current calendar month's tab,
+    plus any past-month tabs that haven't been recorded in `sheet_sync_history`
+    yet (auto first-seen import). Already-synced past-month tabs are skipped.
+
+    mode="all" — force a full re-import of every tab. Intended for the
+    "Sync historical months" action when someone retroactively edits an
+    older month's numbers.
+    """
     sheet_name = "Master Tracker - Goals vs Delivery"
     result = ImportResult(sheet=sheet_name)
     try:
@@ -2078,12 +2175,42 @@ def import_goals_vs_delivery(session: Session) -> ImportResult:
 
         gvd_sheets.sort()
 
+        # Sheet tabs use "<Month name> <YYYY>" — match against today's date in the
+        # same locale-free format so we know which tab is "current" right now.
+        current_month_year = datetime.now().strftime("%B %Y")
+
+        # Snapshot the set of past-month tabs we've already imported, so the
+        # normal (current-mode) sync can skip them without touching the DB
+        # for each tab.
+        synced_past_tabs: set[str] = set()
+        if mode == "current":
+            synced_rows = (
+                session.execute(
+                    select(SheetSyncHistory.tab_name).where(
+                        SheetSyncHistory.sheet_name == sheet_name
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            synced_past_tabs = set(synced_rows)
+
+        tabs_imported = 0
+        tabs_skipped = 0
+
         for gvd_sheet in gvd_sheets:
             # Extract month_year from sheet name like "[March 2026] Goals vs Delivery"
             match = re.match(r"\[(\w+ \d{4})\]", gvd_sheet)
             if not match:
                 continue
             month_year = match.group(1)
+            is_current_tab = month_year == current_month_year
+
+            # In current-mode: always import the current-month tab, and any
+            # past-month tab we've never recorded. Skip frozen past tabs.
+            if mode == "current" and not is_current_tab and gvd_sheet in synced_past_tabs:
+                tabs_skipped += 1
+                continue
 
             resp = (
                 service.spreadsheets()
@@ -2110,6 +2237,7 @@ def import_goals_vs_delivery(session: Session) -> ImportResult:
             # Pattern: fixed(6) + [CB block(6 cols) + AD block(8 cols)] per week = 14 per week
             num_weeks = (len(header_row) - 6) // 14 + 1
 
+            rows_this_tab = 0
             for row in data_rows:
                 result.rows_parsed += 1
                 client_name = _cell(row, 0)
@@ -2186,9 +2314,44 @@ def import_goals_vs_delivery(session: Session) -> ImportResult:
                             setattr(existing, k, v)
                     else:
                         session.add(GoalsVsDelivery(**data))
-                    result.rows_imported += 1
+                    rows_this_tab += 1
+
+            result.rows_imported += rows_this_tab
+            tabs_imported += 1
+
+            # Record past-month tabs in sheet_sync_history so the normal sync
+            # skips them next time. The current-month tab is NOT recorded —
+            # it's always re-imported.
+            if not is_current_tab:
+                sync_row = (
+                    session.execute(
+                        select(SheetSyncHistory).where(
+                            SheetSyncHistory.sheet_name == sheet_name,
+                            SheetSyncHistory.tab_name == gvd_sheet,
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+                if sync_row:
+                    sync_row.rows_imported = rows_this_tab
+                else:
+                    session.add(
+                        SheetSyncHistory(
+                            sheet_name=sheet_name,
+                            tab_name=gvd_sheet,
+                            month_year=month_year,
+                            rows_imported=rows_this_tab,
+                        )
+                    )
 
         session.commit()
+        logger.info(
+            "Goals vs Delivery sync (mode=%s): imported %d tabs, skipped %d frozen tabs",
+            mode,
+            tabs_imported,
+            tabs_skipped,
+        )
     except Exception as exc:
         logger.exception("Error importing Goals vs Delivery")
         session.rollback()

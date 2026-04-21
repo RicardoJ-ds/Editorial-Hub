@@ -20,6 +20,7 @@ from app.services.migration_service import (
     CAPACITY_PLAN_PREFIX,
     IMPORT_DISPATCH,
     import_all,
+    import_goals_vs_delivery,
     list_available_sheets,
     preview_sheet,
 )
@@ -247,6 +248,38 @@ async def sync_all():
         ],
         total_imported=sum(r.rows_imported for r in results),
         all_ok=all(r.success for r in results),
+    )
+
+
+@router.post("/goals-historical-resync", response_model=ImportResultResponse)
+async def resync_historical_goals():
+    """Force re-import of every Goals vs Delivery tab, including past months.
+
+    The normal SYNC button only re-imports the current calendar month's tab
+    and skips past-month tabs that are already recorded in `sheet_sync_history`.
+    Use this endpoint when someone retroactively edits an older month's numbers
+    and you want the dashboard to reflect the corrected values.
+    """
+
+    def _run():
+        session = _get_sync_session()
+        try:
+            return import_goals_vs_delivery(session, mode="all")
+        finally:
+            session.close()
+
+    try:
+        r = await asyncio.to_thread(_run)
+    except Exception as exc:
+        logger.exception("Historical Goals vs Delivery resync failed")
+        raise HTTPException(status_code=500, detail=f"Resync failed: {exc}") from exc
+
+    return ImportResultResponse(
+        sheet=r.sheet,
+        rows_parsed=r.rows_parsed,
+        rows_imported=r.rows_imported,
+        success=r.success,
+        errors=r.errors,
     )
 
 

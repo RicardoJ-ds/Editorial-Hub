@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -301,6 +302,32 @@ class CumulativeMetric(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class SheetSyncHistory(Base):
+    """Tracks which month-partitioned sheet tabs have already been imported.
+
+    Used by `import_goals_vs_delivery`: the Master Tracker has one tab per
+    month (`[January 2026] Goals vs Delivery`, …). Past-month tabs are
+    frozen in practice, so the normal SYNC button only re-imports the
+    current-month tab and skips any past-month tab already recorded here.
+    A new tab (e.g. you haven't synced for two months) is auto-imported
+    once on first sight and then frozen. A separate "Re-sync historical"
+    action forces a full re-import.
+    """
+
+    __tablename__ = "sheet_sync_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sheet_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    tab_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    month_year: Mapped[str] = mapped_column(String(50), nullable=False)
+    rows_imported: Mapped[int] = mapped_column(Integer, default=0)
+    synced_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("sheet_name", "tab_name", name="uq_sheet_sync_tab"),)
 
 
 class GoalsVsDelivery(Base):

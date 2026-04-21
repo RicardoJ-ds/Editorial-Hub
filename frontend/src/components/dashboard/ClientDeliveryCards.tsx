@@ -1,8 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import type { ClientPacing } from "@/lib/types";
-import { PacingBadge } from "./PacingBadge";
+import React, { useMemo } from "react";
 import { DataSourceBadge } from "./DataSourceBadge";
 import {
   Tooltip,
@@ -10,7 +8,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import { podBadge } from "./shared-helpers";
 
@@ -24,29 +21,30 @@ export interface ClientDeliveryCardRow {
   articles_invoiced: number;
   variance: number;
   pct_complete: number;
+  /** Contract start date (ISO string). Combined with term_months, this drives the "Month N/M" chip. */
+  start_date?: string | null;
+  term_months?: number | null;
 }
-
-type PacingStatus = "AHEAD" | "ON_TRACK" | "BEHIND" | "AT_RISK";
 
 interface Props {
   rows: ClientDeliveryCardRow[];
-  pacingMap: Map<string, ClientPacing>;
 }
 
-const RISK_RANK: Record<PacingStatus, number> = {
-  AT_RISK: 0,
-  BEHIND: 1,
-  ON_TRACK: 2,
-  AHEAD: 3,
-};
-
-const FILTER_LABEL: Record<PacingStatus | "ALL", string> = {
-  ALL: "All",
-  AT_RISK: "At Risk",
-  BEHIND: "Behind",
-  ON_TRACK: "On Track",
-  AHEAD: "Ahead",
-};
+// Derive a "Month N/M" chip from sheet-native fields only: start_date + term_months.
+// Returns null when we can't compute it honestly (missing start, missing term, parse fail).
+function contractMonthChip(
+  startDate: string | null | undefined,
+  termMonths: number | null | undefined,
+): { elapsed: number; total: number } | null {
+  if (!startDate || !termMonths || termMonths <= 0) return null;
+  const start = new Date(startDate);
+  if (isNaN(start.getTime())) return null;
+  const now = new Date();
+  const months =
+    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
+  if (months < 1) return { elapsed: 0, total: termMonths };
+  return { elapsed: Math.min(months, termMonths), total: termMonths };
+}
 
 // Colored bar segment used inside each card for delivered / invoiced lines.
 function DeliveryBar({
@@ -98,18 +96,11 @@ function DeliveryBar({
   );
 }
 
-function ClientDeliveryCard({
-  row,
-  pacing,
-}: {
-  row: ClientDeliveryCardRow;
-  pacing: ClientPacing | undefined;
-}) {
-  const pacingStatus: PacingStatus =
-    (pacing?.status as PacingStatus | undefined) ?? "ON_TRACK";
+function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
   const varianceColor =
     row.variance > 0 ? "#42CA80" : row.variance < 0 ? "#ED6958" : "#606060";
 
+  const monthChip = contractMonthChip(row.start_date, row.term_months);
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 animate-fade-slide hover:border-[#333] transition-colors">
       {/* Header */}
@@ -122,21 +113,43 @@ function ClientDeliveryCard({
             {row.status === "ACTIVE" ? "Active" : row.status.toLowerCase()}
           </p>
         </div>
+        {monthChip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="shrink-0 cursor-help rounded-full border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA] tabular-nums" />
+                }
+              >
+                Month {monthChip.elapsed}/{monthChip.total}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+                Contract month elapsed ÷ term length, derived from start_date + term_months on the SOW overview sheet.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+
+      {/* SOW line — contracted article total from the 'Editorial SOW overview' sheet */}
+      <div className="mb-2 flex items-center justify-between border-b border-[#2a2a2a] pb-2">
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger render={<span className="cursor-help" />}>
-              <PacingBadge
-                status={pacingStatus}
-                deltaPct={pacing ? Math.round(pacing.delta_pct) : undefined}
-              />
+            <TooltipTrigger
+              render={
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
+              }
+            >
+              SOW
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              Pacing vs the delivery template for this SOW size. Compares cumulative
-              actual articles to the expected cumulative at this month. AHEAD ≥ +5%,
-              ON_TRACK within ±5%, BEHIND −5 to −20%, AT_RISK &lt; −20%.
+              Contracted article total from the Editorial SOW overview sheet (# Articles SOW column).
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        <span className="font-mono text-[12px] font-semibold text-white tabular-nums">
+          {row.articles_sow.toLocaleString()}
+        </span>
       </div>
 
       {/* Bars */}
@@ -145,18 +158,18 @@ function ClientDeliveryCard({
           label="Delivered"
           current={row.articles_delivered}
           target={row.articles_sow}
-          hint="Articles delivered vs articles in the SOW. This is the % Complete column from the table below."
+          hint="Delivered ÷ SOW. Bar color: green ≥75%, yellow ≥50%, red below. The right-hand pair is delivered / SOW in absolute numbers."
         />
         <DeliveryBar
           label="Invoiced"
           current={row.articles_invoiced}
           target={row.articles_delivered}
-          hint="Articles invoiced out of what was delivered. Low values here mean there is revenue not yet billed."
+          hint="Invoiced ÷ Delivered. Measures how much of what we shipped has actually been billed. Low % = revenue not yet invoiced. The right-hand pair is invoiced / delivered."
         />
       </div>
 
-      {/* Footer */}
-      <div className="mt-3 pt-2 border-t border-[#2a2a2a] flex items-center justify-between">
+      {/* Footer — Variance only. The % complete lives in the Delivered bar above. */}
+      <div className="mt-3 pt-2 border-t border-[#2a2a2a]">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger
@@ -175,60 +188,17 @@ function ClientDeliveryCard({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <span
-          className={cn(
-            "font-mono text-[10px] font-semibold",
-            row.pct_complete >= 75
-              ? "text-[#42CA80]"
-              : row.pct_complete >= 50
-              ? "text-[#F5C542]"
-              : "text-[#ED6958]"
-          )}
-        >
-          {row.pct_complete}% complete
-        </span>
       </div>
     </div>
   );
 }
 
-export function ClientDeliveryCards({ rows, pacingMap }: Props) {
-  const [filter, setFilter] = useState<PacingStatus | "ALL">("ALL");
-
-  // Attach pacing status to each row (ON_TRACK fallback when we don't have pacing data)
-  const annotated = useMemo(() => {
-    return rows.map((r) => {
-      const pacing = pacingMap.get(r.name);
-      const status: PacingStatus =
-        (pacing?.status as PacingStatus | undefined) ?? "ON_TRACK";
-      return { row: r, pacing, status };
-    });
-  }, [rows, pacingMap]);
-
-  // Bucket counts for the filter strip (always computed off the full set)
-  const counts = useMemo(() => {
-    const c: Record<PacingStatus, number> = {
-      AT_RISK: 0,
-      BEHIND: 0,
-      ON_TRACK: 0,
-      AHEAD: 0,
-    };
-    for (const a of annotated) c[a.status] += 1;
-    return c;
-  }, [annotated]);
-
-  const visible = useMemo(() => {
-    const filtered =
-      filter === "ALL" ? annotated : annotated.filter((a) => a.status === filter);
-    // Sort: risks first, then by % complete ascending so laggards surface
-    return [...filtered].sort((a, b) => {
-      const rr = RISK_RANK[a.status] - RISK_RANK[b.status];
-      if (rr !== 0) return rr;
-      return a.row.pct_complete - b.row.pct_complete;
-    });
-  }, [annotated, filter]);
-
-  const totalVisible = visible.length;
+export function ClientDeliveryCards({ rows }: Props) {
+  // Sort laggards-first so the lowest % complete surfaces at the top of each pod group.
+  const sorted = useMemo(
+    () => [...rows].sort((a, b) => a.pct_complete - b.pct_complete),
+    [rows],
+  );
 
   return (
     <div className="space-y-3">
@@ -238,63 +208,27 @@ export function ClientDeliveryCards({ rows, pacingMap }: Props) {
           Client Delivery At a Glance{" "}
           <DataSourceBadge
             type="live"
-            source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Same data as the Client Delivery Detail table below, rendered as per-client cards. Pacing status comes from /api/dashboard/pacing."
+            source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Same data as the Client Delivery Detail table below, rendered as per-client cards."
           />
         </h3>
         <p className="text-xs text-[#606060]">
-          One card per filtered client showing delivered vs SOW, invoicing progress, variance, and a pacing badge so risks surface at a glance.
+          One card per filtered client showing delivered vs SOW, invoicing progress, and variance — sorted lowest % complete first so laggards surface.
         </p>
       </div>
 
-      {/* Filter strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#1e1e1e] bg-[#0d0d0d] p-1.5">
-        {(["ALL", "AT_RISK", "BEHIND", "ON_TRACK", "AHEAD"] as const).map((f) => {
-          const active = filter === f;
-          const n = f === "ALL" ? annotated.length : counts[f];
-          const tone =
-            f === "AT_RISK"
-              ? "text-[#ED6958]"
-              : f === "BEHIND"
-              ? "text-[#F5BC4E]"
-              : f === "AHEAD"
-              ? "text-[#42CA80]"
-              : "text-[#C4BCAA]";
-          return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
-                active
-                  ? "bg-[#42CA80]/12 text-[#42CA80] border border-[#42CA80]/30"
-                  : "border border-transparent text-[#606060] hover:text-white"
-              )}
-              disabled={n === 0 && f !== "ALL"}
-            >
-              <span>{FILTER_LABEL[f]}</span>
-              <span className={cn("font-semibold", active ? "" : tone)}>{n}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Per-pod subsections — same grouping the other Deliverables-vs-SOW
-          sections use so the layout is consistent end-to-end. Within each
-          pod the existing risk-first → lowest-complete sort is preserved. */}
-      {totalVisible === 0 ? (
+      {sorted.length === 0 ? (
         <p className="text-center text-xs text-[#606060] py-6">
-          No clients match the current filter.
+          No clients match the current filters.
         </p>
       ) : (
         <div className="space-y-5">
           {(() => {
-            const groups = new Map<string, typeof visible>();
-            for (const v of visible) {
-              const pod = normalizePod(v.row.editorial_pod);
+            const groups = new Map<string, ClientDeliveryCardRow[]>();
+            for (const r of sorted) {
+              const pod = normalizePod(r.editorial_pod);
               const list = groups.get(pod);
-              if (list) list.push(v);
-              else groups.set(pod, [v]);
+              if (list) list.push(r);
+              else groups.set(pod, [r]);
             }
             return Array.from(groups.entries())
               .sort(([a], [b]) => sortPodKey(a, b))
@@ -307,8 +241,8 @@ export function ClientDeliveryCards({ rows, pacingMap }: Props) {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {items.map(({ row, pacing }) => (
-                      <ClientDeliveryCard key={row.id} row={row} pacing={pacing} />
+                    {items.map((row) => (
+                      <ClientDeliveryCard key={row.id} row={row} />
                     ))}
                   </div>
                 </div>

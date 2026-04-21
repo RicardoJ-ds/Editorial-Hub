@@ -39,6 +39,25 @@ function formatLabel(year: number, month: number): string {
   return `${MONTH_NAMES[month]} ${String(year).slice(-2)}`;
 }
 
+// At the transition from Actual → Projected the two Recharts series don't
+// share a point, so the dashed Projected line starts one month later than
+// the solid Actual line ends — producing a visible gap. Copy the final
+// Actual value into that same row's Projected field so the dashed series
+// has a starting anchor and visually continues the solid line.
+function bridgeActualToProjected(
+  rows: { month: string; Actual: number | null; Projected: number | null }[],
+) {
+  for (let i = 0; i < rows.length - 1; i++) {
+    const cur = rows[i];
+    const next = rows[i + 1];
+    if (cur.Actual !== null && next.Actual === null && next.Projected !== null) {
+      cur.Projected = cur.Actual;
+      break;
+    }
+  }
+  return rows;
+}
+
 // ---------------------------------------------------------------------------
 // Custom Tooltip
 // ---------------------------------------------------------------------------
@@ -170,7 +189,7 @@ export function ProductionTrendChart({
           Projected: !isActual ? pt.projected : null,
         };
       });
-      return { chartData: mapped, boundaryLabel: lastActualLabel, source: "filtered" as const };
+      return { chartData: bridgeActualToProjected(mapped), boundaryLabel: lastActualLabel, source: "filtered" as const };
     }
 
     const sorted = [...data]
@@ -187,7 +206,7 @@ export function ProductionTrendChart({
       };
     });
 
-    return { chartData: mapped, boundaryLabel: lastActualLabel, source: "all" as const };
+    return { chartData: bridgeActualToProjected(mapped), boundaryLabel: lastActualLabel, source: "all" as const };
   }, [data, clientProduction, filteredClients, dateRange]);
 
   if (chartData.length === 0) {
