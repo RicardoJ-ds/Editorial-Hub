@@ -305,44 +305,42 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
-                {(["monthly", "cumulative"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    title={MODE_COPY[m].tooltip}
-                    className={cn(
-                      "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
-                      mode === m
-                        ? "bg-[#42CA80]/15 text-[#42CA80]"
-                        : "text-[#606060] hover:text-white",
-                    )}
-                  >
-                    {MODE_COPY[m].label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
-                {(["quarter", "month"] as const).map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setGranularity(g)}
-                    className={cn(
-                      "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
-                      granularity === g
-                        ? "bg-[#8FB5D9]/15 text-[#8FB5D9]"
-                        : "text-[#606060] hover:text-white",
-                    )}
-                  >
-                    {GRAN_COPY[g].label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
+              {(["monthly", "cumulative"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  title={MODE_COPY[m].tooltip}
+                  className={cn(
+                    "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                    mode === m
+                      ? "bg-[#42CA80]/15 text-[#42CA80]"
+                      : "text-[#606060] hover:text-white",
+                  )}
+                >
+                  {MODE_COPY[m].label}
+                </button>
+              ))}
             </div>
             <span className="font-mono text-[9px] text-[#606060] italic">
               Hover for definitions
             </span>
+          </div>
+          <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5 shrink-0 ml-auto">
+            {(["quarter", "month"] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGranularity(g)}
+                className={cn(
+                  "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                  granularity === g
+                    ? "bg-[#8FB5D9]/15 text-[#8FB5D9]"
+                    : "text-[#606060] hover:text-white",
+                )}
+              >
+                {GRAN_COPY[g].label}
+              </button>
+            ))}
           </div>
         </div>
       </CardHeader>
