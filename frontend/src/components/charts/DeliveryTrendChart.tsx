@@ -292,53 +292,53 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
             <p className="mt-1 text-[10px] font-mono text-[#C4BCAA] leading-relaxed">
               {mode === "monthly" ? (
                 <>
-                  <b className="text-white">In-{granularity} view</b> — Delivered ÷ Invoiced for each {granularity} in isolation.
-                  Answers: <i>of what we billed, how much shipped?</i> Expect dips: pods deliver in bursts,
-                  so a slow {granularity} followed by a catch-up {granularity} is normal.
+                  <b className="text-white">In-{granularity}</b> — Delivered ÷ Invoiced per {granularity}.
+                  Expect dips and catch-up spikes: pods deliver in bursts.
                 </>
               ) : (
                 <>
-                  <b className="text-white">Running total</b> — Delivered ÷ Invoiced from the start of the range
-                  through this {granularity}. Most clients are on monthly retainers, so{" "}
-                  <b className="text-white">80–100%</b> is healthy — retainer fees bill slightly ahead of delivery
-                  by design. Sustained &lt;60% means real under-delivery; &gt;110% means catching up a backlog.
+                  <b className="text-white">Running total</b> — cumulative Delivered ÷ Invoiced.
+                  Healthy: <b className="text-white">80–100%</b> (retainers bill slightly ahead).
+                  &lt;60% = under-delivery; &gt;110% = catching up.
                 </>
               )}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
-              {(["quarter", "month"] as const).map((g) => (
-                <button
-                  key={g}
-                  onClick={() => setGranularity(g)}
-                  className={cn(
-                    "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
-                    granularity === g
-                      ? "bg-[#8FB5D9]/15 text-[#8FB5D9]"
-                      : "text-[#606060] hover:text-white",
-                  )}
-                >
-                  {GRAN_COPY[g].label}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
-              {(["monthly", "cumulative"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  title={MODE_COPY[m].tooltip}
-                  className={cn(
-                    "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
-                    mode === m
-                      ? "bg-[#42CA80]/15 text-[#42CA80]"
-                      : "text-[#606060] hover:text-white",
-                  )}
-                >
-                  {MODE_COPY[m].label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
+                {(["monthly", "cumulative"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    title={MODE_COPY[m].tooltip}
+                    className={cn(
+                      "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                      mode === m
+                        ? "bg-[#42CA80]/15 text-[#42CA80]"
+                        : "text-[#606060] hover:text-white",
+                    )}
+                  >
+                    {MODE_COPY[m].label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1 rounded-md bg-[#0d0d0d] p-0.5">
+                {(["quarter", "month"] as const).map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGranularity(g)}
+                    className={cn(
+                      "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                      granularity === g
+                        ? "bg-[#8FB5D9]/15 text-[#8FB5D9]"
+                        : "text-[#606060] hover:text-white",
+                    )}
+                  >
+                    {GRAN_COPY[g].label}
+                  </button>
+                ))}
+              </div>
             </div>
             <span className="font-mono text-[9px] text-[#606060] italic">
               Hover for definitions
