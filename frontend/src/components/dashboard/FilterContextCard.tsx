@@ -71,7 +71,7 @@ export function FilterContextCard({ clients, rows }: Props) {
   return <DeliveryProgressMixCard rows={rows} />;
 }
 
-function ClientStatusCard({ client }: { client: Client }) {
+export function ClientStatusCard({ client }: { client: Client }) {
   const style = statusStyle(client.status);
   const daysToEnd = daysBetweenToday(client.end_date);
   const daysSinceStart = client.start_date

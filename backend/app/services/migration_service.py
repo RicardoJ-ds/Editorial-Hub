@@ -56,7 +56,7 @@ SHEET_DESCRIPTIONS: dict[str, str] = {
     "Master Tracker - Goals vs Delivery": "Weekly goals vs delivery tracking per month — CB and article delivery pacing",
     "Notion Database": "Article workflow tracking from Notion export — 13K+ records with statuses, dates, assignments",
     "Monthly KPI Scores": "Manual KPI scores entered by SEs — Internal Quality, External Quality, Mentorship, Feedback Adoption",
-    "Team Pods": "Growth team → client mapping (POD NUMBER × CLIENT). Updates clients.growth_pod.",
+    "Growth Pods": "Growth team → client mapping from BigQuery (team_pod_assignments ⋈ salesforce_int_Account). Updates clients.growth_pod.",
 }
 
 # Map of importable sheet names to their import functions (populated below)
@@ -76,7 +76,7 @@ IMPORT_DISPATCH: dict[str, str] = {
     "Master Tracker - Goals vs Delivery": "import_goals_vs_delivery",
     "Notion Database": "import_notion_database",
     "Monthly KPI Scores": "import_monthly_kpi_scores",
-    "Team Pods": "import_team_pods",
+    "Growth Pods": "import_growth_pods",
 }
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
@@ -418,33 +418,67 @@ def list_available_sheets() -> list[dict]:
         except Exception:
             logger.warning("Could not list sheets from Notion spreadsheet")
 
-    # Also list the Team Pods spreadsheet (single "Team Pods" logical sheet)
-    team_pods_id = getattr(settings, "team_pods_id", None)
-    if team_pods_id:
-        try:
-            tp_meta = (
-                service.spreadsheets()
-                .get(spreadsheetId=team_pods_id, fields="sheets.properties")
-                .execute()
-            )
-            sheets_info_pods = tp_meta.get("sheets", [])
-            if sheets_info_pods:
-                first = sheets_info_pods[0].get("properties", {})
-                row_count = first.get("gridProperties", {}).get("rowCount", 0)
-                sheets_info.append(
-                    {
-                        "name": "Team Pods",
-                        "row_count": row_count,
-                        "description": SHEET_DESCRIPTIONS.get(
-                            "Team Pods",
-                            "Growth team pod mapping per client",
-                        ),
-                    }
-                )
-        except Exception:
-            logger.warning("Could not list sheets from Team Pods spreadsheet")
+    # Growth Pods is not a Google Sheet — it's a BigQuery-backed source.
+    # Surface it as a synthetic entry so the import wizard can select it.
+    # Row count comes from the last successful import so users see a
+    # meaningful number before they sync.
+    sheets_info.append(
+        {
+            "name": "Growth Pods",
+            "row_count": _last_imported_row_count("Growth Pods") or 0,
+            "description": SHEET_DESCRIPTIONS.get(
+                "Growth Pods",
+                "Growth pod mapping per client (BigQuery source)",
+            ),
+        }
+    )
 
     return sheets_info
+
+
+def _last_imported_row_count(sheet_name: str) -> int | None:
+    """Return `rows_imported` from the most recent successful import of
+    `sheet_name`, by scanning recent `sheets_migration` audit log entries.
+
+    Used to give synthetic (non-Sheets) sources like Growth Pods a meaningful
+    row-count in the Import Wizard instead of always showing 0.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session as SyncSession
+
+    sync_url = settings.database_url.replace("+asyncpg", "")
+    engine = create_engine(sync_url, echo=False)
+    try:
+        with SyncSession(engine) as sess:
+            logs = (
+                sess.execute(
+                    select(AuditLog)
+                    .where(
+                        AuditLog.entity_type == "sheets_migration",
+                        AuditLog.action == "IMPORT",
+                    )
+                    .order_by(AuditLog.performed_at.desc())
+                    .limit(25)
+                )
+                .scalars()
+                .all()
+            )
+            for log in logs:
+                if not log.changes_json:
+                    continue
+                try:
+                    data = json.loads(log.changes_json)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                for s in data.get("sheets", []):
+                    if s.get("sheet") == sheet_name and s.get("success"):
+                        return int(s.get("rows_imported") or 0)
+    except Exception:
+        logger.warning("Could not look up last imported row count for %s", sheet_name)
+        return None
+    finally:
+        engine.dispose()
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -466,18 +500,14 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
         notion_id = getattr(settings, "notion_database_id", None)
         if notion_id:
             return notion_id, "Notion"
-    if sheet_name == "Team Pods":
-        team_pods_id = getattr(settings, "team_pods_id", None)
-        if team_pods_id:
-            # Preview the first tab — the Team Pods sheet has a single
-            # "Growth Team Projects" table, tab name varies per month so we
-            # resolve dynamically at preview/import time.
-            return team_pods_id, ""
     return SPREADSHEET_ID, sheet_name
 
 
 def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
     """Read the first max_rows rows from a sheet and return headers + data."""
+    if sheet_name == "Growth Pods":
+        return _preview_growth_pods(max_rows)
+
     service = get_sheets_client()
     ssid, tab_name = _resolve_sheet_source(sheet_name)
     # Empty tab_name → resolve to the first (non-hidden) tab of the spreadsheet.
@@ -2748,146 +2778,141 @@ def import_notion_database(session: Session) -> ImportResult:
 
 
 # ---------------------------------------------------------------------------
-# import_team_pods
+# import_growth_pods — BigQuery-backed replacement for the old Team Pods sheet
 # ---------------------------------------------------------------------------
 
 
-def import_team_pods(session: Session) -> ImportResult:
-    """Read the Team Pods spreadsheet and write the growth pod for each
-    matched client back to `clients.growth_pod`.
+# Path to the SQL query. Resolved at import time so we fail fast if the file is
+# missing in a container image.
+from pathlib import Path as _Path
 
-    Sheet layout (top rows are a title; the real header is a couple of rows
-    down and may be repeated). Columns of interest:
-      POD NUMBER | CLIENT | GROWTH DIRECTOR | SR GROWTH DIRECTOR
-    We scan the whole first tab, tolerate merged-cell blanks on POD NUMBER
-    (carry-forward), and match CLIENT against Client.name (case-insensitive).
+_GROWTH_PODS_SQL_PATH = _Path(__file__).resolve().parent.parent / "sql" / "growth_pods_from_bq.sql"
+
+# BQ Salesforce names sometimes drift from the app's canonical client names
+# (rebrands, acquisitions, etc.). Add one row per known drift so the matcher
+# doesn't silently drop these assignments.
+#   BQ client_name  →  app clients.name
+_GROWTH_POD_NAME_OVERRIDES: dict[str, str] = {
+    "Genstore": "GenstoreAI",
+}
+
+
+def _name_key(s: str) -> str:
+    """Collapse to lowercase alphanumeric-only — used for fuzzy name matching."""
+    return re.sub(r"[^a-z0-9]+", "", s.lower())
+
+
+def _normalize_growth_pod(raw: str | None) -> str | None:
+    """'Pod1' / 'pod 1' / '1' → 'Pod 1'. Matches FilterBar.normalizePod()."""
+    if not raw:
+        return None
+    t = str(raw).strip()
+    if not t:
+        return None
+    digits = "".join(ch for ch in t if ch.isdigit())
+    return f"Pod {int(digits)}" if digits else t
+
+
+def _fetch_growth_pod_pairs() -> list[dict]:
+    """Run the Growth Pods BQ query and return the raw row dicts."""
+    from google.cloud import bigquery
+
+    from app.services.google_auth import get_google_credentials
+
+    creds = get_google_credentials(scopes=["https://www.googleapis.com/auth/bigquery"])
+    bq = bigquery.Client(project=settings.bq_project, credentials=creds)
+    sql = _GROWTH_PODS_SQL_PATH.read_text()
+    return [dict(r) for r in bq.query(sql).result()]
+
+
+def _preview_growth_pods(max_rows: int = 20) -> dict:
+    """Return a preview row-set for the Growth Pods source (BigQuery)."""
+    rows = _fetch_growth_pod_pairs()
+    # Collapse to distinct (client, pod) for preview — the query is per member
+    # so the raw result repeats clients across team rows.
+    pairs: list[tuple[str, str]] = sorted(
+        {
+            (r.get("client_name") or "", _normalize_growth_pod(r.get("growth_pod")) or "")
+            for r in rows
+            if r.get("client_name") and r.get("growth_pod")
+        }
+    )
+    headers = ["client_name", "growth_pod"]
+    preview = [[c, p] for c, p in pairs[:max_rows]]
+    return {
+        "sheet_name": "Growth Pods",
+        "headers": headers,
+        "rows": preview,
+        "total_rows": len(pairs),
+    }
+
+
+def import_growth_pods(session: Session) -> ImportResult:
+    """Fetch growth-pod assignments from BigQuery and write them to
+    `clients.growth_pod` for every matched client.
+
+    Source query: app/sql/growth_pods_from_bq.sql
+      team_pod_assignments (latest row per member)  ⋈
+      salesforce_int_Account  →  (client_name, growth_pod)
+
+    Matching: case-insensitive + non-alphanumeric stripped, with a small
+    overrides dict (see _GROWTH_POD_NAME_OVERRIDES) for known name drifts.
+    BQ clients with no app-side match are surfaced on `result.errors` so the
+    caller can eyeball them, but the import still succeeds.
     """
-    sheet_name = "Team Pods"
+    sheet_name = "Growth Pods"
     result = ImportResult(sheet=sheet_name)
 
-    team_pods_id = getattr(settings, "team_pods_id", None)
-    if not team_pods_id:
-        result.errors.append("TEAM_PODS_ID not configured")
-        result.success = False
-        return result
-
     try:
-        service = get_sheets_client()
+        bq_rows = _fetch_growth_pod_pairs()
 
-        # Find the first non-hidden tab
-        meta = (
-            service.spreadsheets()
-            .get(spreadsheetId=team_pods_id, fields="sheets.properties")
-            .execute()
-        )
-        tab_name = ""
-        for s in meta.get("sheets", []):
-            props = s.get("properties", {})
-            if not props.get("hidden"):
-                tab_name = props.get("title", "")
-                break
-        if not tab_name:
-            result.errors.append("Team Pods spreadsheet has no visible tab")
-            result.success = False
-            return result
-
-        resp = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=team_pods_id, range=f"'{tab_name}'")
-            .execute()
-        )
-        rows = resp.get("values", [])
-        if len(rows) < 3:
-            result.errors.append("Team Pods sheet has too few rows")
-            result.success = False
-            return result
-
-        # Find the header row — look for one that contains BOTH "POD" and
-        # "CLIENT" in the first ~10 rows.
-        header_idx = -1
-        for i, row in enumerate(rows[:12]):
-            joined = " | ".join(str(c).strip().upper() for c in row)
-            if ("POD NUMBER" in joined or "POD" in joined) and "CLIENT" in joined:
-                header_idx = i
-                break
-        if header_idx == -1:
-            result.errors.append("Could not find header row (POD NUMBER + CLIENT)")
-            result.success = False
-            return result
-
-        headers = [str(h).strip().upper() for h in rows[header_idx]]
-
-        def col_of(*names: str) -> int | None:
-            for n in names:
-                nu = n.upper()
-                for i, h in enumerate(headers):
-                    if h == nu or h.startswith(nu) or nu in h:
-                        return i
-            return None
-
-        pod_col = col_of("POD NUMBER", "POD #", "POD")
-        client_col = col_of("CLIENT")
-        if pod_col is None or client_col is None:
-            result.errors.append(f"Missing POD NUMBER or CLIENT column — headers: {headers}")
-            result.success = False
-            return result
-
-        # Build pod→client mapping. POD NUMBER may be blank on repeated rows
-        # (merged cells in the sheet), so carry forward.
-        client_to_pod: dict[str, str] = {}
-        current_pod: str | None = None
-        for r in rows[header_idx + 1 :]:
-            result.rows_parsed += 1
-            raw_pod = _cell(r, pod_col)
-            raw_client = _cell(r, client_col)
-            if raw_pod:
-                # Normalize "1" or "Pod 1" or " 1 " → "Pod 1"
-                digits = "".join(ch for ch in raw_pod if ch.isdigit())
-                if digits:
-                    current_pod = f"Pod {int(digits)}"
-            if not raw_client or current_pod is None:
+        # Collapse per-member rows to a single pod per client.
+        pairs: dict[str, str] = {}
+        for r in bq_rows:
+            cname = (r.get("client_name") or "").strip()
+            pod = _normalize_growth_pod(r.get("growth_pod"))
+            if not cname or not pod:
                 continue
-            # Skip obvious non-client values
-            name = raw_client.strip()
-            if not name or name.upper() == "CLIENT":
-                continue
-            client_to_pod[name] = current_pod
+            pairs[cname] = pod
+        result.rows_parsed = len(pairs)
 
-        if not client_to_pod:
-            result.errors.append("No client → pod mappings found in sheet")
+        if not pairs:
+            result.errors.append("BigQuery returned no (client, pod) pairs")
             result.success = False
             return result
 
-        # Update clients.growth_pod — case-insensitive client name match.
         all_clients = session.execute(select(Client)).scalars().all()
         by_lower = {c.name.lower(): c for c in all_clients}
-        for sheet_client, pod in client_to_pod.items():
-            key = sheet_client.lower()
-            c = by_lower.get(key)
+        by_norm = {_name_key(c.name): c for c in all_clients}
+
+        unmatched: list[str] = []
+        for bq_name, pod in pairs.items():
+            canonical = _GROWTH_POD_NAME_OVERRIDES.get(bq_name, bq_name)
+            c = by_lower.get(canonical.lower()) or by_norm.get(_name_key(canonical))
             if c is None:
-                # Relaxed match: strip punctuation
-                normalized = re.sub(r"[^a-z0-9]+", "", key)
-                for lc, obj in by_lower.items():
-                    if re.sub(r"[^a-z0-9]+", "", lc) == normalized:
-                        c = obj
-                        break
-            if c is None:
+                unmatched.append(f"{bq_name} ({pod})")
                 continue
             if c.growth_pod != pod:
                 c.growth_pod = pod
             result.rows_imported += 1
 
+        if unmatched:
+            # Not a failure — surface the diff so the user can eyeball it.
+            msg = "Unmatched BQ clients (no entry in clients table): " + ", ".join(unmatched)
+            logger.warning(msg)
+            result.errors.append(msg)
+
         session.commit()
         result.success = True
         logger.info(
-            "Team Pods import: parsed=%d matched=%d",
+            "Growth Pods import: parsed=%d matched=%d unmatched=%d",
             result.rows_parsed,
             result.rows_imported,
+            len(unmatched),
         )
 
     except Exception as exc:
-        logger.exception("Error importing Team Pods")
+        logger.exception("Error importing Growth Pods from BigQuery")
         session.rollback()
         result.success = False
         result.errors.append(str(exc))
@@ -2922,6 +2947,74 @@ def _get_import_func(sheet_name: str):
     return None
 
 
+def _detect_contract_drift(session: Session) -> list[str]:
+    """Flag clients whose `clients.start_date` disagrees with the earliest
+    activity month in `deliverables_monthly` by more than 3 months.
+
+    Rationale: the Editorial SOW overview sheet overwrites Start/Term/SOW on
+    each contract renewal, so Y1 history is lost from that source. The
+    Delivered vs Invoiced v2 sheet (→ `deliverables_monthly`) preserves every
+    month. Comparing the two exposes the renewal-overwrite case before it
+    silently corrupts pacing math (e.g. "Month 8/12, 32%" when the client is
+    actually in Month 20 of a 25-month relationship).
+
+    Returns a list of human-readable warning strings. Also logs each one and
+    persists the batch as a single AuditLog entry for retrospective review.
+    """
+    from datetime import date as _date
+
+    warnings: list[str] = []
+    clients = session.execute(select(Client)).scalars().all()
+    for c in clients:
+        if not c.start_date:
+            continue
+        first = session.execute(
+            select(DeliverableMonthly.year, DeliverableMonthly.month)
+            .where(
+                DeliverableMonthly.client_id == c.id,
+                (DeliverableMonthly.articles_sow_target > 0)
+                | (DeliverableMonthly.articles_delivered > 0)
+                | (DeliverableMonthly.articles_invoiced > 0),
+            )
+            .order_by(DeliverableMonthly.year, DeliverableMonthly.month)
+            .limit(1)
+        ).first()
+        if not first:
+            continue
+        f_y, f_m = first
+        first_d = _date(f_y, f_m, 1)
+        drift_months = (
+            (c.start_date.year - first_d.year) * 12
+            + (c.start_date.month - first_d.month)
+        )
+        if abs(drift_months) > 3:
+            warnings.append(
+                f"{c.name}: clients.start_date={c.start_date.isoformat()} but "
+                f"first active month in deliverables_monthly is {first_d.isoformat()} "
+                f"({drift_months:+d} months drift). Likely a renewal overwrote the "
+                f"original start in the SOW overview sheet — the dashboard derives "
+                f"the true start from deliverables_monthly, but someone should add "
+                f"back the Y1 row so the sheet matches reality."
+            )
+    for w in warnings:
+        logger.warning("Contract drift: %s", w)
+    if warnings:
+        try:
+            audit = AuditLog(
+                entity_type="data_integrity",
+                entity_id=None,
+                action="CONTRACT_DRIFT_CHECK",
+                changes_json=json.dumps({"warnings": warnings}),
+                performed_by="system",
+            )
+            session.add(audit)
+            session.commit()
+        except Exception:
+            logger.exception("Failed to write drift warnings audit entry")
+            session.rollback()
+    return warnings
+
+
 def import_all(session: Session, sheet_names: list[str]) -> list[ImportResult]:
     """Import each requested sheet and return results."""
     results: list[ImportResult] = []
@@ -2941,6 +3034,28 @@ def import_all(session: Session, sheet_names: list[str]) -> list[ImportResult]:
         logger.info("Importing sheet: %s", name)
         r = func(session)
         results.append(r)
+
+    # Cross-sheet data-integrity check — runs only when both the SOW overview
+    # AND the Delivered vs Invoiced v2 sheets were freshly imported in this
+    # batch, so the comparison reflects current data.
+    imported_names = {r.sheet for r in results if r.success}
+    if {"Editorial SOW overview", "Delivered vs Invoiced v2"}.issubset(imported_names):
+        try:
+            drift_warnings = _detect_contract_drift(session)
+            if drift_warnings:
+                # Surface the drift on the sync result so the import wizard
+                # shows it alongside per-sheet errors.
+                results.append(
+                    ImportResult(
+                        sheet="Contract drift check",
+                        rows_parsed=len(drift_warnings),
+                        rows_imported=0,
+                        success=True,
+                        errors=drift_warnings,
+                    )
+                )
+        except Exception:
+            logger.exception("Contract drift check failed")
 
     # Write audit log
     try:

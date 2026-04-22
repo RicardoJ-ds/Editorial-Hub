@@ -51,6 +51,31 @@ async def goals_delivery_latest(
     return result.scalars().all()
 
 
+@router.get("/all", response_model=list[GoalsVsDeliveryResponse])
+async def goals_delivery_all(
+    pod: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return every Goals vs Delivery row we have on hand.
+
+    Intended for the Deliverables-vs-SOW page's month-range view: the client
+    slices rows by the global date-range filter without round-tripping per
+    month. With ~9 month tabs × ~25 clients × 4 weeks ≈ 900 rows the payload
+    is small and sortable.
+    """
+    stmt = select(GoalsVsDelivery).order_by(
+        GoalsVsDelivery.month_year,
+        GoalsVsDelivery.week_number,
+        GoalsVsDelivery.client_name,
+    )
+    if pod:
+        stmt = stmt.where(
+            (GoalsVsDelivery.growth_team_pod == pod) | (GoalsVsDelivery.editorial_team_pod == pod)
+        )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
 @router.get("/by-month/{month_year}", response_model=list[GoalsVsDeliveryResponse])
 async def goals_delivery_by_month(
     month_year: str,

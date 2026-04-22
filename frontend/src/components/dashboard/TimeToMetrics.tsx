@@ -203,11 +203,20 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Time-to Metrics
         </h3>
-        <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from milestone date fields: Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published." />
-        <span className="text-[8px] font-mono text-[#404040] ml-auto">Reference: Consulting KO (Day 0)</span>
+        <DataSourceBadge
+          type="live"
+          source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from milestone date fields: Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published."
+          shows={[
+            "Each card = one milestone handoff (e.g. Consulting KO → First Article).",
+            "Big number is the average across filtered clients, in days.",
+            "Min/Max shows the fastest and slowest client in the filter.",
+            "Lower is better — smaller numbers mean smoother onboardings.",
+          ]}
+        />
+        <span className="text-[9px] font-mono text-[#909090] ml-auto">Reference: Consulting KO (Day 0)</span>
       </div>
 
       {/* Row 1: Primary — from Consulting KO */}
@@ -258,7 +267,7 @@ function HoverableMetricCard({
 }) {
   return (
     <div
-      className="cursor-default"
+      className="cursor-default h-full"
       onMouseEnter={(e) => onEnter(e, card)}
       onMouseLeave={onLeave}
     >
@@ -459,75 +468,81 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      {/* Row 1: title + subtitle on the left, Group toggle pinned to the
+          top-right corner. */}
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
             {groupMode === "month" ? "Month-over-Month Trend" : "Per-Client Breakdown"}
             <DataSourceBadge
               type="live"
               source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published date columns."
+              shows={
+                groupMode === "month"
+                  ? [
+                      `Each bar is the avg ${metric.label.toLowerCase()} for the cohort of clients whose ${REF_LABEL} landed that month.`,
+                      "Dashed line is the overall average — bars above it are slower than typical, bars below are faster.",
+                      "Lower is better.",
+                      ...(actualMax > scaleMax
+                        ? [`Y-axis capped at ${scaleMax}d so outliers don't flatten the rest; clipped bars are marked ↑.`]
+                        : []),
+                    ]
+                  : [
+                      `Each bar is one client's ${metric.label.toLowerCase()}.`,
+                      "Sorted slowest → fastest so outliers float to the top.",
+                      "Lower is better.",
+                      ...(actualMax > scaleMax
+                        ? [`Bars clipped at ${scaleMax}d are marked ↑.`]
+                        : []),
+                    ]
+              }
             />
           </p>
-          <p className="text-[9px] font-mono text-[#606060] mt-0.5">
-            {groupMode === "month" ? (
-              <>
-                Average {metric.label.toLowerCase()}. Each bar is a cohort of clients whose{" "}
-                <span className="text-[#C4BCAA]">{REF_LABEL}</span> landed in that month — not the month of{" "}
-                {metric.from ? <span className="text-[#C4BCAA]">{metric.label.split(" → ")[0]}</span> : <span className="text-[#C4BCAA]">{REF_LABEL}</span>}
-                {" "}or{" "}
-                <span className="text-[#C4BCAA]">{metric.label.split(" → ")[1] ?? metric.label}</span>. Lower is better.
-              </>
-            ) : (
-              <>{metric.label} per client, sorted slowest → fastest. Lower is better.</>
-            )}
+          <p className="text-[10px] font-mono text-[#909090] mt-0.5">
+            {groupMode === "month"
+              ? `Avg ${metric.label.toLowerCase()}, grouped by the client's ${REF_LABEL} month.`
+              : `${metric.label} per client, sorted slowest → fastest.`}
             {overallAvg !== null && (
-              <> Overall avg across all clients: <span className="text-white font-semibold">{overallAvg}d</span>.</>
-            )}
-            {actualMax > scaleMax && (
-              <> Y-axis capped at <span className="text-[#C4BCAA]">{scaleMax}d</span> so outliers don&apos;t flatten the rest — clipped bars marked ↑.</>
+              <> Overall avg: <span className="text-white font-semibold">{overallAvg}d</span>.</>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Group by toggle */}
-          <div className="flex items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5">
-            <span className="pl-2 pr-1 font-mono text-[9px] text-[#606060] uppercase tracking-wider">
-              Group
-            </span>
-            {(["month", "client"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setGroupMode(m)}
-                type="button"
-                className={cn(
-                  "rounded px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-wider transition-colors",
-                  groupMode === m
-                    ? "bg-[#42CA80]/15 text-[#65FFAA]"
-                    : "text-[#C4BCAA] hover:bg-[#161616] hover:text-white",
-                )}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[9px] text-[#606060] uppercase tracking-wider">Metric</span>
-            <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
-              <SelectTrigger size="sm" className="w-[280px]">
-                <SelectValue>
-                  <span className="text-xs">{metric.label}</span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {METRIC_DEFS.map((m) => (
-                  <SelectItem key={m.key} value={m.key}>
-                    <span className="text-xs font-medium">{m.label}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5 shrink-0">
+          {(["month", "client"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setGroupMode(m)}
+              type="button"
+              className={cn(
+                "rounded px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-wider transition-colors",
+                groupMode === m
+                  ? "bg-[#42CA80]/15 text-[#65FFAA]"
+                  : "text-[#C4BCAA] hover:bg-[#161616] hover:text-white",
+              )}
+            >
+              {m}
+            </button>
+          ))}
         </div>
+      </div>
+
+      {/* Row 2: Metric dropdown only, left-aligned. */}
+      <div className="mb-4 flex items-center gap-2">
+        <span className="font-mono text-[9px] text-[#606060] uppercase tracking-wider">Metric</span>
+        <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
+          <SelectTrigger size="sm" className="w-[280px]">
+            <SelectValue>
+              <span className="text-xs">{metric.label}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {METRIC_DEFS.map((m) => (
+              <SelectItem key={m.key} value={m.key}>
+                <span className="text-xs font-medium">{m.label}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {buckets.length === 0 ? (
@@ -776,9 +791,14 @@ function MilestoneWaterfall({ data }: { data: { client: Client; milestones: { ke
           <DataSourceBadge
             type="live"
             source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One dot per milestone date per active client. Distance from Day 0 = elapsed days from Consulting KO."
+            shows={[
+              "One row per client; the horizontal axis is days from Consulting KO (day 0).",
+              "Each dot marks a milestone date — the further right, the longer it took.",
+              "Sorted fastest → slowest to first article, so delayed onboardings sit at the bottom.",
+            ]}
           />
         </p>
-        <p className="text-[8px] font-mono text-[#606060] mt-0.5">Days from Consulting KO (day 0) through each milestone to publication. Sorted by fastest to first article.</p>
+        <p className="text-[10px] font-mono text-[#909090] mt-0.5">Days from Consulting KO (day 0) to each milestone. Sorted fastest → slowest to first article.</p>
       </div>
 
       {/* Scale labels only (no grid lines here) */}

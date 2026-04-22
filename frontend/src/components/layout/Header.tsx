@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, LogOut, RefreshCw, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
 
 const pageTitles: Record<string, string> = {
@@ -66,13 +66,6 @@ export type HeaderUser = {
   picture?: string;
 };
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 function formatMonthKey(m: string): string | null {
   if (!/^\d{4}-\d{2}$/.test(m)) return null;
   const [y, mm] = m.split("-").map((n) => parseInt(n, 10));
@@ -80,7 +73,7 @@ function formatMonthKey(m: string): string | null {
   return `${d.toLocaleString("en-US", { month: "short" })} ${y}`;
 }
 
-export function Header({ user }: { user: HeaderUser }) {
+export function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const title = pageTitles[pathname] || "Editorial Hub";
@@ -153,7 +146,7 @@ export function Header({ user }: { user: HeaderUser }) {
         </div>
       </div>
 
-      {/* Right: Sync button + User info + avatar + logout */}
+      {/* Right: Sync button */}
       <div className="flex items-center gap-3">
         {/* Sync button (disabled for now) */}
         <button
@@ -190,37 +183,6 @@ export function Header({ user }: { user: HeaderUser }) {
           </span>
         </button>
 
-        <div className="h-5 w-px bg-[#333]" />
-
-        <span
-          className="font-mono text-xs font-medium uppercase tracking-wider text-[#C4BCAA]"
-          title={user.email}
-        >
-          {user.name}
-        </span>
-        {user.picture ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={user.picture}
-            alt={user.name}
-            className="h-8 w-8 rounded-full"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#42CA80] text-sm font-bold text-black">
-            {getInitials(user.name)}
-          </div>
-        )}
-        <form action="/api/auth/logout" method="POST">
-          <button
-            type="submit"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-[#606060] transition-colors duration-[var(--transition-base)] hover:bg-[#1F1F1F] hover:text-white"
-            aria-label="Logout"
-            title="Sign out"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </form>
       </div>
     </header>
   );

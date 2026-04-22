@@ -17,10 +17,10 @@ export default async function AppLayout({
   return (
     <div className="flex h-full min-h-screen">
       <TooltipProvider>
-        <Sidebar />
+        <Sidebar user={user} />
         <div className="ml-[64px] flex flex-1 flex-col overflow-auto">
           <div className="sticky top-0 z-30 bg-black">
-            <Header user={user} />
+            <Header />
           </div>
           <main className="flex-1 bg-black px-8 py-6">{children}</main>
         </div>

@@ -29,13 +29,9 @@ import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { ClientNotesPanel, hasClientNote } from "@/components/dashboard/ClientNotesPanel";
 import { FilterContextCard } from "@/components/dashboard/FilterContextCard";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
-import { ClientDeliveryMatrix } from "@/components/dashboard/ClientDeliveryMatrix";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
-import {
-  PodGoalsRow,
-  PodPipelineRow,
-} from "@/components/dashboard/ContractClientProgress";
+import { PodGoalsRow } from "@/components/dashboard/ContractClientProgress";
 import { SortableHead as SortableHeadShared } from "@/components/dashboard/shared-helpers";
 import {
   Select,
@@ -57,6 +53,11 @@ import {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+type YM = { y: number; m: number };
+const ymIdx = (a: YM) => a.y * 12 + a.m;
+const earlierYm = (a: YM, b: YM): YM => (ymIdx(a) <= ymIdx(b) ? a : b);
+const laterYm = (a: YM, b: YM): YM => (ymIdx(a) >= ymIdx(b) ? a : b);
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "\u2014";
@@ -331,47 +332,49 @@ export default function EditorialClientsPage() {
             dateRange={dateRange}
           />
 
-          {/* Unified Client Delivery Matrix (joined data from all sources) */}
+          {/* Cumulative Pipeline — portfolio summary, funnel chart, then
+              per-client detail cards grouped by pod. */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
-            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
-              Client Delivery Matrix <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial Operating Model' + 'Goals vs Delivery' — Spreadsheet: Editorial Capacity Planning + Master Tracker. Joined view across all delivery data sources." />
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA] mb-1">
+              Cumulative Pipeline <DataSourceBadge
+                type="live"
+                source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline counts per client. Every stage is expressed as a share of the client's contract SOW."
+                shows={[
+                  "All-time funnel: Topics → Content Briefs → Articles → Published.",
+                  "Every stage is divided by contract SOW, so the four stages are directly comparable.",
+                  "Layout: portfolio totals + approval-progress mix on top, pod matrix in the middle, per-client detail grouped by pod below.",
+                ]}
+              />
             </h3>
-            <p className="text-xs text-[#606060] mb-4">
-              Unified per-client monthly view joining SOW, invoicing, CB &amp; article delivery, and production data. Expand rows for weekly detail.
+            <p className="text-xs text-[#909090] mb-4">
+              Topics → CBs → Articles → Published, each measured against contract SOW.
             </p>
-            <ClientDeliveryMatrix filteredClients={filteredClients} />
+            <CumulativePipelineSection filteredClients={filteredClients} />
           </div>
 
-          {/* Cumulative Pipeline — summary + funnel, then pod aggregate
-              right above per-client detail cards */}
+          {/* Monthly Goals vs Delivery — summary cards + pod aggregate +
+              unified month-range table (with expandable weekly breakdown). */}
           <div className="mt-8 border-t border-[#2a2a2a] pt-6">
-            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
-              Cumulative Pipeline <DataSourceBadge type="live" source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline metrics per pod (aggregate) and per client (detail)." />
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA] mb-1">
+              Monthly Goals vs Delivery <DataSourceBadge
+                type="live"
+                source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Goals and delivery tracked per client per week across every month of the active date range."
+                shows={[
+                  "Progress toward each client's monthly CB and Article goals, aggregated over the active date range.",
+                  "Summary cards roll up the whole range; toggle CBs / Articles on the table to flip metrics.",
+                  "Each month column shows delivered/goal. Click a month header to expand its weekly breakdown (one month at a time).",
+                  "Respects the page filters above: Editorial Pod, Growth Pod, Status, Date Range.",
+                ]}
+              />
             </h3>
-            <p className="text-xs text-[#606060] mb-4">
-              All-time pipeline progression. Portfolio summary on top, pod aggregate next, then per-client detail.
-            </p>
-            <CumulativePipelineSection
-              filteredClients={filteredClients}
-              beforeClientCards={
-                <PodPipelineRow filteredClients={filteredClients} />
-              }
-            />
-          </div>
-
-          {/* Weekly Goals vs Delivery — summary + weekly matrix, then pod
-              aggregate right above per-client detail cards */}
-          <div className="mt-8 border-t border-[#2a2a2a] pt-6">
-            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
-              Weekly Goals vs Delivery <DataSourceBadge type="live" source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Pod gauges aggregate the latest week; per-client cards show the same week's detail." />
-            </h3>
-            <p className="text-xs text-[#606060] mb-4">
-              Weekly CB and article delivery vs monthly goal. Summary on top, pod aggregate next, then per-client detail.
+            <p className="text-xs text-[#909090] mb-4">
+              CB &amp; article delivery vs. the monthly goal, across the filtered date range.
             </p>
             <GoalsVsDeliverySection
               filteredClients={filteredClients}
+              dateRange={dateRange}
               beforeClientCards={
-                <PodGoalsRow filteredClients={filteredClients} />
+                <PodGoalsRow filteredClients={filteredClients} dateRange={dateRange} />
               }
             />
           </div>
@@ -498,15 +501,13 @@ function ClientEngagementTimeline({
   const [tooltip, setTooltip] = useState<TimelineTooltip | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  // Uses whatever clients are passed in (already filtered by FilterBar)
+  // Uses whatever clients are passed in (already filtered by FilterBar).
+  // Alphabetical ordering matches the per-client cards on the Deliverables
+  // tab so the whole dashboard reads consistently.
   const activeClients = useMemo(() => {
     return clients
       .filter((c) => c.start_date)
-      .sort((a, b) => {
-        const aDate = new Date(a.start_date!).getTime();
-        const bDate = new Date(b.start_date!).getTime();
-        return aDate - bDate;
-      });
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [clients]);
 
   // Calculate the overall date range from all active clients
@@ -658,11 +659,19 @@ function ClientEngagementTimeline({
     <div>
       <div className="flex items-start justify-between mb-3 gap-4">
         <div>
-          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Client Engagement Timeline <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' + 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Top chart uses SOW cadence fields; per-client rows toggle between SOW cadence and Operating Model actual/projected. Totals sidebar joins SOW with ProductionHistory (operating model)." />
+          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Client Engagement Timeline <DataSourceBadge
+              type="live"
+              source="Sheet: 'Editorial SOW overview' + 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Top chart uses SOW cadence fields; per-client rows toggle between SOW cadence and Operating Model actual/projected. Totals sidebar joins SOW with ProductionHistory (operating model)."
+              shows={[
+                "Top chart: total planned article volume across every filtered client, month by month.",
+                "Middle rows: one per client — toggle between planned Cadence and Actual vs. Projected output.",
+                "Right sidebar: per-client contract totals with a reconciliation that flags SOW ↔ delivered gaps.",
+              ]}
+            />
           </h3>
-          <p className="text-[10px] font-mono text-[#606060] mt-0.5">
-            Cross-client planning + utilization view. Top: planned-article volume across the portfolio. Middle: one row per filtered client, either their planned cadence or their actual-vs-projected delivery. Right: per-client contract totals with a reconciliation figure.
+          <p className="text-[10px] font-mono text-[#909090] mt-0.5">
+            Planned volume on top, per-client rows in the middle, contract totals on the right.
           </p>
         </div>
         {/* Top-level toggle: Monthly / Quarterly — affects both charts */}
@@ -726,11 +735,11 @@ function ClientEngagementTimeline({
                 <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-[#C4BCAA]">
                   Cumulative Articles — Actual & Projected
                 </p>
-                <p className="text-[8px] font-mono text-[#606060] mt-0.5">
-                  Columns align with the per-client rows below. Solid = actual delivered, lighter shade = projected. Source: Editorial Operating Model. Current month is highlighted.
+                <p className="text-[10px] font-mono text-[#909090] mt-0.5">
+                  Solid = actual delivered, lighter shade = projected. Columns align with the rows below.
                 </p>
               </div>
-              <span className="font-mono text-[9px] text-[#606060]">
+              <span className="font-mono text-[9px] text-[#909090]">
                 peak: {maxCumulative}
               </span>
             </div>
@@ -901,10 +910,15 @@ function ClientEngagementTimeline({
               <DataSourceBadge
                 type="live"
                 source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Per-month actual and projected article production per client; solid bar = actual, striped bar = projected."
+                shows={[
+                  "One row per client, month-by-month article output.",
+                  "Solid bars = actually shipped. Striped bars = still projected.",
+                  "Current month is highlighted so you can eyeball whether a client is on pace.",
+                ]}
               />
             </p>
-            <p className="text-[8px] font-mono text-[#606060] mt-0.5">
-              Per-client monthly output from the Operating Model. Solid = actual, striped = projected. Current month is highlighted.
+            <p className="text-[10px] font-mono text-[#909090] mt-0.5">
+              Solid = actual, striped = projected. Current month highlighted.
             </p>
           </div>
         </div>
@@ -1179,8 +1193,16 @@ function ContractTimelineTab({
 
       {/* Detail table */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          Contract &amp; Timeline Detail <DataSourceBadge type="live" source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Milestone dates are visualized in the Time-to Metrics cards above." />
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          Contract &amp; Timeline Detail <DataSourceBadge
+            type="live"
+            source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Milestone dates are visualized in the Time-to Metrics cards above."
+            shows={[
+              "Flat table of every filtered client — contract dates, pod, status, SOW, milestone dates.",
+              "Same raw values that feed the Time-to Metrics cards above.",
+              "Use it to look up a specific client or spot-check a sheet value.",
+            ]}
+          />
         </h3>
         <a
           href="https://docs.google.com/spreadsheets/d/1I6fNQMjs2y4l6IyOxd9QL-QBjB2zGi0mcoV840JDmkI/edit#gid=0"
@@ -1293,10 +1315,30 @@ interface ClientDeliverableSummary {
   articles_sow: number;
   articles_delivered: number;
   articles_invoiced: number;
+  /**
+   * In-period variance: delivered(scope) − invoiced(scope). "Within this
+   * window, did we ship more than we billed?" Replaces the old sum-of-
+   * monthly-variance which was arithmetically wrong (summing running totals).
+   */
   variance: number;
+  /**
+   * Cumulative variance through the end of the scope: the sheet's Variance
+   * formula applied at the last month of the filter range. When no filter
+   * is active, equals lifetime delivered − lifetime invoiced from the SOW
+   * sheet's Client row. "Overall, does delivery lead or trail billing?"
+   */
+  variance_cumulative: number;
   pct_complete: number;
   start_date?: string | null;
   term_months?: number | null;
+  /** Per-month breakdown of the rows that contributed to the card totals (for the hover popover). */
+  monthly_breakdown?: Array<{
+    year: number;
+    month: number;
+    delivered: number;
+    invoiced: number;
+    variance: number;
+  }>;
 }
 
 function DeliverablesSOWTab({
@@ -1341,28 +1383,259 @@ function DeliverablesSOWTab({
     for (const p of pacingData) m.set(p.client_name, p);
     return m;
   }, [pacingData]);
+  // Invoicing is quarterly on the sheet and the sheet's quarters are
+  // CONTRACT-relative (M1–M3 = Q1, M4–M6 = Q2, …), anchored to each
+  // client's start_date. A filter of Jan–Mar 2026 for a client whose
+  // contract started in Dec 2025 therefore touches contract Q1
+  // (Dec/Jan/Feb) AND contract Q2 (Mar/Apr/May). To make the card
+  // numbers match the sheet's Q rollups, we expand the per-client scope
+  // to include every month of every contract-Q touched by the filter —
+  // independently per client because each one has its own Q boundaries.
+  //
+  // SOW stays lifetime from the SOW sheet.
+  // Period variance = delivered(expanded scope) − invoiced(expanded scope).
+  // Cumulative variance = Σ delivered − Σ invoiced through the last
+  // expanded month (matches the sheet's Variance formula at that cell).
+  // Lifetime fallback kicks in when no date filter is active.
+  const cardsScopeLabel = useMemo(() => {
+    if (dateRange.type !== "range" || !dateRange.from) return null;
+    const to = dateRange.to ?? dateRange.from;
+    const monthNames = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const fromLbl = `${monthNames[dateRange.from.getMonth()]} ${String(dateRange.from.getFullYear()).slice(-2)}`;
+    const toLbl = `${monthNames[to.getMonth()]} ${String(to.getFullYear()).slice(-2)}`;
+    const range = fromLbl === toLbl ? fromLbl : `${fromLbl} – ${toLbl}`;
+    return `Expanded to complete contract quarters touching ${range}`;
+  }, [dateRange]);
+
+  // Per-client relationship metadata derived from deliverables_monthly (the
+  // Delivered vs Invoiced v2 sheet). It's the source of truth for the
+  // client's real delivery window because the SOW overview sheet overwrites
+  // start_date / term_months / SOW on each contract renewal and only carries
+  // the current active year — losing Y1 history. The monthly table keeps
+  // every year, so we pull bounds from it.
+  //
+  // Merge rule for the effective contract window:
+  //   start = min(clients.start_date, first_active_month_in_deliverables)
+  //   end   = max(clients.end_date,   last_planned_month_in_deliverables)
+  // The min() captures renewals that overwrote Y1 (first_active is earlier);
+  // the inclusion of clients.start_date preserves the onboarding window for
+  // brand-new clients whose deliveries haven't started yet.
+  const deliveryMeta = useMemo(() => {
+    const map = new Map<
+      number,
+      { startDate: string; termMonths: number; lifetimeSow: number }
+    >();
+    const clientById = new Map(clients.map((c) => [c.id, c]));
+    const byClient = new Map<number, DeliverableMonthly[]>();
+    for (const d of deliverables) {
+      const arr = byClient.get(d.client_id);
+      if (arr) arr.push(d);
+      else byClient.set(d.client_id, [d]);
+    }
+    for (const [cid, rows] of byClient) {
+      const active = rows.filter(
+        (r) =>
+          (r.articles_sow_target ?? 0) > 0 ||
+          (r.articles_delivered ?? 0) > 0 ||
+          (r.articles_invoiced ?? 0) > 0,
+      );
+      if (active.length === 0) continue;
+      active.sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
+      const first = active[0];
+      const lastPlanned = [...active]
+        .reverse()
+        .find((r) => (r.articles_sow_target ?? 0) > 0) ?? active[active.length - 1];
+
+      const firstYm = { y: first.year, m: first.month };
+      const lastYm = { y: lastPlanned.year, m: lastPlanned.month };
+
+      // Fold in clients.start_date / end_date so the SOW overview's onboarding
+      // window is preserved when deliveries haven't started yet.
+      const c = clientById.get(cid);
+      const sheetStart = c?.start_date ? new Date(c.start_date) : null;
+      const sheetEnd = c?.end_date ? new Date(c.end_date) : null;
+      const startYm = sheetStart
+        ? earlierYm(firstYm, { y: sheetStart.getFullYear(), m: sheetStart.getMonth() + 1 })
+        : firstYm;
+      const endYm = sheetEnd
+        ? laterYm(lastYm, { y: sheetEnd.getFullYear(), m: sheetEnd.getMonth() + 1 })
+        : lastYm;
+
+      const startDate = `${startYm.y}-${String(startYm.m).padStart(2, "0")}-01`;
+      const termMonths = (endYm.y - startYm.y) * 12 + (endYm.m - startYm.m) + 1;
+      const lifetimeSow = rows.reduce((a, r) => a + (r.articles_sow_target ?? 0), 0);
+      map.set(cid, { startDate, termMonths, lifetimeSow });
+    }
+    return map;
+  }, [clients, deliverables]);
+
   const rows: ClientDeliverableSummary[] = useMemo(() => {
-    // SOW is the fixed contract total from the SOW sheet, independent of the
-    // date filter. Delivered / Invoiced / Variance sum from the monthly
-    // Delivered-vs-Invoiced rows that fall inside the active date range, so
-    // the card reflects "what happened in the selected window" while still
-    // measuring against the full contract.
+    const hasFilter = dateRange.type === "range" && !!dateRange.from;
+    const filterFrom = hasFilter ? dateRange.from! : null;
+    const filterTo = hasFilter ? dateRange.to ?? dateRange.from! : null;
+
+    // Prefer the monthly-derived start over the SOW overview's, because the
+    // latter is Y2-only after a renewal. This anchors the contract-Q
+    // expansion on the actual first delivery month.
+    const effectiveStart = (c: Client): string | null | undefined => {
+      return deliveryMeta.get(c.id)?.startDate ?? c.start_date;
+    };
+    const effectiveTerm = (c: Client): number | null | undefined => {
+      return deliveryMeta.get(c.id)?.termMonths ?? c.term_months;
+    };
+
+    // Per-client expanded month set: every month of every contract-Q
+    // touched by the filter range. Falls back to literal filter months
+    // when start_date is missing, so the card still renders honestly.
+    const expandedMonthsFor = (c: Client): Set<string> | null => {
+      if (!hasFilter || !filterFrom || !filterTo) return null;
+      const startStr = effectiveStart(c);
+      const start = startStr ? new Date(startStr) : null;
+      const months = new Set<string>();
+      const pushKey = (y: number, m: number) =>
+        months.add(`${y}-${String(m).padStart(2, "0")}`);
+      if (!start || isNaN(start.getTime())) {
+        // No contract start — fall through to literal filter months only.
+        let y = filterFrom.getFullYear();
+        let m = filterFrom.getMonth() + 1;
+        const endY = filterTo.getFullYear();
+        const endM = filterTo.getMonth() + 1;
+        while (y < endY || (y === endY && m <= endM)) {
+          pushKey(y, m);
+          m += 1;
+          if (m > 12) {
+            m = 1;
+            y += 1;
+          }
+        }
+        return months;
+      }
+      const startY = start.getFullYear();
+      const startM = start.getMonth() + 1;
+      const touchedQs = new Set<number>();
+      let y = filterFrom.getFullYear();
+      let m = filterFrom.getMonth() + 1;
+      const endY = filterTo.getFullYear();
+      const endM = filterTo.getMonth() + 1;
+      while (y < endY || (y === endY && m <= endM)) {
+        const mi = (y - startY) * 12 + (m - startM) + 1;
+        if (mi >= 1) touchedQs.add(Math.floor((mi - 1) / 3));
+        m += 1;
+        if (m > 12) {
+          m = 1;
+          y += 1;
+        }
+      }
+      for (const qIdx of touchedQs) {
+        for (let offset = 0; offset < 3; offset++) {
+          const miTotal = qIdx * 3 + offset; // 0-based months since contract start
+          const total = startM - 1 + miTotal;
+          const qy = startY + Math.floor(total / 12);
+          const qm = (total % 12) + 1;
+          pushKey(qy, qm);
+        }
+      }
+      return months;
+    };
+
+    // Cap card totals at the end of the current month so projected/future
+    // rows in deliverables_monthly don't inflate "delivered" or "invoiced".
+    // The monthly popover still displays future months (marked as projected)
+    // so nothing is hidden — only the rolled-up card numbers are capped.
+    const now = new Date();
+    const nowY = now.getFullYear();
+    const nowM = now.getMonth() + 1;
+    const isPastOrCurrent = (y: number, m: number): boolean =>
+      y < nowY || (y === nowY && m <= nowM);
+
     return clients.map((c) => {
-      const sow = c.articles_sow ?? 0;
-      const clientDeliverables = filteredDeliverables.filter((d) => d.client_id === c.id);
-      const delivered = clientDeliverables.reduce(
+      // Prefer the sum of per-month SOW targets from deliverables_monthly —
+      // it always reflects the full relationship. Falls back to the lifetime
+      // `clients.articles_sow` for clients without monthly rows.
+      const meta = deliveryMeta.get(c.id);
+      const sow = meta && meta.lifetimeSow > 0
+        ? meta.lifetimeSow
+        : (c.articles_sow ?? 0);
+      const scopeMonths = expandedMonthsFor(c);
+      const inScope = (d: DeliverableMonthly): boolean => {
+        if (d.client_id !== c.id) return false;
+        if (!scopeMonths) return true; // no filter → include everything for this client
+        return scopeMonths.has(`${d.year}-${String(d.month).padStart(2, "0")}`);
+      };
+      const clientDeliverables = deliverables.filter(inScope);
+      // Actuals = in-scope rows whose month has already finished or is the
+      // current month. Card totals sum from this subset only.
+      const clientActuals = clientDeliverables.filter((d) =>
+        isPastOrCurrent(d.year, d.month),
+      );
+
+      // Scope end = the latest month included in the expansion, BUT clamped
+      // to today so the cumulative variance matches the sheet's Variance at
+      // the most recent actual month (not at a future projected month).
+      let scopeEnd: { y: number; m: number } | null = null;
+      if (scopeMonths && scopeMonths.size > 0) {
+        const latest = Array.from(scopeMonths).sort().pop()!;
+        const [ly, lm] = latest.split("-");
+        const y = parseInt(ly, 10);
+        const m = parseInt(lm, 10);
+        scopeEnd = isPastOrCurrent(y, m)
+          ? { y, m }
+          : { y: nowY, m: nowM };
+      }
+      const delivered = clientActuals.reduce(
         (acc, d) => acc + (d.articles_delivered ?? 0),
         0,
       );
-      const invoiced = clientDeliverables.reduce(
+      const invoiced = clientActuals.reduce(
         (acc, d) => acc + (d.articles_invoiced ?? 0),
         0,
       );
-      const totalVariance = clientDeliverables.reduce(
-        (acc, d) => acc + (d.variance ?? 0),
+      const periodVariance = delivered - invoiced;
+
+      // Cumulative variance: sum every monthly row up to scope end. When no
+      // scope is set we sum every row for the client, giving a lifetime
+      // cumulative that matches the Delivered/Invoiced bars (those also
+      // aggregate from the monthly sheet, not from the stale
+      // `clients.articles_delivered` lifetime column). Always clamped to
+      // today so projections never leak into the totals.
+      const cumulativeRows = deliverables.filter((d) => {
+        if (d.client_id !== c.id) return false;
+        if (!isPastOrCurrent(d.year, d.month)) return false;
+        if (!scopeEnd) return true;
+        return (
+          d.year < scopeEnd.y ||
+          (d.year === scopeEnd.y && d.month <= scopeEnd.m)
+        );
+      });
+      const cumDelivered = cumulativeRows.reduce(
+        (a, d) => a + (d.articles_delivered ?? 0),
         0,
       );
+      const cumInvoiced = cumulativeRows.reduce(
+        (a, d) => a + (d.articles_invoiced ?? 0),
+        0,
+      );
+      const cumulativeVariance = cumDelivered - cumInvoiced;
+
       const pct = sow > 0 ? Math.round((delivered / sow) * 100) : 0;
+
+      // Monthly popover: include every in-scope row — past, current, and
+      // future. `is_future` tells the popover to render projected rows with
+      // a muted/marker style so the reader can see what's forecast vs real.
+      const monthly_breakdown = clientDeliverables
+        .slice()
+        .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month))
+        .map((d) => ({
+          year: d.year,
+          month: d.month,
+          delivered: d.articles_delivered ?? 0,
+          invoiced: d.articles_invoiced ?? 0,
+          variance: d.variance ?? 0,
+          is_future: !isPastOrCurrent(d.year, d.month),
+        }));
 
       return {
         id: c.id,
@@ -1372,13 +1645,15 @@ function DeliverablesSOWTab({
         articles_sow: sow,
         articles_delivered: delivered,
         articles_invoiced: invoiced,
-        variance: totalVariance,
+        variance: periodVariance,
+        variance_cumulative: cumulativeVariance,
         pct_complete: pct,
-        start_date: c.start_date,
-        term_months: c.term_months,
+        start_date: meta?.startDate ?? c.start_date,
+        term_months: meta?.termMonths ?? c.term_months,
+        monthly_breakdown,
       };
     });
-  }, [clients, filteredDeliverables]);
+  }, [clients, deliverables, dateRange, deliveryMeta]);
 
   const totalSow = rows.reduce((a, r) => a + r.articles_sow, 0);
   const totalDelivered = rows.reduce((a, r) => a + r.articles_delivered, 0);
@@ -1393,11 +1668,19 @@ function DeliverablesSOWTab({
     <div className="mt-3 space-y-5">
       {/* Section heading */}
       <div>
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] mb-1">
-          Delivery Overview <DataSourceBadge type="live" source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Articles delivered, invoiced, balance, and SOW targets." />
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA] mb-1">
+          Delivery Overview <DataSourceBadge
+            type="live"
+            source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Articles delivered, invoiced, balance, and SOW targets."
+            shows={[
+              "Portfolio snapshot of article delivery vs. contract SOW.",
+              "First card adapts to the filter: client status card for 1 client, bucket mix for many.",
+              "Remaining cards: delivered, invoiced, variance (delivered − invoiced), and avg per-client completion %.",
+            ]}
+          />
         </h3>
-        <p className="text-xs text-[#606060] mb-3">
-          Monthly article delivery progress against SOW targets, invoicing balance, and pacing status per client.
+        <p className="text-xs text-[#909090] mb-3">
+          Delivered vs. SOW, invoicing balance, and per-client pacing.
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -1445,7 +1728,7 @@ function DeliverablesSOWTab({
         />
       )}
       {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete */}
-      <ClientDeliveryCards rows={rows} />
+      <ClientDeliveryCards rows={rows} scopeLabel={cardsScopeLabel} />
     </div>
   );
 }

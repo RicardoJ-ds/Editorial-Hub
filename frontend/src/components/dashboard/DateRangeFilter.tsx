@@ -184,16 +184,16 @@ function MonthRangeSlider({
       <div
         ref={trackRef}
         onPointerDown={onTrackPointerDown}
-        className="relative h-6 flex items-center cursor-pointer touch-none"
+        className="relative h-10 flex items-center cursor-pointer touch-none"
       >
-        {/* Track background */}
-        <div className="absolute inset-x-0 h-1 bg-[#1e1e1e] rounded-full" />
+        {/* Track background — thicker bar so drag target is big */}
+        <div className="absolute inset-x-0 h-2 bg-[#1e1e1e] rounded-full" />
         {/* Active fill */}
         <div
-          className="absolute h-1 bg-[#42CA80]/60 rounded-full"
+          className="absolute h-2 bg-[#42CA80]/60 rounded-full"
           style={{ left: `${pct(Math.min(fromIdx, toIdx))}%`, right: `${100 - pct(Math.max(fromIdx, toIdx))}%` }}
         />
-        {/* Thumbs */}
+        {/* Thumbs — larger hit area with visible ring on hover/drag */}
         {(["from", "to"] as const).map((handle) => {
           const idx = handle === "from" ? fromIdx : toIdx;
           const active = drag === handle;
@@ -207,8 +207,8 @@ function MonthRangeSlider({
               aria-valuenow={idx}
               tabIndex={0}
               className={cn(
-                "absolute -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#42CA80] border-2 border-[#0a0a0a] cursor-grab transition-shadow",
-                active && "cursor-grabbing shadow-[0_0_0_4px_rgba(66,202,128,0.2)]"
+                "absolute -translate-x-1/2 w-5 h-5 rounded-full bg-[#42CA80] border-2 border-[#0a0a0a] cursor-grab transition-shadow hover:shadow-[0_0_0_3px_rgba(66,202,128,0.2)]",
+                active && "cursor-grabbing shadow-[0_0_0_5px_rgba(66,202,128,0.28)] scale-110",
               )}
               style={{ left: `${pct(idx)}%` }}
             />
@@ -283,7 +283,9 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
   /** Two-click month range builder:
    *  1st click → anchor the start, mark the month
    *  2nd click → finalize the range from min(anchor, click) through end of max(anchor, click)
-   *  Clicking the same month resets. */
+   *  Clicking the same month resets.
+   *  Panel stays open after selection — user closes it by clicking outside,
+   *  Esc, or the Clear button. Gives them room to tweak the range. */
   const handleMonthClick = (i: number) => {
     if (rangeAnchor === null) {
       setRangeAnchor(i);
@@ -291,14 +293,14 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
       return;
     }
     if (rangeAnchor === i) {
-      // Same month — lock in as a single-month range and close.
-      selectRange(new Date(year, i, 1), new Date(year, i + 1, 0), true);
+      // Same month — lock in as a single-month range.
+      selectRange(new Date(year, i, 1), new Date(year, i + 1, 0));
       setRangeAnchor(null);
       return;
     }
     const startMonth = Math.min(rangeAnchor, i);
     const endMonth = Math.max(rangeAnchor, i);
-    selectRange(new Date(year, startMonth, 1), new Date(year, endMonth + 1, 0), true);
+    selectRange(new Date(year, startMonth, 1), new Date(year, endMonth + 1, 0));
     setRangeAnchor(null);
   };
 
@@ -370,7 +372,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
             {/* ===== YEARS ===== */}
             {view === "years" && (
               <div className="p-3 space-y-3">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1.5">
                   {YEARS.map((y) => {
                     const isCurrent = y === new Date().getFullYear();
                     const isInRange = value.from && value.to && value.from.getFullYear() <= y && value.to.getFullYear() >= y;
@@ -380,18 +382,14 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                         type="button"
                         onClick={() => { setYear(y); goTo("months", "in"); }}
                         className={cn(
-                          "group relative flex flex-col items-center justify-center rounded-lg py-4 transition-all duration-200 border",
+                          "group relative flex flex-col items-center justify-center rounded-md py-2 transition-all duration-200 border",
                           isInRange
                             ? "bg-[#42CA80]/10 text-[#42CA80] border-[#42CA80]/25"
                             : "bg-[#111] text-[#C4BCAA] border-[#1e1e1e] hover:bg-[#1a1a1a] hover:text-white hover:border-[#333]"
                         )}
                       >
-                        <span className="text-xl font-mono font-bold">{y}</span>
-                        {isCurrent && <span className="text-[8px] font-mono text-[#42CA80] mt-0.5">current</span>}
-                        {/* Double-click hint */}
-                        <span className="absolute bottom-1 text-[7px] font-mono text-[#333] group-hover:text-[#606060] transition-colors">
-                          dbl-click to select
-                        </span>
+                        <span className="text-sm font-mono font-bold leading-none">{y}</span>
+                        {isCurrent && <span className="text-[8px] font-mono text-[#42CA80] mt-0.5 leading-none">current</span>}
                       </button>
                     );
                   })}
@@ -422,7 +420,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                 <p className="text-[9px] font-mono text-[#606060] text-center">
                   Click a month to pick it. Click a second month to make a range.
                 </p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-1.5">
                   {MONTHS.map((m, i) => {
                     const monthStart = new Date(year, i, 1);
                     const monthEnd = new Date(year, i + 1, 0);
@@ -434,7 +432,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                         type="button"
                         onClick={() => handleMonthClick(i)}
                         className={cn(
-                          "flex flex-col items-center justify-center rounded-lg py-3 transition-all duration-200 border",
+                          "flex flex-col items-center justify-center rounded-md py-1.5 transition-all duration-200 border",
                           isAnchor
                             ? "bg-[#42CA80]/25 text-[#65FFAA] border-[#42CA80] ring-1 ring-[#42CA80]/40"
                             : isInRange
@@ -442,7 +440,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                               : "bg-[#111] text-[#C4BCAA] border-[#1e1e1e] hover:bg-[#1a1a1a] hover:text-white hover:border-[#333]"
                         )}
                       >
-                        <span className="text-sm font-mono font-semibold">{m}</span>
+                        <span className="text-[11px] font-mono font-semibold leading-none">{m}</span>
                       </button>
                     );
                   })}
@@ -453,13 +451,30 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                   <MonthRangeSlider value={value} onChange={onChange} />
                 </div>
 
+                {/* Quick presets — same list as the Years view so users get to them without navigating back */}
+                <div className="border-t border-[#1e1e1e] pt-2.5">
+                  <p className="text-[8px] font-mono text-[#333] uppercase tracking-widest mb-2">Quick select</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESETS.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => selectRange(p.from, p.to)}
+                        className="rounded-full px-2.5 py-1 text-[10px] font-mono text-[#888] bg-[#111] border border-[#1e1e1e] hover:bg-[#1a1a1a] hover:text-white hover:border-[#333] transition-all duration-150"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Select full year */}
                 <div className="border-t border-[#1e1e1e] pt-2.5 flex items-center justify-between">
                   <p className="text-[9px] font-mono text-[#606060]">Or select the full year</p>
                   <button
                     type="button"
                     onClick={() => {
-                      selectRange(new Date(year, 0, 1), new Date(year, 11, 31), true);
+                      selectRange(new Date(year, 0, 1), new Date(year, 11, 31));
                       setRangeAnchor(null);
                     }}
                     className="flex items-center gap-1 text-[10px] font-mono text-[#42CA80] hover:text-[#65FFAA] transition-colors"

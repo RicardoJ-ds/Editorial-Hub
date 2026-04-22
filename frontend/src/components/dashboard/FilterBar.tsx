@@ -47,8 +47,11 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
   const [growthPod, setGrowthPod] = useState(
     searchParams.get("growth_pod") ?? "All"
   );
+  // Default to Active so a fresh page load shows only the book that's
+  // currently being managed. COMPLETED / CANCELLED / INACTIVE clients are
+  // still one click away via the dropdown.
   const [status, setStatus] = useState(
-    searchParams.get("status") ?? "All"
+    searchParams.get("status") ?? "Active"
   );
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const now = new Date();

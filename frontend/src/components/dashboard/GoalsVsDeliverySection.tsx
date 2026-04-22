@@ -1,129 +1,144 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { apiGet } from "@/lib/api";
 import type { Client, GoalsVsDeliveryRow } from "@/lib/types";
 import { SummaryCard } from "./SummaryCard";
-import { DataSourceBadge } from "./DataSourceBadge";
-import { ClientGoalCard } from "./ClientGoalCard";
-import { GoalsDeliveryChart } from "@/components/charts/GoalsDeliveryChart";
-import { WeeklyBreakdownMatrix } from "./WeeklyBreakdownMatrix";
-import { parsePctValue, podBadge } from "./shared-helpers";
-import { normalizePod, sortPodKey } from "./ContractClientProgress";
+import { GoalsMonthTable } from "./GoalsMonthTable";
+import { parsePctValue } from "./shared-helpers";
+import type { DateRange } from "./DateRangeFilter";
 
 interface Props {
   filteredClients?: Client[];
-  /** Rendered right above the per-client cards so pod aggregates sit
-   *  adjacent to the detail they roll up from. */
+  /** Rendered right above the unified goals table so the pod aggregate sits
+   *  adjacent to the detail it rolls up from. */
   beforeClientCards?: React.ReactNode;
+  /** Page-level date range — defines which months of Goals vs Delivery data
+   *  the summary cards and the month-range table aggregate across. When
+   *  omitted or type="all", every month we have is included. */
+  dateRange?: DateRange;
 }
 
-export function GoalsVsDeliverySection({ filteredClients, beforeClientCards }: Props) {
-  const [months, setMonths] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [selectedWeek, setSelectedWeek] = useState<string>("latest");
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function parseMonthYear(s: string): Date | null {
+  if (!s) return null;
+  const m = s.trim().match(/^(\w+)\s+(\d{4})$/);
+  if (!m) return null;
+  const idx = MONTH_NAMES.indexOf(m[1]);
+  if (idx < 0) return null;
+  return new Date(parseInt(m[2], 10), idx, 1);
+}
+
+function resolveDateRange(r: DateRange | undefined): [Date | null, Date | null] {
+  if (!r || r.type !== "range") return [null, null];
+  const start = r.from ?? null;
+  const end = r.to ?? r.from ?? null;
+  return [start, end];
+}
+
+export function GoalsVsDeliverySection({ filteredClients, beforeClientCards, dateRange }: Props) {
   const [rows, setRows] = useState<GoalsVsDeliveryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiGet<string[]>("/api/goals-delivery/months").then(setMonths).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     setLoading(true);
-    apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/latest")
-      .then((data) => {
-        setRows(data);
-        if (data.length > 0 && !selectedMonth) setSelectedMonth(data[0].month_year);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleMonthChange = useCallback((month: string | null) => {
-    if (!month) return;
-    setSelectedMonth(month);
-    setSelectedWeek("latest");
-    setLoading(true);
-    apiGet<GoalsVsDeliveryRow[]>(`/api/goals-delivery/by-month/${encodeURIComponent(month)}`)
+    apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/all")
       .then(setRows)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const availableWeeks = useMemo(() => {
-    const weeks = new Set(rows.map((r) => r.week_number));
-    return Array.from(weeks).sort((a, b) => a - b);
-  }, [rows]);
-
-  const clientRows = useMemo(() => {
-    if (selectedWeek === "latest") {
-      const map = new Map<string, GoalsVsDeliveryRow>();
-      for (const row of rows) {
-        const existing = map.get(row.client_name);
-        if (!existing || row.week_number > existing.week_number) map.set(row.client_name, row);
+  // Rows that survive the client filter + date range. Range match is
+  // "month overlaps range": any month whose last day ≥ range start and whose
+  // first day ≤ range end. Everything below consumes this set.
+  const scopedRows = useMemo(() => {
+    const clients = filteredClients ?? [];
+    const names = new Set(clients.map((c) => c.name));
+    const [start, end] = resolveDateRange(dateRange);
+    return rows.filter((r) => {
+      if (clients.length > 0 && !names.has(r.client_name)) return false;
+      const d = parseMonthYear(r.month_year);
+      if (!d) return false;
+      if (start) {
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        if (monthEnd < start) return false;
       }
-      return Array.from(map.values()).sort((a, b) => a.client_name.localeCompare(b.client_name));
+      if (end && d > end) return false;
+      return true;
+    });
+  }, [rows, filteredClients, dateRange]);
+
+  // Summary across the scoped range: sum of monthly_goal per (client × month)
+  // and sum of max-to-date per (client × month). Using max-of-to-date avoids
+  // double-counting since each week carries a running cumulative.
+  //
+  // Important: only count deliveries in months that ALSO have a goal. Some
+  // client-months have pre-goal deliveries (ramp-up period, client signed
+  // mid-month etc.) — the month table correctly shows "—" for those cells,
+  // and the summary needs to match or the two disagree (e.g. Leapsome: 2
+  // delivered in Jan with no Jan goal, 1 delivered in Feb with goal 5 →
+  // summary should read 1/5, not 3/5).
+  const summary = useMemo(() => {
+    const perClientMonth = new Map<string, { cbGoal: number; cbDel: number; adGoal: number; adDel: number }>();
+    for (const r of scopedRows) {
+      const key = `${r.client_name}|${r.month_year}`;
+      let e = perClientMonth.get(key);
+      if (!e) {
+        e = { cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
+        perClientMonth.set(key, e);
+      }
+      e.cbGoal = Math.max(e.cbGoal, r.cb_monthly_goal ?? 0);
+      e.adGoal = Math.max(e.adGoal, r.ad_monthly_goal ?? 0);
+      e.cbDel = Math.max(e.cbDel, r.cb_delivered_to_date ?? 0);
+      e.adDel = Math.max(e.adDel, r.ad_delivered_to_date ?? 0);
     }
-    const weekNum = parseInt(selectedWeek, 10);
-    return rows.filter((r) => r.week_number === weekNum).sort((a, b) => a.client_name.localeCompare(b.client_name));
-  }, [rows, selectedWeek]);
-
-  const displayRows = useMemo(() => {
-    if (!filteredClients?.length) return clientRows;
-    const names = new Set(filteredClients.map((c) => c.name));
-    return clientRows.filter((r) => names.has(r.client_name));
-  }, [clientRows, filteredClients]);
-
-  // Canonical pod for each client — pulled from the Client record so the
-  // grouping below uses the same editorial_pod as the pod-aggregate row
-  // rendered right above.
-  const clientToEditorialPod = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of filteredClients ?? []) {
-      if (c.editorial_pod) map.set(c.name, normalizePod(c.editorial_pod));
+    let cbGoal = 0, cbDel = 0, adGoal = 0, adDel = 0;
+    for (const e of perClientMonth.values()) {
+      if (e.cbGoal > 0) {
+        cbGoal += e.cbGoal;
+        cbDel += e.cbDel;
+      }
+      if (e.adGoal > 0) {
+        adGoal += e.adGoal;
+        adDel += e.adDel;
+      }
     }
-    return map;
-  }, [filteredClients]);
-
-  const rowsByPod = useMemo(() => {
-    const map = new Map<string, typeof displayRows>();
-    for (const r of displayRows) {
-      const pod = clientToEditorialPod.get(r.client_name)
-        ?? normalizePod(r.editorial_team_pod);
-      const list = map.get(pod);
-      if (list) list.push(r);
-      else map.set(pod, [r]);
+    // On-track client count — use the latest snapshot per client (max
+    // month_year, max week within that). "On track" = cb_pct OR ad_pct ≥ 75%.
+    const latestPerClient = new Map<string, GoalsVsDeliveryRow>();
+    for (const r of scopedRows) {
+      const cur = latestPerClient.get(r.client_name);
+      if (!cur) {
+        latestPerClient.set(r.client_name, r);
+        continue;
+      }
+      if (
+        r.month_year > cur.month_year ||
+        (r.month_year === cur.month_year && r.week_number > cur.week_number)
+      ) {
+        latestPerClient.set(r.client_name, r);
+      }
     }
-    return Array.from(map.entries()).sort(([a], [b]) => sortPodKey(a, b));
-  }, [displayRows, clientToEditorialPod]);
+    const clients = Array.from(latestPerClient.values());
+    const onTrack = clients.filter(
+      (r) =>
+        parsePctValue(r.cb_pct_of_goal) >= 75 ||
+        parsePctValue(r.ad_pct_of_goal) >= 75,
+    ).length;
 
-  // Every week × every client for the selected month — feeds WeeklyBreakdownMatrix
-  const monthRowsFiltered = useMemo(() => {
-    if (!filteredClients?.length) return rows;
-    const names = new Set(filteredClients.map((c) => c.name));
-    return rows.filter((r) => names.has(r.client_name));
-  }, [rows, filteredClients]);
-
-  // Summary
-  const totalCB = displayRows.reduce((a, r) => a + (r.cb_delivered_to_date ?? 0), 0);
-  const totalCBGoal = displayRows.reduce((a, r) => a + (r.cb_monthly_goal ?? 0), 0);
-  const totalAD = displayRows.reduce((a, r) => a + (r.ad_delivered_to_date ?? 0), 0);
-  const totalADGoal = displayRows.reduce((a, r) => a + (r.ad_monthly_goal ?? 0), 0);
-  const cbPct = totalCBGoal > 0 ? Math.round((totalCB / totalCBGoal) * 100) : 0;
-  const adPct = totalADGoal > 0 ? Math.round((totalAD / totalADGoal) * 100) : 0;
-  const onTrack = displayRows.filter((r) => {
-    return parsePctValue(r.cb_pct_of_goal) >= 75 || parsePctValue(r.ad_pct_of_goal) >= 75;
-  }).length;
+    return {
+      cbGoal, cbDel, adGoal, adDel,
+      cbPct: cbGoal > 0 ? Math.round((cbDel / cbGoal) * 100) : 0,
+      adPct: adGoal > 0 ? Math.round((adDel / adGoal) * 100) : 0,
+      totalClients: clients.length,
+      onTrack,
+    };
+  }, [scopedRows]);
 
   if (loading) {
     return (
@@ -136,71 +151,53 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards }: P
     );
   }
 
+  const avgAchievement = Math.round((summary.cbPct + summary.adPct) / 2);
+
   return (
     <div className="space-y-5">
-      {/* Controls */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <label className="font-mono text-xs text-[#606060] uppercase tracking-wider">Month</label>
-          <Select value={selectedMonth} onValueChange={handleMonthChange}>
-            <SelectTrigger size="sm" className="w-[200px]"><SelectValue placeholder="Select month" /></SelectTrigger>
-            <SelectContent>
-              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="h-4 w-px bg-[#2a2a2a]" />
-        <div className="flex items-center gap-2">
-          <label className="font-mono text-xs text-[#606060] uppercase tracking-wider">Week</label>
-          <Select value={selectedWeek} onValueChange={(v) => v && setSelectedWeek(v)}>
-            <SelectTrigger size="sm" className="w-[120px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="latest">Latest</SelectItem>
-              {availableWeeks.map((w) => <SelectItem key={w} value={String(w)}>Week {w}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Summary cards */}
+      {/* Summary cards — range-aware. All four metrics aggregate across every
+          month of the active date-range filter above (plus pod + client
+          filters). */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard title="CBs Delivered vs Goal" value={`${totalCB} / ${totalCBGoal}`} valueColor="green" progress={cbPct} description={`${cbPct}% of goal`} />
-        <SummaryCard title="Articles Delivered vs Goal" value={`${totalAD} / ${totalADGoal}`} valueColor="green" progress={adPct} description={`${adPct}% of goal`} />
-        <SummaryCard title="Avg Achievement" value={`${Math.round((cbPct + adPct) / 2)}%`} valueColor={Math.round((cbPct + adPct) / 2) >= 75 ? "green" : "white"} description="Across CBs + Articles" />
-        <SummaryCard title="Clients On Track" value={onTrack} valueColor="green" description={`of ${displayRows.length} clients`} />
+        <SummaryCard
+          title="CBs Delivered vs Goal"
+          value={`${summary.cbDel} / ${summary.cbGoal}`}
+          valueColor="green"
+          progress={summary.cbPct}
+          description={`${summary.cbPct}% of goal`}
+        />
+        <SummaryCard
+          title="Articles Delivered vs Goal"
+          value={`${summary.adDel} / ${summary.adGoal}`}
+          valueColor="green"
+          progress={summary.adPct}
+          description={`${summary.adPct}% of goal`}
+        />
+        <SummaryCard
+          title="Avg Achievement"
+          value={`${avgAchievement}%`}
+          valueColor={avgAchievement >= 75 ? "green" : "white"}
+          description="CBs + Articles combined"
+        />
+        <SummaryCard
+          title="Clients On Track"
+          value={summary.onTrack}
+          valueColor="green"
+          description={`of ${summary.totalClients} — CB% or Article% ≥ 75%`}
+        />
       </div>
 
-      {/* Chart */}
-      <GoalsDeliveryChart data={displayRows} />
-
-      {/* Weekly breakdown — surfaces every Week N: CB / Week N: AD column from the sheet */}
-      <WeeklyBreakdownMatrix rows={monthRowsFiltered} monthLabel={selectedMonth} />
-
-      {/* Pod-aggregate row (if slotted) sits immediately above per-client detail */}
+      {/* Pod-aggregate row (latest-week snapshot) — sits above the unified
+          table so readers scan pod totals before per-client detail. */}
       {beforeClientCards}
 
-      {/* Per-client cards — grouped into discrete pod subsections */}
-      {rowsByPod.length === 0 ? (
-        <p className="text-center text-sm text-[#606060] py-8">No data available for the selected period.</p>
-      ) : (
-        <div className="space-y-5">
-          {rowsByPod.map(([pod, rows]) => (
-            <div key={`pod-group-${pod}`} className="space-y-2">
-              <div className="flex items-center gap-2">
-                {podBadge(pod)}
-                <span className="font-mono text-[10px] text-[#606060]">
-                  {rows.length} client{rows.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {rows.map((row) => (
-                  <ClientGoalCard key={row.id} data={row} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Unified month-range table — replaces the old horizontal bar chart
+          + weekly breakdown matrix + per-client card grid. */}
+      <GoalsMonthTable
+        rows={scopedRows}
+        filteredClients={filteredClients ?? []}
+        dateRange={dateRange}
+      />
     </div>
   );
 }

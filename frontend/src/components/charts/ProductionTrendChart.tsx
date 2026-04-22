@@ -222,13 +222,22 @@ export function ProductionTrendChart({
   return (
     <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
       <div className="mb-4">
-        <h3 className="text-base font-semibold text-white">
-          Production History <DataSourceBadge type="live" source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output, actual vs projected. Honors the Client + Time-period filters above." />
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          Production History <DataSourceBadge
+            type="live"
+            source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output, actual vs projected. Honors the Client + Time-period filters above."
+            shows={[
+              "Monthly article output over time.",
+              "Solid line = what actually shipped. Dashed extension = what's still projected.",
+              "The vertical 'Now' marker separates history from forecast.",
+              "Watch pace — dips below trend are early misses.",
+            ]}
+          />
         </h3>
-        <p className="mt-0.5 text-xs text-[#606060]">
+        <p className="mt-0.5 text-xs text-[#909090]">
           {source === "filtered"
-            ? "Monthly article output for the selected clients and time range"
-            : "Monthly article output across all clients"}
+            ? "Actual vs. projected monthly output for the selected clients."
+            : "Actual vs. projected monthly output across all clients."}
         </p>
       </div>
       <ResponsiveContainer width="100%" height={300}>

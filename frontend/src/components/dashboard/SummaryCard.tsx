@@ -23,7 +23,7 @@ export function SummaryCard({
   progress,
 }: SummaryCardProps) {
   return (
-    <Card className="border-[#2a2a2a] bg-[#161616]">
+    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
           {title}

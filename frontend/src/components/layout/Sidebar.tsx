@@ -13,8 +13,17 @@ import {
   Download,
   Search,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { HeaderUser } from "@/components/layout/Header";
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 interface NavItem {
   label: string;
@@ -89,7 +98,7 @@ function NavSection({
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
 
   return (
@@ -149,11 +158,61 @@ export function Sidebar() {
         <NavSection label="Proposal" items={proposalNav} pathname={pathname} />
       </nav>
 
-      {/* Footer */}
+      {/* Footer — user identity + logout */}
       <div className="border-t border-[#1e1e1e] px-3 py-3">
-        <div className="hidden items-center justify-between group-hover/sidebar:flex">
-          <span className="font-mono text-[10px] font-medium text-[#606060]">v0.1</span>
-          <span className="font-mono text-[10px] text-[#404040]">&copy; Graphite</span>
+        {/* Collapsed: avatar only, centered */}
+        <div className="flex items-center justify-center group-hover/sidebar:hidden" title={user.name}>
+          {user.picture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.picture}
+              alt={user.name}
+              className="h-8 w-8 rounded-full"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#42CA80] text-sm font-bold text-black">
+              {getInitials(user.name)}
+            </div>
+          )}
+        </div>
+
+        {/* Expanded: avatar + name + logout */}
+        <div className="hidden items-center gap-2 group-hover/sidebar:flex">
+          {user.picture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.picture}
+              alt={user.name}
+              className="h-8 w-8 shrink-0 rounded-full"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#42CA80] text-sm font-bold text-black">
+              {getInitials(user.name)}
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span
+              className="truncate font-mono text-[11px] font-medium uppercase tracking-wider text-[#C4BCAA]"
+              title={user.email}
+            >
+              {user.name}
+            </span>
+            <span className="truncate font-mono text-[10px] text-[#606060]">
+              {user.email}
+            </span>
+          </div>
+          <form action="/api/auth/logout" method="POST" className="shrink-0">
+            <button
+              type="submit"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-[#606060] transition-colors duration-[var(--transition-base)] hover:bg-[#1F1F1F] hover:text-white"
+              aria-label="Logout"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </form>
         </div>
       </div>
     </aside>

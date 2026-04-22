@@ -18,9 +18,35 @@ import {
 import { DataSourceBadge } from "./DataSourceBadge";
 import { podBadge, goalStatusBadge, pctColorNum } from "./shared-helpers";
 import { cn } from "@/lib/utils";
+import type { DateRange } from "./DateRangeFilter";
 
 interface Props {
   filteredClients: Client[];
+  /** When set, pod gauges aggregate goals/delivered across every month in
+   *  the range — matching the section's summary cards and month table.
+   *  When omitted, pulls only the latest month from the sheet. */
+  dateRange?: DateRange;
+}
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function parseMonthYearStr(s: string): Date | null {
+  if (!s) return null;
+  const m = s.trim().match(/^(\w+)\s+(\d{4})$/);
+  if (!m) return null;
+  const idx = MONTH_NAMES.indexOf(m[1]);
+  if (idx < 0) return null;
+  return new Date(parseInt(m[2], 10), idx, 1);
+}
+
+function resolveDateRange(r: DateRange | undefined): [Date | null, Date | null] {
+  if (!r || r.type !== "range") return [null, null];
+  const start = r.from ?? null;
+  const end = r.to ?? r.from ?? null;
+  return [start, end];
 }
 
 // ---------------------------------------------------------------------------
@@ -35,8 +61,6 @@ interface PodGoalAgg {
   cbGoal: number;
   adDelivered: number;
   adGoal: number;
-  backlog: number;
-  revisions: number;
 }
 
 interface PodPipelineAgg {
@@ -80,36 +104,67 @@ export function normalizePod(raw: string | null | undefined): string {
 
 /** Aggregate goal rows by CLIENT's editorial_pod (via the clientToPod map)
  *  rather than the row's `editorial_team_pod` column, so filter semantics are
- *  consistent with the FilterBar (which filters on Client.editorial_pod). */
+ *  consistent with the FilterBar.
+ *
+ *  Summation math matches `GoalsVsDeliverySection` / `GoalsMonthTable`:
+ *    • Collapse each (client × month) to one entry: max(monthly_goal) and
+ *      max(delivered_to_date). Multiple weeks per month carry a running
+ *      cumulative, so max-of-to-date = end-of-month cumulative.
+ *    • Sum those per-(client × month) entries across every month in the
+ *      range, then sum across clients per pod. So three widgets (summary
+ *      cards, pod gauges, month table) always show identical totals.
+ */
 function aggregateGoalsByPod(
   rows: GoalsVsDeliveryRow[],
   clientToPod: Map<string, string>,
 ): PodGoalAgg[] {
-  // Latest week per client first
-  const latestByClient = new Map<string, GoalsVsDeliveryRow>();
+  const perClientMonth = new Map<string, {
+    client: string;
+    pod: string;
+    cbGoal: number; cbDel: number;
+    adGoal: number; adDel: number;
+  }>();
   for (const r of rows) {
-    const existing = latestByClient.get(r.client_name);
-    if (!existing || r.week_number > existing.week_number) latestByClient.set(r.client_name, r);
-  }
-  const byPod = new Map<string, PodGoalAgg>();
-  for (const r of latestByClient.values()) {
+    const key = `${r.client_name}|${r.month_year}`;
     const pod = normalizePod(clientToPod.get(r.client_name) ?? r.editorial_team_pod);
-    if (!byPod.has(pod)) {
-      byPod.set(pod, {
-        pod, clientCount: 0, clientNames: [],
-        cbDelivered: 0, cbGoal: 0, adDelivered: 0, adGoal: 0,
-        backlog: 0, revisions: 0,
-      });
+    let e = perClientMonth.get(key);
+    if (!e) {
+      e = { client: r.client_name, pod, cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
+      perClientMonth.set(key, e);
     }
-    const agg = byPod.get(pod)!;
-    agg.clientCount += 1;
-    agg.clientNames.push(r.client_name);
-    agg.cbDelivered += r.cb_delivered_to_date ?? 0;
-    agg.cbGoal += r.cb_monthly_goal ?? 0;
-    agg.adDelivered += r.ad_delivered_to_date ?? 0;
-    agg.adGoal += r.ad_monthly_goal ?? 0;
-    agg.backlog += r.ad_cb_backlog ?? 0;
-    agg.revisions += r.ad_revisions ?? 0;
+    e.cbGoal = Math.max(e.cbGoal, r.cb_monthly_goal ?? 0);
+    e.adGoal = Math.max(e.adGoal, r.ad_monthly_goal ?? 0);
+    e.cbDel = Math.max(e.cbDel, r.cb_delivered_to_date ?? 0);
+    e.adDel = Math.max(e.adDel, r.ad_delivered_to_date ?? 0);
+  }
+
+  const byPod = new Map<string, PodGoalAgg>();
+  const seenClientsPerPod = new Map<string, Set<string>>();
+  for (const e of perClientMonth.values()) {
+    if (!byPod.has(e.pod)) {
+      byPod.set(e.pod, {
+        pod: e.pod, clientCount: 0, clientNames: [],
+        cbDelivered: 0, cbGoal: 0, adDelivered: 0, adGoal: 0,
+      });
+      seenClientsPerPod.set(e.pod, new Set());
+    }
+    const agg = byPod.get(e.pod)!;
+    const seen = seenClientsPerPod.get(e.pod)!;
+    if (!seen.has(e.client)) {
+      seen.add(e.client);
+      agg.clientCount += 1;
+      agg.clientNames.push(e.client);
+    }
+    // Only count deliveries in months that had a goal — matches the summary
+    // cards and the month table, which both drop goal-less months.
+    if (e.cbGoal > 0) {
+      agg.cbGoal += e.cbGoal;
+      agg.cbDelivered += e.cbDel;
+    }
+    if (e.adGoal > 0) {
+      agg.adGoal += e.adGoal;
+      agg.adDelivered += e.adDel;
+    }
   }
   return Array.from(byPod.values()).sort((a, b) => sortPodKey(a.pod, b.pod));
 }
@@ -192,7 +247,7 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
               {goalStatusBadge(cbPct, adPct)}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-              Avg of CB % and Article % for the pod this month. ≥75% = On Track, 50–74% = Behind, &lt;50% = At Risk.
+              Avg of CB % and Article % for the pod across the active date range. ≥75% = On Track, 50–74% = Behind, &lt;50% = At Risk.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -205,8 +260,7 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
               <ProgressArc value={data.cbDelivered} max={data.cbGoal} label="CBs" />
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px] leading-relaxed">
-              CBs delivered vs monthly goal, summed across {data.clientCount} client
-              {data.clientCount === 1 ? "" : "s"} in this pod.
+              CBs delivered vs monthly goal, summed per (client × month) across the active date range — {data.clientCount} client{data.clientCount === 1 ? "" : "s"} in this pod.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -216,41 +270,12 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
               <ProgressArc value={data.adDelivered} max={data.adGoal} label="Articles" />
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px] leading-relaxed">
-              Articles delivered vs monthly goal, summed across {data.clientCount} client
-              {data.clientCount === 1 ? "" : "s"} in this pod.
+              Articles delivered vs monthly goal, summed per (client × month) across the active date range — {data.clientCount} client{data.clientCount === 1 ? "" : "s"} in this pod.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
-      {(data.revisions > 0 || data.backlog > 0) && (
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-          {data.revisions > 0 && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={<span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-mono font-semibold bg-[#F5C542]/12 text-[#F5C542] cursor-help" />}>
-                  Rev: {data.revisions}
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-                  Open article revision requests this month across the pod.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          {data.backlog > 0 && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={<span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-mono font-semibold bg-[#ED6958]/12 text-[#ED6958] cursor-help" />}>
-                  Backlog: {data.backlog}
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
-                  Approved CBs not yet written into articles.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -375,15 +400,17 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
 // aggregate by the client's editorial_pod.
 // ---------------------------------------------------------------------------
 
-function usePodAggregates(filteredClients: Client[]) {
+function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
   const [goalRows, setGoalRows] = useState<GoalsVsDeliveryRow[]>([]);
   const [pipelineRows, setPipelineRows] = useState<CumulativeMetric[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    // Goals: pull every month we have on hand so the pod gauges can honor
+    // the same date range as the rest of the Monthly Goals section.
     Promise.all([
-      apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/latest").catch(() => [] as GoalsVsDeliveryRow[]),
+      apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/all").catch(() => [] as GoalsVsDeliveryRow[]),
       apiGet<CumulativeMetric[]>("/api/goals-delivery/cumulative").catch(() => [] as CumulativeMetric[]),
     ])
       .then(([goals, pipeline]) => {
@@ -411,12 +438,27 @@ function usePodAggregates(filteredClients: Client[]) {
     [filteredClients],
   );
 
+  // Apply the global client filter + date-range filter to the goal rows
+  // before handing them to the aggregator. Month "in range" = its first day
+  // is on or before range.to AND its last day is on or after range.from.
+  const scopedGoalRows = useMemo(() => {
+    const [start, end] = resolveDateRange(dateRange);
+    return goalRows.filter((r) => {
+      if (!filterNames.has(r.client_name)) return false;
+      const d = parseMonthYearStr(r.month_year);
+      if (!d) return false;
+      if (start) {
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        if (monthEnd < start) return false;
+      }
+      if (end && d > end) return false;
+      return true;
+    });
+  }, [goalRows, filterNames, dateRange]);
+
   const goalPods = useMemo(
-    () => aggregateGoalsByPod(
-      goalRows.filter((r) => filterNames.has(r.client_name)),
-      clientToPod,
-    ),
-    [goalRows, filterNames, clientToPod],
+    () => aggregateGoalsByPod(scopedGoalRows, clientToPod),
+    [scopedGoalRows, clientToPod],
   );
 
   const pipelinePods = useMemo(
@@ -434,8 +476,8 @@ function usePodAggregates(filteredClients: Client[]) {
 // Per-pod Month Goals row
 // ---------------------------------------------------------------------------
 
-export function PodGoalsRow({ filteredClients }: Props) {
-  const { loading, goalPods } = usePodAggregates(filteredClients);
+export function PodGoalsRow({ filteredClients, dateRange }: Props) {
+  const { loading, goalPods } = usePodAggregates(filteredClients, dateRange);
 
   if (loading) return <Skeleton className="h-[180px]" />;
   if (goalPods.length === 0) {
@@ -455,10 +497,15 @@ export function PodGoalsRow({ filteredClients }: Props) {
           </h4>
           <DataSourceBadge
             type="live"
-            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Latest week snapshot per client, summed by the client's editorial_pod."
+            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Goals and delivery summed per (client × month) across every month in the active date range, then rolled up by the client's editorial_pod."
+            shows={[
+              "Each pod card shows combined CB and Article progress across the clients it owns.",
+              "Numbers match the summary cards above and the month table below — all three use the same (client × month) aggregation over the active date range.",
+              "Color: green ≥75% On Track, amber 50–74% Behind, red <50% At Risk.",
+            ]}
           />
         </div>
-        <p className="text-[10px] text-[#606060]">
+        <p className="text-[10px] text-[#909090]">
           <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />
         </p>
       </div>
@@ -507,6 +554,12 @@ export function PodPipelineRow({ filteredClients }: Props) {
           <DataSourceBadge
             type="live"
             source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time per-client pipeline totals, summed by the client's editorial_pod."
+            shows={[
+              "One card per editorial pod showing its all-time funnel: Topics → CBs → Articles → Published.",
+              "Each bar is approval rate at that stage, color-coded by %; raw approved/sent numbers on the right.",
+              "Δ footer = articles sent minus articles approved (how many are waiting on client sign-off). Overall % footer = articles approved ÷ articles sent.",
+              "Sums are pod-wide, not per-client — open a per-client card below to drill in.",
+            ]}
           />
         </div>
         <p className="text-[10px] text-[#606060]">

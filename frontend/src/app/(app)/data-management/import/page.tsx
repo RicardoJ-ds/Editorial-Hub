@@ -82,7 +82,7 @@ const IMPORTABLE_EXACT = [
   "Master Tracker - Cumulative",
   "Master Tracker - Goals vs Delivery",
   "Notion Database",
-  "Team Pods",
+  "Growth Pods",
 ];
 
 /** Prefix-match importable sheet names (capacity plan versions, KPI scores variants) */
@@ -114,7 +114,7 @@ function getSheetGroup(name: string): string | null {
   if (name.startsWith("AI Monitoring")) return "Writer AI Monitoring";
   if (name.startsWith("Master Tracker")) return "Master Tracker";
   if (name === "Notion Database") return "Master Tracker";
-  if (name === "Team Pods") return "Team Pods";
+  if (name === "Growth Pods") return "BigQuery";
   return null;
 }
 
