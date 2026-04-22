@@ -31,21 +31,24 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
       .finally(() => setLoading(false));
   }, []);
 
-  // Use the CLIENT's editorial_pod (from filteredClients) as the canonical
-  // pod for grouping, so the per-section layout matches the pod-aggregate
-  // row which also uses editorial_pod.
+  // Canonical pod for grouping across this section = the CLIENT's
+  // editorial_pod. Always include every filtered client so the fallback
+  // never reaches the sheet's account_team_pod (which carries growth /
+  // account pod labels, not editorial) — that would mix axes and surface
+  // e.g. a "Pod 7" row in a matrix otherwise indexed by editorial pod.
+  // Blank editorial_pod → "Unassigned".
   const clientToEditorialPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients ?? []) {
-      if (c.editorial_pod) map.set(c.name, normalizePod(c.editorial_pod));
+      map.set(c.name, c.editorial_pod ? normalizePod(c.editorial_pod) : "Unassigned");
     }
     return map;
   }, [filteredClients]);
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
-      const podA = clientToEditorialPod.get(a.client_name) ?? normalizePod(a.account_team_pod);
-      const podB = clientToEditorialPod.get(b.client_name) ?? normalizePod(b.account_team_pod);
+      const podA = clientToEditorialPod.get(a.client_name) ?? "Unassigned";
+      const podB = clientToEditorialPod.get(b.client_name) ?? "Unassigned";
       if (podA !== podB) return sortPodKey(podA, podB);
       return a.client_name.localeCompare(b.client_name);
     });
@@ -62,8 +65,7 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
   const rowsByPod = useMemo(() => {
     const map = new Map<string, typeof displayRows>();
     for (const r of displayRows) {
-      const pod = clientToEditorialPod.get(r.client_name)
-        ?? normalizePod(r.account_team_pod);
+      const pod = clientToEditorialPod.get(r.client_name) ?? "Unassigned";
       const list = map.get(pod);
       if (list) list.push(r);
       else map.set(pod, [r]);

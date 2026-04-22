@@ -34,6 +34,29 @@ def _prepare_database_url(url: str) -> tuple[str, dict]:
     return url, args
 
 
+def prepare_sync_url(url: str) -> str:
+    """Transform DATABASE_URL for psycopg2 (sync) compatibility.
+
+    - Drops the `+asyncpg` driver suffix so psycopg2 is selected.
+    - Translates the asyncpg-flavored `ssl=require` query param to psycopg2's
+      `sslmode=require`. If both are present, `sslmode` wins and `ssl` is
+      discarded. Without this translation psycopg2 raises:
+      `invalid dsn: invalid connection option "ssl"`.
+    - Leaves any other libpq-compatible params (sslmode, channel_binding,
+      application_name, …) intact.
+    """
+    if "+asyncpg" in url:
+        url = url.replace("+asyncpg", "")
+    parts = urlsplit(url)
+    params = parse_qs(parts.query)
+    if "ssl" in params:
+        if "sslmode" not in params:
+            params["sslmode"] = params["ssl"]
+        del params["ssl"]
+    cleaned_query = urlencode({k: v[0] for k, v in params.items()})
+    return urlunsplit(parts._replace(query=cleaned_query))
+
+
 _db_url, _connect_args = _prepare_database_url(settings.database_url)
 engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

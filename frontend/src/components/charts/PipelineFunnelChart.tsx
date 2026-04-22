@@ -156,7 +156,11 @@ export function PipelineFunnelChart({ data, clientToSow, clientToPod }: Props) {
     const podMap = new Map<string, PodRow>();
 
     for (const row of data) {
-      const pod = clientToPod?.get(row.client_name) ?? normalizePod(row.account_team_pod);
+      // Never fall back to the sheet's account_team_pod — that column
+      // carries growth/account pod labels and would mix axes with the
+      // editorial_pod the map is built from. Unmapped clients go to
+      // "Unassigned" so the matrix stays a clean editorial-pod view.
+      const pod = clientToPod?.get(row.client_name) ?? "Unassigned";
       const sow = clientToSow?.get(row.client_name) ?? 0;
       let entry = podMap.get(pod);
       if (!entry) {
@@ -200,13 +204,14 @@ export function PipelineFunnelChart({ data, clientToSow, clientToPod }: Props) {
     <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-5">
       <div className="mb-1 flex items-center gap-2">
         <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
-          Pipeline by Pod
+          Pipeline by Editorial Pod
         </h4>
         <DataSourceBadge
           type="live"
           source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. Stage count ÷ the pod's contracted SOW, so every cell is comparable across stages and pods (same math as the summary cards and per-client cards below)."
           shows={[
-            "Rows are pods; columns are the four stages (Topics → CBs → Articles → Published).",
+            "Rows are editorial pods (from Client.editorial_pod); columns are the four stages (Topics → CBs → Articles → Published).",
+            "Clients with no editorial pod set are grouped under Unassigned — this view never uses growth or account pods.",
             "Each % = stage count ÷ pod's total SOW — same math as the cards above and below.",
             "Thin bar inside a cell = raw volume vs. the busiest pod × stage.",
             "Color: green ≥85%, light-green 70–84%, amber 50–69%, red <50%.",

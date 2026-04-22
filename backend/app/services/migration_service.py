@@ -446,8 +446,9 @@ def _last_imported_row_count(sheet_name: str) -> int | None:
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session as SyncSession
 
-    sync_url = settings.database_url.replace("+asyncpg", "")
-    engine = create_engine(sync_url, echo=False)
+    from app.database import prepare_sync_url
+
+    engine = create_engine(prepare_sync_url(settings.database_url), echo=False)
     try:
         with SyncSession(engine) as sess:
             logs = (

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session as SyncSession
 
 from app.config import settings
-from app.database import get_db
+from app.database import get_db, prepare_sync_url
 from app.models import AuditLog
 from app.services.migration_service import (
     CAPACITY_PLAN_PREFIX,
@@ -82,17 +82,15 @@ class MigrationStatusResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _get_sync_url() -> str:
-    """Convert the async database URL to a synchronous one for sync operations."""
-    url = settings.database_url
-    if "+asyncpg" in url:
-        return url.replace("+asyncpg", "")
-    return url
-
-
 def _get_sync_session() -> SyncSession:
-    """Create a synchronous SQLAlchemy session for Google Sheets import work."""
-    sync_engine = create_engine(_get_sync_url(), echo=False)
+    """Create a synchronous SQLAlchemy session for Google Sheets import work.
+
+    Uses `prepare_sync_url` so libpq-style params (sslmode=require) survive
+    and asyncpg-style params (ssl=require) are translated — Railway's
+    DATABASE_URL carries whichever the connection string renderer emits, and
+    psycopg2 rejects `ssl=…` outright.
+    """
+    sync_engine = create_engine(prepare_sync_url(settings.database_url), echo=False)
     return SyncSession(sync_engine)
 
 

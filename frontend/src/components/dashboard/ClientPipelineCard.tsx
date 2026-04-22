@@ -16,10 +16,11 @@ interface Props {
   /** Contract SOW article count — used as the denominator for every pipeline
    *  stage. When null/0 the card falls back to showing "—" for pct. */
   sow?: number | null;
-  /** Pod label to render on the card's badge. Passed in from the parent so
-   *  the card matches its group header — `editorial_pod` (Client) and
-   *  `account_team_pod` (Cumulative sheet) can disagree per client and we
-   *  don't want the badge inside the card to contradict the group above. */
+  /** Editorial pod label to render on the card's badge. Passed in from the
+   *  parent so the badge matches its group header. When blank we show an
+   *  "Unassigned" chip rather than falling back to the sheet's
+   *  account_team_pod column — that column carries growth/account pod
+   *  labels and would mix axes with the editorial-pod grouping above. */
   pod?: string | null;
 }
 
@@ -55,7 +56,7 @@ export function ClientPipelineCard({ data, sow = null, pod = null }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          {podBadge(pod ?? data.account_team_pod)}
+          {podBadge(pod ?? "Unassigned")}
           <span className="font-semibold text-white text-sm truncate">{data.client_name}</span>
         </div>
         {data.client_type && (

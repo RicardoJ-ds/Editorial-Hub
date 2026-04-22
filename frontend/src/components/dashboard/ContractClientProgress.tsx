@@ -175,7 +175,10 @@ function aggregatePipelineByPod(
 ): PodPipelineAgg[] {
   const byPod = new Map<string, PodPipelineAgg>();
   for (const r of rows) {
-    const pod = normalizePod(clientToPod.get(r.client_name) ?? r.account_team_pod);
+    // Editorial-pod only. No fallback to account_team_pod from the Cumulative
+    // sheet — that column carries growth/account pod labels and would mix
+    // axes with the editorial-pod grouping the dashboard uses everywhere.
+    const pod = clientToPod.get(r.client_name) ?? "Unassigned";
     if (!byPod.has(pod)) {
       byPod.set(pod, {
         pod, clientCount: 0, clientNames: [],
