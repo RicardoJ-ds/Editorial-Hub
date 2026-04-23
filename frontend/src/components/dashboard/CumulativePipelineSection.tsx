@@ -97,7 +97,7 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-8">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[90px]" />)}
         </div>
@@ -107,7 +107,7 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {/* Summary cards — every metric is {approved or live} ÷ SOW so all four
           funnel stages are comparable against the contract commitment. Slot 1
           adapts to the filter: 1 client → status card, N clients → approval
@@ -125,25 +125,21 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
           title="Topics vs SOW"
           value={`${totalTopicsApproved} / ${totalSow}`}
           progress={pctOf(totalTopicsApproved)}
-          description={`${pctOf(totalTopicsApproved)}% of SOW`}
         />
         <SummaryCard
           title="CBs vs SOW"
           value={`${totalCBsApproved} / ${totalSow}`}
           progress={pctOf(totalCBsApproved)}
-          description={`${pctOf(totalCBsApproved)}% of SOW`}
         />
         <SummaryCard
           title="Articles vs SOW"
           value={`${totalArticlesApproved} / ${totalSow}`}
           progress={pctOf(totalArticlesApproved)}
-          description={`${pctOf(totalArticlesApproved)}% of SOW`}
         />
         <SummaryCard
           title="Published vs SOW"
           value={`${totalPublishedLive} / ${totalSow}`}
           progress={pctOf(totalPublishedLive)}
-          description={`${pctOf(totalPublishedLive)}% of SOW`}
         />
       </div>
 
@@ -162,14 +158,15 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
       {rowsByPod.length === 0 ? (
         <p className="text-center text-sm text-[#606060] py-8">No cumulative pipeline data available.</p>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {rowsByPod.map(([pod, rows]) => (
-            <div key={`pod-group-${pod}`} className="space-y-2">
-              <div className="flex items-center gap-2">
+            <div key={`pod-group-${pod}`} className="space-y-3">
+              <div className="flex items-center gap-2 border-b border-[#1f1f1f] pb-1.5">
                 {podBadge(pod)}
-                <span className="font-mono text-[10px] text-[#606060]">
+                <span className="font-mono text-xs text-[#606060]">
                   {rows.length} client{rows.length === 1 ? "" : "s"}
                 </span>
+                <span className="h-px flex-1 bg-[#1f1f1f]" />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {rows.map((row) => (
@@ -243,11 +240,11 @@ function ApprovalProgressMixCard({
   return (
     <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
+        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
           Approval Progress
         </p>
-        <p className="mt-0.5 text-[10px] leading-snug text-[#909090]">
-          Articles approved ÷ SOW across {withSow} client{withSow === 1 ? "" : "s"}
+        <p className="mt-0.5 text-[11px] leading-snug text-[#606060]">
+          Across {withSow} client{withSow === 1 ? "" : "s"}
         </p>
         <p
           className="mt-1.5 font-mono text-2xl font-bold tabular-nums"
@@ -260,7 +257,7 @@ function ApprovalProgressMixCard({
           {APPROVAL_ROW.map((row) => (
             <div
               key={row.key}
-              className="flex items-center justify-between gap-2 font-mono text-[10px]"
+              className="flex items-center justify-between gap-2 font-mono text-[11px]"
             >
               <span className="flex items-center gap-1.5">
                 <span

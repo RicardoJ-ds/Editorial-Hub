@@ -1,6 +1,6 @@
 # Dashboard Data Flow & CP v2 Migration Plan
 
-> **Last reviewed:** 2026-04-18
+> **Last reviewed:** 2026-04-23
 >
 > **Purpose.** One document to answer three questions:
 > 1. Where does each dashboard metric come from today (sheet → table → endpoint → component)?
@@ -21,21 +21,27 @@
 
 ### Editorial Clients — `/editorial-clients`
 
+**Layout on Dashboard 1** (two tabs, h2-sectioned):
+
+- *Contract & Timeline* tab → `Time-to Metrics` section + `Contract & Timeline` parent section (Client Engagement Timeline + Contract & Timeline Detail children).
+- *Deliverables vs SOW* tab → `Delivery Overview` + `Cumulative Pipeline` + `Monthly Goals vs Delivery` sections.
+
 | Dashboard section | Component | Endpoint | DB table | Source sheet |
 |---|---|---|---|---|
-| SOW Overview + FilterBar | `FilterBar`, `SummaryCard` | `GET /api/clients/` | `clients` | Editorial SOW overview |
-| Time-to metrics (8 deltas) | `TimeToMetrics` | `GET /api/dashboard/clients/time-to-metrics` | `clients` (milestone date cols) | Editorial SOW overview |
-| Client Engagement Timeline | `ContractClientProgress` + timeline | `GET /api/dashboard/client-production` | `clients`, `production_history` | SOW overview + Editorial Operating Model |
-| Contract & Timeline Detail (9 cols) | table in `editorial-clients/page.tsx` | `GET /api/clients/` | `clients` | SOW overview |
-| Month-over-Month Time-to trend | `TimeToMetrics` MoM view | client-side aggregation of `/api/clients/` | `clients` | SOW overview |
-| Client Delivery At a Glance | `ClientDeliveryCards` | `GET /api/deliverables/` + `/api/dashboard/pacing` | `deliverables_monthly`, `delivery_templates`, `clients` | Delivered vs Invoiced v2 + Delivery Schedules |
-| Production History chart | `ProductionTrendChart` | `GET /api/dashboard/production-trend` **or** `GET /api/dashboard/client-production` (filtered) | `production_history` | Editorial Operating Model |
-| Delivery vs Invoicing % heatmap | `DeliveryTrendChart` | `GET /api/deliverables/?limit=1000` | `deliverables_monthly`, `clients` | Delivered vs Invoiced v2 |
-| Cumulative Pipeline | `CumulativePipelineSection` | `GET /api/goals-delivery/cumulative` | `cumulative_metrics` | Master Tracker — Cumulative |
-| Weekly Goals vs Delivery | `GoalsVsDeliverySection`, `WeeklyBreakdownMatrix` | `GET /api/goals-delivery/latest` + `/by-month/{m}` + `/months` | `goals_vs_delivery` | Master Tracker — Goals vs Delivery (×9) |
-| Pipeline by Pod (approval-rate grid) | `PipelineFunnelChart` | `GET /api/goals-delivery/cumulative` | `cumulative_metrics` | Master Tracker — Cumulative |
-| Pacing badges | `PacingBadge` | `GET /api/dashboard/pacing` | `delivery_templates`, `deliverables_monthly`, `clients` | Delivery Schedules + Delivered vs Invoiced v2 |
-| Client Delivery Matrix | `ClientDeliveryMatrix` | `GET /api/client-delivery?view=monthly` | `deliverables_monthly` + `goals_vs_delivery` + `clients` + `production_history` | joined |
+| Filter bar (client search + editorial/growth pod + status + date range) | `FilterBar` | `GET /api/clients/` | `clients` | Editorial SOW overview |
+| **Time-to Metrics** (8 milestone delta cards + per-client breakdown bar chart + Milestone Journey waterfall) | `TimeToMetrics` | `GET /api/clients/` (client-side deltas) | `clients` (milestone date cols) | Editorial SOW overview |
+| **Client Engagement Timeline** (per-client article cadence, monthly/quarterly toggle, actual+projected bars, totals sidebar) | `ClientEngagementTimeline` (inlined in page) | `GET /api/dashboard/client-production` | `clients`, `production_history` | SOW overview + Editorial Operating Model |
+| **Contract & Timeline Detail** (flat table, 9 cols; "Open source sheet" button links to Master Tracker) | table in `editorial-clients/page.tsx` | `GET /api/clients/` | `clients` | SOW overview |
+| **Delivery Overview** (5 summary cards: Client Status / Approval-progress mix, Total Delivered vs SOW, Invoiced, Variance, Avg Completion %) | `DeliverablesSOWTab` (inlined) + `FilterContextCard` + `SummaryCard` | `GET /api/deliverables/` + `GET /api/dashboard/pacing` | `deliverables_monthly`, `delivery_templates`, `clients` | Delivered vs Invoiced v2 + Delivery Schedules |
+| Production History chart (inside Delivery Overview) | `ProductionTrendChart` | `GET /api/dashboard/client-production` (filtered) | `production_history` | Editorial Operating Model |
+| Client Notes panel (inside Delivery Overview, only when any filtered client has notes) | `ClientNotesPanel` | reads `Client.comments` from `/api/clients/` | `clients.comments` | SOW overview comments col |
+| Client Delivery At a Glance (per-client cards grouped by editorial pod; monthly-detail popover) | `ClientDeliveryCards` | same as Delivery Overview | `deliverables_monthly`, `clients` | Delivered vs Invoiced v2 + SOW overview |
+| Delivery vs Invoicing % heatmap (optional, embedded) | `DeliveryTrendChart` | `GET /api/deliverables/?limit=1000` | `deliverables_monthly`, `clients` | Delivered vs Invoiced v2 |
+| **Cumulative Pipeline** (5 summary cards: Approval Progress mix + Topics/CBs/Articles/Published vs SOW) | `CumulativePipelineSection` | `GET /api/goals-delivery/cumulative` | `cumulative_metrics` | Master Tracker — Cumulative |
+| Pipeline by Editorial Pod (SOW-relative heatmap) | `PipelineFunnelChart` | same | `cumulative_metrics` | Master Tracker — Cumulative |
+| Per-client pipeline cards (grouped by editorial pod) | `ClientPipelineCard` | same | `cumulative_metrics` | Master Tracker — Cumulative |
+| **Monthly Goals vs Delivery** (4 summary cards + pod-aggregate gauges + unified month-range table with expandable weekly breakdown) | `GoalsVsDeliverySection`, `GoalsMonthTable`, `PodGoalsRow` | `GET /api/goals-delivery/all` (range-aware) | `goals_vs_delivery` | Master Tracker — Goals vs Delivery (×9) |
+| Pacing badges (inside per-client cards) | `PacingBadge` | `GET /api/dashboard/pacing` | `delivery_templates`, `deliverables_monthly`, `clients` | Delivery Schedules + Delivered vs Invoiced v2 |
 
 ### Team KPIs — `/team-kpis`
 

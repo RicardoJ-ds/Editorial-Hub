@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
+import { displayPod } from "@/components/dashboard/shared-helpers";
 import type { Client, DeliverableMonthly } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ const POD_COLORS: Record<string, string> = {
   Unassigned: "#606060",
 };
 
-const ALL_KEY = "All pods";
+const ALL_KEY = "All editorial pods";
 
 function normalizePod(raw: string | null | undefined): string {
   if (raw == null) return "Unassigned";
@@ -295,7 +296,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                 ]}
               />
             </CardTitle>
-            <p className="mt-1 text-[10px] font-mono text-[#C4BCAA] leading-relaxed">
+            <p className="mt-1 text-[11px] font-mono text-[#C4BCAA] leading-relaxed">
               {mode === "monthly" ? (
                 <>
                   <b className="text-white">In-{granularity}</b> — Delivered ÷ Invoiced per {granularity}.
@@ -318,7 +319,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                   onClick={() => setMode(m)}
                   title={MODE_COPY[m].tooltip}
                   className={cn(
-                    "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                    "px-2.5 py-0.5 rounded text-[11px] font-mono uppercase tracking-wider transition-colors",
                     mode === m
                       ? "bg-[#42CA80]/15 text-[#42CA80]"
                       : "text-[#606060] hover:text-white",
@@ -328,7 +329,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                 </button>
               ))}
             </div>
-            <span className="font-mono text-[9px] text-[#606060] italic">
+            <span className="font-mono text-[10px] text-[#606060] italic">
               Hover for definitions
             </span>
           </div>
@@ -338,7 +339,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                 key={g}
                 onClick={() => setGranularity(g)}
                 className={cn(
-                  "px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors",
+                  "px-2.5 py-0.5 rounded text-[11px] font-mono uppercase tracking-wider transition-colors",
                   granularity === g
                     ? "bg-[#8FB5D9]/15 text-[#8FB5D9]"
                     : "text-[#606060] hover:text-white",
@@ -356,13 +357,13 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
           <table className="w-full min-w-max border-collapse">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-[#161616] px-2 pb-2 text-left font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+                <th className="sticky left-0 z-10 bg-[#161616] px-2 pb-2 text-left font-mono text-[10px] uppercase tracking-wider text-[#606060]">
                   Pod {granularity === "quarter" ? "· By quarter" : "· By month"}
                 </th>
                 {columns.map((c) => (
                   <th
                     key={c.key}
-                    className="px-0.5 pb-2 text-center font-mono text-[8px] uppercase tracking-wider text-[#606060]"
+                    className="px-0.5 pb-2 text-center font-mono text-[10px] uppercase tracking-wider text-[#606060]"
                     style={{ minWidth: 38 }}
                   >
                     {c.label}
@@ -382,7 +383,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                   >
                     <td
                       className={cn(
-                        "sticky left-0 z-10 bg-[#161616] px-2 py-1.5 font-mono text-[10px] whitespace-nowrap",
+                        "sticky left-0 z-10 bg-[#161616] px-2 py-1.5 font-mono text-[11px] whitespace-nowrap",
                         isAll
                           ? "font-semibold text-white"
                           : "text-[#C4BCAA]",
@@ -397,7 +398,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                               : POD_COLORS[row.pod] ?? "#606060",
                           }}
                         />
-                        {row.pod}
+                        {row.pod === ALL_KEY ? row.pod : displayPod(row.pod, "editorial")}
                       </span>
                     </td>
                     {row.cells.map((cell, ci) => {
@@ -409,8 +410,8 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                         >
                           <div
                             className={cn(
-                              "flex h-7 items-center justify-center rounded font-mono text-[9px] font-semibold",
-                              isAll && "h-8 text-[10px]",
+                              "flex h-7 items-center justify-center rounded font-mono text-[10px] font-semibold",
+                              isAll && "h-8 text-[11px]",
                             )}
                             style={{
                               backgroundColor: bg,
@@ -449,7 +450,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
         </div>
 
         {/* Color legend — bands follow the active mode */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[9px] text-[#606060]">
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-[#606060]">
           <span className="uppercase tracking-wider">
             Color scale ({mode === "monthly" ? `in-${granularity}` : "running total"})
           </span>
@@ -490,10 +491,10 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
             }}
           >
             <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 shadow-xl whitespace-nowrap">
-              <p className="font-mono text-[11px] font-semibold text-white">
+              <p className="font-mono text-xs font-semibold text-white">
                 {tooltip.pod} · {tooltip.monthLabel}
               </p>
-              <p className="mt-0.5 font-mono text-[10px] text-[#C4BCAA]">
+              <p className="mt-0.5 font-mono text-[11px] text-[#C4BCAA]">
                 {tooltip.pct == null ? (
                   <>No invoicing this {mode === "cumulative" ? "period-to-date" : granularity}</>
                 ) : (

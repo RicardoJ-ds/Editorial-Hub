@@ -61,12 +61,12 @@ export function ProgressArc({ value, max, label, size = 80 }: ProgressArcProps) 
           {max > 0 ? `${pctRounded}%` : "—"}
         </text>
       </svg>
-      <span className="font-mono text-[10px] tabular-nums text-white">
+      <span className="font-mono text-[11px] tabular-nums text-white">
         {value.toLocaleString()}
         <span className="text-[#606060]"> / </span>
         {max.toLocaleString()}
       </span>
-      <span className="font-mono text-[9px] uppercase tracking-wider text-[#909090]">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-[#909090]">
         {label}
       </span>
     </div>

@@ -81,7 +81,7 @@ export function DataSourceBadge({ type, source, shows, className }: DataSourceBa
         <TooltipTrigger>
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider cursor-default select-none",
+              "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider cursor-default select-none",
               isLive ? "text-[#42CA80]/70" : "text-[#F5A623]/70",
               className
             )}
@@ -106,14 +106,14 @@ export function DataSourceBadge({ type, source, shows, className }: DataSourceBa
             </div>
             {shows && shows.length > 0 && (
               <div style={{ borderTop: "1px solid #2a2a2a", padding: "10px 16px" }}>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[#909090] mb-1.5">
+                <p className="text-[11px] font-mono uppercase tracking-wider text-[#909090] mb-1.5">
                   How to read it
                 </p>
                 <ul className="space-y-1">
                   {shows.map((line, i) => (
                     <li
                       key={i}
-                      className="text-[11px] text-[#E0DACC] leading-relaxed flex gap-2"
+                      className="text-xs text-[#E0DACC] leading-relaxed flex gap-2"
                     >
                       <span className="text-[#42CA80] shrink-0 leading-relaxed">•</span>
                       <span>{line}</span>
@@ -125,24 +125,24 @@ export function DataSourceBadge({ type, source, shows, className }: DataSourceBa
             <div style={{ borderTop: "1px solid #2a2a2a", padding: "10px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
               {parsed.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 8 }}>
-                  <span className="text-[10px] font-mono text-[#909090] shrink-0" style={{ minWidth: 80 }}>{p.label}:</span>
+                  <span className="text-[11px] font-mono text-[#909090] shrink-0" style={{ minWidth: 80 }}>{p.label}:</span>
                   {p.bullets && p.bullets.length > 0 ? (
                     <ul className="space-y-0.5 flex-1">
                       {p.bullets.map((b, j) => (
-                        <li key={j} className="text-[11px] text-[#C4BCAA] leading-relaxed flex gap-2">
+                        <li key={j} className="text-xs text-[#C4BCAA] leading-relaxed flex gap-2">
                           <span className="text-[#606060] shrink-0 leading-relaxed">•</span>
                           <span>{b}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <span className="text-[11px] text-[#C4BCAA] leading-relaxed">{p.value}</span>
+                    <span className="text-xs text-[#C4BCAA] leading-relaxed">{p.value}</span>
                   )}
                 </div>
               ))}
             </div>
             <div style={{ borderTop: "1px solid #2a2a2a", padding: "6px 16px" }}>
-              <span className="text-[9px] italic text-[#909090]">
+              <span className="text-[10px] italic text-[#909090]">
                 {isLive ? "Pulled from Google Sheets via service account" : "Generated mock data — enter real values via Data Management"}
               </span>
             </div>

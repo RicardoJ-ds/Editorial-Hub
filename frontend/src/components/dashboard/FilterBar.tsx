@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { Search, X } from "lucide-react";
 import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
+import { displayPod } from "./shared-helpers";
 export type { DateRange } from "./DateRangeFilter";
 
 const STATUS_OPTIONS = ["All", "Active", "Inactive/Completed"] as const;
@@ -243,10 +244,10 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-0 bg-transparent gap-1 px-2">
-          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Editorial Pod</span>
+          <span className="text-[10px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Editorial Pod</span>
           {editorialPod !== "All" ? (
-            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
-              {editorialPod}
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+              {displayPod(editorialPod, "editorial")}
             </span>
           ) : (
             <SelectValue />
@@ -254,7 +255,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
         </SelectTrigger>
         <SelectContent>
           {editorialPods.map((pod) => (
-            <SelectItem key={pod} value={pod}>{pod}</SelectItem>
+            <SelectItem key={pod} value={pod}>{displayPod(pod, "editorial")}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -269,10 +270,10 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[100px] text-xs border-0 bg-transparent gap-1 px-2">
-          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Growth Pod</span>
+          <span className="text-[10px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Growth Pod</span>
           {growthPod !== "All" ? (
-            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
-              {growthPod}
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+              {displayPod(growthPod, "growth")}
             </span>
           ) : (
             <SelectValue />
@@ -280,7 +281,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
         </SelectTrigger>
         <SelectContent>
           {growthPods.map((pod) => (
-            <SelectItem key={pod} value={pod}>{pod}</SelectItem>
+            <SelectItem key={pod} value={pod}>{displayPod(pod, "growth")}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -298,9 +299,9 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">
-          <span className="text-[9px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Status</span>
+          <span className="text-[10px] font-mono text-[#606060] uppercase tracking-wider mr-0.5">Status</span>
           {status !== "All" ? (
-            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
+            <span className="inline-flex items-center rounded-full bg-[#42CA80]/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-[#42CA80] border border-[#42CA80]/30">
               {status}
             </span>
           ) : (
@@ -333,7 +334,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
               setStatus("All"); updateParams("status", "All");
               setDateRange({ type: "all" });
             }}
-            className="flex items-center gap-1 text-[10px] font-mono text-[#606060] hover:text-[#ED6958] transition-colors px-1"
+            className="flex items-center gap-1 text-[11px] font-mono text-[#606060] hover:text-[#ED6958] transition-colors px-1"
           >
             <X className="h-3 w-3" />
             <span>{activeFilters}</span>

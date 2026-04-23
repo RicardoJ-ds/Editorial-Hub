@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { displayPod } from "./shared-helpers";
 import type { Client } from "@/lib/types";
 
 const STATUS_STYLES: Record<
@@ -81,10 +82,10 @@ export function ClientStatusCard({ client }: { client: Client }) {
   return (
     <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
+        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
           Client Status
         </p>
-        <p className="mt-0.5 text-[10px] leading-snug text-[#909090] truncate" title={client.name}>
+        <p className="mt-0.5 text-[11px] leading-snug text-[#909090] truncate" title={client.name}>
           {client.name}
         </p>
         <div className="mt-2 flex items-center gap-1.5">
@@ -93,16 +94,16 @@ export function ClientStatusCard({ client }: { client: Client }) {
             style={{ backgroundColor: style.dot }}
           />
           <span
-            className="rounded px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider"
+            className="rounded px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: style.fg, backgroundColor: style.bg }}
           >
             {style.label}
           </span>
         </div>
-        <div className="mt-2 space-y-0.5 font-mono text-[10px] text-[#C4BCAA]">
+        <div className="mt-2 space-y-0.5 font-mono text-[11px] text-[#C4BCAA]">
           <div className="flex justify-between gap-2">
-            <span className="text-[#606060]">Pod</span>
-            <span className="text-white">{client.editorial_pod || "—"}</span>
+            <span className="text-[#606060]">Editorial Pod</span>
+            <span className="text-white">{client.editorial_pod ? displayPod(client.editorial_pod, "editorial") : "—"}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-[#606060]">Contract</span>
@@ -185,10 +186,10 @@ function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
   return (
     <Card className="border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
+        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
           Delivery Progress
         </p>
-        <p className="mt-0.5 text-[10px] leading-snug text-[#909090]">
+        <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           Delivered ÷ SOW across {withSow} client{withSow === 1 ? "" : "s"}
         </p>
         <p className="mt-1.5 font-mono text-2xl font-bold tabular-nums" style={{ color: headlineColor }}>
@@ -197,7 +198,7 @@ function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
         </p>
         <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5">
           {PROGRESS_ROW.map((row) => (
-            <div key={row.key} className="flex items-center justify-between gap-2 font-mono text-[10px]">
+            <div key={row.key} className="flex items-center justify-between gap-2 font-mono text-[11px]">
               <span className="flex items-center gap-1.5">
                 <span
                   className="inline-block h-2 w-2 rounded-full"

@@ -88,10 +88,10 @@ function VarianceLine({
       <Tooltip>
         <TooltipTrigger
           render={
-            <span className="font-mono text-[10px] cursor-help flex items-baseline gap-1.5" />
+            <span className="font-mono text-[11px] cursor-help flex items-baseline gap-1.5" />
           }
         >
-          <span className="text-[#606060] uppercase tracking-wider text-[9px] shrink-0">
+          <span className="text-[#606060] uppercase tracking-wider text-[10px] shrink-0">
             {scope}
           </span>
           <span
@@ -101,7 +101,7 @@ function VarianceLine({
             {varianceLabel(variance)}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
           {tooltip}
         </TooltipContent>
       </Tooltip>
@@ -146,12 +146,12 @@ function DeliveryBar({
         <Tooltip>
           <TooltipTrigger
             render={
-              <span className="w-14 shrink-0 font-mono text-[10px] text-[#C4BCAA] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
+              <span className="w-14 shrink-0 font-mono text-[11px] text-[#C4BCAA] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
             }
           >
             {label}
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+          <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
             {hint}
           </TooltipContent>
         </Tooltip>
@@ -163,12 +163,12 @@ function DeliveryBar({
         />
       </div>
       <span
-        className="w-10 text-right font-mono text-[10px] font-semibold tabular-nums"
+        className="w-10 text-right font-mono text-[11px] font-semibold tabular-nums"
         style={{ color: target > 0 ? color : "#606060" }}
       >
         {target > 0 ? `${Math.round(pct)}%` : "—"}
       </span>
-      <span className="w-20 text-right font-mono text-[10px] text-[#606060] tabular-nums">
+      <span className="w-20 text-right font-mono text-[11px] text-[#606060] tabular-nums">
         {current}/{target}
       </span>
     </div>
@@ -197,7 +197,7 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
           <p className="truncate font-semibold text-white text-sm" title={row.name}>
             {row.name}
           </p>
-          <p className="mt-0.5 text-[10px] font-mono text-[#606060]">
+          <p className="mt-0.5 text-[11px] font-mono text-[#606060]">
             {row.status === "ACTIVE" ? "Active" : row.status.toLowerCase()}
           </p>
         </div>
@@ -206,12 +206,12 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <span className="shrink-0 cursor-help rounded-full border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA] tabular-nums" />
+                  <span className="shrink-0 cursor-help rounded-full border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA] tabular-nums" />
                 }
               >
                 Month {monthChip.elapsed}/{monthChip.total}
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+              <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
                 Contract month elapsed ÷ term length. Derived from the first and last active months in the Delivered vs Invoiced v2 sheet (per client), so it spans the full relationship across renewals — not just the current active year.
               </TooltipContent>
             </Tooltip>
@@ -225,12 +225,12 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
           <Tooltip>
             <TooltipTrigger
               render={
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
+                <span className="font-mono text-[11px] uppercase tracking-wider text-[#606060] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
               }
             >
               SOW
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
               Contracted article total from the Editorial SOW overview sheet (# Articles SOW column).
             </TooltipContent>
           </Tooltip>
@@ -305,7 +305,7 @@ function BreakdownHeader({
           >
             {label}
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed">
+          <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
             {hint}
           </TooltipContent>
         </Tooltip>
@@ -412,7 +412,7 @@ function MonthlyBreakdownPopover({ row }: { row: ClientDeliveryCardRow }) {
         render={
           <button
             type="button"
-            className="font-mono text-[10px] uppercase tracking-wider text-[#606060] hover:text-[#C4BCAA] transition-colors"
+            className="font-mono text-[11px] uppercase tracking-wider text-[#606060] hover:text-[#C4BCAA] transition-colors"
           />
         }
       >
@@ -424,13 +424,13 @@ function MonthlyBreakdownPopover({ row }: { row: ClientDeliveryCardRow }) {
         className="w-auto border border-[#2a2a2a] bg-[#0d0d0d] p-0 text-popover-foreground"
       >
         <div className="border-b border-[#2a2a2a] px-3 py-2">
-          <p className="font-mono text-[11px] font-semibold text-white">{row.name}</p>
-          <p className="mt-0.5 font-mono text-[9px] leading-relaxed text-[#606060]">
-            Delivered is monthly. Invoicing / Cumulative are quarterly — shown once per Q, spanning the Q&apos;s months like the sheet does. The row marked <span className="rounded-sm bg-[#42CA80]/20 px-1 py-px text-[7px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">now</span> is the current month — its Cum Del matches the card&apos;s Delivered total, and its Q&apos;s Cum Inv matches Invoiced. Rows marked <span className="rounded-sm bg-[#3a2e1a] px-1 py-px text-[7px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">proj</span> are future months with forecast values; card totals exclude them.
+          <p className="font-mono text-xs font-semibold text-white">{row.name}</p>
+          <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-[#606060]">
+            Delivered is monthly. Invoicing / Cumulative are quarterly — shown once per Q, spanning the Q&apos;s months like the sheet does. The row marked <span className="rounded-sm bg-[#42CA80]/20 px-1 py-px text-[10px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">now</span> is the current month — its Cum Del matches the card&apos;s Delivered total, and its Q&apos;s Cum Inv matches Invoiced. Rows marked <span className="rounded-sm bg-[#3a2e1a] px-1 py-px text-[10px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">proj</span> are future months with forecast values; card totals exclude them.
           </p>
         </div>
         <div className="max-h-[320px] overflow-y-auto">
-          <table className="w-full border-collapse font-mono text-[10px]">
+          <table className="w-full border-collapse font-mono text-[11px]">
             <thead className="sticky top-0 bg-[#0d0d0d] shadow-[0_1px_0_0_#2a2a2a]">
               <tr className="text-[#606060]">
                 <BreakdownHeader
@@ -475,12 +475,12 @@ function MonthlyBreakdownPopover({ row }: { row: ClientDeliveryCardRow }) {
                         <span className="inline-flex items-center gap-1.5">
                           {MONTH_SHORT[m.month]} {String(m.year).slice(-2)}
                           {m.isCurrent && (
-                            <span className="rounded-sm bg-[#42CA80]/20 px-1 py-px text-[7px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">
+                            <span className="rounded-sm bg-[#42CA80]/20 px-1 py-px text-[10px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">
                               now
                             </span>
                           )}
                           {m.isFuture && (
-                            <span className="rounded-sm bg-[#3a2e1a] px-1 py-px text-[7px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">
+                            <span className="rounded-sm bg-[#3a2e1a] px-1 py-px text-[10px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">
                               proj
                             </span>
                           )}
@@ -499,7 +499,7 @@ function MonthlyBreakdownPopover({ row }: { row: ClientDeliveryCardRow }) {
                             className="border-l border-[#2a2a2a] bg-[#111111] px-3 py-1 text-center align-middle tabular-nums text-white"
                           >
                             <div className="font-semibold">{g.invoicedQ}</div>
-                            <div className="mt-0.5 font-mono text-[8px] uppercase tracking-wider text-[#606060]">
+                            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
                               {g.label}
                             </div>
                           </td>
@@ -548,10 +548,10 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Heading */}
       <div>
-        <h3 className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#C4BCAA]">
+        <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Client Delivery At a Glance{" "}
           <DataSourceBadge
             type="live"
@@ -562,17 +562,15 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
               "Two horizontal bars: Delivered vs SOW (top) and Invoiced vs Delivered (bottom) — color-coded by %, raw numbers on the right.",
               "Footer line reads the sheet's own phrasing (\"More invoiced than delivered: 18\" or \"At balance\") for the period, with a Cumulative line underneath when it differs.",
               "Click \"Monthly detail\" for the per-month breakdown — the NOW row shows the figures the card's summary totals come from.",
+              "When a date filter is active the scope expands to complete contract quarters so invoicing (Q) and delivery (monthly) stay comparable.",
             ]}
           />
         </h3>
         {scopeLabel && (
-          <p className="mt-0.5 font-mono text-[10px] text-[#8FB5D9]">
-            {scopeLabel} — per-client contract quarters are fully included so invoicing (Q) and delivery (monthly) stay comparable.
+          <p className="mt-0.5 font-mono text-[11px] text-[#8FB5D9]">
+            {scopeLabel}
           </p>
         )}
-        <p className="mt-0.5 font-mono text-[10px] text-[#909090]">
-          One card per filtered client — delivered vs SOW, invoicing, and variance. Grouped by pod, alphabetical within.
-        </p>
       </div>
 
       {sorted.length === 0 ? (
@@ -595,7 +593,7 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
                 <div key={`pod-group-${pod}`} className="space-y-2">
                   <div className="flex items-center gap-2">
                     {podBadge(pod)}
-                    <span className="font-mono text-[10px] text-[#606060]">
+                    <span className="font-mono text-[11px] text-[#606060]">
                       {items.length} client{items.length === 1 ? "" : "s"}
                     </span>
                   </div>

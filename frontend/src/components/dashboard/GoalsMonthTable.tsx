@@ -195,7 +195,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
     <div className="space-y-3">
       {/* Metric toggle */}
       <div className="flex items-center gap-3">
-        <span className="font-mono text-[9px] uppercase tracking-widest text-[#909090]">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-[#909090]">
           Metric
         </span>
         <div className="inline-flex rounded-md bg-[#0d0d0d] p-0.5 border border-[#1f1f1f]">
@@ -204,7 +204,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
               key={m}
               onClick={() => setMetric(m)}
               className={cn(
-                "px-3 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors",
+                "px-3 py-1 text-[11px] font-mono uppercase tracking-wider rounded transition-colors",
                 metric === m
                   ? "bg-[#42CA80]/15 text-[#42CA80]"
                   : "text-[#909090] hover:text-white",
@@ -214,7 +214,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
             </button>
           ))}
         </div>
-        <span className="font-mono text-[10px] text-[#606060] ml-auto">
+        <span className="font-mono text-[11px] text-[#606060] ml-auto">
           {clients.length} clients · {months.length} month{months.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -224,19 +224,19 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[#2a2a2a] bg-[#0d0d0d]">
-              <th className="sticky left-0 z-10 bg-[#0d0d0d] px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#C4BCAA] min-w-[180px]">
+              <th className="sticky left-0 z-10 bg-[#0d0d0d] px-3 py-2 text-left text-[11px] font-mono uppercase tracking-wider text-[#C4BCAA] min-w-[180px]">
                 Client
               </th>
-              <th className="px-2 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-[#C4BCAA] whitespace-nowrap">
+              <th className="px-2 py-2 text-right text-[11px] font-mono uppercase tracking-wider text-[#C4BCAA] whitespace-nowrap">
                 Goal
               </th>
-              <th className="px-2 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-[#C4BCAA] whitespace-nowrap">
+              <th className="px-2 py-2 text-right text-[11px] font-mono uppercase tracking-wider text-[#C4BCAA] whitespace-nowrap">
                 Delivered
               </th>
-              <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#C4BCAA] min-w-[140px]">
+              <th className="px-3 py-2 text-left text-[11px] font-mono uppercase tracking-wider text-[#C4BCAA] min-w-[140px]">
                 Progress
               </th>
-              <th className="px-2 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-[#C4BCAA] whitespace-nowrap">
+              <th className="px-2 py-2 text-right text-[11px] font-mono uppercase tracking-wider text-[#C4BCAA] whitespace-nowrap">
                 %
               </th>
               {months.map((m) => {
@@ -246,7 +246,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                     key={m.key}
                     colSpan={isExpanded ? weekNumbers.length + 1 : 1}
                     className={cn(
-                      "px-2 py-2 text-center text-[10px] font-mono uppercase tracking-wider border-l border-[#2a2a2a] whitespace-nowrap",
+                      "px-2 py-2 text-center text-[11px] font-mono uppercase tracking-wider border-l border-[#2a2a2a] whitespace-nowrap",
                       isExpanded ? "bg-[#1f1f1f] text-[#42CA80]" : "text-[#C4BCAA]",
                     )}
                   >
@@ -286,14 +286,14 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                         <th
                           key={`${m.key}-w${w}`}
                           className={cn(
-                            "px-2 py-1 text-center text-[9px] font-mono text-[#909090] bg-[#1f1f1f] whitespace-nowrap",
+                            "px-2 py-1 text-center text-[10px] font-mono text-[#909090] bg-[#1f1f1f] whitespace-nowrap",
                             i === 0 && "border-l border-[#2a2a2a]",
                           )}
                         >
                           W{w}
                         </th>
                       ))}
-                      <th className="px-2 py-1 text-center text-[9px] font-mono text-[#909090] bg-[#1f1f1f] whitespace-nowrap">
+                      <th className="px-2 py-1 text-center text-[10px] font-mono text-[#909090] bg-[#1f1f1f] whitespace-nowrap">
                         Total
                       </th>
                     </React.Fragment>
@@ -321,10 +321,10 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                       </span>
                     </div>
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono text-[11px] tabular-nums text-[#C4BCAA]">
+                  <td className="px-2 py-1.5 text-right font-mono text-xs tabular-nums text-[#C4BCAA]">
                     {c.totalGoal > 0 ? c.totalGoal : "—"}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono text-[11px] tabular-nums text-white">
+                  <td className="px-2 py-1.5 text-right font-mono text-xs tabular-nums text-white">
                     {c.totalDelivered > 0 ? c.totalDelivered : "—"}
                   </td>
                   <td className="px-3 py-1.5">
@@ -338,7 +338,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                     </div>
                   </td>
                   <td
-                    className="px-2 py-1.5 text-right font-mono text-[11px] font-semibold tabular-nums"
+                    className="px-2 py-1.5 text-right font-mono text-xs font-semibold tabular-nums"
                     style={{ color }}
                   >
                     {c.totalGoal > 0 ? `${Math.round(pct)}%` : "—"}
@@ -356,7 +356,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                               <td
                                 key={`${c.name}-${m.key}-w${w}`}
                                 className={cn(
-                                  "px-2 py-1.5 text-center font-mono text-[11px] tabular-nums bg-[#1a1a1a]",
+                                  "px-2 py-1.5 text-center font-mono text-xs tabular-nums bg-[#1a1a1a]",
                                   i === 0 && "border-l border-[#2a2a2a]",
                                   v > 0 ? "text-[#42CA80] font-semibold" : "text-[#404040]",
                                 )}
@@ -365,7 +365,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                               </td>
                             );
                           })}
-                          <td className="px-2 py-1.5 text-center font-mono text-[11px] tabular-nums bg-[#1a1a1a]">
+                          <td className="px-2 py-1.5 text-center font-mono text-xs tabular-nums bg-[#1a1a1a]">
                             <MonthSummaryCell agg={agg} />
                           </td>
                         </React.Fragment>
@@ -374,7 +374,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                     return (
                       <td
                         key={`${c.name}-${m.key}`}
-                        className="px-2 py-1.5 text-center font-mono text-[11px] tabular-nums border-l border-[#1f1f1f]"
+                        className="px-2 py-1.5 text-center font-mono text-xs tabular-nums border-l border-[#1f1f1f]"
                       >
                         <MonthSummaryCell agg={agg} />
                       </td>
@@ -387,7 +387,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
         </table>
       </div>
 
-      <p className="text-[10px] text-[#909090]">
+      <p className="text-[11px] text-[#909090]">
         Showing <span className="text-[#C4BCAA]">{metricLabel}</span>.
         Click a month header to expand its weekly breakdown (one at a time).
       </p>

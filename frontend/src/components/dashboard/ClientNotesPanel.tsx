@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
+import { displayPod } from "@/components/dashboard/shared-helpers";
 import type { Client } from "@/lib/types";
 
 const POD_COLORS: Record<string, string> = {
@@ -148,7 +149,7 @@ export function ClientNotesPanel({ clients }: { clients: Client[] }) {
             ]}
           />
         </CardTitle>
-        <p className="mt-1 font-mono text-[10px] leading-relaxed text-[#C4BCAA]">
+        <p className="mt-1 font-mono text-[11px] leading-relaxed text-[#C4BCAA]">
           {rows.length} client{rows.length === 1 ? "" : "s"} with notes in the current filter.
         </p>
       </CardHeader>
@@ -162,12 +163,12 @@ export function ClientNotesPanel({ clients }: { clients: Client[] }) {
                 <div className="mb-1.5 flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
                   <span
-                    className="font-mono text-[10px] font-semibold uppercase tracking-wider"
+                    className="font-mono text-xs font-semibold uppercase tracking-wider"
                     style={{ color }}
                   >
-                    {pod}
+                    {displayPod(pod, "editorial")}
                   </span>
-                  <span className="font-mono text-[9px] text-[#606060]">({list.length})</span>
+                  <span className="font-mono text-[10px] text-[#606060]">({list.length})</span>
                 </div>
                 <div className="ml-3.5 space-y-2">
                   {list.map((r) => (
@@ -175,8 +176,8 @@ export function ClientNotesPanel({ clients }: { clients: Client[] }) {
                       key={r.id}
                       className="rounded border border-[#2a2a2a] bg-[#0d0d0d] p-2.5"
                     >
-                      <p className="font-mono text-[11px] font-semibold text-white">{r.name}</p>
-                      <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-[#C4BCAA]">
+                      <p className="font-mono text-xs font-semibold text-white">{r.name}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-[#C4BCAA]">
                         {renderNoteText(r.comments)}
                       </p>
                     </div>

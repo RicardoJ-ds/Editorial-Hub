@@ -101,7 +101,7 @@ function StageCell({
           }
         >
           {sow === 0 && value === 0 ? (
-            <span className="font-mono text-[11px] text-[#404040]">—</span>
+            <span className="font-mono text-xs text-[#404040]">—</span>
           ) : (
             <>
               <span
@@ -111,7 +111,7 @@ function StageCell({
                 {sow > 0 ? `${pct}%` : "—"}
               </span>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[9px] text-[#606060] tabular-nums">
+                <span className="font-mono text-[10px] text-[#606060] tabular-nums">
                   {value}/{sow}
                 </span>
                 <div className="h-1 flex-1 rounded-full bg-[#0a0a0a] overflow-hidden max-w-[60px]">
@@ -124,14 +124,14 @@ function StageCell({
             </>
           )}
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-[11px] leading-relaxed space-y-1">
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed space-y-1">
           <p className="font-semibold text-white">{stageLabel} vs SOW</p>
-          <p className="text-[10px] text-[#C4BCAA]">
+          <p className="text-[11px] text-[#C4BCAA]">
             <strong className="text-white">{value.toLocaleString()}</strong>{" "}
             {isPublished ? "published" : "approved"} out of{" "}
             <strong className="text-white">{sow.toLocaleString()}</strong> contract SOW ({pct}%)
           </p>
-          <p className="text-[9px] text-[#606060]">
+          <p className="text-[10px] text-[#606060]">
             Thin bar = this cell&apos;s raw volume vs the busiest pod × stage, so you can see relative throughput.
           </p>
         </TooltipContent>
@@ -203,7 +203,7 @@ export function PipelineFunnelChart({ data, clientToSow, clientToPod }: Props) {
   return (
     <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-5">
       <div className="mb-1 flex items-center gap-2">
-        <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
+        <h4 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Pipeline by Editorial Pod
         </h4>
         <DataSourceBadge
@@ -218,7 +218,7 @@ export function PipelineFunnelChart({ data, clientToSow, clientToPod }: Props) {
           ]}
         />
       </div>
-      <p className="text-[10px] text-[#909090] mb-4">
+      <p className="text-[11px] text-[#909090] mb-4">
         Each cell = stage count ÷ pod SOW. Color by %, thin bar by volume.
       </p>
 
@@ -232,7 +232,7 @@ export function PipelineFunnelChart({ data, clientToSow, clientToPod }: Props) {
         {STAGES.map((s) => (
           <div
             key={s.key}
-            className="text-center font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] py-1"
+            className="text-center font-mono text-[11px] uppercase tracking-wider text-[#C4BCAA] py-1"
           >
             {s.label}
           </div>
@@ -242,8 +242,8 @@ export function PipelineFunnelChart({ data, clientToSow, clientToPod }: Props) {
           <PodRowRender key={r.pod} row={r} maxVolume={maxVolume} />
         ))}
 
-        <div className="flex items-center pt-2 border-t border-[#2a2a2a] font-mono text-[10px] uppercase tracking-wider text-[#42CA80]">
-          All pods
+        <div className="flex items-center pt-2 border-t border-[#2a2a2a] font-mono text-[11px] uppercase tracking-wider text-[#42CA80]">
+          All editorial pods
         </div>
         {STAGES.map((s) => (
           <div key={`tot-${s.key}`} className="pt-2 border-t border-[#2a2a2a]">
@@ -266,7 +266,7 @@ function PodRowRender({ row, maxVolume }: { row: PodRow; maxVolume: number }) {
     <>
       <div className="flex items-center gap-2 py-1">
         {podBadge(row.pod)}
-        <span className={cn("font-mono text-[9px] text-[#606060] tabular-nums")}>
+        <span className={cn("font-mono text-[10px] text-[#606060] tabular-nums")}>
           {row.totalThroughput.toLocaleString()}
         </span>
       </div>

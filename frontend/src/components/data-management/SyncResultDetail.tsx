@@ -273,7 +273,9 @@ function SheetResultRow({
           )}
         />
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-white truncate">{result.sheet}</div>
+          <div className="font-medium text-white break-words" title={result.sheet}>
+            {result.sheet}
+          </div>
           {hasTabs && (
             <div className="mt-0.5 font-mono text-[11px] text-[#606060]">
               {importedTabs} tab{importedTabs !== 1 ? "s" : ""} imported

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
-import { apiGet, apiPost } from "@/lib/api";
+import { SyncAllModal } from "@/components/data-management/SyncAllModal";
 
 const pageTitles: Record<string, string> = {
   "/": "Home",
@@ -83,39 +83,22 @@ export function Header() {
     pathname.startsWith("/capacity-planning") && urlMonth ? formatMonthKey(urlMonth) : null;
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  async function handleSync() {
-    setSyncState("syncing");
+  function handleSyncClick() {
     setSyncError(null);
-    try {
-      // Get all importable sheets
-      const sheets = await apiGet<{ name: string }[]>("/api/migrate/sheets");
-      const importable = sheets.map((s) => s.name);
+    setSyncState("syncing");
+    setModalOpen(true);
+  }
 
-      // Import one sheet at a time to avoid timeout
-      let failed = 0;
-      for (const sheet of importable) {
-        try {
-          await apiPost("/api/migrate/import", { sheets: [sheet] });
-        } catch {
-          failed++;
-        }
-      }
-
-      if (failed > 0) {
-        setSyncState("error");
-        setSyncError(`${failed} of ${importable.length} sheets failed`);
-        setTimeout(() => setSyncState("idle"), 5000);
-      } else {
-        setSyncState("success");
-        setTimeout(() => setSyncState("idle"), 3000);
-      }
-      // Notify dashboard pages to refetch
-      window.dispatchEvent(new Event("data-synced"));
-    } catch (err) {
-      setSyncState("error");
-      setSyncError(err instanceof Error ? err.message : "Sync failed");
+  function handleSyncComplete(allOk: boolean) {
+    if (allOk) {
+      setSyncState("success");
       setTimeout(() => setSyncState("idle"), 5000);
+    } else {
+      setSyncState("error");
+      setSyncError("Some sheets failed");
+      setTimeout(() => setSyncState("idle"), 8000);
     }
   }
 
@@ -148,11 +131,21 @@ export function Header() {
 
       {/* Right: Sync button */}
       <div className="flex items-center gap-3">
-        {/* Sync button (disabled for now) */}
+        <SyncAllModal
+          open={modalOpen}
+          onOpenChange={(v) => {
+            setModalOpen(v);
+            if (!v && syncState === "syncing") {
+              // User closed before completion — reset the badge.
+              setSyncState("idle");
+            }
+          }}
+          onComplete={handleSyncComplete}
+        />
         <button
           type="button"
-          onClick={handleSync}
-          disabled
+          onClick={handleSyncClick}
+          disabled={syncState === "syncing" && modalOpen}
           title={syncError ?? "Sync all data from Google Sheets"}
           className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition-all duration-200 ${
             syncState === "syncing"

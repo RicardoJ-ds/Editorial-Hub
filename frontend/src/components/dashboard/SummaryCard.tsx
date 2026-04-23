@@ -25,11 +25,11 @@ export function SummaryCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
+        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
           {title}
         </p>
         {subtitle && (
-          <p className="mt-0.5 text-[10px] leading-snug text-[#909090]">{subtitle}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">{subtitle}</p>
         )}
         <p
           className={cn(

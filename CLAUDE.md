@@ -49,11 +49,12 @@ cd frontend && npm run build      # Production build
 cd frontend && npx tsc --noEmit   # Type-check
 ```
 
-**Manual backend redeploy (when Railway's GitHub auto-deploy stops firing):**
+**Deploys:** Railway is wired to `RicardoJ-ds/Editorial-Hub` on branch `main` (Settings → Source); every `git push` triggers a backend rebuild. Vercel frontend deploys the same way. **Manual fallback** (only if auto-deploy stalls):
 ```bash
-railway up --detach --service editorial-hub-api --path-as-root backend
+cd /Users/ricardo/python/editorial-hub
+railway up --detach --service editorial-hub-api
 ```
-See `~/.claude/projects/.../memory/reference_railway_backend.md`.
+Do **not** pass `--path-as-root backend` — the Dockerfile references project-root paths (`COPY backend/...`) since commit `e94b46d`. See `~/.claude/projects/.../memory/reference_railway_backend.md`.
 
 ## Routes
 
@@ -137,7 +138,13 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 - Graphite DS colors: greens `#65FFAA` `#42CA80` `#2EBC59`; neutrals `#161616` `#1F1F1F` `#333333` `#000000`
 - Typography: IBM Plex Sans (body), JetBrains Mono (labels/data)
 - shadcn/ui customized with Graphite theme
-- App is the primary data-entry tool. No ongoing Sheets sync — seeds are one-time.
+- **Section hierarchy on the dashboards**: h2 (`text-base` bold, white, `tracking-[0.2em]`) for top-level sections with a bottom-divider rule; h3 (`text-sm` semibold, `#C4BCAA`) for cards within; `text-xs` for sub-section labels. Card subtitles are avoided — explanatory copy lives inside `DataSourceBadge` tooltips (`source` + `shows` bullets).
+- **Pod display**: always say "Editorial Pod N" or "Growth Pod N" in user-facing copy via `displayPod()` in `frontend/src/components/dashboard/shared-helpers.tsx`. Internal keys stay as `"Pod N"` so existing `POD_COLORS` lookups and Map/Set keys keep working.
+
+### Sheet sync (live, not one-time)
+- **Header SYNC button** on every page opens a modal that fans out to `/api/migrate/import` once per sheet, shows per-sheet progress, then a rich result view (per-sheet + per-tab expandables with source-data previews).
+- **`/data-management/import`** has a two-tab layout: *Import Wizard* (manual sheet picker with preview) and *Re-sync Past Months* (forces a full re-import of every `[Month Year] Goals vs Delivery` tab — normally frozen by `sheet_sync_history`).
+- All importers are idempotent (upsert on natural keys); ordering doesn't matter.
 
 ## Memory & Commits
 

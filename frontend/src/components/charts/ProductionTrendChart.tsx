@@ -222,7 +222,7 @@ export function ProductionTrendChart({
   return (
     <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
       <div className="mb-4">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
+        <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Production History <DataSourceBadge
             type="live"
             source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output, actual vs projected. Honors the Client + Time-period filters above."
@@ -234,11 +234,6 @@ export function ProductionTrendChart({
             ]}
           />
         </h3>
-        <p className="mt-0.5 text-xs text-[#909090]">
-          {source === "filtered"
-            ? "Actual vs. projected monthly output for the selected clients."
-            : "Actual vs. projected monthly output across all clients."}
-        </p>
       </div>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart

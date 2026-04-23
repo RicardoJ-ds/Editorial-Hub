@@ -142,7 +142,7 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards, dat
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-8">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[90px]" />)}
         </div>
@@ -154,7 +154,7 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards, dat
   const avgAchievement = Math.round((summary.cbPct + summary.adPct) / 2);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {/* Summary cards — range-aware. All four metrics aggregate across every
           month of the active date-range filter above (plus pod + client
           filters). */}
@@ -164,26 +164,22 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards, dat
           value={`${summary.cbDel} / ${summary.cbGoal}`}
           valueColor="green"
           progress={summary.cbPct}
-          description={`${summary.cbPct}% of goal`}
         />
         <SummaryCard
           title="Articles Delivered vs Goal"
           value={`${summary.adDel} / ${summary.adGoal}`}
           valueColor="green"
           progress={summary.adPct}
-          description={`${summary.adPct}% of goal`}
         />
         <SummaryCard
           title="Avg Achievement"
           value={`${avgAchievement}%`}
           valueColor={avgAchievement >= 75 ? "green" : "white"}
-          description="CBs + Articles combined"
         />
         <SummaryCard
           title="Clients On Track"
-          value={summary.onTrack}
+          value={`${summary.onTrack} / ${summary.totalClients}`}
           valueColor="green"
-          description={`of ${summary.totalClients} — CB% or Article% ≥ 75%`}
         />
       </div>
 

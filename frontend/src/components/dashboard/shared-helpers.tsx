@@ -36,10 +36,35 @@ export function statusBadge(status: string) {
   return <Badge variant={info.variant} className={info.className}>{info.label}</Badge>;
 }
 
-export function podBadge(pod: string | null) {
+/**
+ * Display-only formatter for pod labels.
+ *
+ * Internal keys stay as "Pod 1" / "Pod 2" / "Unassigned" so POD_COLORS lookups,
+ * Map keys, and filter-value equality keep working. This helper is for UI
+ * rendering only — it prepends "Editorial" (default) or "Growth" so a viewer
+ * can tell at a glance which pod taxonomy they're looking at.
+ */
+export function displayPod(
+  pod: string | null | undefined,
+  kind: "editorial" | "growth" = "editorial",
+): string {
+  if (!pod) return "—";
+  const s = String(pod).trim();
+  if (!s || s === "—" || s === "-") return "—";
+  if (/^unassigned$/i.test(s)) return "Unassigned";
+  // Already disambiguated — leave as-is.
+  if (/^(editorial|growth)\s+pod/i.test(s)) return s;
+  const prefix = kind === "growth" ? "Growth Pod" : "Editorial Pod";
+  // Handle "Pod 1", "pod 1", "P1", "1".
+  const m = s.match(/^pod\s*(\d+)$/i) ?? s.match(/^p\s*(\d+)$/i) ?? s.match(/^(\d+)$/);
+  if (m) return `${prefix} ${m[1]}`;
+  return s;
+}
+
+export function podBadge(pod: string | null, kind: "editorial" | "growth" = "editorial") {
   if (!pod) return <span className="text-[#606060]">{"\u2014"}</span>;
   const color = POD_COLORS[pod] ?? "bg-secondary text-secondary-foreground";
-  return <Badge variant="outline" className={color}>{pod}</Badge>;
+  return <Badge variant="outline" className={color}>{displayPod(pod, kind)}</Badge>;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,15 +107,15 @@ export function displayPct(pctStr: string | null): string {
 export function goalStatusBadge(cbPct: number, adPct: number) {
   const avg = (cbPct + adPct) / 2;
   if (avg >= 75) return (
-    <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider"
+    <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider"
       style={{ backgroundColor: "rgba(66,202,128,.12)", color: "#42CA80" }}>On Track</span>
   );
   if (avg >= 50) return (
-    <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider"
+    <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider"
       style={{ backgroundColor: "rgba(245,188,78,.12)", color: "#F5BC4E" }}>Behind</span>
   );
   return (
-    <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider"
+    <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider"
       style={{ backgroundColor: "rgba(237,105,88,.12)", color: "#ED6958" }}>At Risk</span>
   );
 }
