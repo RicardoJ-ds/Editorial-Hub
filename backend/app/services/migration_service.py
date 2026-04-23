@@ -88,12 +88,30 @@ CAPACITY_PLAN_PREFIX = "ET CP 2026"
 
 
 @dataclass
+class TabImportDetail:
+    """Per-tab detail for importers that fan out across multiple tabs
+    (e.g. Goals vs Delivery has one tab per month)."""
+
+    tab_name: str
+    month_year: str
+    rows_parsed: int = 0
+    rows_imported: int = 0
+    status: str = "imported"  # "imported" | "skipped" | "failed"
+    skipped_reason: str | None = None
+    # Key the /preview/{sheet_name} endpoint understands. Prefixed form
+    # (e.g. "Master Tracker - [August 2025] Goals vs Delivery") so the
+    # preview router knows which spreadsheet to read.
+    preview_key: str | None = None
+
+
+@dataclass
 class ImportResult:
     sheet: str
     rows_parsed: int = 0
     rows_imported: int = 0
     success: bool = True
     errors: list[str] = field(default_factory=list)
+    details: list[TabImportDetail] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +510,8 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
 
     Sheets prefixed with 'Master Tracker - ' or 'AI Monitoring - ' live in
     separate spreadsheets. The prefix is stripped to get the real tab name.
+    Raw Master Tracker tab names (e.g. '[March 2026] Goals vs Delivery',
+    'Cumulative') are also routed correctly.
     """
     if sheet_name.startswith("Master Tracker - "):
         return MASTER_TRACKER_ID, sheet_name.removeprefix("Master Tracker - ")
@@ -501,6 +521,10 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
         notion_id = getattr(settings, "notion_database_id", None)
         if notion_id:
             return notion_id, "Notion"
+    # Fallback: raw Master Tracker tab names (monthly Goals vs Delivery tabs
+    # look like '[March 2026] Goals vs Delivery'; cumulative tab is 'Cumulative').
+    if "] Goals vs Delivery" in sheet_name or sheet_name == "Cumulative":
+        return MASTER_TRACKER_ID, sheet_name
     return SPREADSHEET_ID, sheet_name
 
 
@@ -2241,6 +2265,15 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
             # past-month tab we've never recorded. Skip frozen past tabs.
             if mode == "current" and not is_current_tab and gvd_sheet in synced_past_tabs:
                 tabs_skipped += 1
+                result.details.append(
+                    TabImportDetail(
+                        tab_name=gvd_sheet,
+                        month_year=month_year,
+                        status="skipped",
+                        skipped_reason="Already synced in a prior run",
+                        preview_key=f"Master Tracker - {gvd_sheet}",
+                    )
+                )
                 continue
 
             resp = (
@@ -2269,8 +2302,10 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
             num_weeks = (len(header_row) - 6) // 14 + 1
 
             rows_this_tab = 0
+            rows_parsed_this_tab = 0
             for row in data_rows:
                 result.rows_parsed += 1
+                rows_parsed_this_tab += 1
                 client_name = _cell(row, 0)
                 if not client_name or client_name.lower() in ("client", ""):
                     continue
@@ -2349,6 +2384,16 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
 
             result.rows_imported += rows_this_tab
             tabs_imported += 1
+            result.details.append(
+                TabImportDetail(
+                    tab_name=gvd_sheet,
+                    month_year=month_year,
+                    rows_parsed=rows_parsed_this_tab,
+                    rows_imported=rows_this_tab,
+                    status="imported",
+                    preview_key=f"Master Tracker - {gvd_sheet}",
+                )
+            )
 
             # Record past-month tabs in sheet_sync_history so the normal sync
             # skips them next time. The current-month tab is NOT recorded —
@@ -2377,6 +2422,16 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
                     )
 
         session.commit()
+
+        # Sort details chronologically (parse month_year "April 2026" -> date)
+        def _sort_key(d: TabImportDetail):
+            try:
+                return datetime.strptime(d.month_year, "%B %Y")
+            except ValueError:
+                return datetime.max
+
+        result.details.sort(key=_sort_key)
+
         logger.info(
             "Goals vs Delivery sync (mode=%s): imported %d tabs, skipped %d frozen tabs",
             mode,

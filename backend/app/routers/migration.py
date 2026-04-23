@@ -51,12 +51,23 @@ class ImportRequest(BaseModel):
     sheets: list[str]
 
 
+class TabDetailResponse(BaseModel):
+    tab_name: str
+    month_year: str
+    rows_parsed: int
+    rows_imported: int
+    status: str
+    skipped_reason: str | None = None
+    preview_key: str | None = None
+
+
 class ImportResultResponse(BaseModel):
     sheet: str
     rows_parsed: int
     rows_imported: int
     success: bool
     errors: list[str]
+    details: list[TabDetailResponse] = []
 
 
 class ImportResponse(BaseModel):
@@ -175,6 +186,18 @@ async def trigger_import(body: ImportRequest):
                 rows_imported=r.rows_imported,
                 success=r.success,
                 errors=r.errors,
+                details=[
+                    TabDetailResponse(
+                        tab_name=d.tab_name,
+                        month_year=d.month_year,
+                        rows_parsed=d.rows_parsed,
+                        rows_imported=d.rows_imported,
+                        status=d.status,
+                        skipped_reason=d.skipped_reason,
+                        preview_key=d.preview_key,
+                    )
+                    for d in r.details
+                ],
             )
             for r in results
         ],
@@ -241,6 +264,18 @@ async def sync_all():
                 rows_imported=r.rows_imported,
                 success=r.success,
                 errors=r.errors,
+                details=[
+                    TabDetailResponse(
+                        tab_name=d.tab_name,
+                        month_year=d.month_year,
+                        rows_parsed=d.rows_parsed,
+                        rows_imported=d.rows_imported,
+                        status=d.status,
+                        skipped_reason=d.skipped_reason,
+                        preview_key=d.preview_key,
+                    )
+                    for d in r.details
+                ],
             )
             for r in results
         ],
@@ -278,6 +313,17 @@ async def resync_historical_goals():
         rows_imported=r.rows_imported,
         success=r.success,
         errors=r.errors,
+        details=[
+            TabDetailResponse(
+                tab_name=d.tab_name,
+                month_year=d.month_year,
+                rows_parsed=d.rows_parsed,
+                rows_imported=d.rows_imported,
+                status=d.status,
+                skipped_reason=d.skipped_reason,
+            )
+            for d in r.details
+        ],
     )
 
 

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiGet, apiPost } from "@/lib/api";
 import {
   CheckCircle2,
@@ -28,6 +29,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  SyncResultDetail,
+  type ImportResultItem as SyncResultItem,
+} from "@/components/data-management/SyncResultDetail";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,12 +51,23 @@ interface PreviewData {
   total_rows: number;
 }
 
+interface TabDetail {
+  tab_name: string;
+  month_year: string;
+  rows_parsed: number;
+  rows_imported: number;
+  status: string;
+  skipped_reason?: string | null;
+  preview_key?: string | null;
+}
+
 interface ImportResultItem {
   sheet: string;
   rows_parsed: number;
   rows_imported: number;
   success: boolean;
   errors: string[];
+  details?: TabDetail[];
 }
 
 interface ImportResponse {
@@ -716,95 +732,12 @@ function StepComplete({
   response: ImportResponse;
   onImportAgain: () => void;
 }) {
-  const successCount = response.results.filter((r) => r.success).length;
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Success banner */}
-      <div
-        className={cn(
-          "flex items-center gap-4 rounded-xl border p-6",
-          response.all_ok
-            ? "border-[#42CA80]/30 bg-[#42CA80]/5"
-            : "border-[#ED6958]/30 bg-[#ED6958]/5"
-        )}
-      >
-        {response.all_ok ? (
-          <CheckCircle2 className="h-8 w-8 text-[#42CA80] shrink-0" />
-        ) : (
-          <AlertCircle className="h-8 w-8 text-[#ED6958] shrink-0" />
-        )}
-        <div>
-          <h3 className="text-lg font-semibold text-white">
-            {response.all_ok ? "Import Complete" : "Import Completed with Errors"}
-          </h3>
-          <p className="mt-1 text-sm text-[#C4BCAA]">
-            Imported {response.total_imported.toLocaleString()} total rows across{" "}
-            {successCount} sheet{successCount !== 1 ? "s" : ""}
-          </p>
-        </div>
-      </div>
-
-      {/* Results table */}
-      <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-[#2a2a2a] hover:bg-transparent">
-              <TableHead className="ds-table-header h-8 px-3">Sheet</TableHead>
-              <TableHead className="ds-table-header h-8 px-3">Rows Parsed</TableHead>
-              <TableHead className="ds-table-header h-8 px-3">Rows Imported</TableHead>
-              <TableHead className="ds-table-header h-8 px-3">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {response.results.map((result) => (
-              <TableRow key={result.sheet} className="border-[#2a2a2a]">
-                <TableCell className="px-3 font-medium text-white">
-                  {result.sheet}
-                </TableCell>
-                <TableCell className="px-3 font-mono text-xs text-[#C4BCAA]">
-                  {result.rows_parsed.toLocaleString()}
-                </TableCell>
-                <TableCell className="px-3 font-mono text-xs text-[#C4BCAA]">
-                  {result.rows_imported.toLocaleString()}
-                </TableCell>
-                <TableCell className="px-3">
-                  {result.success ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium badge-success">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Success
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium badge-error">
-                      <XCircle className="h-3 w-3" />
-                      Failed
-                    </span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Error details */}
-      {response.results.some((r) => r.errors.length > 0) && (
-        <div className="space-y-2">
-          {response.results
-            .filter((r) => r.errors.length > 0)
-            .map((r) => (
-              <Alert key={r.sheet} variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>{r.sheet}</AlertTitle>
-                <AlertDescription>
-                  {r.errors.map((e, i) => (
-                    <p key={i}>{e}</p>
-                  ))}
-                </AlertDescription>
-              </Alert>
-            ))}
-        </div>
-      )}
+    <div className="mx-auto max-w-3xl space-y-6">
+      <SyncResultDetail
+        results={response.results as SyncResultItem[]}
+        title={response.all_ok ? "Import Complete" : "Import Completed with Errors"}
+      />
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-4">
@@ -831,7 +764,7 @@ function StepComplete({
 // Historical resync card (Advanced)
 // ---------------------------------------------------------------------------
 
-function HistoricalResyncCard() {
+function HistoricalResyncTab() {
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [result, setResult] = useState<ImportResultItem | null>(null);
 
@@ -858,53 +791,63 @@ function HistoricalResyncCard() {
   }, []);
 
   return (
-    <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-xl">
-          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Re-sync historical Goals vs Delivery months
-          </h3>
-          <p className="mt-1 text-xs text-[#606060]">
-            The normal <b className="text-white">Sync</b> button only re-imports the
-            current month. Use this when an older month&apos;s numbers were retroactively
-            edited in the sheet and you want the dashboard to reflect the corrections.
-          </p>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="max-w-xl">
+            <h3 className="text-base font-semibold text-white">
+              Re-sync historical Goals vs Delivery months
+            </h3>
+            <p className="mt-1 text-sm text-[#C4BCAA]">
+              The normal <b className="text-white">Sync</b> button only re-imports the
+              current month. Use this when an older month&apos;s numbers were retroactively
+              edited in the sheet and you want the dashboard to reflect the corrections.
+            </p>
+            <p className="mt-2 font-mono text-[11px] text-[#606060]">
+              Runs a single sync across every <span className="text-[#C4BCAA]">[Month Year] Goals vs Delivery</span> tab.
+              Results below break down rows imported per tab and let you preview the source sheet data.
+            </p>
+          </div>
+          <Button
+            onClick={run}
+            disabled={status === "running"}
+            className="shrink-0 bg-[#42CA80] text-black hover:bg-[#42CA80]/80"
+          >
+            {status === "running" ? (
+              <>
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                Re-syncing…
+              </>
+            ) : (
+              <>
+                <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                Re-sync all past months
+              </>
+            )}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={run}
-          disabled={status === "running"}
-          className="shrink-0"
-        >
-          {status === "running" ? (
-            <>
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-              Re-syncing…
-            </>
-          ) : (
-            <>
-              <RotateCcw className="mr-2 h-3.5 w-3.5" />
-              Re-sync all past months
-            </>
-          )}
-        </Button>
       </div>
-      {result && status === "done" && (
-        <p className="mt-3 font-mono text-[11px] text-[#42CA80]">
-          ✓ {result.rows_imported.toLocaleString()} rows imported across every month tab.
-        </p>
+
+      {status === "running" && (
+        <div className="flex items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
+          <Loader2 className="h-5 w-5 animate-spin text-[#42CA80]" />
+          <span className="text-sm text-[#C4BCAA]">
+            Fetching every monthly tab and upserting rows — this can take 10-30 seconds.
+          </span>
+        </div>
       )}
-      {result && status === "error" && (
-        <p className="mt-3 font-mono text-[11px] text-[#ED6958]">
-          ✗ {result.errors.join("; ") || "Resync failed"}
-        </p>
+
+      {result && (status === "done" || status === "error") && (
+        <SyncResultDetail
+          results={[result as SyncResultItem]}
+          title={status === "done" ? "Re-sync Complete" : "Re-sync Completed with Errors"}
+        />
       )}
     </div>
   );
 }
 
-export default function ImportWizardPage() {
+function ImportWizardTab() {
   const [currentStep, setCurrentStep] = useState(0);
   const [sheets, setSheets] = useState<SheetInfo[]>([]);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
@@ -938,25 +881,10 @@ export default function ImportWizardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-white">Import Data</h2>
-        <p className="mt-1 text-sm text-[#C4BCAA]">
-          Import data from Google Sheets into the Editorial Hub.
-        </p>
-      </div>
-
-      {/* Advanced: historical re-sync for month-partitioned sheets */}
-      <HistoricalResyncCard />
-
-      {/* Step indicator */}
       <StepIndicator currentStep={currentStep} />
 
-      {/* Step content */}
       <div className="min-h-[400px]">
-        {currentStep === 0 && (
-          <StepConnect onSheetsLoaded={handleSheetsLoaded} />
-        )}
+        {currentStep === 0 && <StepConnect onSheetsLoaded={handleSheetsLoaded} />}
 
         {currentStep === 1 && (
           <StepSelectSheets
@@ -988,6 +916,36 @@ export default function ImportWizardPage() {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+export default function ImportWizardPage() {
+  const [tab, setTab] = useState<string>("wizard");
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-white">Import Data</h2>
+        <p className="mt-1 text-sm text-[#C4BCAA]">
+          Import data from Google Sheets into the Editorial Hub.
+        </p>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList variant="line" className="border-b border-[#2a2a2a]">
+          <TabsTrigger value="wizard">Import Wizard</TabsTrigger>
+          <TabsTrigger value="resync">Re-sync Past Months</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="wizard" className="pt-6">
+          <ImportWizardTab />
+        </TabsContent>
+
+        <TabsContent value="resync" className="pt-6">
+          <HistoricalResyncTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
