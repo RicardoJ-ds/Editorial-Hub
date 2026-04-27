@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api";
 import type {
@@ -16,7 +17,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DataSourceBadge } from "./DataSourceBadge";
-import { podBadge, goalStatusBadge, pctColorNum } from "./shared-helpers";
+import {
+  TooltipBody,
+  contentTypeRatio,
+  goalStatusBadge,
+  pctColorNum,
+  podBadge,
+} from "./shared-helpers";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "./DateRangeFilter";
 
@@ -53,10 +60,21 @@ function resolveDateRange(r: DateRange | undefined): [Date | null, Date | null] 
 // Pod aggregates
 // ---------------------------------------------------------------------------
 
+interface ClientGoalDatum {
+  client: string;
+  cbDelivered: number;
+  cbGoal: number;
+  adDelivered: number;
+  adGoal: number;
+}
+
 interface PodGoalAgg {
   pod: string;
   clientCount: number;
   clientNames: string[];
+  /** Per-client breakdown so the section can render gauges under each pod
+   *  card without re-walking the source rows. */
+  clients: ClientGoalDatum[];
   cbDelivered: number;
   cbGoal: number;
   adDelivered: number;
@@ -118,32 +136,67 @@ function aggregateGoalsByPod(
   rows: GoalsVsDeliveryRow[],
   clientToPod: Map<string, string>,
 ): PodGoalAgg[] {
-  const perClientMonth = new Map<string, {
+  // Step 1: max per (client × month × content_type) across weeks.
+  const perCMC = new Map<string, {
     client: string;
     pod: string;
+    ratio: number;
     cbGoal: number; cbDel: number;
     adGoal: number; adDel: number;
   }>();
   for (const r of rows) {
-    const key = `${r.client_name}|${r.month_year}`;
+    const ct = (r.content_type ?? "").trim().toLowerCase() || "default";
+    const key = `${r.client_name}|${r.month_year}|${ct}`;
     const pod = normalizePod(clientToPod.get(r.client_name) ?? r.editorial_team_pod);
-    let e = perClientMonth.get(key);
+    let e = perCMC.get(key);
     if (!e) {
-      e = { client: r.client_name, pod, cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
-      perClientMonth.set(key, e);
+      e = {
+        client: r.client_name,
+        pod,
+        ratio: contentTypeRatio(r.content_type, r.ratios),
+        cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0,
+      };
+      perCMC.set(key, e);
     }
     e.cbGoal = Math.max(e.cbGoal, r.cb_monthly_goal ?? 0);
     e.adGoal = Math.max(e.adGoal, r.ad_monthly_goal ?? 0);
     e.cbDel = Math.max(e.cbDel, r.cb_delivered_to_date ?? 0);
     e.adDel = Math.max(e.adDel, r.ad_delivered_to_date ?? 0);
   }
+  // Step 2: weighted-sum across content types → (client × month).
+  const perClientMonth = new Map<string, {
+    client: string;
+    pod: string;
+    cbGoal: number; cbDel: number;
+    adGoal: number; adDel: number;
+  }>();
+  for (const [k, e] of perCMC.entries()) {
+    const [client, month] = k.split("|");
+    const cmKey = `${client}|${month}`;
+    let cm = perClientMonth.get(cmKey);
+    if (!cm) {
+      cm = {
+        client: e.client,
+        pod: e.pod,
+        cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0,
+      };
+      perClientMonth.set(cmKey, cm);
+    }
+    cm.cbGoal += e.cbGoal * e.ratio;
+    cm.cbDel += e.cbDel * e.ratio;
+    cm.adGoal += e.adGoal * e.ratio;
+    cm.adDel += e.adDel * e.ratio;
+  }
 
   const byPod = new Map<string, PodGoalAgg>();
   const seenClientsPerPod = new Map<string, Set<string>>();
+  // Per-(pod, client) running tallies so we can hand back a clean per-client
+  // breakdown alongside each pod aggregate.
+  const perPodClient = new Map<string, ClientGoalDatum>();
   for (const e of perClientMonth.values()) {
     if (!byPod.has(e.pod)) {
       byPod.set(e.pod, {
-        pod: e.pod, clientCount: 0, clientNames: [],
+        pod: e.pod, clientCount: 0, clientNames: [], clients: [],
         cbDelivered: 0, cbGoal: 0, adDelivered: 0, adGoal: 0,
       });
       seenClientsPerPod.set(e.pod, new Set());
@@ -155,16 +208,37 @@ function aggregateGoalsByPod(
       agg.clientCount += 1;
       agg.clientNames.push(e.client);
     }
+    const ck = `${e.pod}|${e.client}`;
+    let cdat = perPodClient.get(ck);
+    if (!cdat) {
+      cdat = {
+        client: e.client,
+        cbDelivered: 0,
+        cbGoal: 0,
+        adDelivered: 0,
+        adGoal: 0,
+      };
+      perPodClient.set(ck, cdat);
+      agg.clients.push(cdat);
+    }
     // Only count deliveries in months that had a goal — matches the summary
     // cards and the month table, which both drop goal-less months.
     if (e.cbGoal > 0) {
       agg.cbGoal += e.cbGoal;
       agg.cbDelivered += e.cbDel;
+      cdat.cbGoal += e.cbGoal;
+      cdat.cbDelivered += e.cbDel;
     }
     if (e.adGoal > 0) {
       agg.adGoal += e.adGoal;
       agg.adDelivered += e.adDel;
+      cdat.adGoal += e.adGoal;
+      cdat.adDelivered += e.adDel;
     }
+  }
+  // Sort each pod's clients alphabetically so the rendered grid is stable.
+  for (const agg of byPod.values()) {
+    agg.clients.sort((a, b) => a.client.localeCompare(b.client));
   }
   return Array.from(byPod.values()).sort((a, b) => sortPodKey(a.pod, b.pod));
 }
@@ -207,7 +281,15 @@ function aggregatePipelineByPod(
 // Small label+tooltip helper
 // ---------------------------------------------------------------------------
 
-function InfoLabel({ text, hint }: { text: string; hint: string }) {
+function InfoLabel({
+  text,
+  title,
+  bullets,
+}: {
+  text: string;
+  title: string;
+  bullets: React.ReactNode[];
+}) {
   return (
     <TooltipProvider>
       <Tooltip>
@@ -219,7 +301,7 @@ function InfoLabel({ text, hint }: { text: string; hint: string }) {
           {text}
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-          {hint}
+          <TooltipBody title={title} bullets={bullets} />
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -250,36 +332,77 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
               {goalStatusBadge(cbPct, adPct)}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              Avg of CB % and Article % for the pod across the active date range. ≥75% = On Track, 50–74% = Behind, &lt;50% = At Risk.
+              <TooltipBody
+                title="Goal Status"
+                bullets={[
+                  "Avg of CB % and Article % for the pod across the active date range",
+                  "≥75% On Track · 50–74% Behind · <50% At Risk",
+                ]}
+              />
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
       <div className="flex items-center justify-center gap-4">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger render={<div className="cursor-help" />}>
-              <ProgressArc value={data.cbDelivered} max={data.cbGoal} label="CBs" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs leading-relaxed">
-              CBs delivered vs monthly goal, summed per (client × month) across the active date range — {data.clientCount} client{data.clientCount === 1 ? "" : "s"} in this pod.
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger render={<div className="cursor-help" />}>
-              <ProgressArc value={data.adDelivered} max={data.adGoal} label="Articles" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs leading-relaxed">
-              Articles delivered vs monthly goal, summed per (client × month) across the active date range — {data.clientCount} client{data.clientCount === 1 ? "" : "s"} in this pod.
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <ArcWithTooltip
+          value={data.cbDelivered}
+          max={data.cbGoal}
+          label="CBs"
+          tooltipTitle="CBs vs Goal"
+          tooltipBullets={[
+            "CBs delivered ÷ monthly goal",
+            "Summed per (client × month) in the active range",
+            `${data.clientCount} client${data.clientCount === 1 ? "" : "s"} in this pod`,
+          ]}
+        />
+        <ArcWithTooltip
+          value={data.adDelivered}
+          max={data.adGoal}
+          label="Articles"
+          tooltipTitle="Articles vs Goal"
+          tooltipBullets={[
+            "Articles delivered ÷ monthly goal",
+            "Summed per (client × month) in the active range",
+            `${data.clientCount} client${data.clientCount === 1 ? "" : "s"} in this pod`,
+          ]}
+        />
       </div>
 
     </div>
+  );
+}
+
+// Wraps a ProgressArc so only its label is the tooltip trigger — keeps the
+// tooltip from firing across the entire arc graphic.
+function ArcWithTooltip({
+  value,
+  max,
+  label,
+  tooltipTitle,
+  tooltipBullets,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  tooltipTitle: string;
+  tooltipBullets: React.ReactNode[];
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <div className="inline-flex flex-col items-center cursor-help" />
+          }
+        >
+          <ProgressArc value={value} max={max} label={label} />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs leading-relaxed">
+          <TooltipBody title={tooltipTitle} bullets={tooltipBullets} />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -287,7 +410,19 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
 // Pipeline cell (compact card inside matrix)
 // ---------------------------------------------------------------------------
 
-function PipelineBar({ label, hint, sent, approved }: { label: string; hint: string; sent: number; approved: number }) {
+function PipelineBar({
+  label,
+  tooltipTitle,
+  tooltipBullets,
+  sent,
+  approved,
+}: {
+  label: string;
+  tooltipTitle: string;
+  tooltipBullets: React.ReactNode[];
+  sent: number;
+  approved: number;
+}) {
   const pct = sent > 0 ? (approved / sent) * 100 : 0;
   const color = pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
   return (
@@ -302,7 +437,7 @@ function PipelineBar({ label, hint, sent, approved }: { label: string; hint: str
             {label}
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-            {hint}
+            <TooltipBody title={tooltipTitle} bullets={tooltipBullets} />
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -340,10 +475,46 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
         <span className="text-[10px] font-mono text-[#606060]">All-time</span>
       </div>
       <div className="space-y-1.5">
-        <PipelineBar label="Topics"    hint="Topics approved vs topics sent for approval — first stage of the funnel." sent={data.topicsSent}    approved={data.topicsApproved} />
-        <PipelineBar label="CBs"       hint="Content Briefs approved vs sent — second stage, before writing begins."    sent={data.cbsSent}       approved={data.cbsApproved} />
-        <PipelineBar label="Articles"  hint="Articles approved by client vs articles sent for review."                   sent={data.articlesSent}  approved={data.articlesApproved} />
-        <PipelineBar label="Published" hint="Articles published live vs approved — final stage of the funnel."           sent={data.articlesApproved} approved={data.publishedLive} />
+        <PipelineBar
+          label="Topics"
+          sent={data.topicsSent}
+          approved={data.topicsApproved}
+          tooltipTitle="Topics — Stage 1"
+          tooltipBullets={[
+            "Topics approved ÷ topics sent",
+            "First stage of the editorial funnel",
+          ]}
+        />
+        <PipelineBar
+          label="CBs"
+          sent={data.cbsSent}
+          approved={data.cbsApproved}
+          tooltipTitle="CBs — Stage 2"
+          tooltipBullets={[
+            "Content Briefs approved ÷ sent",
+            "Sign-off gate before writing begins",
+          ]}
+        />
+        <PipelineBar
+          label="Articles"
+          sent={data.articlesSent}
+          approved={data.articlesApproved}
+          tooltipTitle="Articles — Stage 3"
+          tooltipBullets={[
+            "Articles approved ÷ articles sent for review",
+            "Where most client revision cycles happen",
+          ]}
+        />
+        <PipelineBar
+          label="Published"
+          sent={data.articlesApproved}
+          approved={data.publishedLive}
+          tooltipTitle="Published — Stage 4"
+          tooltipBullets={[
+            "Articles published live ÷ approved",
+            "Final stage; quality gate after approval",
+          ]}
+        />
       </div>
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#2a2a2a]">
         <TooltipProvider>
@@ -358,21 +529,15 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
             >
               Δ: {data.articlesDifference > 0 ? `+${data.articlesDifference}` : data.articlesDifference}
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-sm text-xs leading-relaxed space-y-1.5">
-              <p>
-                <strong>How many articles this pod&apos;s clients have received but not yet approved</strong>, summed across every client in the pod.
-              </p>
-              <p className="text-[11px] text-[#9A9A9A]">
-                Formula: <code>articles sent − articles approved</code>. Comes from the Master Tracker&apos;s &quot;Diff&quot; column (stored per-client, then summed here).
-              </p>
-              <p className="text-[11px] text-[#9A9A9A]">
-                Example: if one client has 30 sent / 22 approved (Diff +8) and another has 15 sent / 13 approved (Diff +2), the pod&apos;s total Δ is <strong className="text-white">+10</strong> — ten articles across the pod are waiting on client sign-off.
-              </p>
-              <ul className="text-[11px] text-[#9A9A9A] list-none space-y-0.5 pt-0.5">
-                <li><span className="text-[#42CA80] font-semibold">Positive</span> — articles in flight, normal for an active pipeline.</li>
-                <li><span className="text-[#C4BCAA] font-semibold">Zero</span> — approvals are caught up.</li>
-                <li><span className="text-[#ED6958] font-semibold">Negative</span> — rare; usually a sheet correction.</li>
-              </ul>
+            <TooltipContent side="top" className="max-w-sm text-xs leading-relaxed">
+              <TooltipBody
+                title="Articles Δ — In Flight"
+                bullets={[
+                  "Articles delivered but not yet approved",
+                  <>Formula: <code>sent − approved</code> (Master Tracker · Diff)</>,
+                  <><span className="text-[#42CA80] font-semibold">+</span> normal pipeline · <span className="text-[#C4BCAA] font-semibold">0</span> caught up · <span className="text-[#ED6958] font-semibold">−</span> rare correction</>,
+                ]}
+              />
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -389,7 +554,13 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
               Overall: {overallPct > 0 ? `${overallPct}%` : "—"}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              Cumulative article approval rate = articles approved ÷ articles sent across the pod.
+              <TooltipBody
+                title="Article Approval Rate"
+                bullets={[
+                  "Articles approved ÷ articles sent",
+                  "Pod-wide cumulative figure",
+                ]}
+              />
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -492,7 +663,8 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
@@ -500,32 +672,148 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
           </h3>
           <DataSourceBadge
             type="live"
-            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Goals and delivery summed per (client × month) across every month in the active date range, then rolled up by the client's editorial_pod."
+            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Goals and delivery summed per (client × month) across every month in the active date range, weighted by content type (article ×1, jumbo ×2, LP ×0.5), then rolled up by the client's editorial_pod."
             shows={[
-              "Each pod card shows combined CB and Article progress across the clients it owns.",
-              "Numbers match the summary cards above and the month table below — all three use the same (client × month) aggregation over the active date range.",
-              "Color: green ≥75% On Track, amber 50–74% Behind, red <50% At Risk.",
+              "Pod gauges (top row): each pod's combined CB / Article progress across the clients it owns.",
+              "Per-client gauges (subsections below): same chart, scoped to one client. Each pod groups its clients into its own subsection.",
+              "Numbers are content-type weighted so a jumbo counts as 2 and an LP as 0.5 — matches the source sheet's ratio column.",
+              "Color: green ≥75% On Track · amber 50–74% Behind · red <50% At Risk.",
             ]}
           />
         </div>
         <p className="text-[11px] text-[#909090]">
-          <InfoLabel text="On Track / Behind / At Risk" hint="Goals status buckets: ≥75% On Track, 50–74% Behind, <50% At Risk." />
+          <InfoLabel
+            text="On Track / Behind / At Risk"
+            title="Goal Status Tiers"
+            bullets={[
+              "≥75% — On Track",
+              "50–74% — Behind",
+              "<50% — At Risk",
+            ]}
+          />
         </p>
       </div>
-      {/* Responsive grid — no horizontal scroll. Each pod is its own card with
-          header + month-goal gauges stacked. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {goalPods.map((g) => (
-          <div key={`g-${g.pod}`} className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-1.5">
-              {podBadge(g.pod)}
-              <span className="font-mono text-[11px] text-[#606060]">
-                {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
-              </span>
-            </div>
-            <GoalCell data={g} />
-          </div>
-        ))}
+
+      {/* Pod gauges — top row. Same fixed-width grid every responsive
+          breakpoint, so a pod card and a per-client card render at exactly
+          the same size in the section below. */}
+      <motion.div
+        layout
+        transition={GAUGE_TRANSITION}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          {goalPods.map((g) => (
+            <motion.div
+              key={`g-${g.pod}`}
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={GAUGE_TRANSITION}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-1.5">
+                {podBadge(g.pod)}
+                <span className="font-mono text-[11px] text-[#606060]">
+                  {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
+                </span>
+              </div>
+              <GoalCell data={g} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Per-client subsections — one per pod. Same pod-header convention
+          as the per-client cards in Delivery Overview / Cumulative Pipeline:
+          pod badge + count, then the cards grid (always visible). */}
+      {goalPods.some((g) => g.clients.length > 0) && (
+        <div className="space-y-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#606060]">
+            Per-client breakdown
+          </p>
+          {goalPods.map((g) => {
+            if (g.clients.length === 0) return null;
+            return (
+              <div key={`pcs-${g.pod}`} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {podBadge(g.pod)}
+                  <span className="font-mono text-[11px] text-[#606060]">
+                    {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {g.clients.map((c) => (
+                    <ClientMiniGauge key={`${g.pod}-${c.client}`} data={c} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const GAUGE_TRANSITION = { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const };
+
+// Per-client gauge — same layout/treatment as GoalCell (the pod card) so the
+// pod row and its drill-down read consistently. Just adds the client name in
+// the header.
+function ClientMiniGauge({ data }: { data: ClientGoalDatum }) {
+  const cbPct = data.cbGoal > 0 ? Math.round((data.cbDelivered / data.cbGoal) * 100) : 0;
+  const adPct = data.adGoal > 0 ? Math.round((data.adDelivered / data.adGoal) * 100) : 0;
+  return (
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-3 transition-colors hover:border-[#333] animate-fade-slide">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p
+          className="min-w-0 flex-1 truncate font-semibold text-white text-sm"
+          title={data.client}
+        >
+          {data.client}
+        </p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger render={<span className="cursor-help shrink-0" />}>
+              {goalStatusBadge(cbPct, adPct)}
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+              <TooltipBody
+                title="Goal Status"
+                bullets={[
+                  "Avg of CB % and Article % for this client across the active range",
+                  "≥75% On Track · 50–74% Behind · <50% At Risk",
+                ]}
+              />
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div className="flex items-center justify-center gap-4">
+        <ArcWithTooltip
+          value={data.cbDelivered}
+          max={data.cbGoal}
+          label="CBs"
+          tooltipTitle="CBs vs Goal"
+          tooltipBullets={[
+            "CBs delivered ÷ monthly goal",
+            "Weighted by content type (article ×1, jumbo ×2, LP ×0.5)",
+            "Summed across every month in the active range",
+          ]}
+        />
+        <ArcWithTooltip
+          value={data.adDelivered}
+          max={data.adGoal}
+          label="Articles"
+          tooltipTitle="Articles vs Goal"
+          tooltipBullets={[
+            "Articles delivered ÷ monthly goal",
+            "Weighted by content type (article ×1, jumbo ×2, LP ×0.5)",
+            "Summed across every month in the active range",
+          ]}
+        />
       </div>
     </div>
   );
@@ -566,9 +854,24 @@ export function PodPipelineRow({ filteredClients }: Props) {
           />
         </div>
         <p className="text-[11px] text-[#606060]">
-          <InfoLabel text="Articles Δ" hint="Articles sent minus articles approved — how many articles the pod has delivered that are still awaiting client approval. Summed across the pod's clients." />
+          <InfoLabel
+            text="Articles Δ"
+            title="Articles in Flight"
+            bullets={[
+              "Articles sent − articles approved",
+              "Volume still waiting on client sign-off",
+              "Summed across the pod's clients",
+            ]}
+          />
           {" · "}
-          <InfoLabel text="Overall %" hint="Cumulative article approval rate = articles approved ÷ articles sent across the pod." />
+          <InfoLabel
+            text="Overall %"
+            title="Article Approval Rate"
+            bullets={[
+              "Articles approved ÷ articles sent",
+              "Pod-wide cumulative number",
+            ]}
+          />
         </p>
       </div>
       {/* Responsive grid — no horizontal scroll. Each pod is its own card. */}

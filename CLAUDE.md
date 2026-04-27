@@ -108,7 +108,7 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 
 ## PRD Compliance
 
-**Audit:** `.docs/prd-compliance-audit.md` (gitignored — local reference; last full audit 2026-04-07 with an Apr 14–18 delta appended).
+**Audit:** `.docs/prd-compliance-audit.md` (gitignored — local reference; last full audit 2026-04-07 with deltas appended through 2026-04-26).
 **Current coverage:** ~98% of PRD (auth deferred per §9 — now partially implemented via Google OAuth).
 **All 9 D2 KPIs use real data** (0 mock):
 - Revision Rate, Turnaround Time, Second Reviews → Notion DB
@@ -139,6 +139,12 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 - Typography: IBM Plex Sans (body), JetBrains Mono (labels/data)
 - shadcn/ui customized with Graphite theme
 - **Section hierarchy on the dashboards**: h2 (`text-base` bold, white, `tracking-[0.2em]`) for top-level sections with a bottom-divider rule; h3 (`text-sm` semibold, `#C4BCAA`) for cards within; `text-xs` for sub-section labels. Card subtitles are avoided — explanatory copy lives inside `DataSourceBadge` tooltips (`source` + `shows` bullets).
+- **Sticky section headers**: every top-level h2 wrapper sticks at `top-[160px] z-10 bg-black` so the section title stays pinned as the user scrolls inside the section. Each `<section>` carries an `id="..."` plus `scroll-mt-[180px]` to clear the filter+tabs band on click-jumps.
+- **SectionIndex anchor nav**: each tab renders a thin sticky left-side rail (`SectionIndex`) listing its sections; click jumps to the section, scroll-spy keeps the active item highlighted. Hidden below `xl`. The component walks up the DOM and listens to every scrollable ancestor — the page's actual scroller is `<div className="ml-[64px] ... overflow-auto">` from `(app)/layout.tsx`, not `window`.
+- **Pipeline stage palette**: bars in cumulative-pipeline cards use Graphite primary greens P3 → P2 → P1 (Topics → CBs → Articles, dark → bright) plus WN1 cream for Published. Strictly DS swatches; defined as `PIPELINE_STAGE_COLORS` in `shared-helpers.tsx`.
+- **Pacing-aware status colors**: lifetime % of contract progress uses `pacingColor(actualPct, elapsedPct)` from `shared-helpers.tsx` — a brand-new client at 5 % isn't behind, they just started. Helper unifies this across per-client cards, per-pod cards, and the scope-aware top cards.
+- **Content-type weighting**: goals aggregations apply `contentTypeRatio()` (article ×1, jumbo ×2, LP ×0.5) so a jumbo's CBs/articles count for two units — keeps `GoalsVsDeliverySection` summary, `aggregateGoalsByPod`, and `GoalsMonthTable` totals consistent.
+- **Tooltip body**: every metric tooltip uses the `TooltipBody` helper — uppercase mono title + 2–3 short bullets — so every tooltip looks the same. `DataSourceBadge` is intentionally separate (it's source metadata, not metric explanation).
 - **Pod display**: always say "Editorial Pod N" or "Growth Pod N" in user-facing copy via `displayPod()` in `frontend/src/components/dashboard/shared-helpers.tsx`. Internal keys stay as `"Pod N"` so existing `POD_COLORS` lookups and Map/Set keys keep working.
 
 ### Sheet sync (live, not one-time)

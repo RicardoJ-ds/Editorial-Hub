@@ -37,6 +37,7 @@ import { CapacityChart } from "@/components/charts/CapacityChart";
 import RecommendationChart from "@/components/charts/RecommendationChart";
 import { cn } from "@/lib/utils";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
+import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
 
 // ---------------------------------------------------------------------------
@@ -318,7 +319,12 @@ export default function TeamKpisPage() {
         </TabsContent>
 
         <TabsContent value="ai-compliance">
-          <AIComplianceTab />
+          <div className="flex gap-6">
+            <SectionIndex sections={AI_COMPLIANCE_SECTIONS} />
+            <div className="flex-1 min-w-0">
+              <AIComplianceTab />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -346,6 +352,12 @@ function AIComplianceSkeleton() {
     </div>
   );
 }
+
+const AI_COMPLIANCE_SECTIONS = [
+  { id: "ai-flagged", label: "Flagged Articles" },
+  { id: "ai-rewrites", label: "Rewrites" },
+  { id: "ai-surfer", label: "Surfer API" },
+];
 
 function AIComplianceTab() {
   const [summary, setSummary] = useState<AIMonitoringSummary | null>(null);
@@ -465,8 +477,8 @@ function AIComplianceTab() {
       </div>
 
       {/* Flagged Articles Table */}
-      <section className="space-y-3">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+      <section id="ai-flagged" className="space-y-3 scroll-mt-[180px]">
+        <h3 className="sticky top-[160px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
           Flagged Articles <DataSourceBadge type="live" source="Sheet: 'Yellow/Red Flags_v2' — Spreadsheet: Writer AI Monitoring 2.0. Articles flagged for AI content review requiring editorial action." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
@@ -523,8 +535,8 @@ function AIComplianceTab() {
       </section>
 
       {/* Rewrites Table */}
-      <section className="space-y-3">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+      <section id="ai-rewrites" className="space-y-3 scroll-mt-[180px]">
+        <h3 className="sticky top-[160px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
           Rewrites <DataSourceBadge type="live" source="Sheet: 'Rewrites' — Spreadsheet: Writer AI Monitoring 2.0. Articles requiring full rewrite due to AI compliance failure." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
@@ -581,8 +593,8 @@ function AIComplianceTab() {
       </section>
 
       {/* Surfer API Usage Table */}
-      <section className="space-y-3">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+      <section id="ai-surfer" className="space-y-3 scroll-mt-[180px]">
+        <h3 className="sticky top-[160px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
           Surfer API Usage <DataSourceBadge type="live" source="Sheet: 'Surfer&#39;s API usage' — Spreadsheet: Writer AI Monitoring 2.0. Monthly Surfer API call counts by editorial pod." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">

@@ -2,7 +2,13 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { displayPod } from "./shared-helpers";
+import {
+  HEALTH_STYLE,
+  displayPod,
+  healthOf,
+  type Health,
+  type HealthInput,
+} from "./shared-helpers";
 import type { Client } from "@/lib/types";
 
 const STATUS_STYLES: Record<
@@ -43,10 +49,8 @@ function daysBetweenToday(iso: string | null): number | null {
   return Math.round((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-interface ProgressRow {
-  articles_sow: number;
+interface ProgressRow extends HealthInput {
   articles_delivered: number;
-  pct_complete: number;
 }
 
 interface Props {
@@ -106,6 +110,10 @@ export function ClientStatusCard({ client }: { client: Client }) {
             <span className="text-white">{client.editorial_pod ? displayPod(client.editorial_pod, "editorial") : "—"}</span>
           </div>
           <div className="flex justify-between gap-2">
+            <span className="text-[#606060]">Growth Pod</span>
+            <span className="text-white">{client.growth_pod ? displayPod(client.growth_pod, "growth") : "—"}</span>
+          </div>
+          <div className="flex justify-between gap-2">
             <span className="text-[#606060]">Contract</span>
             <span className="text-white tabular-nums">
               {fmtDate(client.start_date)} → {fmtDate(client.end_date)}
@@ -136,39 +144,14 @@ export function ClientStatusCard({ client }: { client: Client }) {
   );
 }
 
-type ProgressBucket = "NOT_STARTED" | "EARLY" | "MID" | "LATE" | "COMPLETE";
-
-const PROGRESS_ROW: {
-  key: ProgressBucket;
-  label: string;
-  color: string;
-  range: string;
-}[] = [
-  { key: "NOT_STARTED", label: "Not started", color: "#606060", range: "0%" },
-  { key: "EARLY", label: "Early", color: "#ED6958", range: "1–25%" },
-  { key: "MID", label: "Mid", color: "#F5C542", range: "26–75%" },
-  { key: "LATE", label: "Late", color: "#42CA80", range: "76–99%" },
-  { key: "COMPLETE", label: "Complete", color: "#8FB5D9", range: "100%" },
-];
-
-function bucketOf(pct: number): ProgressBucket {
-  if (pct <= 0) return "NOT_STARTED";
-  if (pct <= 25) return "EARLY";
-  if (pct <= 75) return "MID";
-  if (pct < 100) return "LATE";
-  return "COMPLETE";
-}
+// Triage tiers for the Delivery Progress card, using the same health rule as
+// every per-card chip. Order = visual priority (Behind first).
+const HEALTH_TIERS: Health[] = ["behind", "watch", "healthy"];
 
 function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
   // Reuses the already-filtered per-client summaries so the mix respects
   // whatever date window the Client Delivery cards are showing.
-  const counts: Record<ProgressBucket, number> = {
-    NOT_STARTED: 0,
-    EARLY: 0,
-    MID: 0,
-    LATE: 0,
-    COMPLETE: 0,
-  };
+  const counts: Record<Health, number> = { behind: 0, watch: 0, healthy: 0 };
   let totalDelivered = 0;
   let totalSow = 0;
   let withSow = 0;
@@ -177,7 +160,7 @@ function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
     withSow += 1;
     totalDelivered += r.articles_delivered;
     totalSow += r.articles_sow;
-    counts[bucketOf(r.pct_complete)] += 1;
+    counts[healthOf(r)] += 1;
   }
   const totalPct = totalSow > 0 ? Math.round((totalDelivered / totalSow) * 100) : 0;
   const headlineColor =
@@ -196,21 +179,32 @@ function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
           {totalPct}%
           <span className="ml-1 text-xs text-[#606060] font-normal">overall</span>
         </p>
-        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5">
-          {PROGRESS_ROW.map((row) => (
-            <div key={row.key} className="flex items-center justify-between gap-2 font-mono text-[11px]">
-              <span className="flex items-center gap-1.5">
+        <div className="mt-2 space-y-0.5">
+          {HEALTH_TIERS.map((tier) => {
+            const style = HEALTH_STYLE[tier];
+            return (
+              <div
+                key={tier}
+                className="flex items-center justify-between gap-2 font-mono text-[11px]"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: style.color }}
+                  />
+                  <span className="uppercase tracking-wider text-[#C4BCAA]">
+                    {style.label}
+                  </span>
+                </span>
                 <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ backgroundColor: row.color }}
-                />
-                <span className="text-[#C4BCAA]">{row.label}</span>
-              </span>
-              <span className="tabular-nums font-semibold" style={{ color: row.color }}>
-                {counts[row.key]}
-              </span>
-            </div>
-          ))}
+                  className="tabular-nums font-semibold"
+                  style={{ color: style.color }}
+                >
+                  {counts[tier]}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

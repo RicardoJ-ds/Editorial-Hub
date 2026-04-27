@@ -31,6 +31,7 @@ JWT cookie signed with `AUTH_SECRET`. See `src/lib/auth.ts` and `src/lib/session
 - **Next.js 16.2** + React 19 + TypeScript (App Router, route groups)
 - Tailwind CSS v4 + shadcn/ui (Graphite dark theme)
 - Recharts for data visualization (+ custom SVG overlays for clipped-value markers)
+- `framer-motion` for layout transitions on scope-aware overview cards
 - `@xyflow/react` + dagre for the CP v2 schema ERD
 - `@base-ui/react` Tooltip primitive
 - IBM Plex Sans (body) + JetBrains Mono (data labels)

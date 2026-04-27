@@ -12,6 +12,7 @@ import {
 import { Info, ChevronDown, ChevronRight } from "lucide-react";
 import type { TeamMember, KpiScore } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { TooltipBody } from "./shared-helpers";
 
 // ---------------------------------------------------------------------------
 // KPI type display names & classification
@@ -32,25 +33,75 @@ const KPI_DISPLAY_NAMES: Record<string, string> = {
 /** KPI types where lower is better (score <= target is good) */
 const LOWER_IS_BETTER = new Set(["revision_rate", "turnaround_time"]);
 
-const KPI_TOOLTIPS: Record<string, string> = {
-  internal_quality:
-    "Internal article quality score assessed by Senior Editors. Scale: 0-100. Target: \u226585",
-  external_quality:
-    "Client satisfaction score from feedback. Scale: 0-100. Target: \u226585",
-  revision_rate:
-    "Percentage of articles requiring client revisions. Lower is better. Target: \u226415%",
-  capacity_utilization:
-    "Articles produced \u00f7 monthly capacity \u00d7 100. Target: 80-85% (optimal zone)",
-  second_reviews:
-    "Number of second-pass reviews performed by SE per month. Target: \u22655",
-  turnaround_time:
-    "Average days from CB approval to article delivery. Lower is better. Target: \u226414 days",
-  ai_compliance:
-    "Percentage of content passing AI detection checks. Target: \u226595%",
-  mentorship:
-    "Mentorship effectiveness score from Editor feedback. Scale: 0-100. Target: \u226580",
-  feedback_adoption:
-    "Rate of incorporating editorial feedback into subsequent work. Scale: 0-100. Target: \u226580",
+interface KpiTooltipSpec {
+  title: string;
+  bullets: string[];
+}
+
+const KPI_TOOLTIPS: Record<string, KpiTooltipSpec> = {
+  internal_quality: {
+    title: "Internal Quality",
+    bullets: [
+      "Article quality scored by Senior Editors",
+      "Scale 0–100 · Target ≥85",
+    ],
+  },
+  external_quality: {
+    title: "External Quality",
+    bullets: [
+      "Client satisfaction from feedback",
+      "Scale 0–100 · Target ≥85",
+    ],
+  },
+  revision_rate: {
+    title: "Revision Rate",
+    bullets: [
+      "% of articles needing client revisions",
+      "Lower is better · Target ≤15%",
+    ],
+  },
+  capacity_utilization: {
+    title: "Capacity Utilization",
+    bullets: [
+      "Articles produced ÷ monthly capacity × 100",
+      "Target 80–85% (optimal zone)",
+    ],
+  },
+  second_reviews: {
+    title: "Second Reviews",
+    bullets: [
+      "Second-pass reviews by SE per month",
+      "Target ≥5",
+    ],
+  },
+  turnaround_time: {
+    title: "Turnaround Time",
+    bullets: [
+      "Avg days from CB approval to article delivery",
+      "Lower is better · Target ≤14 days",
+    ],
+  },
+  ai_compliance: {
+    title: "AI Compliance",
+    bullets: [
+      "% of content passing AI detection checks",
+      "Target ≥95%",
+    ],
+  },
+  mentorship: {
+    title: "Mentorship",
+    bullets: [
+      "Effectiveness score from Editor feedback",
+      "Scale 0–100 · Target ≥80",
+    ],
+  },
+  feedback_adoption: {
+    title: "Feedback Adoption",
+    bullets: [
+      "Rate of applying editorial feedback to next work",
+      "Scale 0–100 · Target ≥80",
+    ],
+  },
 };
 
 const SE_KPI_TYPES = [
@@ -198,7 +249,7 @@ export function KpiCard({ member, scores, month, year, clients }: KpiCardProps) 
             const target = kpi?.target ?? null;
             const color = getKpiColor(kpiType, score, target);
 
-            const tooltipText = KPI_TOOLTIPS[kpiType];
+            const tooltip = KPI_TOOLTIPS[kpiType];
 
             return (
               <div key={kpiType}>
@@ -206,7 +257,7 @@ export function KpiCard({ member, scores, month, year, clients }: KpiCardProps) 
                   <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-[#606060]">
                     {KPI_DISPLAY_NAMES[kpiType] ?? kpiType}
                   </p>
-                  {tooltipText && (
+                  {tooltip && (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger
@@ -217,7 +268,10 @@ export function KpiCard({ member, scores, month, year, clients }: KpiCardProps) 
                           <Info className="size-3 text-[#606060] shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-xs">
-                          {tooltipText}
+                          <TooltipBody
+                            title={tooltip.title}
+                            bullets={tooltip.bullets}
+                          />
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

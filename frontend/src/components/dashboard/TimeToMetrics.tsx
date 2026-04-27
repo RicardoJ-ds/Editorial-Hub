@@ -231,7 +231,7 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 border-b border-[#2a2a2a] pb-2">
+      <div className="sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
         <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
           Time-to Metrics
           <DataSourceBadge
@@ -396,6 +396,11 @@ type TrendBucket = {
   avg: number | null;
   count: number;
   sublabel?: string;
+  /** Raw from/to dates that produced `avg` (ISO strings). Fed into the
+   *  hover tooltip so reviewers can sanity-check the span without opening
+   *  the source sheet. */
+  fromDate?: string | null;
+  toDate?: string | null;
 };
 
 function TimeToTrendChart({ clients }: { clients: Client[] }) {
@@ -418,7 +423,9 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
     const perClient: TrendBucket[] = [];
     for (const c of clients) {
       const rec = c as unknown as Record<string, string | null>;
-      const days = daysBetween(rec[from], rec[metric.to]);
+      const fromDate = rec[from] ?? null;
+      const toDate = rec[metric.to] ?? null;
+      const days = daysBetween(fromDate, toDate);
       if (days !== null) all.push(days);
       perClient.push({
         key: `client-${c.id}`,
@@ -426,6 +433,8 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
         avg: days,
         count: 1,
         sublabel: c.editorial_pod ? displayPod(c.editorial_pod, "editorial") : undefined,
+        fromDate,
+        toDate,
       });
     }
     // Slowest first among clients with data; null-avg clients go to the end.
@@ -462,6 +471,8 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
     avg: number;
     count: number;
     sublabel?: string;
+    fromDate?: string | null;
+    toDate?: string | null;
   } | null>(null);
 
   return (
@@ -577,6 +588,8 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                                   avg: b.avg!,
                                   count: b.count,
                                   sublabel: b.sublabel,
+                                  fromDate: b.fromDate,
+                                  toDate: b.toDate,
                                 });
                               }}
                               onMouseLeave={() => setHover(null)}
@@ -680,22 +693,38 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                 </div>
 
                 {/* Tooltip */}
-                {hover && (
-                  <div
-                    className="fixed z-[9999] pointer-events-none"
-                    style={{ left: hover.x, top: hover.y, transform: "translate(-50%, -100%)" }}
-                  >
-                    <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
-                      <p className="text-xs font-mono font-semibold text-white">{hover.label}</p>
-                      {hover.sublabel && (
-                        <p className="text-[10px] font-mono text-[#606060] mt-0.5">{hover.sublabel}</p>
-                      )}
-                      <p className="text-[11px] font-mono text-[#C4BCAA] mt-0.5">
-                        <span className="text-white">{hover.avg}d</span>
-                      </p>
+                {hover && (() => {
+                  const parts = metric.label.split(" → ");
+                  const fromLabel = parts[0] ?? "From";
+                  const toLabel = parts[1] ?? "To";
+                  return (
+                    <div
+                      className="fixed z-[9999] pointer-events-none"
+                      style={{ left: hover.x, top: hover.y, transform: "translate(-50%, -100%)" }}
+                    >
+                      <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                        <p className="text-xs font-mono font-semibold text-white">{hover.label}</p>
+                        {hover.sublabel && (
+                          <p className="text-[10px] font-mono text-[#606060] mt-0.5">{hover.sublabel}</p>
+                        )}
+                        <div className="mt-1.5 space-y-0.5 border-t border-[#1e1e1e] pt-1.5">
+                          <p className="text-[10px] font-mono text-[#C4BCAA] flex items-center justify-between gap-3">
+                            <span className="text-[#606060]">{fromLabel}</span>
+                            <span className="tabular-nums">{fmtDateShort(hover.fromDate ?? null)}</span>
+                          </p>
+                          <p className="text-[10px] font-mono text-[#C4BCAA] flex items-center justify-between gap-3">
+                            <span className="text-[#606060]">{toLabel}</span>
+                            <span className="tabular-nums">{fmtDateShort(hover.toDate ?? null)}</span>
+                          </p>
+                        </div>
+                        <p className="mt-1.5 text-[11px] font-mono text-[#C4BCAA] border-t border-[#1e1e1e] pt-1.5 flex items-center justify-between gap-3">
+                          <span className="text-[#606060]">Δ</span>
+                          <span className="text-white font-semibold tabular-nums">{hover.avg}d</span>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           );

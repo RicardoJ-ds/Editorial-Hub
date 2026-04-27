@@ -2,14 +2,18 @@
 
 import React from "react";
 import type { CumulativeMetric } from "@/lib/types";
-import { podBadge, pctColorNum } from "./shared-helpers";
+import {
+  PIPELINE_STAGE_COLORS,
+  TooltipBody,
+  podBadge,
+  type PipelineStage,
+} from "./shared-helpers";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 
 interface Props {
   data: CumulativeMetric;
@@ -24,21 +28,35 @@ interface Props {
   pod?: string | null;
 }
 
-function PipelineBar({ label, value, sow }: { label: string; value: number; sow: number | null }) {
+// Per-client pipeline cards live below the per-pod aggregate row, which
+// already carries the pacing chip + status colors. At the per-client level
+// we want a calm, judgment-free progress snapshot — colors mark the funnel
+// STAGE (Topics → Published), not performance. A brand-new client and a
+// mature client read with the same color, just different bar widths.
+function PipelineBar({
+  label,
+  stage,
+  value,
+  sow,
+}: {
+  label: string;
+  stage: PipelineStage;
+  value: number;
+  sow: number | null;
+}) {
   const pct = sow && sow > 0 ? (value / sow) * 100 : 0;
-  const color = pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
   const barPct = Math.min(pct, 100);
-
+  const fill = PIPELINE_STAGE_COLORS[stage];
   return (
     <div className="flex items-center gap-2">
       <span className="text-[11px] text-[#606060] w-14 shrink-0 font-mono">{label}</span>
-      <div className="flex-1 h-3 rounded-full bg-[#2a2a2a] overflow-hidden relative">
+      <div className="flex-1 h-3 rounded-full bg-[#1f1f1f] overflow-hidden relative">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${barPct}%`, backgroundColor: color, opacity: 0.85 }}
+          style={{ width: `${barPct}%`, backgroundColor: fill, opacity: 0.85 }}
         />
       </div>
-      <span className={cn("font-mono text-[11px] font-semibold w-9 text-right", pctColorNum(pct))}>
+      <span className="font-mono text-[11px] font-semibold w-9 text-right tabular-nums text-[#C4BCAA]">
         {sow && sow > 0 ? `${Math.round(pct)}%` : "—"}
       </span>
       <span className="font-mono text-[11px] text-[#606060] w-14 text-right tabular-nums">
@@ -50,7 +68,6 @@ function PipelineBar({ label, value, sow }: { label: string; value: number; sow:
 
 export function ClientPipelineCard({ data, sow = null, pod = null }: Props) {
   const overallPct = sow && sow > 0 ? (((data.articles_approved ?? 0) / sow) * 100) : 0;
-
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 animate-fade-slide hover:border-[#333] transition-colors">
       {/* Header */}
@@ -65,12 +82,13 @@ export function ClientPipelineCard({ data, sow = null, pod = null }: Props) {
       </div>
 
       {/* Pipeline bars — every stage measured against contract SOW so they're
-          directly comparable. "Value" is the approved/live count at each stage. */}
+          directly comparable. Color is purely informational here; the pacing
+          chip on the per-pod card above carries the "behind / ahead" signal. */}
       <div className="space-y-2">
-        <PipelineBar label="Topics"    value={data.topics_approved   ?? 0} sow={sow} />
-        <PipelineBar label="CBs"       value={data.cbs_approved      ?? 0} sow={sow} />
-        <PipelineBar label="Articles"  value={data.articles_approved ?? 0} sow={sow} />
-        <PipelineBar label="Published" value={data.published_live    ?? 0} sow={sow} />
+        <PipelineBar label="Topics"    stage="topics"    value={data.topics_approved   ?? 0} sow={sow} />
+        <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_approved      ?? 0} sow={sow} />
+        <PipelineBar label="Articles"  stage="articles"  value={data.articles_approved ?? 0} sow={sow} />
+        <PipelineBar label="Published" stage="published" value={data.published_live    ?? 0} sow={sow} />
       </div>
 
       {/* Footer */}
@@ -79,18 +97,20 @@ export function ClientPipelineCard({ data, sow = null, pod = null }: Props) {
           <Tooltip>
             <TooltipTrigger
               render={
-                <span
-                  className={cn(
-                    "font-mono text-[11px] font-semibold cursor-help underline decoration-dotted underline-offset-2",
-                    pctColorNum(overallPct)
-                  )}
-                />
+                <span className="font-mono text-[11px] font-semibold cursor-help underline decoration-dotted underline-offset-2 text-[#C4BCAA]" />
               }
             >
               Approved articles: {sow && sow > 0 ? `${Math.round(overallPct)}%` : "—"}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              Share of contracted SOW currently approved = articles approved ÷ SOW. Same denominator the pipeline bars use, so this is the article-stage number from the Articles bar.
+              <TooltipBody
+                title="Approved Articles ÷ SOW"
+                bullets={[
+                  "Share of contracted SOW currently approved",
+                  "Same denominator as the pipeline bars",
+                  "Status / risk lives on the pod card above (pacing chip)",
+                ]}
+              />
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

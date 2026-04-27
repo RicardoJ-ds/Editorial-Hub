@@ -1,6 +1,6 @@
 # Editorial Hub — Task Tracker
 
-> **Last reviewed:** 2026-04-18
+> **Last reviewed:** 2026-04-26
 > **Related docs:**
 > - [`/CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) — CP v2 schema + phase status
 > - [`/.docs/dashboard-data-flow.md`](../.docs/dashboard-data-flow.md) — migration plan
@@ -57,6 +57,26 @@
 ### Infra
 - [x] Notion import: paginate + bulk upsert (`612c854`)
 - [x] Railway Dockerfile COPY paths fixed (`6ce65ff`, `99fb796`)
+
+### Dashboard 1 UX overhaul (Apr 19–26)
+- [x] Scope-aware overview cards on all three Tab 2 sections — `DeliveryOverviewCards`, `CumulativePipelineCards`, `GoalsOverviewCards` (single client / pod / portfolio modes)
+- [x] Removed legacy `PipelineFunnelChart` (its job is done by per-pod cards inside `CumulativePipelineCards`)
+- [x] Per-client + per-pod pacing chips (Behind / On-Pace / Ahead) — SOW-weighted
+- [x] Pacing-aware lifetime % colors via shared `pacingColor()` (no more "new client looks bad" bias)
+- [x] Pipeline stage palette retuned to strictly Graphite DS swatches: P3 → P2 → P1 + WN1 (Topics → CBs → Articles → Published)
+- [x] Sticky h2 section headers (`top-[160px]`) + `SectionIndex` left-side anchor nav with scroll-spy + click-to-jump (xl+)
+- [x] Per-client gauges in pod subsections — always-visible grid (no dropdown), reuses `ClientMiniGauge`
+- [x] Content-type weighting (article ×1, jumbo ×2, LP ×0.5) applied via 3-step aggregation (max-of-week per CMC → weighted client/month → pod totals) — changes published totals vs. before
+- [x] "As of" labels derived from latest data row (Operating Model / scopedRows), not calendar-now
+- [x] `FilterBar`: zero-match fallback to "All Time" when filters yield no clients
+- [x] `TimeToMetrics` tooltip now shows From/To dates alongside Δ days
+- [x] AI Compliance tab on D2: 3 `SectionIndex` subsections (AI Flagged / Rewrites / Surfer API)
+- [x] `GoalsMonthTable`: sticky h3 column headers, sticky client cells, per-client expand to per-content-type sub-rows
+- [x] Auto-fit date range on filter changes (`FilterBar`)
+- [x] Data-quality warning banner on Monthly Goals — flags pre-Aug/Sep 2025 sparseness
+- [x] Tooltip standardization — every metric tooltip now uses `TooltipBody` (uppercase mono title + 2–3 bullets) with tight triggers
+- [x] `framer-motion` (12.38.0) added for layout animations on scope-aware swaps
+- [x] AI Compliance tab on D2 wired to the same `SectionIndex` + sticky h3 pattern
 
 ---
 

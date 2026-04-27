@@ -100,6 +100,72 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
     [router, searchParams]
   );
 
+  // Auto-fit the date range chip to span the contracts of the clients matching
+  // the *non-date* filter criteria (so picking a pod resets the date to that
+  // pod's actual data window). Each pod / status / client-pick triggers this;
+  // user-set date ranges still survive until the next non-date change.
+  const autoFitDateRange = useCallback(
+    (criteria: {
+      search?: string;
+      editorialPod?: string;
+      growthPod?: string;
+      status?: string;
+    }) => {
+      const s = criteria.search ?? search;
+      const ep = criteria.editorialPod ?? editorialPod;
+      const gp = criteria.growthPod ?? growthPod;
+      const st = criteria.status ?? status;
+
+      let pool = clients;
+      if (s) {
+        const q = s.toLowerCase();
+        pool = pool.filter((c) => c.name.toLowerCase().includes(q));
+      }
+      if (ep !== "All") {
+        pool = pool.filter((c) => normalizePod(c.editorial_pod) === ep);
+      }
+      if (gp !== "All") {
+        pool = pool.filter((c) => normalizePod(c.growth_pod) === gp);
+      }
+      if (st === "Active") {
+        pool = pool.filter((c) => c.status === "ACTIVE");
+      } else if (st === "Inactive/Completed") {
+        pool = pool.filter(
+          (c) =>
+            c.status === "COMPLETED" ||
+            c.status === "CANCELLED" ||
+            c.status === "INACTIVE",
+        );
+      }
+
+      // No clients left under those filters → fall back to "All Time" so the
+      // user isn't stuck with a meaningless empty range.
+      if (pool.length === 0) {
+        setDateRange({ type: "all" });
+        return;
+      }
+
+      let minStart: Date | null = null;
+      let maxEnd: Date | null = null;
+      for (const c of pool) {
+        if (c.start_date) {
+          const d = new Date(c.start_date);
+          if (!isNaN(d.getTime()) && (!minStart || d < minStart)) minStart = d;
+        }
+        if (c.end_date) {
+          const d = new Date(c.end_date);
+          if (!isNaN(d.getTime()) && (!maxEnd || d > maxEnd)) maxEnd = d;
+        }
+      }
+      if (minStart && maxEnd) {
+        setDateRange({ type: "range", from: minStart, to: maxEnd });
+      } else {
+        setDateRange({ type: "all" });
+      }
+    },
+    [clients, search, editorialPod, growthPod, status],
+  );
+
   useEffect(() => {
     let filtered = clients;
 
@@ -216,6 +282,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
                   setSearch(name);
                   updateParams("search", name);
                   setShowDropdown(false);
+                  autoFitDateRange({ search: name });
                 }}
                 className={cn(
                   "block w-full px-3 py-1.5 text-left text-xs transition-colors",
@@ -241,6 +308,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
           const v = val ?? "All";
           setEditorialPod(v);
           updateParams("editorial_pod", v);
+          autoFitDateRange({ editorialPod: v });
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-0 bg-transparent gap-1 px-2">
@@ -267,6 +335,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
           const v = val ?? "All";
           setGrowthPod(v);
           updateParams("growth_pod", v);
+          autoFitDateRange({ growthPod: v });
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[100px] text-xs border-0 bg-transparent gap-1 px-2">
@@ -296,6 +365,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
           const v = val ?? "All";
           setStatus(v);
           updateParams("status", v);
+          autoFitDateRange({ status: v });
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs border-0 bg-transparent gap-1 px-2">

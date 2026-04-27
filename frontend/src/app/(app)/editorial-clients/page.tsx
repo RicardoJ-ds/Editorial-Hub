@@ -23,16 +23,22 @@ import type {
   ClientProductionRow,
 } from "@/lib/types";
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
-import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { ClientNotesPanel, hasClientNote } from "@/components/dashboard/ClientNotesPanel";
-import { FilterContextCard } from "@/components/dashboard/FilterContextCard";
+import { DeliveryOverviewCards } from "@/components/dashboard/DeliveryOverviewCards";
+import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
 import { PodGoalsRow } from "@/components/dashboard/ContractClientProgress";
-import { SortableHead as SortableHeadShared, displayPod } from "@/components/dashboard/shared-helpers";
+import {
+  SortableHead as SortableHeadShared,
+  TooltipBody,
+  displayPod,
+  elapsedContractPct,
+  pacingColor,
+} from "@/components/dashboard/shared-helpers";
 import {
   Select,
   SelectContent,
@@ -318,24 +324,35 @@ export default function EditorialClientsPage() {
         </div>
 
         <TabsContent value="contract-timeline">
-          <ContractTimelineTab clients={filteredClients} clientProduction={clientProduction} />
+          <div className="flex gap-6">
+            <SectionIndex sections={TAB_1_SECTIONS} />
+            <div className="flex-1 min-w-0">
+              <ContractTimelineTab clients={filteredClients} clientProduction={clientProduction} />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="deliverables-sow">
-          {/* Delivery Overview: summary cards + charts */}
-          <DeliverablesSOWTab
-            clients={filteredClients}
-            deliverables={deliverables}
-            productionTrend={productionTrend}
-            pacingData={pacingData}
-            clientProduction={clientProduction}
-            dateRange={dateRange}
-          />
+          <div className="flex gap-6">
+            <SectionIndex sections={TAB_2_SECTIONS} />
+            <div className="flex-1 min-w-0">
+              {/* Delivery Overview: summary cards + charts */}
+              <div id="delivery-overview" className="scroll-mt-[180px]">
+                <DeliverablesSOWTab
+                  clients={filteredClients}
+                  allClients={clients}
+                  deliverables={deliverables}
+                  productionTrend={productionTrend}
+                  pacingData={pacingData}
+                  clientProduction={clientProduction}
+                  dateRange={dateRange}
+                />
+              </div>
 
-          {/* Cumulative Pipeline — portfolio summary, funnel chart, then
-              per-client detail cards grouped by pod. */}
-          <section className="mt-12">
-            <div className="mb-4 flex items-center gap-3 border-b border-[#2a2a2a] pb-2">
+              {/* Cumulative Pipeline — portfolio summary, funnel chart, then
+                  per-client detail cards grouped by pod. */}
+              <section id="cumulative-pipeline" className="mt-12 scroll-mt-[180px]">
+            <div className="mb-4 sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
               <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
                 Cumulative Pipeline <DataSourceBadge
                   type="live"
@@ -352,37 +369,50 @@ export default function EditorialClientsPage() {
             <CumulativePipelineSection filteredClients={filteredClients} />
           </section>
 
-          {/* Monthly Goals vs Delivery — summary cards + pod aggregate +
-              unified month-range table (with expandable weekly breakdown). */}
-          <section className="mt-12">
-            <div className="mb-4 flex items-center gap-3 border-b border-[#2a2a2a] pb-2">
-              <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
-                Monthly Goals vs Delivery <DataSourceBadge
-                  type="live"
-                  source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Goals and delivery tracked per client per week across every month of the active date range."
-                  shows={[
-                    "Progress toward each client's monthly CB and Article goals, aggregated over the active date range.",
-                    "Summary cards roll up the whole range; toggle CBs / Articles on the table to flip metrics.",
-                    "Each month column shows delivered/goal. Click a month header to expand its weekly breakdown (one month at a time).",
-                    "Respects the page filters above: Editorial Pod, Growth Pod, Status, Date Range.",
-                  ]}
+              {/* Monthly Goals vs Delivery — summary cards + pod aggregate +
+                  unified month-range table (with expandable weekly breakdown). */}
+              <section id="monthly-goals" className="mt-12 scroll-mt-[180px]">
+                <div className="mb-4 sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+                  <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    Monthly Goals vs Delivery <DataSourceBadge
+                      type="live"
+                      source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Goals and delivery tracked per client per week across every month of the active date range."
+                      shows={[
+                        "Progress toward each client's monthly CB and Article goals, aggregated over the active date range.",
+                        "Summary cards roll up the whole range; toggle CBs / Articles on the table to flip metrics.",
+                        "Each month column shows delivered/goal. Click a month header to expand its weekly breakdown (one month at a time).",
+                        "Respects the page filters above: Editorial Pod, Growth Pod, Status, Date Range.",
+                      ]}
+                    />
+                  </h2>
+                  <span className="h-px flex-1 bg-[#2a2a2a]" />
+                </div>
+                <GoalsVsDeliverySection
+                  filteredClients={filteredClients}
+                  dateRange={dateRange}
+                  beforeClientCards={
+                    <PodGoalsRow filteredClients={filteredClients} dateRange={dateRange} />
+                  }
                 />
-              </h2>
-              <span className="h-px flex-1 bg-[#2a2a2a]" />
+              </section>
             </div>
-            <GoalsVsDeliverySection
-              filteredClients={filteredClients}
-              dateRange={dateRange}
-              beforeClientCards={
-                <PodGoalsRow filteredClients={filteredClients} dateRange={dateRange} />
-              }
-            />
-          </section>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
+
+const TAB_1_SECTIONS = [
+  { id: "time-to-metrics", label: "Time-to Metrics" },
+  { id: "contract-timeline", label: "Contract & Timeline" },
+];
+
+const TAB_2_SECTIONS = [
+  { id: "delivery-overview", label: "Delivery Overview" },
+  { id: "cumulative-pipeline", label: "Cumulative Pipeline" },
+  { id: "monthly-goals", label: "Monthly Goals vs Delivery" },
+];
 
 // ---------------------------------------------------------------------------
 // Client Engagement Timeline
@@ -397,7 +427,15 @@ const TIMELINE_POD_COLORS: Record<string, string> = {
 
 // --- Totals sidebar bits for the Client Engagement Timeline -----------------
 
-function TotalsHeader({ label, hint }: { label: string; hint: string }) {
+function TotalsHeader({
+  label,
+  title,
+  bullets,
+}: {
+  label: string;
+  title: string;
+  bullets: React.ReactNode[];
+}) {
   return (
     <TooltipProvider>
       <Tooltip>
@@ -409,7 +447,7 @@ function TotalsHeader({ label, hint }: { label: string; hint: string }) {
           {label}
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-          {hint}
+          <TooltipBody title={title} bullets={bullets} />
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -446,9 +484,14 @@ function TotalsCell({
 function TotalsPercentCell({
   delivered,
   sow,
+  elapsedPct = null,
 }: {
   delivered: number | undefined;
   sow: number | undefined;
+  /** Elapsed contract % — when provided, color is pacing-aware so a brand-
+   *  new client doesn't read red just for being early. Lifetime % vs SOW
+   *  is otherwise penalized by the pure 75/50 thresholds. */
+  elapsedPct?: number | null;
 }) {
   if (sow == null || sow <= 0 || delivered == null) {
     return (
@@ -456,7 +499,7 @@ function TotalsPercentCell({
     );
   }
   const pct = Math.round((delivered / sow) * 100);
-  const color = pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
+  const color = pacingColor(pct, elapsedPct);
   return (
     <span
       className="block font-mono text-[11px] font-semibold text-center tabular-nums"
@@ -484,14 +527,6 @@ function ClientEngagementTimeline({
   // Current month in YYYY-MM — used to highlight the live column and split
   // actual (historic) from projected (future). The Operating Model carries
   // both numbers on every row, so we pick by calendar position.
-  // Current year + 1-indexed month (matches the API + timelineMonths keys).
-  const nowYm = useMemo(() => {
-    const d = new Date();
-    return { year: d.getFullYear(), month: d.getMonth() + 1 };
-  }, []);
-  const currentMonthKey = `${nowYm.year}-${String(nowYm.month).padStart(2, "0")}`;
-  const currentQuarterKey = `${nowYm.year}-Q${Math.ceil(nowYm.month / 3)}`;
-
   // Lookup per-client production rows (from ProductionHistory / Editorial Operating Model)
   const productionByClient = useMemo(() => {
     const map = new Map<string, ClientProductionRow>();
@@ -509,6 +544,37 @@ function ClientEngagementTimeline({
       .filter((c) => c.start_date)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [clients]);
+
+  // Highlight the "current" column based on the Operating Model's own data —
+  // specifically the most recent month that still carries an actual > 0 for
+  // at least one filtered client. This matches the chart's data source
+  // (not the browser clock): mid-month, the sheet still reads the previous
+  // month as the latest "actual", and we should honor that. Falls back to
+  // calendar-now if nothing in scope has actuals.
+  const { currentMonthKey, currentQuarterKey } = useMemo(() => {
+    let bestYear = 0;
+    let bestMonth = 0;
+    for (const c of activeClients) {
+      const prod = productionByClient.get(c.name);
+      if (!prod) continue;
+      for (const { year, month, actual } of prod.monthly) {
+        if (!actual || actual <= 0) continue;
+        if (year > bestYear || (year === bestYear && month > bestMonth)) {
+          bestYear = year;
+          bestMonth = month;
+        }
+      }
+    }
+    if (bestYear === 0) {
+      const d = new Date();
+      bestYear = d.getFullYear();
+      bestMonth = d.getMonth() + 1;
+    }
+    return {
+      currentMonthKey: `${bestYear}-${String(bestMonth).padStart(2, "0")}`,
+      currentQuarterKey: `${bestYear}-Q${Math.ceil(bestMonth / 3)}`,
+    };
+  }, [activeClients, productionByClient]);
 
   // Calculate the overall date range from all active clients
   const { minDate, maxDate, monthLabels } = useMemo(() => {
@@ -598,6 +664,15 @@ function ClientEngagementTimeline({
 
   if (activeClients.length === 0) return null;
 
+  // Friendly "as of <Month Year>" label derived from the highlighted column
+  // (last month with actual data in the Operating Model), so readers know
+  // exactly what the right-side totals reflect.
+  const asOfLabel = (() => {
+    const [y, m] = currentMonthKey.split("-").map(Number);
+    const d = new Date(y, (m ?? 1) - 1, 1);
+    return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  })();
+
   return (
     <div>
       <div className="flex items-start justify-between mb-3 gap-4">
@@ -609,7 +684,7 @@ function ClientEngagementTimeline({
               shows={[
                 "One row per client, month-by-month article output.",
                 "Solid bars = actually shipped. Lighter shade = still projected.",
-                "Current month is highlighted so you can eyeball whether a client is on pace.",
+                "Highlighted column = the latest month with actual data in the Operating Model; totals on the right reflect everything through that month.",
                 "Right sidebar: per-client contract totals with a reconciliation that flags SOW ↔ delivered gaps.",
               ]}
             />
@@ -621,9 +696,12 @@ function ClientEngagementTimeline({
         style={{ ["--scrollbar-gutter" as never]: "13px" }}
       >
 
-        {/* Period toggle — Monthly / Quarterly. Right-aligned since the
-            outer section header already labels the card. */}
-        <div className="flex items-start justify-end gap-3 mb-3">
+        {/* Top row: "As of …" caption (left) + period toggle (right). */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <p className="font-mono text-[11px] text-[#909090]">
+            As of <span className="text-[#65FFAA] font-semibold">{asOfLabel}</span>
+            {" "}— the latest month with actual output in the Operating Model.
+          </p>
           <div className="flex gap-1 bg-[#0d0d0d] rounded-md p-0.5 border border-[#2a2a2a] shrink-0">
             <button
               onClick={() => setCumView("monthly")}
@@ -661,39 +739,85 @@ function ClientEngagementTimeline({
         >
           <span className="w-32 shrink-0" />
           <div className="flex-1 flex items-end gap-px">
-            {activePeriods.map((p, i) => {
-              const showLabel = cumView === "quarterly" || i % 2 === 0;
+            {activePeriods.map((p) => {
               const isCurrent = cumView === "quarterly"
                 ? p.key === currentQuarterKey
                 : p.key === currentMonthKey;
+              // Split monthly labels ("Feb 25") into a two-line stack so the
+              // month abbreviation and the 2-digit year each sit on their own
+              // line — that way every column fits a readable, non-rotated
+              // label even when the timeline is 24+ months wide.
+              const [monthShort, yearShort] =
+                cumView === "monthly"
+                  ? (p.label.split(" ") as [string, string | undefined])
+                  : [p.label, undefined];
               return (
                 <div
                   key={p.key}
                   className={cn(
                     "flex-1 text-center py-0.5",
-                    showLabel && !isCurrent && "border-l border-[#2a2a2a]",
+                    !isCurrent && "border-l border-[#2a2a2a]",
                     isCurrent && "bg-[#42CA80]/14 border-x border-[#42CA80]/50",
                   )}
                 >
-                  {showLabel && (
-                    <span className={cn(
-                      "text-[10px] font-mono",
-                      isCurrent ? "text-[#65FFAA] font-semibold" : "text-[#606060]",
-                    )}>
-                      {p.label}
-                    </span>
-                  )}
+                  <span
+                    className={cn(
+                      "flex flex-col items-center leading-tight font-mono text-[10px]",
+                      isCurrent ? "text-[#65FFAA] font-semibold" : "text-[#909090]",
+                    )}
+                  >
+                    <span>{monthShort}</span>
+                    {yearShort && <span>{yearShort}</span>}
+                  </span>
                 </div>
               );
             })}
           </div>
           {/* Totals column header — bottom-aligned so it sits just above the first data row */}
           <div className="w-[320px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-5 gap-1 items-end self-end pb-0.5">
-            <TotalsHeader label="Projected" hint="Sum of articles_projected from the Editorial Operating Model — planned output still in front of us." />
-            <TotalsHeader label="Delivered" hint="Sum of articles_actual from the Operating Model (falls back to Client.articles_delivered if no rows)." />
-            <TotalsHeader label="SOW" hint="Client.articles_sow — contracted article total." />
-            <TotalsHeader label="% SOW" hint="Delivered ÷ SOW. Contract completion so far — green ≥75%, yellow ≥50%, red below." />
-            <TotalsHeader label="Reconcile" hint="sow − delivered − projected. Negative = pod is over-committed to this client." />
+            <TotalsHeader
+              label="Projected"
+              title="Projected"
+              bullets={[
+                "Planned output still in front of us",
+                "Source: Editorial Operating Model · articles_projected",
+              ]}
+            />
+            <TotalsHeader
+              label="Delivered"
+              title="Delivered"
+              bullets={[
+                "Articles already shipped to the client",
+                "Source: Editorial Operating Model · articles_actual",
+                "Falls back to Client.articles_delivered if no rows",
+              ]}
+            />
+            <TotalsHeader
+              label="SOW"
+              title="SOW"
+              bullets={[
+                "Contracted article total for this engagement",
+                "Source: Client.articles_sow",
+              ]}
+            />
+            <TotalsHeader
+              label="% SOW"
+              title="% SOW"
+              bullets={[
+                "Contract completion so far",
+                "Delivered ÷ SOW",
+                "Color: green ≥75%, yellow ≥50%, red below",
+              ]}
+            />
+            <TotalsHeader
+              label="Reconcile"
+              title="Reconcile"
+              bullets={[
+                "Headroom left between contract and pipeline",
+                "SOW − Delivered − Projected",
+                "Negative = pod is over-committed to this client",
+              ]}
+            />
           </div>
         </div>
 
@@ -845,7 +969,14 @@ function ClientEngagementTimeline({
                   <TotalsCell value={totals?.projected} />
                   <TotalsCell value={totals?.delivered} />
                   <TotalsCell value={totals?.sow} muted />
-                  <TotalsPercentCell delivered={totals?.delivered} sow={totals?.sow} />
+                  <TotalsPercentCell
+                    delivered={totals?.delivered}
+                    sow={totals?.sow}
+                    elapsedPct={elapsedContractPct(client.start_date, {
+                      endDate: client.end_date,
+                      termMonths: client.term_months,
+                    })}
+                  />
                   <TotalsCell
                     value={totals?.reconciliation}
                     color={
@@ -866,8 +997,13 @@ function ClientEngagementTimeline({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-[#2a2a2a]">
           {Object.entries(TIMELINE_POD_COLORS).map(([pod, color]) => (
             <div key={pod} className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color, opacity: 0.85 }} />
-              <span className="text-[11px] font-mono text-[#606060]">{displayPod(pod, "editorial")}</span>
+              <div
+                className="h-2.5 w-2.5 rounded-sm"
+                style={{ backgroundColor: color, opacity: 0.85 }}
+              />
+              <span className="text-[11px] font-mono text-[#606060]">
+                {displayPod(pod, "editorial")}
+              </span>
             </div>
           ))}
         </div>
@@ -908,12 +1044,14 @@ function ContractTimelineTab({
   return (
     <div className="mt-3 space-y-12">
       {/* Time-to Metrics */}
-      <TimeToMetrics clients={clients} />
+      <div id="time-to-metrics" className="scroll-mt-[180px]">
+        <TimeToMetrics clients={clients} />
+      </div>
 
       {/* Contract & Timeline — parent section that groups the engagement
           timeline and the detail table as two children. */}
-      <section>
-        <div className="mb-4 flex items-center gap-3 border-b border-[#2a2a2a] pb-2">
+      <section id="contract-timeline" className="scroll-mt-[180px]">
+        <div className="mb-4 sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
           <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
             Contract &amp; Timeline
           </h2>
@@ -925,28 +1063,29 @@ function ContractTimelineTab({
 
           {/* Detail table */}
           <div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-              Contract &amp; Timeline Detail <DataSourceBadge
-            type="live"
-            source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Milestone dates are visualized in the Time-to Metrics cards above."
-            shows={[
-              "Flat table of every filtered client — contract dates, pod, status, SOW, milestone dates.",
-              "Same raw values that feed the Time-to Metrics cards above.",
-              "Use it to look up a specific client or spot-check a sheet value.",
-            ]}
-          />
-        </h3>
-        <a
-          href="https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY/edit"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-[#C4BCAA] hover:border-[#42CA80]/40 hover:text-[#42CA80] transition-colors"
-        >
-          Open source sheet
-          <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+                Contract &amp; Timeline Detail <DataSourceBadge
+                  type="live"
+                  source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Milestone dates are visualized in the Time-to Metrics cards above."
+                  shows={[
+                    "Flat table of every filtered client — contract dates, pod, status, SOW, milestone dates.",
+                    "Same raw values that feed the Time-to Metrics cards above.",
+                    "Use it to look up a specific client or spot-check a sheet value.",
+                  ]}
+                />
+              </h3>
+              <a
+                href="https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY/edit"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open the Deliverables Master Tracker in Google Sheets"
+                className="group inline-flex items-center gap-2 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80] hover:bg-[#42CA80]/20 hover:border-[#42CA80]/50 hover:text-[#65FFAA] transition-colors"
+              >
+                Open source sheet
+                <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </a>
+            </div>
       <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
         <Table>
           <TableHeader>
@@ -1079,13 +1218,17 @@ interface ClientDeliverableSummary {
 
 function DeliverablesSOWTab({
   clients,
+  allClients,
   deliverables,
   productionTrend,
   pacingData,
   clientProduction,
   dateRange,
 }: {
+  /** Filtered set from the FilterBar — what the page should display. */
   clients: Client[];
+  /** Full client list — used by DeliveryOverviewCards to show "X of Y" framing. */
+  allClients: Client[];
   deliverables: DeliverableMonthly[];
   productionTrend: ProductionTrendPoint[];
   pacingData: ClientPacing[];
@@ -1277,13 +1420,16 @@ function DeliverablesSOWTab({
       return months;
     };
 
-    // Cap card totals at the end of the current month so projected/future
-    // rows in deliverables_monthly don't inflate "delivered" or "invoiced".
-    // The monthly popover still displays future months (marked as projected)
-    // so nothing is hidden — only the rolled-up card numbers are capped.
+    // Cap card totals at the end of the **last completed month** so
+    // partial current-month rows + projected/future rows in
+    // deliverables_monthly don't inflate "delivered" or "invoiced". The
+    // monthly popover still displays every row; current + future months
+    // render with the PROJ marker so nothing is hidden — only the
+    // rolled-up card numbers are capped.
     const now = new Date();
-    const nowY = now.getFullYear();
-    const nowM = now.getMonth() + 1;
+    const lastCompleted = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const nowY = lastCompleted.getFullYear();
+    const nowM = lastCompleted.getMonth() + 1;
     const isPastOrCurrent = (y: number, m: number): boolean =>
       y < nowY || (y === nowY && m <= nowM);
 
@@ -1391,52 +1537,29 @@ function DeliverablesSOWTab({
     });
   }, [clients, deliverables, dateRange, deliveryMeta]);
 
-  const totalSow = rows.reduce((a, r) => a + r.articles_sow, 0);
-  const totalDelivered = rows.reduce((a, r) => a + r.articles_delivered, 0);
-  const totalInvoiced = rows.reduce((a, r) => a + r.articles_invoiced, 0);
-  const overallPct = totalSow > 0 ? Math.round((totalDelivered / totalSow) * 100) : 0;
-  const avgPct =
-    rows.length > 0
-      ? Math.round(rows.reduce((a, r) => a + r.pct_complete, 0) / rows.length)
-      : 0;
-
   return (
     <div className="mt-3 space-y-8">
       {/* Section heading */}
-      <div className="flex items-center gap-3 border-b border-[#2a2a2a] pb-2">
+      <div className="sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
         <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
           Delivery Overview <DataSourceBadge
             type="live"
-            source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Articles delivered, invoiced, balance, and SOW targets."
+            source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Cards adapt to the active filter so cumulative numbers only appear when they're meaningful (single client / single pod)."
             shows={[
-              "Portfolio snapshot of article delivery vs. contract SOW.",
-              "First card adapts to the filter: client status card for 1 client, bucket mix for many.",
-              "Remaining cards: delivered, invoiced, variance (delivered − invoiced), and avg per-client completion %.",
+              "Cards switch by filter scope: single client → client drill-down; single pod → pod totals; portfolio → triage signals.",
+              "Portfolio mode replaces meaningless sums (total invoiced across every pod) with actionable cards: Most Behind, Closing in 90d, Last Q Closes, Pod Attention.",
+              "Pod mode shows pod-scoped totals + the most-behind client in that pod.",
+              "Single-client mode shows lifetime ratios + last full Q closure + days remaining.",
             ]}
           />
         </h2>
         <span className="h-px flex-1 bg-[#2a2a2a]" />
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <FilterContextCard clients={clients} rows={rows} />
-        <SummaryCard
-          title="Total Delivered vs SOW"
-          value={`${totalDelivered.toLocaleString()} / ${totalSow.toLocaleString()}`}
-          valueColor="green"
-          progress={overallPct}
-        />
-        <SummaryCard title="Total Invoiced" value={totalInvoiced.toLocaleString()} />
-        <SummaryCard
-          title="Total Variance"
-          value={(() => { const v = rows.reduce((a, r) => a + r.variance, 0); return v > 0 ? `+${v.toLocaleString()}` : v.toLocaleString(); })()}
-          valueColor={(() => { const v = rows.reduce((a, r) => a + r.variance, 0); return v >= 0 ? "green" : "white"; })()}
-        />
-        <SummaryCard
-          title="Avg Completion %"
-          value={`${avgPct}%`}
-          valueColor={avgPct >= 50 ? "green" : "white"}
-        />
-      </div>
+      <DeliveryOverviewCards
+        allClients={allClients}
+        filteredClients={clients}
+        rows={rows}
+      />
 
       {/* Production History + Client Notes. When no filtered client has a
           note, Production History spans full width instead of leaving a big
