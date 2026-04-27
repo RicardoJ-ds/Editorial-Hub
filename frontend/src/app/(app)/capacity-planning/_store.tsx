@@ -87,6 +87,11 @@ export type DeliveryMonthlyRow = {
   articlesPaid: number;
   articlesProjected: number | null;
   isActual: boolean;
+  // delivered − invoiced for the month; running sum gives cumulative variance
+  // which the Dashboard-1 health chip (`healthOf()`) consumes.
+  variance: number;
+  cumulativeDelivered: number;
+  cumulativeInvoiced: number;
   contentBriefsDelivered: number;
   contentBriefsGoal: number;
   notes: string;
@@ -669,6 +674,9 @@ function deriveSeedMaintainData(
           articlesPaid: paid,
           articlesProjected: target,
           isActual: true,
+          variance: delivered - invoiced,
+          cumulativeDelivered: delivered,
+          cumulativeInvoiced: invoiced,
           contentBriefsDelivered: Math.max(0, delivered - 1),
           contentBriefsGoal: target,
           notes: "",
@@ -1241,6 +1249,9 @@ export function CP2StoreProvider({ children }: { children: React.ReactNode }) {
           articlesPaid: 0,
           articlesProjected: null,
           isActual: true,
+          variance: 0,
+          cumulativeDelivered: 0,
+          cumulativeInvoiced: 0,
           contentBriefsDelivered: 0,
           contentBriefsGoal: 0,
           notes: "",

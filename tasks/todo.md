@@ -1,6 +1,6 @@
 # Editorial Hub — Task Tracker
 
-> **Last reviewed:** 2026-04-26
+> **Last reviewed:** 2026-04-27
 > **Related docs:**
 > - [`/CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) — CP v2 schema + phase status
 > - [`/.docs/dashboard-data-flow.md`](../.docs/dashboard-data-flow.md) — migration plan
@@ -77,6 +77,19 @@
 - [x] Tooltip standardization — every metric tooltip now uses `TooltipBody` (uppercase mono title + 2–3 bullets) with tight triggers
 - [x] `framer-motion` (12.38.0) added for layout animations on scope-aware swaps
 - [x] AI Compliance tab on D2 wired to the same `SectionIndex` + sticky h3 pattern
+
+### Header / sidebar / admin overhaul (Apr 27)
+- [x] Funnel Health card dropped from portfolio Cumulative Pipeline (redundant with Bottleneck Stage); 4-card / 5-card grid auto-tracks card count
+- [x] Tooltip text on the 4 portfolio cards rewritten in plain English (no `pp` / `trails` / `÷` jargon in user copy)
+- [x] Header bar hidden on D1 + D2; `SyncControls` extracted (`src/components/layout/SyncControls.tsx`) and rendered inline with title + filters in a single row
+- [x] Last-sync badge ("Synced Apr 23, 4:18 PM") next to SYNC button — reads `GET /api/migrate/status`, anchored to UTC, rendered via `toLocaleString()` for browser-locale + timezone
+- [x] Page-load clock removed from D1 + D2 (the badge is the only freshness signal now)
+- [x] Sticky offsets recalibrated for the no-header case (`top-[120px]`, `scroll-mt-[140px]`, `SectionIndex topOffset = 140`); filter band `min-h-[120px]` so it butts up against the h2 with no transparent gap
+- [x] Sidebar simplified — `Clients / Deliverables / Capacity / KPI Scores` hidden from nav; `Capacity Planning v2` renamed to **Capacity Maintenance** and moved under Data; `Proposal` group removed; new **Admin** section
+- [x] **`/admin/access`** UI mockup — 12 mock users × 8 sections matrix, 5 PRD §7-aligned groups, 6 mock audit entries. Zero auth wiring (real RBAC is a separate ticket)
+- [x] Fixed `key="none"` collisions on three sibling dialogs in `/capacity-planning` (and the lone one in `/allocation` for consistency)
+- [x] CP v2 alignment audit applied to `CAPACITY_PLANNING_V2.md`: pointer to `_erd.ts` as authoritative; "Dashboard-1 alignment audit (2026-04-27)" section with gap closures + 3 nice-to-have SQL view candidates
+- [x] Prototype `_store.tsx` `DeliveryMonthlyRow` synced with `_erd.ts` (`variance`, `cumulativeDelivered`, `cumulativeInvoiced`)
 
 ---
 

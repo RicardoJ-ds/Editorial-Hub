@@ -312,7 +312,7 @@ export default function AllocationPage() {
       </div>
 
       <EditClientDialog
-        key={editClient ? `c-${editClient.client.id}` : "none"}
+        key={editClient ? `c-${editClient.client.id}` : "edit-client-empty"}
         open={!!editClient}
         onOpenChange={(o) => !o && setEditClient(null)}
         month={month}

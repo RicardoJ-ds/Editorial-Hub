@@ -395,7 +395,7 @@ export default function CapacityPlanningV2() {
       </div>
 
       <EditMemberDialog
-        key={editMember ? `${editMember.podId}-${editMember.member.id}` : "none"}
+        key={editMember ? `${editMember.podId}-${editMember.member.id}` : "edit-member-empty"}
         open={!!editMember}
         onOpenChange={(o) => !o && setEditMember(null)}
         month={month}
@@ -403,14 +403,14 @@ export default function CapacityPlanningV2() {
         member={editMember?.member ?? null}
       />
       <AddMemberDialog
-        key={addMemberPod ? `add-${addMemberPod.id}` : "none"}
+        key={addMemberPod ? `add-${addMemberPod.id}` : "add-member-empty"}
         open={!!addMemberPod}
         onOpenChange={(o) => !o && setAddMemberPod(null)}
         month={month}
         pod={addMemberPod}
       />
       <EditClientDialog
-        key={editClient ? `c-${editClient.client.id}` : "none"}
+        key={editClient ? `c-${editClient.client.id}` : "edit-client-empty"}
         open={!!editClient}
         onOpenChange={(o) => !o && setEditClient(null)}
         month={month}

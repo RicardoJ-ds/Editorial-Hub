@@ -1,6 +1,6 @@
 # Dashboard Data Flow & CP v2 Migration Plan
 
-> **Last reviewed:** 2026-04-26
+> **Last reviewed:** 2026-04-27
 >
 > **Purpose.** One document to answer three questions:
 > 1. Where does each dashboard metric come from today (sheet → table → endpoint → component)?

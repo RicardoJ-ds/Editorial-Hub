@@ -63,8 +63,9 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 | `/` | Home | Lands on dashboard picker |
 | `/editorial-clients` | D1: Contract & Timeline + Deliverables vs SOW tabs | Client-level SOW tracking |
 | `/team-kpis` | D2: KPI heatmap + Capacity Projections + AI Compliance tabs | Team performance |
-| `/capacity-planning` | **CP v2 prototype** (localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md` |
-| `/data-management/*` | Admin CRUD | Clients, Deliverables, Capacity, KPI Entry, Import Wizard |
+| `/capacity-planning` | **Capacity Maintenance** (CP v2 prototype, localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md`. Sidebar entry was renamed from "Capacity Planning v2" |
+| `/data-management/import` | Import Wizard + Re-sync past months | The other CRUD pages (Clients, Deliverables, Capacity, KPI Entry) are still routable but hidden from the sidebar — they'll be replaced by the CP v2 maintain screens |
+| `/admin/access` | **Access Control** (UI mockup) | Per-user × view permission matrix + groups + audit log. Mock data only; real RBAC wiring deferred until design is signed off |
 | `/(auth)/login` | Google OAuth handshake | Redirects back to `/` |
 
 ## Data Sources & Ingestion Reality
@@ -139,7 +140,8 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 - Typography: IBM Plex Sans (body), JetBrains Mono (labels/data)
 - shadcn/ui customized with Graphite theme
 - **Section hierarchy on the dashboards**: h2 (`text-base` bold, white, `tracking-[0.2em]`) for top-level sections with a bottom-divider rule; h3 (`text-sm` semibold, `#C4BCAA`) for cards within; `text-xs` for sub-section labels. Card subtitles are avoided — explanatory copy lives inside `DataSourceBadge` tooltips (`source` + `shows` bullets).
-- **Sticky section headers**: every top-level h2 wrapper sticks at `top-[160px] z-10 bg-black` so the section title stays pinned as the user scrolls inside the section. Each `<section>` carries an `id="..."` plus `scroll-mt-[180px]` to clear the filter+tabs band on click-jumps.
+- **Header layout**: D1 (`/editorial-clients`) and D2 (`/team-kpis`) hide the global header bar entirely (`Header` returns `null` on those routes) and render `SyncControls` (last-sync timestamp + SYNC button) inline with the filter row + page title. All other routes still show the thin `h-10` header with breadcrumbs + month chip + sync controls. `SyncControls` lives in `frontend/src/components/layout/SyncControls.tsx` so both placements stay in sync.
+- **Sticky section headers**: every top-level h2 wrapper sticks at `top-[120px] z-10 bg-black` so the section title stays pinned as the user scrolls inside the section. Each `<section>` carries an `id="..."` plus `scroll-mt-[140px]` to clear the filter+tabs band on click-jumps. The filter band itself has `min-h-[120px]` so its `bg-black` butts up against the sticky h2 with no transparent gap.
 - **SectionIndex anchor nav**: each tab renders a thin sticky left-side rail (`SectionIndex`) listing its sections; click jumps to the section, scroll-spy keeps the active item highlighted. Hidden below `xl`. The component walks up the DOM and listens to every scrollable ancestor — the page's actual scroller is `<div className="ml-[64px] ... overflow-auto">` from `(app)/layout.tsx`, not `window`.
 - **Pipeline stage palette**: bars in cumulative-pipeline cards use Graphite primary greens P3 → P2 → P1 (Topics → CBs → Articles, dark → bright) plus WN1 cream for Published. Strictly DS swatches; defined as `PIPELINE_STAGE_COLORS` in `shared-helpers.tsx`.
 - **Pacing-aware status colors**: lifetime % of contract progress uses `pacingColor(actualPct, elapsedPct)` from `shared-helpers.tsx` — a brand-new client at 5 % isn't behind, they just started. Helper unifies this across per-client cards, per-pod cards, and the scope-aware top cards.
@@ -148,7 +150,7 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 - **Pod display**: always say "Editorial Pod N" or "Growth Pod N" in user-facing copy via `displayPod()` in `frontend/src/components/dashboard/shared-helpers.tsx`. Internal keys stay as `"Pod N"` so existing `POD_COLORS` lookups and Map/Set keys keep working.
 
 ### Sheet sync (live, not one-time)
-- **Header SYNC button** on every page opens a modal that fans out to `/api/migrate/import` once per sheet, shows per-sheet progress, then a rich result view (per-sheet + per-tab expandables with source-data previews).
+- **SYNC button** lives in `SyncControls` — rendered inline next to the filters on D1/D2 (since their header bar is hidden) and inside the global header on every other route. Clicking it opens `SyncAllModal` which fans out to `/api/migrate/import` once per sheet, shows per-sheet progress, then a rich result view (per-sheet + per-tab expandables with source-data previews). A "Synced Apr 23, 4:18 PM" badge sits next to the button (locale + timezone aware), reading from `GET /api/migrate/status` and refreshing on the existing `data-synced` event.
 - **`/data-management/import`** has a two-tab layout: *Import Wizard* (manual sheet picker with preview) and *Re-sync Past Months* (forces a full re-import of every `[Month Year] Goals vs Delivery` tab — normally frozen by `sheet_sync_history`).
 - All importers are idempotent (upsert on natural keys); ordering doesn't matter.
 

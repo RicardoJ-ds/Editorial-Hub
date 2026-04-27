@@ -17,7 +17,9 @@ Next.js 16.2 dashboard application for Graphite's Editorial Team.
 | `/team-kpis` | **D2**: KPI heatmap + Capacity Projections + AI Compliance tabs |
 | `/capacity-planning` | **CP v2 prototype** (proposal; localStorage-backed) |
 | `/capacity-planning/{roster,allocation,leave,overrides,weekly,quarter,gantt,schema,tables,glossary,migration,admin/*,pipeline,delivery,articles,kpi-scores,ai-scans,surfer}` | CP v2 sub-routes (see `CAPACITY_PLANNING_V2.md` for status per route) |
-| `/data-management/{clients,deliverables,capacity,kpi-entry,import}` | Admin CRUD + Import Wizard |
+| `/data-management/import` | Import Wizard + Re-sync past months (sidebar entry) |
+| `/data-management/{clients,deliverables,capacity,kpi-entry}` | Legacy CRUD pages — still routable but hidden from the sidebar; will be replaced by CP v2 maintain screens |
+| `/admin/access` | **Access Control** UI mockup — users × views permission matrix, groups (PRD §7-aligned), audit log. Mock data only |
 | `/(auth)/login` | Google OAuth handshake |
 
 ## Auth

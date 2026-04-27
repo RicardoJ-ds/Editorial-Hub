@@ -35,7 +35,7 @@ export default function GlossaryPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="sticky top-14 z-20 flex flex-col gap-3 bg-black pb-3">
+      <div className="sticky top-10 z-20 flex flex-col gap-3 bg-black pb-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-white">KPI Glossary</h2>

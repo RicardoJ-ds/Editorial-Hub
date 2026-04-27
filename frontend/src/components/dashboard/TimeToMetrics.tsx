@@ -231,7 +231,7 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+      <div className="sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
         <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
           Time-to Metrics
           <DataSourceBadge

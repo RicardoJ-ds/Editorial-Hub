@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
+import { SyncControls } from "@/components/layout/SyncControls";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -127,7 +128,6 @@ export default function TeamKpisPage() {
   const [capacityData, setCapacityData] = useState<CapacityProjection[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Unified filter state
   const [filters, setFilters] = useState<TeamKpiFilters>({
@@ -162,7 +162,6 @@ export default function TeamKpisPage() {
       setKpiScores(kpis);
       setCapacityData(capacity);
       setClients(activeClients);
-      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load team KPI data:", err);
     } finally {
@@ -257,9 +256,14 @@ export default function TeamKpisPage() {
         if (scroller) scroller.scrollTo({ top: 0, behavior: "smooth" });
         else window.scrollTo({ top: 0, behavior: "smooth" });
       }}>
-        {/* Sticky header: filters + tabs (matching D1 pattern) */}
-        <div className="sticky top-14 z-20 bg-black pb-3 -mx-8 px-8 pt-1">
-          <div className="flex items-center justify-between mb-3">
+        {/* Sticky header: title + filters + sync + tabs (matching D1 pattern).
+            min-h matches the h3 sticky top inside subsections so the band's
+            bg-black butts up against the h3 with no transparent gap. */}
+        <div className="sticky top-0 z-20 bg-black pb-3 -mx-8 px-8 pt-3 min-h-[120px]">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-3">
+            <h1 className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-white whitespace-nowrap shrink-0">
+              Team KPIs
+            </h1>
             <TeamKpiFilterBar
               teamMembers={teamMembers}
               clients={clients}
@@ -267,11 +271,9 @@ export default function TeamKpisPage() {
               filters={filters}
               onFiltersChange={setFilters}
             />
-            {lastUpdated && (
-              <p className="text-[10px] text-[#606060] font-mono shrink-0 ml-4">
-                {lastUpdated.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
+            <div className="ml-auto">
+              <SyncControls />
+            </div>
           </div>
           <TabsList variant="line">
             <TabsTrigger
@@ -477,8 +479,8 @@ function AIComplianceTab() {
       </div>
 
       {/* Flagged Articles Table */}
-      <section id="ai-flagged" className="space-y-3 scroll-mt-[180px]">
-        <h3 className="sticky top-[160px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
+      <section id="ai-flagged" className="space-y-3 scroll-mt-[140px]">
+        <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
           Flagged Articles <DataSourceBadge type="live" source="Sheet: 'Yellow/Red Flags_v2' — Spreadsheet: Writer AI Monitoring 2.0. Articles flagged for AI content review requiring editorial action." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
@@ -535,8 +537,8 @@ function AIComplianceTab() {
       </section>
 
       {/* Rewrites Table */}
-      <section id="ai-rewrites" className="space-y-3 scroll-mt-[180px]">
-        <h3 className="sticky top-[160px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
+      <section id="ai-rewrites" className="space-y-3 scroll-mt-[140px]">
+        <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
           Rewrites <DataSourceBadge type="live" source="Sheet: 'Rewrites' — Spreadsheet: Writer AI Monitoring 2.0. Articles requiring full rewrite due to AI compliance failure." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
@@ -593,8 +595,8 @@ function AIComplianceTab() {
       </section>
 
       {/* Surfer API Usage Table */}
-      <section id="ai-surfer" className="space-y-3 scroll-mt-[180px]">
-        <h3 className="sticky top-[160px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
+      <section id="ai-surfer" className="space-y-3 scroll-mt-[140px]">
+        <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
           Surfer API Usage <DataSourceBadge type="live" source="Sheet: 'Surfer&#39;s API usage' — Spreadsheet: Writer AI Monitoring 2.0. Monthly Surfer API call counts by editorial pod." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">

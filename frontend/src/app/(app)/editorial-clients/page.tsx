@@ -23,6 +23,7 @@ import type {
   ClientProductionRow,
 } from "@/lib/types";
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
+import { SyncControls } from "@/components/layout/SyncControls";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { ClientNotesPanel, hasClientNote } from "@/components/dashboard/ClientNotesPanel";
@@ -227,7 +228,6 @@ export default function EditorialClientsPage() {
   const [deliverables, setDeliverables] = useState<DeliverableMonthly[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [productionTrend, setProductionTrend] = useState<ProductionTrendPoint[]>([]);
   const [pacingData, setPacingData] = useState<ClientPacing[]>([]);
   const [clientProduction, setClientProduction] = useState<ClientProductionRow[]>([]);
@@ -241,7 +241,6 @@ export default function EditorialClientsPage() {
       setClients(clientsData);
       setFilteredClients(clientsData);
       setDeliverables(deliverablesData);
-      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -292,20 +291,23 @@ export default function EditorialClientsPage() {
         if (scroller) scroller.scrollTo({ top: 0, behavior: "smooth" });
         else window.scrollTo({ top: 0, behavior: "smooth" });
       }}>
-        {/* Sticky: title + filters + tabs */}
-        <div className="sticky top-14 z-20 bg-black pb-3 -mx-8 px-8 pt-1">
-          {/* Compact header: filters + tabs in one tight block */}
-          <div className="flex items-center justify-between mb-3">
+        {/* Sticky: title + filters + sync + tabs.
+            min-h matches the h2 sticky top inside sections so the band's
+            bg-black butts up against the h2 with no transparent gap. */}
+        <div className="sticky top-0 z-20 bg-black pb-3 -mx-8 px-8 pt-3 min-h-[120px]">
+          {/* Compact header: title + filters + sync controls in one tight row */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-3">
+            <h1 className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-white whitespace-nowrap shrink-0">
+              Editorial Clients
+            </h1>
             <FilterBar
               clients={clients}
               onFilterChange={handleFilterChange}
               onDateRangeChange={handleDateRangeChange}
             />
-            {lastUpdated && (
-              <p className="text-[11px] text-[#606060] font-mono shrink-0 ml-4">
-                {lastUpdated.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
+            <div className="ml-auto">
+              <SyncControls />
+            </div>
           </div>
           <TabsList variant="line">
             <TabsTrigger
@@ -337,7 +339,7 @@ export default function EditorialClientsPage() {
             <SectionIndex sections={TAB_2_SECTIONS} />
             <div className="flex-1 min-w-0">
               {/* Delivery Overview: summary cards + charts */}
-              <div id="delivery-overview" className="scroll-mt-[180px]">
+              <div id="delivery-overview" className="scroll-mt-[140px]">
                 <DeliverablesSOWTab
                   clients={filteredClients}
                   allClients={clients}
@@ -351,8 +353,8 @@ export default function EditorialClientsPage() {
 
               {/* Cumulative Pipeline — portfolio summary, funnel chart, then
                   per-client detail cards grouped by pod. */}
-              <section id="cumulative-pipeline" className="mt-12 scroll-mt-[180px]">
-            <div className="mb-4 sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+              <section id="cumulative-pipeline" className="mt-12 scroll-mt-[140px]">
+            <div className="mb-4 sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
               <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
                 Cumulative Pipeline <DataSourceBadge
                   type="live"
@@ -371,8 +373,8 @@ export default function EditorialClientsPage() {
 
               {/* Monthly Goals vs Delivery — summary cards + pod aggregate +
                   unified month-range table (with expandable weekly breakdown). */}
-              <section id="monthly-goals" className="mt-12 scroll-mt-[180px]">
-                <div className="mb-4 sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+              <section id="monthly-goals" className="mt-12 scroll-mt-[140px]">
+                <div className="mb-4 sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
                   <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
                     Monthly Goals vs Delivery <DataSourceBadge
                       type="live"
@@ -1044,14 +1046,14 @@ function ContractTimelineTab({
   return (
     <div className="mt-3 space-y-12">
       {/* Time-to Metrics */}
-      <div id="time-to-metrics" className="scroll-mt-[180px]">
+      <div id="time-to-metrics" className="scroll-mt-[140px]">
         <TimeToMetrics clients={clients} />
       </div>
 
       {/* Contract & Timeline — parent section that groups the engagement
           timeline and the detail table as two children. */}
-      <section id="contract-timeline" className="scroll-mt-[180px]">
-        <div className="mb-4 sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+      <section id="contract-timeline" className="scroll-mt-[140px]">
+        <div className="mb-4 sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
           <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
             Contract &amp; Timeline
           </h2>
@@ -1540,7 +1542,7 @@ function DeliverablesSOWTab({
   return (
     <div className="mt-3 space-y-8">
       {/* Section heading */}
-      <div className="sticky top-[160px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+      <div className="sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
         <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
           Delivery Overview <DataSourceBadge
             type="live"

@@ -1,6 +1,6 @@
 # Capacity Planning v2 — Proposal
 
-> **Status (2026-04-18):** UI prototype of **Phases 1–8 is shipped** to production
+> **Status (2026-04-27):** UI prototype of **Phases 1–8 is shipped** to production
 > under `/capacity-planning`, backed by `localStorage` + mock data. **Zero `cp2_*`
 > tables exist in the database.** The spec below is still the canonical plan; the
 > "Status" section at the bottom tracks what's built vs outstanding and includes
@@ -8,6 +8,34 @@
 >
 > Production alias: `editorial-hub-kappa.vercel.app/capacity-planning`.
 > Source of truth for what's actually built: `frontend/src/app/(app)/capacity-planning/`.
+>
+> **ERD authority.** The Mermaid diagram below shows the *capacity* core only.
+> The full set of `cp2_*` tables (delivery / pipeline / production / KPI /
+> AI / Surfer / engagement rules / model assumptions) lives in the prototype
+> ERD viewer at [`frontend/src/app/(app)/capacity-planning/_erd.ts`](frontend/src/app/(app)/capacity-planning/_erd.ts)
+> — that file is the authoritative column-level reference; this doc is the
+> design narrative around it.
+
+## Dashboard-1 alignment audit (2026-04-27)
+
+Audit cross-checked every metric the post-overhaul Editorial Clients dashboard
+renders against the `cp2_*` tables in `_erd.ts`. Result: **schema covers every
+Dashboard-1 metric**; three small refinements applied below. Dashboard 2 is
+out of scope for this round.
+
+| Audit finding | Status | Resolution |
+|---|---|---|
+| `cp2_fact_delivery_monthly` needs `variance_cumulative` for the health-chip rule (`healthOf()` in `shared-helpers.tsx`) | ✅ Already in `_erd.ts` as `cumulative_delivered` + `cumulative_invoiced` (variance_cumulative = delivered − invoiced) | Synced the prototype's `DeliveryMonthlyRow` type in `_store.tsx` to expose `variance`, `cumulativeDelivered`, `cumulativeInvoiced` so the migration validator + Maintain UI can already read/write them. |
+| `cp2_fact_actuals_weekly` needs `pod_id` so per-pod goal rollups don't reimplement client→pod denorm in TS | ✅ Already present in both Mermaid ERD and `_erd.ts` | No change. |
+| Content-type weighting (`article ×1, jumbo ×2, LP ×0.5`) is hard-coded in `contentTypeRatio()` rather than data-driven | ⏳ Optional | When CP v2 lands, add `cp2_dim_content_type (id, name, weight_multiplier)` and an FK on `cp2_fact_actuals_weekly`. Until then the helper stays code-side; sheet `ratios` column is fallback only. |
+| `cp2_dim_delivery_template` rows must be backfilled before pacing endpoints cut over | ⏳ Backfill task | Add as a step in Phase A.4 of the cutover sequence (already noted in `.docs/dashboard-data-flow.md` §5). |
+| Dashboard renders the "as of …" labels from latest data row, not `Date.now()` | ✅ Already supported by `cp2_fact_actuals_weekly.week_key` + `cp2_fact_production_history.month_key` | No schema change. |
+
+Pre-computed view candidates (nice-to-have, not blockers): `cp2_v_client_delivery_summary`,
+`cp2_v_cumulative_pipeline_by_pod`, `cp2_v_goals_aggregated_by_month` — would
+move the 3-step content-type aggregation, cumulative variance, and per-pod
+pacing rollups into SQL so the dashboard can read flat rows. Defer until the
+backend cutover starts.
 
 ## Design principles
 

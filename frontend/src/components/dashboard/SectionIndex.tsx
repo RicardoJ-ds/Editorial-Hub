@@ -49,7 +49,7 @@ function findScroller(el: HTMLElement | null): HTMLElement | null {
  * Renders as a thin column on xl+ screens; hidden on smaller widths so the
  * main content stays unconstrained.
  */
-export function SectionIndex({ sections, topOffset = 180 }: Props) {
+export function SectionIndex({ sections, topOffset = 140 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(
     sections[0]?.id ?? null,
   );

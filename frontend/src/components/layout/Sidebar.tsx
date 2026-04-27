@@ -6,13 +6,10 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  Building2,
-  FileText,
-  BarChart3,
-  Target,
   Download,
   Search,
   Sparkles,
+  Shield,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,16 +33,18 @@ const dashboardNav: NavItem[] = [
   { label: "Team KPIs", href: "/team-kpis", icon: Users },
 ];
 
+// Maintain CRUD pages (Clients / Deliverables / Capacity / KPI Scores) are
+// still routable but hidden from the nav — they'll be superseded by the
+// Capacity Planning v2 maintain screens once that proposal lands. The
+// "Capacity Maintenance" entry below is the proposal prototype; the
+// proposal banner inside that page declares its prototype status.
 const dataManagementNav: NavItem[] = [
-  { label: "Clients", href: "/data-management/clients", icon: Building2 },
-  { label: "Deliverables", href: "/data-management/deliverables", icon: FileText },
-  { label: "Capacity", href: "/data-management/capacity", icon: BarChart3 },
-  { label: "KPI Scores", href: "/data-management/kpi-entry", icon: Target },
   { label: "Import Data", href: "/data-management/import", icon: Download },
+  { label: "Capacity Maintenance", href: "/capacity-planning", icon: Sparkles },
 ];
 
-const proposalNav: NavItem[] = [
-  { label: "Capacity Planning v2", href: "/capacity-planning", icon: Sparkles },
+const adminNav: NavItem[] = [
+  { label: "Access Control", href: "/admin/access", icon: Shield },
 ];
 
 function NavSection({
@@ -154,8 +153,8 @@ export function Sidebar({ user }: { user: HeaderUser }) {
       {/* Navigation */}
       <nav className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-2">
         <NavSection label="Dashboards" items={dashboardNav} pathname={pathname} />
-        <NavSection label="Data Management" items={dataManagementNav} pathname={pathname} />
-        <NavSection label="Proposal" items={proposalNav} pathname={pathname} />
+        <NavSection label="Data" items={dataManagementNav} pathname={pathname} />
+        <NavSection label="Admin" items={adminNav} pathname={pathname} />
       </nav>
 
       {/* Footer — user identity + logout */}

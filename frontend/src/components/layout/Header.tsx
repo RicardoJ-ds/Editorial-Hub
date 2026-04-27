@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
-import { SyncAllModal } from "@/components/data-management/SyncAllModal";
+import { SyncControls } from "@/components/layout/SyncControls";
 
 const pageTitles: Record<string, string> = {
   "/": "Home",
@@ -15,6 +13,7 @@ const pageTitles: Record<string, string> = {
   "/data-management/capacity": "Capacity Planning",
   "/data-management/kpi-entry": "KPI Scores",
   "/data-management/import": "Import Data",
+  "/admin/access": "Access Control",
   "/capacity-planning": "Capacity Planning v2 [Proposal]",
   "/capacity-planning/roster": "Roster [Proposal]",
   "/capacity-planning/allocation": "Allocation [Proposal]",
@@ -58,8 +57,6 @@ function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
   return crumbs;
 }
 
-type SyncState = "idle" | "syncing" | "success" | "error";
-
 export type HeaderUser = {
   name: string;
   email: string;
@@ -73,39 +70,25 @@ function formatMonthKey(m: string): string | null {
   return `${d.toLocaleString("en-US", { month: "short" })} ${y}`;
 }
 
+// Routes that render their own SyncControls inline with the filter bar.
+// On those routes we hide the global header bar entirely so the dashboard
+// can use that vertical space.
+const HEADER_HIDDEN_ROUTES = new Set(["/editorial-clients", "/team-kpis"]);
+
 export function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const title = pageTitles[pathname] || "Editorial Hub";
   const breadcrumbs = getBreadcrumbs(pathname);
   const urlMonth = searchParams.get("m");
   const monthChip =
     pathname.startsWith("/capacity-planning") && urlMonth ? formatMonthKey(urlMonth) : null;
-  const [syncState, setSyncState] = useState<SyncState>("idle");
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
-  function handleSyncClick() {
-    setSyncError(null);
-    setSyncState("syncing");
-    setModalOpen(true);
-  }
-
-  function handleSyncComplete(allOk: boolean) {
-    if (allOk) {
-      setSyncState("success");
-      setTimeout(() => setSyncState("idle"), 5000);
-    } else {
-      setSyncState("error");
-      setSyncError("Some sheets failed");
-      setTimeout(() => setSyncState("idle"), 8000);
-    }
-  }
+  if (HEADER_HIDDEN_ROUTES.has(pathname)) return null;
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-[#1e1e1e] bg-black px-6">
-      {/* Left: Page title + breadcrumb */}
-      <div className="flex flex-col justify-center">
+    <header className="flex h-10 items-center justify-between border-b border-[#1e1e1e] bg-black px-6">
+      {/* Left: breadcrumb (only multi-segment routes) + month chip */}
+      <div className="flex items-center gap-3">
         {breadcrumbs.length > 1 && (
           <div className="flex items-center gap-1.5 text-[10px]">
             {breadcrumbs.slice(0, -1).map((crumb, i) => (
@@ -119,64 +102,15 @@ export function Header() {
             <span className="text-[#404040]">/</span>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <h1 className="text-sm font-semibold text-white">{title}</h1>
-          {monthChip && (
-            <span className="rounded border border-[#42CA80]/40 bg-[#42CA80]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#65FFAA]">
-              {monthChip}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Right: Sync button */}
-      <div className="flex items-center gap-3">
-        <SyncAllModal
-          open={modalOpen}
-          onOpenChange={(v) => {
-            setModalOpen(v);
-            if (!v && syncState === "syncing") {
-              // User closed before completion — reset the badge.
-              setSyncState("idle");
-            }
-          }}
-          onComplete={handleSyncComplete}
-        />
-        <button
-          type="button"
-          onClick={handleSyncClick}
-          disabled={syncState === "syncing" && modalOpen}
-          title={syncError ?? "Sync all data from Google Sheets"}
-          className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition-all duration-200 ${
-            syncState === "syncing"
-              ? "cursor-wait border-[#333] bg-[#1a1a1a] text-[#606060]"
-              : syncState === "success"
-                ? "border-[#42CA80]/30 bg-[#42CA80]/10 text-[#42CA80]"
-                : syncState === "error"
-                  ? "border-[#ED6958]/30 bg-[#ED6958]/10 text-[#ED6958]"
-                  : "border-[#333] bg-[#1a1a1a] text-[#999] hover:border-[#42CA80]/40 hover:text-white"
-          }`}
-        >
-          {syncState === "syncing" && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          )}
-          {syncState === "success" && (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          )}
-          {syncState === "error" && <XCircle className="h-3.5 w-3.5" />}
-          {syncState === "idle" && <RefreshCw className="h-3.5 w-3.5" />}
-          <span>
-            {syncState === "syncing"
-              ? "Syncing..."
-              : syncState === "success"
-                ? "Synced"
-                : syncState === "error"
-                  ? "Failed"
-                  : "Sync"}
+        {monthChip && (
+          <span className="rounded border border-[#42CA80]/40 bg-[#42CA80]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#65FFAA]">
+            {monthChip}
           </span>
-        </button>
-
+        )}
       </div>
+
+      {/* Right: sync controls */}
+      <SyncControls />
     </header>
   );
 }

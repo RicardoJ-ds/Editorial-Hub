@@ -6,14 +6,53 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ClientStatusCard } from "./FilterContextCard";
 import {
   PIPELINE_STAGE_COLORS,
+  TooltipBody,
   displayPod,
   elapsedContractPct,
   pacingColor,
   podBadge,
   type PipelineStage,
 } from "./shared-helpers";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import type { Client, CumulativeMetric } from "@/lib/types";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Card title with explainer tooltip — used on the portfolio overview cards
+// (Approval Progress / Bottleneck / Funnel Health / Most Stuck / Pod
+// Attention) so a reviewer hovering the title sees what the card actually
+// computes. Dotted underline hints there's an explanation behind the label.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CardTitleWithTooltip({
+  label,
+  body,
+}: {
+  label: string;
+  body: { title: string; bullets: React.ReactNode[] };
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA] cursor-help underline decoration-dotted underline-offset-2 decoration-[#404040] inline-block" />
+          }
+        >
+          {label}
+        </TooltipTrigger>
+        <TooltipContent>
+          <TooltipBody {...body} />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pacing — neutralizes the "mature pod has higher %, new pod looks bad"
@@ -107,11 +146,16 @@ export function CumulativePipelineCards({ filteredClients, rows }: Props) {
 
   const cards = useMemo(() => buildCards(ctx), [ctx]);
 
+  // Column count tracks card count so a row never has empty slots: 5 cards in
+  // client / pod scope (status + 4 stages), 4 cards in portfolio scope.
+  const lgCols = cards.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4";
+  const smCols = cards.length === 5 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+
   return (
     <motion.div
       layout
       transition={CARD_TRANSITION}
-      className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+      className={`grid grid-cols-1 gap-3 ${smCols} ${lgCols}`}
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {cards.map(({ key, node }) => (
@@ -413,7 +457,6 @@ function buildCards(ctx: Context): { key: string; node: React.ReactNode }[] {
       ),
     },
     { key: "port-bottleneck", node: <BottleneckCard agg={ctx.portfolio} /> },
-    { key: "port-funnel", node: <FunnelHealthCard agg={ctx.portfolio} /> },
     {
       key: "port-stuck",
       node: <MostStuckCard data={Array.from(ctx.byClient.values())} />,
@@ -509,9 +552,17 @@ function ApprovalMixCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Approval Progress
-        </p>
+        <CardTitleWithTooltip
+          label="Approval Progress"
+          body={{
+            title: "Approval Progress",
+            bullets: [
+              "Big number: how much of the contracted work has been approved across the clients you're seeing — approved articles ÷ contracted articles.",
+              "Behind / On Pace / Ahead = how many clients are tracking with where their contract should be by now (within ±10 points of expected).",
+              "Clients without contract dates are counted in the big number but skipped in the pacing buckets — no expected pace to compare against.",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           {subtitle}{withTime > 0 ? ` · ${withTime} with contract time` : ""}
         </p>
@@ -572,13 +623,19 @@ function BottleneckCard({ agg }: { agg: Aggregate }) {
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [agg]);
 
+  const bottleneckTooltip = {
+    title: "Bottleneck Stage",
+    bullets: [
+      "Where the pipeline loses the most volume between stages (Topics → CBs → Articles → Published).",
+      "Big label: the stage with the biggest drop-off.",
+      "‘73% pass’ = 73 of every 100 items make it to the next stage. ‘902 lost’ = how many got stuck at this step across all clients.",
+    ],
+  };
   if (drops.length === 0) {
     return (
       <Card className="h-full border-[#2a2a2a] bg-[#161616]">
         <CardContent className="pt-0">
-          <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-            Bottleneck Stage
-          </p>
+          <CardTitleWithTooltip label="Bottleneck Stage" body={bottleneckTooltip} />
           <p className="mt-0.5 text-[11px] text-[#909090]">No data</p>
           <p className="mt-1.5 font-mono text-2xl font-bold text-[#606060]">—</p>
         </CardContent>
@@ -590,9 +647,7 @@ function BottleneckCard({ agg }: { agg: Aggregate }) {
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Bottleneck Stage
-        </p>
+        <CardTitleWithTooltip label="Bottleneck Stage" body={bottleneckTooltip} />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           Biggest funnel drop
         </p>
@@ -630,56 +685,6 @@ function BottleneckCard({ agg }: { agg: Aggregate }) {
   );
 }
 
-function FunnelHealthCard({ agg }: { agg: Aggregate }) {
-  const tToCb = agg.topics > 0 ? Math.round((agg.cbs / agg.topics) * 100) : null;
-  const cbToArt = agg.cbs > 0 ? Math.round((agg.articles / agg.cbs) * 100) : null;
-  const artToPub =
-    agg.articles > 0 ? Math.round((agg.published / agg.articles) * 100) : null;
-  // Headline: the lowest conversion is what defines funnel health.
-  const lowest = [tToCb, cbToArt, artToPub]
-    .filter((x): x is number => x !== null)
-    .sort((a, b) => a - b)[0];
-  const color = ratioColor(lowest ?? null);
-  return (
-    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
-      <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Funnel Health
-        </p>
-        <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          Stage-to-stage conversion
-        </p>
-        <p
-          className="mt-1.5 font-mono text-2xl font-bold tabular-nums"
-          style={{ color }}
-        >
-          {lowest === undefined ? "—" : `${lowest}%`}
-          <span className="ml-1 text-xs text-[#606060] font-normal">weakest stage</span>
-        </p>
-        <ul className="mt-1.5 space-y-0.5">
-          <ConversionRow label="T → CB" pct={tToCb} />
-          <ConversionRow label="CB → Art" pct={cbToArt} />
-          <ConversionRow label="Art → Pub" pct={artToPub} />
-        </ul>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ConversionRow({ label, pct }: { label: string; pct: number | null }) {
-  const color = ratioColor(pct);
-  return (
-    <li className="flex items-center justify-between gap-2 font-mono text-[11px]">
-      <span className="text-[#C4BCAA] uppercase tracking-wider text-[10px]">
-        {label}
-      </span>
-      <span className="tabular-nums font-semibold" style={{ color }}>
-        {pct === null ? "—" : `${pct}%`}
-      </span>
-    </li>
-  );
-}
-
 function MostStuckCard({ data }: { data: ClientPipelineDatum[] }) {
   const top = useMemo(() => {
     return [...data]
@@ -690,9 +695,17 @@ function MostStuckCard({ data }: { data: ClientPipelineDatum[] }) {
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Most Stuck
-        </p>
+        <CardTitleWithTooltip
+          label="Most Stuck"
+          body={{
+            title: "Most Stuck",
+            bullets: [
+              "The 3 clients furthest behind their contract pace.",
+              "Each client's % of articles approved is compared to where they should be at this point in their contract.",
+              "‘-25pp’ = 25 points behind expected. Clients without contract dates are skipped (no pace to compare against).",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           Articles vs. expected pacing
         </p>
@@ -738,13 +751,19 @@ function PodAttentionCard({ byPod }: { byPod: Map<string, Aggregate> }) {
       .sort((a, b) => (a.delta ?? 0) - (b.delta ?? 0));
   }, [byPod]);
 
+  const podAttentionTooltip = {
+    title: "Pod Attention",
+    bullets: [
+      "Which editorial pod most needs attention right now.",
+      "Each pod is scored by how far behind its clients are vs. where their contracts say they should be. Bigger contracts weigh more in the pod's score.",
+      "Big label = the worst-pacing pod. ‘-20pp pacing’ = 20 points behind expected.",
+    ],
+  };
   if (stats.length === 0) {
     return (
       <Card className="h-full border-[#2a2a2a] bg-[#161616]">
         <CardContent className="pt-0">
-          <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-            Pod Attention
-          </p>
+          <CardTitleWithTooltip label="Pod Attention" body={podAttentionTooltip} />
           <p className="mt-0.5 text-[11px] text-[#909090]">No pod data</p>
           <p className="mt-1.5 font-mono text-2xl font-bold text-[#606060]">—</p>
         </CardContent>
@@ -761,9 +780,7 @@ function PodAttentionCard({ byPod }: { byPod: Map<string, Aggregate> }) {
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Pod Attention
-        </p>
+        <CardTitleWithTooltip label="Pod Attention" body={podAttentionTooltip} />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           Articles pacing across pods
         </p>
