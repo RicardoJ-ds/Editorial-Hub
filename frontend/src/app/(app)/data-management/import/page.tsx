@@ -581,6 +581,12 @@ function StepPreview({
 // Step 4: Importing
 // ---------------------------------------------------------------------------
 
+// Synthetic step appended after the per-sheet loop so the user sees the
+// Notion-derived KPI refresh as a discrete progress row. The "@" prefix
+// keeps the key from colliding with any real sheet name.
+const REFRESH_KPIS_KEY = "@refresh-kpis";
+const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
+
 function StepImporting({
   selectedSheets,
   onComplete,
@@ -588,9 +594,16 @@ function StepImporting({
   selectedSheets: string[];
   onComplete: (response: ImportResponse) => void;
 }) {
+  // The progress list always renders an extra row for the KPI refresh —
+  // the wizard imports specific sheets, but Revision Rate / Turnaround
+  // Time / Second Reviews / Capacity Utilization are derived from
+  // notion_articles + capacity_projections so they need recomputing
+  // whenever ANY of those sources might have changed. Easier to always
+  // run it than to gate per-sheet.
+  const stepsWithKpis = [...selectedSheets, REFRESH_KPIS_KEY];
   const [sheetStatuses, setSheetStatuses] = useState<
     Record<string, "pending" | "importing" | "done" | "error">
-  >(() => Object.fromEntries(selectedSheets.map((s) => [s, "pending"])));
+  >(() => Object.fromEntries(stepsWithKpis.map((s) => [s, "pending"])));
   const [results, setResults] = useState<Record<string, ImportResultItem>>({});
   const [progress, setProgress] = useState(0);
   const [started, setStarted] = useState(false);
@@ -631,17 +644,50 @@ function StepImporting({
         allOk = false;
       }
 
-      setProgress(((i + 1) / selectedSheets.length) * 100);
+      setProgress(((i + 1) / stepsWithKpis.length) * 100);
     }
 
-    // Auto-advance after all sheets processed
+    // Refresh computed KPIs — same step the SYNC button runs.
+    setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "importing" }));
+    try {
+      const resp = await apiPost<{
+        months_processed: number;
+        scores_updated: number;
+        months: string[];
+      }>("/api/migrate/refresh-kpis", {});
+      const kpiResult: ImportResultItem = {
+        sheet: REFRESH_KPIS_LABEL,
+        rows_parsed: resp.months_processed,
+        rows_imported: resp.scores_updated,
+        success: true,
+        errors: [],
+      };
+      allResults.push(kpiResult);
+      setResults((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: kpiResult }));
+      setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "done" }));
+    } catch (err) {
+      const errorResult: ImportResultItem = {
+        sheet: REFRESH_KPIS_LABEL,
+        rows_parsed: 0,
+        rows_imported: 0,
+        success: false,
+        errors: [err instanceof Error ? err.message : "KPI refresh failed"],
+      };
+      allResults.push(errorResult);
+      setResults((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: errorResult }));
+      setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "error" }));
+      allOk = false;
+    }
+    setProgress(100);
+
+    // Auto-advance after every step processed
     const finalResponse: ImportResponse = {
       results: allResults,
       total_imported: allResults.reduce((sum, r) => sum + r.rows_imported, 0),
       all_ok: allOk,
     };
     setTimeout(() => onComplete(finalResponse), 800);
-  }, [selectedSheets, onComplete]);
+  }, [selectedSheets, onComplete, stepsWithKpis.length]);
 
   // Auto-start
   if (!started) {
@@ -666,11 +712,12 @@ function StepImporting({
         </Progress>
       </div>
 
-      {/* Per-sheet status */}
+      {/* Per-sheet status (plus a synthetic row for the KPI refresh) */}
       <div className="space-y-2">
-        {selectedSheets.map((sheetName) => {
+        {stepsWithKpis.map((sheetName) => {
           const status = sheetStatuses[sheetName];
           const result = results[sheetName];
+          const isKpiStep = sheetName === REFRESH_KPIS_KEY;
 
           return (
             <div
@@ -701,10 +748,14 @@ function StepImporting({
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <span className="font-medium text-white">{sheetName}</span>
+                <span className="font-medium text-white">
+                  {isKpiStep ? REFRESH_KPIS_LABEL : sheetName}
+                </span>
                 {result && status === "done" && (
                   <span className="ml-3 font-mono text-xs text-[#42CA80]">
-                    {result.rows_imported} rows imported
+                    {isKpiStep
+                      ? `${result.rows_imported} scores · ${result.rows_parsed} mo`
+                      : `${result.rows_imported} rows imported`}
                   </span>
                 )}
                 {result && status === "error" && result.errors.length > 0 && (
