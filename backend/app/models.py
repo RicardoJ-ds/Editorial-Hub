@@ -183,6 +183,12 @@ class AuditLog(Base):
 
 class ProductionHistory(Base):
     __tablename__ = "production_history"
+    # The Operating Model importer upserts by (client_id, year, month).
+    # Enforce the invariant at the DB level so future races / autoflush
+    # quirks can't reintroduce the duplicates we found in prod (Apr 2026).
+    __table_args__ = (
+        UniqueConstraint("client_id", "year", "month", name="uq_production_history_client_ym"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(

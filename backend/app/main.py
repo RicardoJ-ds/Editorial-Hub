@@ -1,7 +1,9 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
 from app.database import engine
@@ -21,12 +23,68 @@ from app.routers import (
     team_members,
 )
 
+logger = logging.getLogger(__name__)
+
+
+async def _run_data_migrations(conn) -> None:
+    """One-shot data migrations applied at app startup.
+
+    Why this lives here: the project doesn't use Alembic — schema is created
+    via `Base.metadata.create_all`. That handles new tables but never alters
+    an existing table's constraints. So any invariant we want to enforce on
+    a long-lived production DB has to be applied explicitly here.
+
+    Each migration must be idempotent (safe to re-run on every deploy).
+    """
+    # 1. production_history: dedupe + add unique (client_id, year, month).
+    #    The Operating Model importer has always upserted by that triple,
+    #    but the upsert ran without DB-level enforcement, so any historical
+    #    race / autoflush hiccup left duplicate rows behind in prod (~60%
+    #    of keys had two copies). The duplicates double the bar values on
+    #    the Client Engagement Timeline because the dashboard sums by
+    #    (client, month). Dedupe first, then add the constraint so future
+    #    bad INSERTs fail loudly.
+    try:
+        await conn.execute(
+            text(
+                """
+                DELETE FROM production_history p1
+                USING production_history p2
+                WHERE p1.client_id = p2.client_id
+                  AND p1.year = p2.year
+                  AND p1.month = p2.month
+                  AND p1.id < p2.id
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'uq_production_history_client_ym'
+                    ) THEN
+                        ALTER TABLE production_history
+                            ADD CONSTRAINT uq_production_history_client_ym
+                            UNIQUE (client_id, year, month);
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
+    except Exception:
+        logger.exception("production_history dedupe/constraint migration failed (continuing)")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup
+    # Create tables on startup, then apply idempotent data migrations.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _run_data_migrations(conn)
     yield
     await engine.dispose()
 
