@@ -30,6 +30,12 @@ interface ImportResponse {
 
 type SheetStatus = "pending" | "importing" | "done" | "error";
 
+// Synthetic step appended after the per-sheet loop so the user sees the
+// Notion-derived KPI refresh as a discrete "step" in the same UI. The key
+// is namespaced with a "@" so it can never collide with a real sheet name.
+const REFRESH_KPIS_KEY = "@refresh-kpis";
+const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
+
 // Mirrors the wizard's isImportable() so the one-click modal syncs the same
 // sheets the wizard would have auto-selected — nothing more, nothing less.
 const IMPORTABLE_EXACT = new Set([
@@ -96,8 +102,12 @@ export function SyncAllModal({
     }
 
     if (runId !== runIdRef.current) return;
-    setSheets(importable);
-    setStatuses(Object.fromEntries(importable.map((s) => [s, "pending"])));
+    // Append the synthetic "refresh KPIs" step so it shows up in the
+    // progress UI like any other sheet. The actual fetch fires after the
+    // per-sheet loop finishes.
+    const stepsWithKpis = [...importable, REFRESH_KPIS_KEY];
+    setSheets(stepsWithKpis);
+    setStatuses(Object.fromEntries(stepsWithKpis.map((s) => [s, "pending"])));
     setPhase("importing");
 
     const acc: SyncResultItem[] = [];
@@ -127,6 +137,40 @@ export function SyncAllModal({
         setResults([...acc]);
         setStatuses((prev) => ({ ...prev, [sheet]: "error" }));
       }
+    }
+
+    if (runId !== runIdRef.current) return;
+
+    // Notion-derived KPI refresh — the four KPIs that aren't on any sheet
+    // (revision_rate, turnaround_time, second_reviews, capacity_utilization)
+    // get computed here. Without this step the heatmap would only update
+    // its sheet-derived columns on every sync.
+    setStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "importing" }));
+    try {
+      const resp = await apiPost<{
+        months_processed: number;
+        scores_updated: number;
+        months: string[];
+      }>("/api/migrate/refresh-kpis", {});
+      acc.push({
+        sheet: REFRESH_KPIS_LABEL,
+        rows_parsed: resp.months_processed,
+        rows_imported: resp.scores_updated,
+        success: true,
+        errors: [],
+      });
+      setResults([...acc]);
+      setStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "done" }));
+    } catch (err) {
+      acc.push({
+        sheet: REFRESH_KPIS_LABEL,
+        rows_parsed: 0,
+        rows_imported: 0,
+        success: false,
+        errors: [err instanceof Error ? err.message : "KPI refresh failed"],
+      });
+      setResults([...acc]);
+      setStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "error" }));
     }
 
     if (runId !== runIdRef.current) return;
@@ -200,7 +244,10 @@ export function SyncAllModal({
               <div className="space-y-1.5">
                 {sheets.map((sheet) => {
                   const status = statuses[sheet] ?? "pending";
-                  const result = results.find((r) => r.sheet === sheet);
+                  const isKpiStep = sheet === REFRESH_KPIS_KEY;
+                  const result = isKpiStep
+                    ? results.find((r) => r.sheet === REFRESH_KPIS_LABEL)
+                    : results.find((r) => r.sheet === sheet);
                   return (
                     <div
                       key={sheet}
@@ -227,11 +274,13 @@ export function SyncAllModal({
                         )}
                       </div>
                       <span className="flex-1 min-w-0 truncate font-medium text-white text-sm">
-                        {sheet}
+                        {isKpiStep ? REFRESH_KPIS_LABEL : sheet}
                       </span>
                       {result && status === "done" && (
                         <span className="shrink-0 font-mono text-[11px] text-[#42CA80] tabular-nums">
-                          {result.rows_imported.toLocaleString()} rows
+                          {isKpiStep
+                            ? `${result.rows_imported.toLocaleString()} scores · ${result.rows_parsed} mo`
+                            : `${result.rows_imported.toLocaleString()} rows`}
                         </span>
                       )}
                       {result && status === "error" && result.errors[0] && (

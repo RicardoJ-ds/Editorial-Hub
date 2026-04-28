@@ -14,10 +14,19 @@ async def list_kpi_scores(
     team_member_id: int | None = None,
     year: int | None = None,
     month: int | None = None,
+    # Inclusive (year, month) range — clients use these to fetch a span
+    # (e.g. "Jan 2026 → Apr 2026") in one call so the frontend can aggregate
+    # across the active date filter without N round-trips. The boundaries
+    # are converted to a YYYY*100+MM ordinal so the comparison handles
+    # cross-year ranges (e.g. Nov 2025 → Feb 2026) correctly.
+    year_from: int | None = None,
+    month_from: int | None = None,
+    year_to: int | None = None,
+    month_to: int | None = None,
     kpi_type: str | None = None,
     client_id: int | None = None,
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(KpiScore)
@@ -32,6 +41,14 @@ async def list_kpi_scores(
         stmt = stmt.where(KpiScore.kpi_type == kpi_type)
     if client_id is not None:
         stmt = stmt.where(KpiScore.client_id == client_id)
+
+    # Range filter — only applies if both year_from + month_from are given
+    # (and matching pair on the upper bound). Each side is independent.
+    ordinal = KpiScore.year * 100 + KpiScore.month
+    if year_from is not None and month_from is not None:
+        stmt = stmt.where(ordinal >= year_from * 100 + month_from)
+    if year_to is not None and month_to is not None:
+        stmt = stmt.where(ordinal <= year_to * 100 + month_to)
 
     stmt = stmt.offset(skip).limit(limit).order_by(KpiScore.year.desc(), KpiScore.month.desc())
     result = await db.execute(stmt)

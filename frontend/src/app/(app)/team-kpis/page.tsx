@@ -40,6 +40,123 @@ import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
 import { SyncControls } from "@/components/layout/SyncControls";
+import { TooltipBody } from "@/components/dashboard/shared-helpers";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Per-column tooltips on the KPI heatmap. Hovering a header surfaces the
+// formula, target, direction (higher / lower is better), source, and the
+// known caveats — so reviewers don't have to chase the source code to know
+// what an empty cell or a stale value means.
+const KPI_HEATMAP_TOOLTIPS: Record<
+  string,
+  { title: string; bullets: React.ReactNode[] }
+> = {
+  internal_quality: {
+    title: "Internal Quality",
+    bullets: [
+      "Source: [Mock] Monthly KPI Scores sheet — refreshed every SYNC.",
+      "Score 0–100, higher is better. Target ≥ 85.",
+      "Senior Editors grade article quality + style adherence on each piece.",
+    ],
+  },
+  external_quality: {
+    title: "External Quality",
+    bullets: [
+      "Source: [Mock] Monthly KPI Scores sheet — refreshed every SYNC.",
+      "Score 0–100, higher is better. Target ≥ 85.",
+      "Client satisfaction collected from feedback rounds during the month.",
+    ],
+  },
+  mentorship: {
+    title: "Mentorship",
+    bullets: [
+      "Source: [Mock] Monthly KPI Scores sheet — Senior Editors only.",
+      "Score 0–100, higher is better. Target ≥ 80.",
+      "Editors below an SE record their growth; their SE inherits the score.",
+    ],
+  },
+  feedback_adoption: {
+    title: "Feedback Adoption",
+    bullets: [
+      "Source: [Mock] Monthly KPI Scores sheet — Editors only.",
+      "Score 0–100, higher is better. Target ≥ 80.",
+      "How well edits from Senior Editors get applied on the next round.",
+    ],
+  },
+  revision_rate: {
+    title: "Revision Rate",
+    bullets: [
+      "Computed from notion_articles — articles where article_status falls in the revision set ÷ total articles edited (or sr-edited) by this person.",
+      "Lower is better. Target ≤ 15%.",
+      "If the Notion workflow renames a status, the constant in notion_kpi_service.py needs updating.",
+    ],
+  },
+  turnaround_time: {
+    title: "Turnaround Time",
+    bullets: [
+      "Computed from notion_articles — mean of (article_delivered_date − cb_delivered_date), in days, across this person's articles.",
+      "Lower is better. Target ≤ 14 days. Deltas outside (0, 365) are dropped as outliers.",
+      "Empty cell = the editor has no articles with both dates filled in for the active range.",
+    ],
+  },
+  second_reviews: {
+    title: "Second Reviews",
+    bullets: [
+      "Senior Editors only. Counts articles where this person is sr_editor and created_date falls in the active month.",
+      "Higher is better. Target ≥ 5 per month.",
+      "Fallback when no rows match: total sr-articles ÷ 6 — rough monthly avg, not a real count.",
+    ],
+  },
+  capacity_utilization: {
+    title: "Capacity Utilization",
+    bullets: [
+      "Pod-level number from capacity_projections: (used ÷ total_capacity) × 100.",
+      "Higher is better. Target ≥ 82.5%.",
+      "Replicated to every member of the pod — two SEs in Pod 3 will always show the same value here.",
+    ],
+  },
+  ai_compliance: {
+    title: "AI Compliance",
+    bullets: [
+      "Source: ai_monitoring_records (Writer AI Monitoring 2.0).",
+      "New scans paused upstream — column will stay empty until that resumes.",
+      "Once active, it'll grade article AI usage against the team's compliance rubric.",
+    ],
+  },
+};
+
+function KpiColumnHeader({ kpiType }: { kpiType: string }) {
+  const display = KPI_DISPLAY_NAMES[kpiType] ?? kpiType;
+  const body = KPI_HEATMAP_TOOLTIPS[kpiType];
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="cursor-help underline decoration-dotted underline-offset-2 decoration-[#404040] inline-block leading-tight" />
+          }
+        >
+          {display.split(" ").map((word, i, arr) => (
+            <span key={i}>
+              {word}
+              {i < arr.length - 1 && <br />}
+            </span>
+          ))}
+        </TooltipTrigger>
+        {body && (
+          <TooltipContent side="bottom" className="max-w-sm">
+            <TooltipBody {...body} />
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -129,32 +246,62 @@ export default function TeamKpisPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Unified filter state
-  const [filters, setFilters] = useState<TeamKpiFilters>({
-    search: "",
-    pod: "All",
-    growthPod: "All",
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-    memberId: "All",
-    clientId: "All",
+  // Unified filter state — date-range-driven (matches D1's FilterBar UX).
+  // Default: current month → +6 months out (mirrors what D1 picks on load).
+  const [filters, setFilters] = useState<TeamKpiFilters>(() => {
+    const start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      pod: "All",
+      growthPod: "All",
+      memberId: "All",
+      clientId: "All",
+      dateRange: { type: "range", from: start, to: end },
+    };
   });
 
   // Backwards-compat aliases for existing code
   const selectedPod = filters.pod;
-  const selectedMonth = filters.month;
-  const selectedYear = filters.year;
   const selectedMember = filters.memberId;
   const selectedClient = filters.clientId;
-  const searchQuery = filters.search;
+  const dateRange = filters.dateRange;
+
+  // Translate the active date range into year_from/month_from/year_to/
+  // month_to pairs for the kpis API. When the range is "all" we omit them
+  // and the backend returns every row.
+  const dateRangeQuery = useMemo(() => {
+    if (dateRange.type !== "range" || !dateRange.from) return null;
+    const to = dateRange.to ?? dateRange.from;
+    return {
+      yf: dateRange.from.getFullYear(),
+      mf: dateRange.from.getMonth() + 1,
+      yt: to.getFullYear(),
+      mt: to.getMonth() + 1,
+    };
+  }, [dateRange]);
+
+  // Headline month for the legacy single-month KPI cards under the heatmap
+  // — pick the latest month in the active range so the cards show fresh
+  // data without ignoring the user's pick.
+  const headlineYM = useMemo(() => {
+    if (dateRangeQuery) return { y: dateRangeQuery.yt, m: dateRangeQuery.mt };
+    return { y: now.getFullYear(), m: now.getMonth() + 1 };
+  }, [dateRangeQuery, now]);
+  const selectedYear = headlineYM.y;
+  const selectedMonth = headlineYM.m;
 
   const fetchData = useCallback(async () => {
     try {
+      const kpiQs = new URLSearchParams({ limit: "5000" });
+      if (dateRangeQuery) {
+        kpiQs.set("year_from", String(dateRangeQuery.yf));
+        kpiQs.set("month_from", String(dateRangeQuery.mf));
+        kpiQs.set("year_to", String(dateRangeQuery.yt));
+        kpiQs.set("month_to", String(dateRangeQuery.mt));
+      }
       const [members, kpis, capacity, activeClients] = await Promise.all([
         apiGet<TeamMember[]>("/api/team-members/?limit=200"),
-        apiGet<KpiScore[]>(
-          `/api/kpis/?limit=500&year=${selectedYear}&month=${selectedMonth}`
-        ),
+        apiGet<KpiScore[]>(`/api/kpis/?${kpiQs.toString()}`),
         apiGet<CapacityProjection[]>("/api/capacity/?limit=200"),
         apiGet<Client[]>("/api/clients/?status=ACTIVE&limit=100"),
       ]);
@@ -167,7 +314,7 @@ export default function TeamKpisPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, selectedMonth]);
+  }, [dateRangeQuery]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -187,7 +334,9 @@ export default function TeamKpisPage() {
     return map;
   }, [clients]);
 
-  // Filter members by pod, member selection, and search query
+  // Filter members by pod and member selection. The combobox already
+  // surfaces typeahead inside the dropdown, so there's no separate search
+  // text input to apply at the page level.
   const filteredMembers = useMemo(() => {
     let result = teamMembers;
     if (selectedPod !== "All") {
@@ -196,12 +345,8 @@ export default function TeamKpisPage() {
     if (selectedMember !== "All") {
       result = result.filter((m) => String(m.id) === selectedMember);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((m) => m.name.toLowerCase().includes(q));
-    }
     return result;
-  }, [teamMembers, selectedPod, selectedMember, searchQuery]);
+  }, [teamMembers, selectedPod, selectedMember]);
 
   // Filter KPI scores by selected client (and by Growth Pod when set — any
   // KPI row attributed to a client outside the selected growth pod is hidden).
@@ -226,14 +371,7 @@ export default function TeamKpisPage() {
     return capacityData.filter((c) => c.pod === selectedPod);
   }, [capacityData, selectedPod]);
 
-  // Year options from data
-  const yearOptions = useMemo(() => {
-    const years = new Set<number>();
-    years.add(now.getFullYear());
-    kpiScores.forEach((k) => years.add(k.year));
-    capacityData.forEach((c) => years.add(c.year));
-    return Array.from(years).sort((a, b) => b - a);
-  }, [kpiScores, capacityData]);
+  // (Year-options dropdown removed — replaced by DateRangeFilter.)
 
   if (loading) {
     return (
@@ -267,7 +405,6 @@ export default function TeamKpisPage() {
             <TeamKpiFilterBar
               teamMembers={teamMembers}
               clients={clients}
-              yearOptions={yearOptions}
               filters={filters}
               onFiltersChange={setFilters}
             />
@@ -782,17 +919,47 @@ function KpiPerformanceTab({
     return stats;
   }, [grouped, scores, year, month]);
 
-  // Build score lookup for heatmap
+  // Build score lookup for heatmap.
+  //
+  // The page now drives this from a date range (month_from → month_to)
+  // instead of a single (year, month). Each cell aggregates every score
+  // for the (member × kpi_type) inside the active range:
+  //   • score: arithmetic mean across the months that have a non-null
+  //     score (so a 3-month gap doesn't drag the average to zero).
+  //   • target: latest non-null target in the range — targets do shift
+  //     over time and "now" is the most relevant.
+  // For Second Reviews — which is a count, not a score — the mean across
+  // months still reads as "avg per month in the range", which is the
+  // same framing the per-card detail uses, so there's no divergence.
   const scoreMap = useMemo(() => {
-    const map = new Map<string, KpiScore>();
+    type Agg = { sum: number; n: number; latestTarget: number | null; latestYM: number };
+    const agg = new Map<string, Agg>();
     for (const s of scores) {
-      if (s.year === year && s.month === month) {
-        const key = `${s.team_member_id}-${s.kpi_type}`;
-        map.set(key, s);
+      const key = `${s.team_member_id}-${s.kpi_type}`;
+      const ym = s.year * 100 + s.month;
+      let row = agg.get(key);
+      if (!row) {
+        row = { sum: 0, n: 0, latestTarget: null, latestYM: -1 };
+        agg.set(key, row);
+      }
+      if (s.score !== null && s.score !== undefined) {
+        row.sum += s.score;
+        row.n += 1;
+      }
+      if (ym > row.latestYM) {
+        row.latestYM = ym;
+        row.latestTarget = s.target ?? null;
       }
     }
-    return map;
-  }, [scores, year, month]);
+    const out = new Map<string, { score: number | null; target: number | null }>();
+    for (const [k, v] of agg.entries()) {
+      out.set(k, {
+        score: v.n > 0 ? Math.round((v.sum / v.n) * 10) / 10 : null,
+        target: v.latestTarget,
+      });
+    }
+    return out;
+  }, [scores]);
 
   // Determine all KPI columns for the heatmap (union of all member KPI types)
   const allKpiTypes = useMemo(() => {
@@ -851,14 +1018,7 @@ function KpiPerformanceTab({
                     key={kpiType}
                     className="bg-[#1F1F1F] px-2 py-2 text-center font-mono text-[10px] font-medium uppercase tracking-wider text-[#606060]"
                   >
-                    {(KPI_DISPLAY_NAMES[kpiType] ?? kpiType)
-                      .split(" ")
-                      .map((word, i) => (
-                        <span key={i}>
-                          {word}
-                          {i < (KPI_DISPLAY_NAMES[kpiType] ?? kpiType).split(" ").length - 1 && <br />}
-                        </span>
-                      ))}
+                    <KpiColumnHeader kpiType={kpiType} />
                   </th>
                 ))}
               </tr>

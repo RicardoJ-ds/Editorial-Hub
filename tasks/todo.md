@@ -1,6 +1,6 @@
 # Editorial Hub — Task Tracker
 
-> **Last reviewed:** 2026-04-27
+> **Last reviewed:** 2026-04-28
 > **Related docs:**
 > - [`/CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) — CP v2 schema + phase status
 > - [`/.docs/dashboard-data-flow.md`](../.docs/dashboard-data-flow.md) — migration plan
@@ -90,6 +90,14 @@
 - [x] Fixed `key="none"` collisions on three sibling dialogs in `/capacity-planning` (and the lone one in `/allocation` for consistency)
 - [x] CP v2 alignment audit applied to `CAPACITY_PLANNING_V2.md`: pointer to `_erd.ts` as authoritative; "Dashboard-1 alignment audit (2026-04-27)" section with gap closures + 3 nice-to-have SQL view candidates
 - [x] Prototype `_store.tsx` `DeliveryMonthlyRow` synced with `_erd.ts` (`variance`, `cumulativeDelivered`, `cumulativeInvoiced`)
+
+### Team KPIs sync + filter parity (Apr 28)
+- [x] **Bug fix**: 4 computed KPIs (Revision Rate, Turnaround Time, Second Reviews, Capacity Utilization) now refresh on every SYNC. New `POST /api/migrate/refresh-kpis` endpoint computes for every month with source data (cap 36 months); `SyncAllModal` calls it as a synthetic step after the per-sheet loop
+- [x] `GET /api/kpis/` accepts `year_from / month_from / year_to / month_to`; `limit` cap raised to 10,000
+- [x] `TeamKpiFilterBar` rebuilt — `FilterCombobox` typeahead replaces duplicate Search-members + Member-dropdown; same combobox style on the Client filter
+- [x] Date period switched from Month + Year dropdowns to D1's `DateRangeFilter` (calendar + month-range slider + presets)
+- [x] Heatmap now aggregates across the date range — mean of non-null scores + latest non-null target per `(member × kpi_type)`
+- [x] Per-column tooltips on the heatmap surface source / formula / target / direction / **caveats** (paused upstream for AI Compliance, fallback heuristic for Second Reviews, pod-level replication for Capacity Utilization, status-name dependency for Revision Rate)
 
 ---
 

@@ -327,6 +327,102 @@ async def resync_historical_goals():
     )
 
 
+class RefreshKpisResponse(BaseModel):
+    months_processed: int
+    scores_updated: int
+    months: list[str]
+
+
+@router.post("/refresh-kpis", response_model=RefreshKpisResponse)
+async def refresh_kpis():
+    """Recompute Notion-derived KPIs (revision_rate, turnaround_time,
+    second_reviews, capacity_utilization) for every (year, month) that has
+    source data in `notion_articles` or `capacity_projections`.
+
+    The frontend calls this after the per-sheet `/import` loop completes so
+    every KPI on the heatmap reflects fresh source data — without it, the
+    sheet-derived KPIs (Internal/External Quality, Mentorship, Feedback
+    Adoption) update on every sync but the four computed ones never do.
+
+    Capped at 36 months back from today so a runaway data pull doesn't
+    iterate over a decade of stale rows.
+    """
+
+    def _run():
+        from datetime import date
+
+        from sqlalchemy import distinct, extract
+
+        from app.models import CapacityProjection, NotionArticle
+        from app.services.notion_kpi_service import refresh_notion_kpis
+
+        session = _get_sync_session()
+        try:
+            # Discover months with source data — union of every distinct
+            # (year, month) on either Notion articles (created_date) or
+            # capacity projections. Either source alone is enough to
+            # materialize the four computed KPIs for that month.
+            months: set[tuple[int, int]] = set()
+
+            stmt_notion = (
+                select(
+                    distinct(extract("year", NotionArticle.created_date)).label("y"),
+                    extract("month", NotionArticle.created_date).label("m"),
+                )
+                .where(NotionArticle.created_date.isnot(None))
+                .group_by("y", "m")
+            )
+            for y, m in session.execute(stmt_notion).all():
+                if y is not None and m is not None:
+                    months.add((int(y), int(m)))
+
+            stmt_cap = select(
+                distinct(CapacityProjection.year).label("y"),
+                CapacityProjection.month.label("m"),
+            ).group_by("y", "m")
+            for y, m in session.execute(stmt_cap).all():
+                if y is not None and m is not None:
+                    months.add((int(y), int(m)))
+
+            # Cap at 36 months back from today.
+            today = date.today()
+            cutoff = today.year * 12 + today.month - 36  # months since year 0
+            months = {(y, m) for (y, m) in months if (y * 12 + m) >= cutoff}
+
+            sorted_months = sorted(months)
+            total_updated = 0
+            for y, m in sorted_months:
+                try:
+                    res = refresh_notion_kpis(session, y, m)
+                    total_updated += int(res.get("updated", 0))
+                except Exception:
+                    logger.exception(
+                        "refresh_notion_kpis failed for %d-%02d (continuing)",
+                        y,
+                        m,
+                    )
+
+            session.commit()
+            return {
+                "months_processed": len(sorted_months),
+                "scores_updated": total_updated,
+                "months": [f"{y}-{m:02d}" for y, m in sorted_months],
+            }
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    try:
+        payload = await asyncio.to_thread(_run)
+    except Exception as exc:
+        logger.exception("refresh-kpis failed")
+        raise HTTPException(status_code=500, detail=f"KPI refresh failed: {exc}") from exc
+
+    return RefreshKpisResponse(**payload)
+
+
 @router.get("/status", response_model=MigrationStatusResponse)
 async def get_migration_status(db: AsyncSession = Depends(get_db)):
     """Return the last import statuses from the audit log."""
