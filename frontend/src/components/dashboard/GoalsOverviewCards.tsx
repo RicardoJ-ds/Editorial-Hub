@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClientStatusCard } from "./FilterContextCard";
-import { displayPod } from "./shared-helpers";
+import { CardTitleWithTooltip, displayPod } from "./shared-helpers";
 import { normalizePod } from "./ContractClientProgress";
 import type { Client } from "@/lib/types";
 
@@ -344,9 +344,17 @@ function ClientStatusTierCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Goal Status
-        </p>
+        <CardTitleWithTooltip
+          label="Goal Status"
+          body={{
+            title: "Goal Status",
+            bullets: [
+              "How this client is doing against monthly Content Brief and Article goals (delivered ÷ goal, both tracked across the active range).",
+              "Status uses the worse of the two — if either CBs or Articles slips, the headline reflects it.",
+              "≥ 75% = On Track (green) · 50–74% = Behind (amber) · < 50% = At Risk (red).",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           Worse-of-two against threshold
         </p>
@@ -415,9 +423,17 @@ function GoalStatusMixCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Goal Status
-        </p>
+        <CardTitleWithTooltip
+          label="Goal Status"
+          body={{
+            title: "Goal Status",
+            bullets: [
+              "Big number = average of CB delivery % and Article delivery %, summed across the clients in the active filter (delivered ÷ goal over the active range).",
+              "On Track / Behind / At Risk counts each client by the worse of its two ratios: ≥ 75% = On Track · 50–74% = Behind · < 50% = At Risk.",
+              "Clients without monthly goals are skipped (no goal to grade against).",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           {subtitle}
           {asOfLabel ? ` · ${asOfLabel}` : ""}
@@ -621,9 +637,17 @@ function ClientsOnTrackCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Clients On Track
-        </p>
+        <CardTitleWithTooltip
+          label="Clients On Track"
+          body={{
+            title: "Clients On Track",
+            bullets: [
+              "Counts how many clients are hitting both their Content Brief AND their Article goals at ≥ 75% over the active range.",
+              "If either ratio drops below 75%, the client doesn't count — both have to clear the bar.",
+              "Clients without monthly goals are excluded from the denominator (no goal = nothing to hit).",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           {subtitle}
         </p>

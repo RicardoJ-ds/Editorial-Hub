@@ -5,54 +5,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClientStatusCard } from "./FilterContextCard";
 import {
+  CardTitleWithTooltip,
   PIPELINE_STAGE_COLORS,
-  TooltipBody,
   displayPod,
   elapsedContractPct,
   pacingColor,
   podBadge,
   type PipelineStage,
 } from "./shared-helpers";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import type { Client, CumulativeMetric } from "@/lib/types";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Card title with explainer tooltip — used on the portfolio overview cards
-// (Approval Progress / Bottleneck / Funnel Health / Most Stuck / Pod
-// Attention) so a reviewer hovering the title sees what the card actually
-// computes. Dotted underline hints there's an explanation behind the label.
-// ─────────────────────────────────────────────────────────────────────────────
-
-function CardTitleWithTooltip({
-  label,
-  body,
-}: {
-  label: string;
-  body: { title: string; bullets: React.ReactNode[] };
-}) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA] cursor-help underline decoration-dotted underline-offset-2 decoration-[#404040] inline-block" />
-          }
-        >
-          {label}
-        </TooltipTrigger>
-        <TooltipContent>
-          <TooltipBody {...body} />
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pacing — neutralizes the "mature pod has higher %, new pod looks bad"

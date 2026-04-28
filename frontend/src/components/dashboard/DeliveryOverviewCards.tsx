@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  CardTitleWithTooltip,
   HEALTH_STYLE,
   displayPod,
   elapsedContractPct,
@@ -315,9 +316,17 @@ function DeliveryMixCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Delivery Progress
-        </p>
+        <CardTitleWithTooltip
+          label="Delivery Progress"
+          body={{
+            title: "Delivery Progress",
+            bullets: [
+              "Big number = total articles delivered ÷ total contracted (SOW), summed across the clients in the current filter.",
+              "Behind / Watch / Healthy buckets each client by its lifetime delivered − invoiced gap: Healthy = even or ahead; Watch = slipping; Behind = more than one month of SOW behind.",
+              "Clients without a SOW set are skipped (no denominator to compare against).",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           {subtitle}{withSow > 0 ? ` · ${withSow} with SOW` : ""}
         </p>

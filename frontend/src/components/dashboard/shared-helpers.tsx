@@ -4,6 +4,12 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { TableHead } from "@/components/ui/table";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -255,6 +261,40 @@ export function TooltipBody({
         ))}
       </ul>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CardTitleWithTooltip — the small uppercase mono title that sits at the top
+// of every overview card (Delivery Progress / Approval Progress / Goal Status
+// / etc.), now wrapped in a hover tooltip so reviewers can read what the card
+// computes without leaving the page. Dotted underline hints there's an
+// explanation behind the label. Use the same `TooltipBody` shape everywhere
+// so every overview tooltip looks identical.
+// ---------------------------------------------------------------------------
+
+export function CardTitleWithTooltip({
+  label,
+  body,
+}: {
+  label: string;
+  body: { title: string; bullets: React.ReactNode[] };
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA] cursor-help underline decoration-dotted underline-offset-2 decoration-[#404040] inline-block" />
+          }
+        >
+          {label}
+        </TooltipTrigger>
+        <TooltipContent>
+          <TooltipBody {...body} />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
