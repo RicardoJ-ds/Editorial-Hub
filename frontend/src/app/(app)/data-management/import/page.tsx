@@ -296,7 +296,7 @@ const SYNTHETIC_STEPS: SheetInfo[] = [
     name: REFRESH_KPIS_KEY,
     row_count: 0,
     description:
-      "Recompute Revision Rate, Turnaround Time, Second Reviews, and Capacity Utilization from imported source data. Always idempotent — safe to skip if you only re-imported sheets that don't feed the heatmap.",
+      "Re-uses notion_articles + capacity_projections rows already in the DB — no Notion / Sheets API fetch. Recomputes the 4 KPIs the heatmap derives from them: Revision Rate, Turnaround Time, Second Reviews, Capacity Utilization. Idempotent; safe to skip when you only re-imported sheets that don't feed the heatmap.",
   },
 ];
 
@@ -566,9 +566,28 @@ function StepPreview({
     loadPreviews();
   }
 
+  // Synthetic-only selection (e.g. "Refresh computed KPIs" alone). Nothing
+  // to preview — surface a friendly explanation instead of a blank page so
+  // the user understands why and what Start Import will do.
+  const onlySynthetic =
+    previewableSheets.length === 0 && selectedSheets.length > 0;
+
   return (
     <div className="space-y-8">
       <h3 className="text-lg font-semibold text-white">Preview Data</h3>
+
+      {onlySynthetic && (
+        <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6 text-center">
+          <p className="text-sm text-white">
+            No sheets to preview — only computed steps are selected.
+          </p>
+          <p className="mt-2 text-sm text-[#C4BCAA]">
+            Click <span className="font-mono text-[#42CA80]">Start Import</span>{" "}
+            to recompute KPIs from data already in the database. No external
+            fetch.
+          </p>
+        </div>
+      )}
 
       {previewableSheets.map((sheetName) => {
         const preview = previews[sheetName];
