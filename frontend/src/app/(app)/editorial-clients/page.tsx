@@ -687,7 +687,7 @@ function ClientEngagementTimeline({
                 "One row per client, month-by-month article output.",
                 "Solid bars = actually shipped. Lighter shade = still projected.",
                 "Highlighted column = the latest month with actual data in the Operating Model; totals on the right reflect everything through that month.",
-                "Right sidebar: per-client contract totals with a reconciliation that flags SOW ↔ delivered gaps.",
+                "Right sidebar: per-client Projected / Delivered / SOW totals plus % of SOW shipped so far.",
               ]}
             />
           </h3>
@@ -776,7 +776,7 @@ function ClientEngagementTimeline({
             })}
           </div>
           {/* Totals column header — bottom-aligned so it sits just above the first data row */}
-          <div className="w-[320px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-5 gap-1 items-end self-end pb-0.5">
+          <div className="w-[260px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-4 gap-1 items-end self-end pb-0.5">
             <TotalsHeader
               label="Projected"
               title="Projected"
@@ -809,15 +809,6 @@ function ClientEngagementTimeline({
                 "Contract completion so far",
                 "Delivered ÷ SOW",
                 "Color: green ≥75%, yellow ≥50%, red below",
-              ]}
-            />
-            <TotalsHeader
-              label="Reconcile"
-              title="Reconcile"
-              bullets={[
-                "Headroom left between contract and pipeline",
-                "SOW − Delivered − Projected",
-                "Negative = pod is over-committed to this client",
               ]}
             />
           </div>
@@ -966,8 +957,15 @@ function ClientEngagementTimeline({
                   })}
                 </div>
 
-                {/* Totals sidebar */}
-                <div className="w-[320px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-5 gap-1 items-center">
+                {/* Totals sidebar — Reconcile column intentionally removed.
+                    For most clients projected + delivered already sums to
+                    SOW (% SOW + Delivered + Projected tells the story); a
+                    fifth column showing the residual was mostly noise. The
+                    handful of cases where the math doesn't reconcile are
+                    sheet-data issues (over-delivered SOWs not updated on
+                    Editorial SOW overview) and need fixing at the source,
+                    not surfacing as a chart column. */}
+                <div className="w-[260px] shrink-0 pl-3 border-l border-[#2a2a2a] grid grid-cols-4 gap-1 items-center">
                   <TotalsCell value={totals?.projected} />
                   <TotalsCell value={totals?.delivered} />
                   <TotalsCell value={totals?.sow} muted />
@@ -978,16 +976,6 @@ function ClientEngagementTimeline({
                       endDate: client.end_date,
                       termMonths: client.term_months,
                     })}
-                  />
-                  <TotalsCell
-                    value={totals?.reconciliation}
-                    color={
-                      totals && totals.reconciliation < 0
-                        ? "#ED6958"
-                        : totals && totals.reconciliation > 0
-                        ? "#42CA80"
-                        : undefined
-                    }
                   />
                 </div>
               </div>
