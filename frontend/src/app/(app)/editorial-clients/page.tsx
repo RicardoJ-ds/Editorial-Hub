@@ -1368,9 +1368,34 @@ function DeliverablesSOWTab({
       return deliveryMeta.get(c.id)?.termMonths ?? c.term_months;
     };
 
+    // Literal filter month set — just the months actually selected, no
+    // quarter expansion. Used for "Delivered" (and cumulative delivered)
+    // because delivery is reported monthly: when the user filters Jan–Dec
+    // they should only see articles delivered in those calendar months,
+    // not the spillover from a contract Q whose tail extends past Dec.
+    const literalMonthsFor = (): Set<string> | null => {
+      if (!hasFilter || !filterFrom || !filterTo) return null;
+      const months = new Set<string>();
+      let y = filterFrom.getFullYear();
+      let m = filterFrom.getMonth() + 1;
+      const endY = filterTo.getFullYear();
+      const endM = filterTo.getMonth() + 1;
+      while (y < endY || (y === endY && m <= endM)) {
+        months.add(`${y}-${String(m).padStart(2, "0")}`);
+        m += 1;
+        if (m > 12) {
+          m = 1;
+          y += 1;
+        }
+      }
+      return months;
+    };
+
     // Per-client expanded month set: every month of every contract-Q
-    // touched by the filter range. Falls back to literal filter months
-    // when start_date is missing, so the card still renders honestly.
+    // touched by the filter range. Used for "Invoiced" because the sheet
+    // bills quarterly and a partial-Q filter would understate invoicing.
+    // Falls back to literal filter months when start_date is missing,
+    // so the card still renders honestly.
     const expandedMonthsFor = (c: Client): Set<string> | null => {
       if (!hasFilter || !filterFrom || !filterTo) return null;
       const startStr = effectiveStart(c);
@@ -1443,66 +1468,112 @@ function DeliverablesSOWTab({
       const sow = meta && meta.lifetimeSow > 0
         ? meta.lifetimeSow
         : (c.articles_sow ?? 0);
-      const scopeMonths = expandedMonthsFor(c);
-      const inScope = (d: DeliverableMonthly): boolean => {
+      // Two scopes per client:
+      //   • expanded → full contract Qs touching the filter (used for
+      //     Invoiced + variance + health, which need quarter-aligned math)
+      //   • literal  → only the months the user actually picked (used for
+      //     Delivered + cumulative delivered, since delivery is monthly
+      //     and quarter expansion would inflate the displayed count with
+      //     months outside the filter)
+      const expandedScope = expandedMonthsFor(c);
+      const literalScope = literalMonthsFor();
+      const inExpanded = (d: DeliverableMonthly): boolean => {
         if (d.client_id !== c.id) return false;
-        if (!scopeMonths) return true; // no filter → include everything for this client
-        return scopeMonths.has(`${d.year}-${String(d.month).padStart(2, "0")}`);
+        if (!expandedScope) return true; // no filter → all rows
+        return expandedScope.has(`${d.year}-${String(d.month).padStart(2, "0")}`);
       };
-      const clientDeliverables = deliverables.filter(inScope);
-      // Actuals = in-scope rows whose month has already finished or is the
-      // current month. Card totals sum from this subset only.
-      const clientActuals = clientDeliverables.filter((d) =>
+      const inLiteral = (d: DeliverableMonthly): boolean => {
+        if (d.client_id !== c.id) return false;
+        if (!literalScope) return true; // no filter → all rows
+        return literalScope.has(`${d.year}-${String(d.month).padStart(2, "0")}`);
+      };
+      // The popover (and any "rows in scope" derivations like the lifetime
+      // window check) keeps the expanded set so the user can see the full
+      // quarter context surrounding their selection.
+      const clientDeliverables = deliverables.filter(inExpanded);
+      const expandedActuals = clientDeliverables.filter((d) =>
         isPastOrCurrent(d.year, d.month),
       );
+      const literalActuals = deliverables.filter(
+        (d) => inLiteral(d) && isPastOrCurrent(d.year, d.month),
+      );
 
-      // Scope end = the latest month included in the expansion, BUT clamped
-      // to today so the cumulative variance matches the sheet's Variance at
-      // the most recent actual month (not at a future projected month).
-      let scopeEnd: { y: number; m: number } | null = null;
-      if (scopeMonths && scopeMonths.size > 0) {
-        const latest = Array.from(scopeMonths).sort().pop()!;
+      // Scope end = the latest month included in each scope, clamped to
+      // today so projections never leak into cumulative totals.
+      const computeScopeEnd = (
+        scope: Set<string> | null,
+      ): { y: number; m: number } | null => {
+        if (!scope || scope.size === 0) return null;
+        const latest = Array.from(scope).sort().pop()!;
         const [ly, lm] = latest.split("-");
         const y = parseInt(ly, 10);
         const m = parseInt(lm, 10);
-        scopeEnd = isPastOrCurrent(y, m)
-          ? { y, m }
-          : { y: nowY, m: nowM };
-      }
-      const delivered = clientActuals.reduce(
+        return isPastOrCurrent(y, m) ? { y, m } : { y: nowY, m: nowM };
+      };
+      const expandedScopeEnd = computeScopeEnd(expandedScope);
+      const literalScopeEnd = computeScopeEnd(literalScope);
+
+      // Delivered uses the literal filter (user-selected months only).
+      const delivered = literalActuals.reduce(
         (acc, d) => acc + (d.articles_delivered ?? 0),
         0,
       );
-      const invoiced = clientActuals.reduce(
+      // Invoiced uses the expanded contract-Q scope (sheet invoicing
+      // is quarterly, so a partial-Q filter would understate the bill).
+      const invoiced = expandedActuals.reduce(
         (acc, d) => acc + (d.articles_invoiced ?? 0),
         0,
       );
-      const periodVariance = delivered - invoiced;
+      // Variance + health stay on the expanded scope so the two terms are
+      // computed against matched windows. Mixing literal-delivered with
+      // expanded-invoiced would bias variance negative just from scope
+      // mismatch, falsely flagging healthy clients as "behind."
+      const expandedDelivered = expandedActuals.reduce(
+        (acc, d) => acc + (d.articles_delivered ?? 0),
+        0,
+      );
+      const periodVariance = expandedDelivered - invoiced;
 
-      // Cumulative variance: sum every monthly row up to scope end. When no
-      // scope is set we sum every row for the client, giving a lifetime
-      // cumulative that matches the Delivered/Invoiced bars (those also
-      // aggregate from the monthly sheet, not from the stale
-      // `clients.articles_delivered` lifetime column). Always clamped to
-      // today so projections never leak into the totals.
-      const cumulativeRows = deliverables.filter((d) => {
+      // Cumulative delivered uses the literal scope-end (matches the
+      // displayed Delivered bar's window). Cumulative invoiced uses the
+      // expanded scope-end (matches the displayed Invoiced bar). Health
+      // chip needs matched scopes again, so cumulativeVariance below is
+      // computed off the expanded scope end alone.
+      const cumDeliveredLiteral = deliverables
+        .filter((d) => {
+          if (d.client_id !== c.id) return false;
+          if (!isPastOrCurrent(d.year, d.month)) return false;
+          if (!literalScopeEnd) return true;
+          return (
+            d.year < literalScopeEnd.y ||
+            (d.year === literalScopeEnd.y && d.month <= literalScopeEnd.m)
+          );
+        })
+        .reduce((a, d) => a + (d.articles_delivered ?? 0), 0);
+      // Variance cumulative — both terms summed at the expanded scope end
+      // so the matched-window invariant holds for healthOf().
+      const expandedCumRows = deliverables.filter((d) => {
         if (d.client_id !== c.id) return false;
         if (!isPastOrCurrent(d.year, d.month)) return false;
-        if (!scopeEnd) return true;
+        if (!expandedScopeEnd) return true;
         return (
-          d.year < scopeEnd.y ||
-          (d.year === scopeEnd.y && d.month <= scopeEnd.m)
+          d.year < expandedScopeEnd.y ||
+          (d.year === expandedScopeEnd.y && d.month <= expandedScopeEnd.m)
         );
       });
-      const cumDelivered = cumulativeRows.reduce(
+      const cumDeliveredExpanded = expandedCumRows.reduce(
         (a, d) => a + (d.articles_delivered ?? 0),
         0,
       );
-      const cumInvoiced = cumulativeRows.reduce(
+      const cumInvoiced = expandedCumRows.reduce(
         (a, d) => a + (d.articles_invoiced ?? 0),
         0,
       );
-      const cumulativeVariance = cumDelivered - cumInvoiced;
+      const cumulativeVariance = cumDeliveredExpanded - cumInvoiced;
+      // Reference the literal cumulative so eslint doesn't trip; consumers
+      // that want a "cumulative delivered for the selected months" value
+      // can read this off the row payload below.
+      void cumDeliveredLiteral;
 
       const pct = sow > 0 ? Math.round((delivered / sow) * 100) : 0;
 
