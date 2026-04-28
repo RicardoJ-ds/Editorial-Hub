@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -278,6 +278,28 @@ function StepConnect({
 // Step 2: Select Sheets
 // ---------------------------------------------------------------------------
 
+// Synthetic step keyed alongside real sheets. The "@" prefix keeps the key
+// from colliding with any real sheet name; both the selection list and the
+// progress list special-case it.
+const REFRESH_KPIS_KEY = "@refresh-kpis";
+const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
+
+
+// Synthetic "selectable" rendered in a COMPUTED group at the bottom of the
+// selection list. Not a sheet — represents the post-import refresh step that
+// recomputes Revision Rate / Turnaround Time / Second Reviews / Capacity
+// Utilization from notion_articles + capacity_projections. Default-checked
+// so the wizard's behavior matches the SYNC button; users can opt out for
+// fast targeted imports that don't touch any of those sources.
+const SYNTHETIC_STEPS: SheetInfo[] = [
+  {
+    name: REFRESH_KPIS_KEY,
+    row_count: 0,
+    description:
+      "Recompute Revision Rate, Turnaround Time, Second Reviews, and Capacity Utilization from imported source data. Always idempotent — safe to skip if you only re-imported sheets that don't feed the heatmap.",
+  },
+];
+
 function StepSelectSheets({
   sheets,
   onNext,
@@ -287,8 +309,13 @@ function StepSelectSheets({
   onNext: (selected: string[]) => void;
   onBack: () => void;
 }) {
+  // Default selection = every importable real sheet + every synthetic step
   const [selected, setSelected] = useState<Set<string>>(() => {
-    return new Set(sheets.filter((s) => isImportable(s.name)).map((s) => s.name));
+    const initial = new Set(
+      sheets.filter((s) => isImportable(s.name)).map((s) => s.name),
+    );
+    for (const s of SYNTHETIC_STEPS) initial.add(s.name);
+    return initial;
   });
 
   const toggle = (name: string) => {
@@ -300,12 +327,20 @@ function StepSelectSheets({
     });
   };
 
-  const allSelected = sheets.length > 0 && selected.size === sheets.length;
+  // Total = real sheets + synthetic steps (so Select All stays accurate
+  // when the synthetic row is included in the count).
+  const totalSelectable = sheets.length + SYNTHETIC_STEPS.length;
+  const allSelected = totalSelectable > 0 && selected.size === totalSelectable;
   const toggleAll = () => {
     if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(sheets.map((s) => s.name)));
+      setSelected(
+        new Set([
+          ...sheets.map((s) => s.name),
+          ...SYNTHETIC_STEPS.map((s) => s.name),
+        ]),
+      );
     }
   };
 
@@ -377,6 +412,44 @@ function StepSelectSheets({
             );
           };
 
+          const renderSyntheticStep = (step: SheetInfo) => {
+            const checked = selected.has(step.name);
+            const label =
+              step.name === REFRESH_KPIS_KEY ? REFRESH_KPIS_LABEL : step.name;
+            return (
+              <label
+                key={step.name}
+                className={cn(
+                  "flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors",
+                  checked
+                    ? "border-[#42CA80]/40 bg-[#42CA80]/5"
+                    : "border-[#2a2a2a] bg-[#161616] hover:border-[#2a2a2a]/80",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(step.name)}
+                  className="mt-0.5 h-4 w-4 rounded border-[#2a2a2a] bg-[#161616] text-[#42CA80] accent-[#42CA80]"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-white">{label}</span>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 font-mono text-[10px] text-[#42CA80] border-[#42CA80]/30 bg-[#42CA80]/10"
+                    >
+                      Computed
+                    </Badge>
+                  </div>
+                  {step.description && (
+                    <p className="mt-1 text-sm text-[#C4BCAA]">{step.description}</p>
+                  )}
+                </div>
+              </label>
+            );
+          };
+
           return (
             <>
               {Object.entries(groups).map(([group, groupSheets]) => (
@@ -387,6 +460,18 @@ function StepSelectSheets({
                   <div className="space-y-2">{groupSheets.map(renderSheet)}</div>
                 </div>
               ))}
+              {/* COMPUTED — derived steps that don't read a sheet but
+                  recompute downstream KPIs from already-imported data. */}
+              {SYNTHETIC_STEPS.length > 0 && (
+                <div>
+                  <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#42CA80]">
+                    Computed
+                  </h4>
+                  <div className="space-y-2">
+                    {SYNTHETIC_STEPS.map(renderSyntheticStep)}
+                  </div>
+                </div>
+              )}
               {ungrouped.length > 0 && (
                 <div>
                   <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#999]">
@@ -438,16 +523,23 @@ function StepPreview({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
 
+  // Synthetic steps (e.g. the KPI refresh) have no preview to fetch — skip
+  // them in the preview loop so the wizard doesn't 404 on /preview/@refresh-kpis.
+  const previewableSheets = useMemo(
+    () => selectedSheets.filter((s) => !s.startsWith("@")),
+    [selectedSheets],
+  );
+
   const loadPreviews = useCallback(async () => {
     setLoaded(true);
-    const loadingSet = new Set(selectedSheets);
+    const loadingSet = new Set(previewableSheets);
     setLoading(loadingSet);
 
     const results: Record<string, PreviewData> = {};
     const errs: Record<string, string> = {};
 
     await Promise.allSettled(
-      selectedSheets.map(async (sheetName) => {
+      previewableSheets.map(async (sheetName) => {
         try {
           const data = await apiGet<PreviewData>(
             `/api/migrate/preview/${encodeURIComponent(sheetName)}`
@@ -467,7 +559,7 @@ function StepPreview({
 
     setPreviews(results);
     setErrors(errs);
-  }, [selectedSheets]);
+  }, [previewableSheets]);
 
   // Auto-load previews on mount
   if (!loaded) {
@@ -478,7 +570,7 @@ function StepPreview({
     <div className="space-y-8">
       <h3 className="text-lg font-semibold text-white">Preview Data</h3>
 
-      {selectedSheets.map((sheetName) => {
+      {previewableSheets.map((sheetName) => {
         const preview = previews[sheetName];
         const isLoading = loading.has(sheetName);
         const error = errors[sheetName];
@@ -581,12 +673,6 @@ function StepPreview({
 // Step 4: Importing
 // ---------------------------------------------------------------------------
 
-// Synthetic step appended after the per-sheet loop so the user sees the
-// Notion-derived KPI refresh as a discrete progress row. The "@" prefix
-// keeps the key from colliding with any real sheet name.
-const REFRESH_KPIS_KEY = "@refresh-kpis";
-const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
-
 function StepImporting({
   selectedSheets,
   onComplete,
@@ -594,16 +680,14 @@ function StepImporting({
   selectedSheets: string[];
   onComplete: (response: ImportResponse) => void;
 }) {
-  // The progress list always renders an extra row for the KPI refresh —
-  // the wizard imports specific sheets, but Revision Rate / Turnaround
-  // Time / Second Reviews / Capacity Utilization are derived from
-  // notion_articles + capacity_projections so they need recomputing
-  // whenever ANY of those sources might have changed. Easier to always
-  // run it than to gate per-sheet.
-  const stepsWithKpis = [...selectedSheets, REFRESH_KPIS_KEY];
+  // The user opts into the KPI refresh on the previous step by leaving its
+  // synthetic checkbox checked. Skip the row entirely if they unchecked it.
+  const refreshKpis = selectedSheets.includes(REFRESH_KPIS_KEY);
+  const realSheets = selectedSheets.filter((s) => s !== REFRESH_KPIS_KEY);
+  const allSteps = refreshKpis ? [...realSheets, REFRESH_KPIS_KEY] : realSheets;
   const [sheetStatuses, setSheetStatuses] = useState<
     Record<string, "pending" | "importing" | "done" | "error">
-  >(() => Object.fromEntries(stepsWithKpis.map((s) => [s, "pending"])));
+  >(() => Object.fromEntries(allSteps.map((s) => [s, "pending"])));
   const [results, setResults] = useState<Record<string, ImportResultItem>>({});
   const [progress, setProgress] = useState(0);
   const [started, setStarted] = useState(false);
@@ -614,8 +698,8 @@ function StepImporting({
     let allOk = true;
 
     // Import sheets ONE AT A TIME to avoid timeout
-    for (let i = 0; i < selectedSheets.length; i++) {
-      const sheet = selectedSheets[i];
+    for (let i = 0; i < realSheets.length; i++) {
+      const sheet = realSheets[i];
       setSheetStatuses((prev) => ({ ...prev, [sheet]: "importing" }));
 
       try {
@@ -644,39 +728,42 @@ function StepImporting({
         allOk = false;
       }
 
-      setProgress(((i + 1) / stepsWithKpis.length) * 100);
+      setProgress(((i + 1) / allSteps.length) * 100);
     }
 
-    // Refresh computed KPIs — same step the SYNC button runs.
-    setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "importing" }));
-    try {
-      const resp = await apiPost<{
-        months_processed: number;
-        scores_updated: number;
-        months: string[];
-      }>("/api/migrate/refresh-kpis", {});
-      const kpiResult: ImportResultItem = {
-        sheet: REFRESH_KPIS_LABEL,
-        rows_parsed: resp.months_processed,
-        rows_imported: resp.scores_updated,
-        success: true,
-        errors: [],
-      };
-      allResults.push(kpiResult);
-      setResults((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: kpiResult }));
-      setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "done" }));
-    } catch (err) {
-      const errorResult: ImportResultItem = {
-        sheet: REFRESH_KPIS_LABEL,
-        rows_parsed: 0,
-        rows_imported: 0,
-        success: false,
-        errors: [err instanceof Error ? err.message : "KPI refresh failed"],
-      };
-      allResults.push(errorResult);
-      setResults((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: errorResult }));
-      setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "error" }));
-      allOk = false;
+    // Refresh computed KPIs — same step the SYNC button runs. Skipped when
+    // the user unchecked the synthetic row on the selection step.
+    if (refreshKpis) {
+      setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "importing" }));
+      try {
+        const resp = await apiPost<{
+          months_processed: number;
+          scores_updated: number;
+          months: string[];
+        }>("/api/migrate/refresh-kpis", {});
+        const kpiResult: ImportResultItem = {
+          sheet: REFRESH_KPIS_LABEL,
+          rows_parsed: resp.months_processed,
+          rows_imported: resp.scores_updated,
+          success: true,
+          errors: [],
+        };
+        allResults.push(kpiResult);
+        setResults((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: kpiResult }));
+        setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "done" }));
+      } catch (err) {
+        const errorResult: ImportResultItem = {
+          sheet: REFRESH_KPIS_LABEL,
+          rows_parsed: 0,
+          rows_imported: 0,
+          success: false,
+          errors: [err instanceof Error ? err.message : "KPI refresh failed"],
+        };
+        allResults.push(errorResult);
+        setResults((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: errorResult }));
+        setSheetStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "error" }));
+        allOk = false;
+      }
     }
     setProgress(100);
 
@@ -687,7 +774,7 @@ function StepImporting({
       all_ok: allOk,
     };
     setTimeout(() => onComplete(finalResponse), 800);
-  }, [selectedSheets, onComplete, stepsWithKpis.length]);
+  }, [realSheets, refreshKpis, allSteps.length, onComplete]);
 
   // Auto-start
   if (!started) {
@@ -712,9 +799,10 @@ function StepImporting({
         </Progress>
       </div>
 
-      {/* Per-sheet status (plus a synthetic row for the KPI refresh) */}
+      {/* Per-sheet status — includes the synthetic KPI row only when the
+          user opted in by leaving its checkbox checked on the previous step. */}
       <div className="space-y-2">
-        {stepsWithKpis.map((sheetName) => {
+        {allSteps.map((sheetName) => {
           const status = sheetStatuses[sheetName];
           const result = results[sheetName];
           const isKpiStep = sheetName === REFRESH_KPIS_KEY;
