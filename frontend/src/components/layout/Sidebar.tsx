@@ -10,6 +10,7 @@ import {
   Search,
   Sparkles,
   Shield,
+  ShieldAlert,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ const dataManagementNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { label: "Access Control", href: "/admin/access", icon: Shield },
+  { label: "Data Quality", href: "/admin/data-quality", icon: ShieldAlert },
 ];
 
 function NavSection({

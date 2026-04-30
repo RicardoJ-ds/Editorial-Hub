@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, parseISODateLocal } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -163,14 +163,9 @@ export function elapsedContractPct(
   startDate: string | null | undefined,
   opts: { endDate?: string | null; termMonths?: number | null },
 ): number | null {
-  if (!startDate) return null;
-  const start = new Date(startDate);
-  if (isNaN(start.getTime())) return null;
-  let end: Date | null = null;
-  if (opts.endDate) {
-    const d = new Date(opts.endDate);
-    if (!isNaN(d.getTime())) end = d;
-  }
+  const start = parseISODateLocal(startDate);
+  if (!start) return null;
+  let end: Date | null = parseISODateLocal(opts.endDate);
   if (!end && opts.termMonths && opts.termMonths > 0) {
     end = new Date(start);
     end.setMonth(end.getMonth() + opts.termMonths);
@@ -356,6 +351,30 @@ export function goalStatusBadge(cbPct: number, adPct: number) {
     <span className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider"
       style={{ backgroundColor: "rgba(237,105,88,.12)", color: "#ED6958" }}>At Risk</span>
   );
+}
+
+// ---------------------------------------------------------------------------
+// AsOfBadge — small green pill that sits next to a section heading to signal
+// the data's point-in-time reference. Each section legitimately has its own
+// "as of" date (last completed delivery month vs latest goals-sheet week vs
+// latest Operating Model month with actuals); only the visual is shared.
+// ---------------------------------------------------------------------------
+
+export function AsOfBadge({ label }: { label: string | null | undefined }) {
+  if (!label) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80]">
+      As of {label}
+    </span>
+  );
+}
+
+/** Returns the human-readable label for the last completed calendar month —
+ *  e.g. "March 2026". The default "as of" point for sections whose data is
+ *  capped at the last fully-settled month. */
+export function lastCompletedMonthLabel(now: Date = new Date()): string {
+  const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return last.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 // ---------------------------------------------------------------------------

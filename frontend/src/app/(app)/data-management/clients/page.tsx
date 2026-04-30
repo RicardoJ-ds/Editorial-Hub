@@ -25,6 +25,7 @@ import {
 import { ClientForm } from "@/components/data-management/ClientForm";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { apiGet, apiDelete } from "@/lib/api";
+import { displayPod } from "@/components/dashboard/shared-helpers";
 import type { Client } from "@/lib/types";
 
 function statusBadgeClass(status: string) {
@@ -212,10 +213,10 @@ export default function ClientManagementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    {client.editorial_pod ?? "—"}
+                    {client.editorial_pod ? displayPod(client.editorial_pod, "editorial") : "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    {client.growth_pod ?? "—"}
+                    {client.growth_pod ? displayPod(client.growth_pod, "growth") : "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {client.start_date ?? "—"}

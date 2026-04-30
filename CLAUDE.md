@@ -66,6 +66,7 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 | `/capacity-planning` | **Capacity Maintenance** (CP v2 prototype, localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md`. Sidebar entry was renamed from "Capacity Planning v2" |
 | `/data-management/import` | Import Wizard + Re-sync past months | The other CRUD pages (Clients, Deliverables, Capacity, KPI Entry) are still routable but hidden from the sidebar — they'll be replaced by the CP v2 maintain screens |
 | `/admin/access` | **Access Control** (UI mockup) | Per-user × view permission matrix + groups + audit log. Mock data only; real RBAC wiring deferred until design is signed off |
+| `/admin/data-quality` | **Data Quality** | End-date drift (SOW Overview vs Operating Model) + delivered drift (`clients` cumulative vs `deliverables_monthly`). Read-only — sourced from `GET /api/admin/discrepancies`. |
 | `/(auth)/login` | Google OAuth handshake | Redirects back to `/` |
 
 ## Data Sources & Ingestion Reality

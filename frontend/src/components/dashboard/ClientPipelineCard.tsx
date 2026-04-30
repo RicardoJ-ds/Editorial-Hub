@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { CumulativeMetric } from "@/lib/types";
+import type { Client, CumulativeMetric } from "@/lib/types";
 import {
   PIPELINE_STAGE_COLORS,
   TooltipBody,
@@ -26,6 +26,8 @@ interface Props {
    *  account_team_pod column — that column carries growth/account pod
    *  labels and would mix axes with the editorial-pod grouping above. */
   pod?: string | null;
+  /** Source client object — used solely to anchor the scroll-target id. */
+  client?: Client | null;
 }
 
 // Per-client pipeline cards live below the per-pod aggregate row, which
@@ -66,18 +68,21 @@ function PipelineBar({
   );
 }
 
-export function ClientPipelineCard({ data, sow = null, pod = null }: Props) {
+export function ClientPipelineCard({ data, sow = null, pod = null, client = null }: Props) {
   const overallPct = sow && sow > 0 ? (((data.articles_approved ?? 0) / sow) * 100) : 0;
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 animate-fade-slide hover:border-[#333] transition-colors">
+    <div
+      id={client ? `cumulative-pipeline-${client.id}` : undefined}
+      className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 animate-fade-slide hover:border-[#333] transition-colors scroll-mt-[180px]"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {podBadge(pod ?? "Unassigned")}
           <span className="font-semibold text-white text-sm truncate">{data.client_name}</span>
         </div>
         {data.client_type && (
-          <span className="text-[11px] text-[#606060] font-mono shrink-0">{data.client_type}</span>
+          <span className="shrink-0 text-[11px] text-[#606060] font-mono">{data.client_type}</span>
         )}
       </div>
 
@@ -100,15 +105,15 @@ export function ClientPipelineCard({ data, sow = null, pod = null }: Props) {
                 <span className="font-mono text-[11px] font-semibold cursor-help underline decoration-dotted underline-offset-2 text-[#C4BCAA]" />
               }
             >
-              Approved articles: {sow && sow > 0 ? `${Math.round(overallPct)}%` : "—"}
+              Articles: {sow && sow > 0 ? `${Math.round(overallPct)}%` : "—"}
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
               <TooltipBody
-                title="Approved Articles ÷ SOW"
+                title="Articles ÷ SOW"
                 bullets={[
-                  "Share of contracted SOW currently approved",
-                  "Same denominator as the pipeline bars",
-                  "Status / risk lives on the pod card above (pacing chip)",
+                  "Articles ÷ contracted SOW.",
+                  "Same denominator as the pipeline bars above.",
+                  "Pace chip is in the card header.",
                 ]}
               />
             </TooltipContent>

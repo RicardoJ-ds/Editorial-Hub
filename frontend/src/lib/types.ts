@@ -37,6 +37,11 @@ export interface Client {
   created_at: string;
   updated_at: string;
   updated_by: string | null;
+  // Last (year-month) with non-zero production in `production_history`
+  // (Editorial Operating Model). May differ from end_date (SOW) when ops
+  // has wound a client down or a renewal isn't reflected in the SOW yet.
+  // ISO YYYY-MM-01; null when no production rows exist.
+  operating_model_end_date?: string | null;
 }
 
 export interface ClientCreate {

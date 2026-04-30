@@ -85,6 +85,12 @@ class ClientResponse(ClientBase):
     created_at: datetime
     updated_at: datetime
     updated_by: str | None = None
+    # Last month with non-zero production in `production_history` (Editorial
+    # Operating Model). May differ from `end_date` (SOW) when ops has
+    # already wound a client down or when a renewal hasn't been reflected
+    # in the SOW overview yet. ISO YYYY-MM-DD anchored to day 1; null when
+    # no production rows exist for the client.
+    operating_model_end_date: date | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

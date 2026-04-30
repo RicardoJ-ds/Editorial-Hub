@@ -1,12 +1,44 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Client
+from app.models import Client, ProductionHistory
 from app.schemas import ClientCreate, ClientResponse, ClientUpdate
 
 router = APIRouter()
+
+
+async def _operating_model_end_dates(db: AsyncSession, client_ids: list[int]) -> dict[int, date]:
+    """For each client, find the latest (year, month) with non-zero production
+    (actual or projected) in `production_history`. Returns a map of
+    client_id -> date(year, month, 1). Empty when no rows exist."""
+    if not client_ids:
+        return {}
+    stmt = (
+        select(
+            ProductionHistory.client_id,
+            func.max(ProductionHistory.year * 100 + ProductionHistory.month).label("ym"),
+        )
+        .where(ProductionHistory.client_id.in_(client_ids))
+        .where(
+            or_(
+                ProductionHistory.articles_actual > 0,
+                ProductionHistory.articles_projected > 0,
+            )
+        )
+        .group_by(ProductionHistory.client_id)
+    )
+    result = await db.execute(stmt)
+    out: dict[int, date] = {}
+    for cid, ym in result.all():
+        if ym is None:
+            continue
+        y, m = divmod(int(ym), 100)
+        out[cid] = date(y, m, 1)
+    return out
 
 
 @router.get("/", response_model=list[ClientResponse])
@@ -32,7 +64,15 @@ async def list_clients(
 
     stmt = stmt.offset(skip).limit(limit).order_by(Client.name)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    clients = result.scalars().all()
+
+    end_map = await _operating_model_end_dates(db, [c.id for c in clients])
+    out: list[ClientResponse] = []
+    for c in clients:
+        item = ClientResponse.model_validate(c)
+        item.operating_model_end_date = end_map.get(c.id)
+        out.append(item)
+    return out
 
 
 @router.get("/{client_id}", response_model=ClientResponse)
@@ -44,7 +84,10 @@ async def get_client(
     client = result.scalar_one_or_none()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
-    return client
+    end_map = await _operating_model_end_dates(db, [client.id])
+    item = ClientResponse.model_validate(client)
+    item.operating_model_end_date = end_map.get(client.id)
+    return item
 
 
 @router.post("/", response_model=ClientResponse, status_code=201)

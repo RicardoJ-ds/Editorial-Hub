@@ -7,6 +7,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from pathlib import Path as _Path
 
 from googleapiclient.discovery import build
 from sqlalchemy import select
@@ -149,7 +150,23 @@ def safe_pct(val, default=None) -> float | None:
 
 
 def parse_date(val, formats=None) -> date | None:
-    """Parse a date string, returning None for TBD/N/A/empty."""
+    """Parse a date string, returning None for TBD/N/A/empty.
+
+    Maintainers regularly type contract end dates with appended notes
+    ("7/22/2025 with auto renew for 12 mo"). Strict format parsing fails on
+    those, leaving the dashboard with a null end_date. Until the source
+    sheet is locked to date-only cells, fall back through:
+      1. exact match against the standard formats
+      2. dateutil strict parse (handles "January 1, 2026" etc.)
+      3. regex-extract the first date-like substring and reparse
+    A successful regex extraction is logged at WARNING so bad cells
+    surface in the import logs.
+
+    Deliberately NOT using dateutil's fuzzy=True — it invents today's
+    month/day for incomplete inputs ("17 articles" → today @ day 17),
+    which silently corrupts data. If the regex doesn't catch it, the
+    cell genuinely doesn't carry a date.
+    """
     if _is_empty(val):
         return None
     val_str = str(val).strip()
@@ -171,13 +188,45 @@ def parse_date(val, formats=None) -> date | None:
             return datetime.strptime(val_str, fmt).date()
         except ValueError:
             continue
-    # Last resort: dateutil
+
+    # Strict dateutil — clean date strings in less-common formats
     try:
         from dateutil.parser import parse as dateutil_parse
 
         return dateutil_parse(val_str).date()
     except Exception:
-        return None
+        pass
+
+    # Extract the first date-like substring and try again. Covers the
+    # common "7/22/2025 with auto renew for ..." pattern without inventing
+    # data when no real date is present.
+    date_patterns = [
+        r"\d{1,2}/\d{1,2}/\d{2,4}",  # 7/22/2025 or 7/22/25
+        r"\d{4}-\d{1,2}-\d{1,2}",  # 2025-07-22
+        r"[A-Za-z]+\s+\d{1,2},?\s+\d{4}",  # July 22, 2025
+    ]
+    for pattern in date_patterns:
+        m = re.search(pattern, val_str)
+        if not m:
+            continue
+        substr = m.group(0)
+        for fmt in formats:
+            try:
+                parsed = datetime.strptime(substr, fmt).date()
+                logger.warning("parse_date: extracted %r from messy cell %r", substr, val_str)
+                return parsed
+            except ValueError:
+                continue
+        try:
+            from dateutil.parser import parse as dateutil_parse
+
+            parsed = dateutil_parse(substr).date()
+            logger.warning("parse_date: extracted %r from messy cell %r", substr, val_str)
+            return parsed
+        except Exception:
+            continue
+
+    return None
 
 
 def parse_word_count(val) -> tuple[int | None, int | None]:
@@ -301,9 +350,7 @@ def _cell_to_markdown(cell) -> str:
     return "".join(parts)
 
 
-def _extract_rich_text_column(
-    service, spreadsheet_id: str, range_str: str
-) -> dict[int, str]:
+def _extract_rich_text_column(service, spreadsheet_id: str, range_str: str) -> dict[int, str]:
     """Fetch a column as markdown, preserving inline hyperlinks on each cell.
 
     Returns {row_offset_within_range: markdown_string} so callers can align
@@ -616,9 +663,7 @@ def import_sow_overview(session: Session) -> ImportResult:
         # Comments live in col R (col 18, 1-indexed) and often contain inline
         # hyperlinks ("see here" linked to a doc). Fetch as markdown so URLs
         # survive; plain .values() drops them.
-        comments_md = _extract_rich_text_column(
-            service, SPREADSHEET_ID, f"'{sheet_name}'!R7:R200"
-        )
+        comments_md = _extract_rich_text_column(service, SPREADSHEET_ID, f"'{sheet_name}'!R7:R200")
 
         for row in data_rows:
             result.rows_parsed += 1
@@ -2840,8 +2885,6 @@ def import_notion_database(session: Session) -> ImportResult:
 
 # Path to the SQL query. Resolved at import time so we fail fast if the file is
 # missing in a container image.
-from pathlib import Path as _Path
-
 _GROWTH_PODS_SQL_PATH = _Path(__file__).resolve().parent.parent / "sql" / "growth_pods_from_bq.sql"
 
 # BQ Salesforce names sometimes drift from the app's canonical client names
@@ -2908,8 +2951,13 @@ def import_growth_pods(session: Session) -> ImportResult:
     `clients.growth_pod` for every matched client.
 
     Source query: app/sql/growth_pods_from_bq.sql
-      team_pod_assignments (latest row per member)  ⋈
+      team_pod_assignments (one row per team member × account)  ⋈
       salesforce_int_Account  →  (client_name, growth_pod)
+
+    The BQ result is per-member, so each client repeats once per assigned
+    member. We collapse to distinct (client, pod) here — assumption is that
+    every member of a given client shares the same growth pod. If that ever
+    breaks, we log a warning so the data quality issue is visible.
 
     Matching: case-insensitive + non-alphanumeric stripped, with a small
     overrides dict (see _GROWTH_POD_NAME_OVERRIDES) for known name drifts.
@@ -2922,14 +2970,37 @@ def import_growth_pods(session: Session) -> ImportResult:
     try:
         bq_rows = _fetch_growth_pod_pairs()
 
-        # Collapse per-member rows to a single pod per client.
-        pairs: dict[str, str] = {}
+        # Collapse per-member rows to a single pod per client. Members of
+        # the same client are expected to share a pod; a member working in
+        # a different team-pod doesn't change the client's growth pod.
+        # Track every distinct pod we see per client so we can flag the
+        # rare case where the assumption breaks.
+        client_pods: dict[str, set[str]] = {}
         for r in bq_rows:
             cname = (r.get("client_name") or "").strip()
             pod = _normalize_growth_pod(r.get("growth_pod"))
             if not cname or not pod:
                 continue
-            pairs[cname] = pod
+            client_pods.setdefault(cname, set()).add(pod)
+
+        conflicts: list[str] = []
+        pairs: dict[str, str] = {}
+        for cname, pods in client_pods.items():
+            if len(pods) == 1:
+                pairs[cname] = next(iter(pods))
+            else:
+                # Sort gives a deterministic pick when the data is
+                # inconsistent — better than relying on dict iteration
+                # order. The warning surfaces the conflict for review.
+                chosen = sorted(pods)[0]
+                pairs[cname] = chosen
+                conflicts.append(f"{cname}: {sorted(pods)} → picked {chosen}")
+
+        if conflicts:
+            msg = "Cross-pod members for client(s): " + "; ".join(conflicts)
+            logger.warning(msg)
+            result.errors.append(msg)
+
         result.rows_parsed = len(pairs)
 
         if not pairs:
@@ -3039,9 +3110,8 @@ def _detect_contract_drift(session: Session) -> list[str]:
             continue
         f_y, f_m = first
         first_d = _date(f_y, f_m, 1)
-        drift_months = (
-            (c.start_date.year - first_d.year) * 12
-            + (c.start_date.month - first_d.month)
+        drift_months = (c.start_date.year - first_d.year) * 12 + (
+            c.start_date.month - first_d.month
         )
         if abs(drift_months) > 3:
             warnings.append(

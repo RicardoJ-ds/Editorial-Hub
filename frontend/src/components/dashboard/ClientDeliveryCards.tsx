@@ -14,14 +14,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, parseISODateLocal } from "@/lib/utils";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import {
-  HEALTH_RANK,
+  AsOfBadge,
   HEALTH_STYLE,
   TooltipBody,
-  elapsedContractPct,
-  healthOf,
+  lastCompletedMonthLabel,
   pacingColor,
   podBadge,
   type Health,
@@ -110,9 +109,9 @@ interface QuarterMeta {
 function contractQuarterMeta(row: ClientDeliveryCardRow): QuarterMeta {
   const empty: QuarterMeta = { currentQ: null, lastFullQ: null };
   const monthly = row.monthly_breakdown;
-  if (!row.start_date || !monthly?.length) return empty;
-  const start = new Date(row.start_date);
-  if (isNaN(start.getTime())) return empty;
+  if (!monthly?.length) return empty;
+  const start = parseISODateLocal(row.start_date);
+  if (!start) return empty;
   const startYear = start.getFullYear();
   const startMonth = start.getMonth() + 1;
 
@@ -207,9 +206,9 @@ function contractMonthChip(
   startDate: string | null | undefined,
   termMonths: number | null | undefined,
 ): { elapsed: number; total: number } | null {
-  if (!startDate || !termMonths || termMonths <= 0) return null;
-  const start = new Date(startDate);
-  if (isNaN(start.getTime())) return null;
+  if (!termMonths || termMonths <= 0) return null;
+  const start = parseISODateLocal(startDate);
+  if (!start) return null;
   const now = new Date();
   const months =
     (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
@@ -217,26 +216,38 @@ function contractMonthChip(
   return { elapsed: Math.min(months, termMonths), total: termMonths };
 }
 
+// Linear interpolation between Graphite WN1 cream (low %) and P1 bright
+// green (high %). Used for the lifetime SOW bars where the meaning is
+// "share of contracted work delivered" — a neutral progress signal, not
+// a pacing alarm. Cream at 0% → green at 100%.
+function lifetimeBarColor(pct: number): string {
+  const t = Math.max(0, Math.min(100, pct)) / 100;
+  // WN1 #DDCFAC (221, 207, 172) → P1 #65FFAA (101, 255, 170)
+  const r = Math.round(221 + (101 - 221) * t);
+  const g = Math.round(207 + (255 - 207) * t);
+  const b = Math.round(172 + (170 - 172) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 // Colored bar segment used inside each card for delivered / invoiced lines.
-// `elapsedPct` opts in to pacing-aware coloring — passing it means a brand-
-// new contract at 5% won't read red just because the absolute number is low.
+// Lifetime SOW bars use a neutral cream→green degrade (just shows progress).
+// The pacing red/yellow/green palette stays on the in-Q rows where the
+// signal is "are we on track right now".
 function DeliveryBar({
   label,
   current,
   target,
   tooltipTitle,
   tooltipBullets,
-  elapsedPct = null,
 }: {
   label: string;
   current: number;
   target: number;
   tooltipTitle: string;
   tooltipBullets: React.ReactNode[];
-  elapsedPct?: number | null;
 }) {
   const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-  const color = target > 0 ? pacingColor(pct, elapsedPct) : "#606060";
+  const color = target > 0 ? lifetimeBarColor(pct) : "#606060";
   return (
     <div className="flex items-center gap-2">
       <TooltipProvider>
@@ -272,14 +283,41 @@ function DeliveryBar({
   );
 }
 
+// Bucket a client by its last full Q closure — same rule as the overview
+// cards' Delivery Progress / Pod Attention so a client tagged "behind" on
+// a card matches the count in the section header above. Returns "no_q"
+// when there's no closed quarter yet (new contract, too early to score).
+type CardHealth = Health | "no_q";
+
+function lastQHealthFromRow(row: ClientDeliveryCardRow): CardHealth {
+  const q = contractQuarterMeta(row).lastFullQ;
+  if (!q || q.invoiced <= 0) return "no_q";
+  const pct = (q.delivered / q.invoiced) * 100;
+  if (pct >= 100) return "healthy";
+  if (pct >= 75) return "watch";
+  return "behind";
+}
+
+const CARD_HEALTH_RANK: Record<CardHealth, number> = {
+  behind: 0,
+  watch: 1,
+  healthy: 2,
+  no_q: 3,
+};
+
+const CARD_HEALTH_STYLE: Record<
+  CardHealth,
+  { label: string; color: string; bg: string }
+> = {
+  ...HEALTH_STYLE,
+  no_q: { label: "New", color: "#DDCFAC", bg: "rgba(221,207,172,0.10)" },
+};
+
 function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
   const monthChip = contractMonthChip(row.start_date, row.term_months);
-  const health = healthOf(row);
+  const health = lastQHealthFromRow(row);
   const qMeta = contractQuarterMeta(row);
   const hasQContext = !!(qMeta.lastFullQ || qMeta.currentQ);
-  const elapsedPct = elapsedContractPct(row.start_date, {
-    termMonths: row.term_months,
-  });
   const statusLabel =
     row.status === "ACTIVE" ? "Active" : row.status.toLowerCase();
   return (
@@ -400,24 +438,20 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
             label="Delivered"
             current={row.articles_delivered}
             target={row.articles_invoiced}
-            elapsedPct={elapsedPct}
-            tooltipTitle="Delivered ÷ Invoiced (lifetime)"
+            tooltipTitle="Delivered ÷ Invoiced"
             tooltipBullets={[
-              "How much of what we've billed has actually shipped",
-              "Low % = invoicing ahead of delivery",
-              "Color is pacing-aware — new contracts won't read red just for being early",
+              "Share of billed work that's shipped.",
+              "Bar fades cream → green by progress.",
             ]}
           />
           <DeliveryBar
             label="Invoiced"
             current={row.articles_invoiced}
             target={row.articles_sow}
-            elapsedPct={elapsedPct}
-            tooltipTitle="Invoiced ÷ SOW (lifetime)"
+            tooltipTitle="Invoiced ÷ SOW"
             tooltipBullets={[
-              "Share of contracted SOW that's been billed",
-              "Color tracks % vs elapsed contract time (pacing)",
-              "Right side: invoiced / SOW (raw)",
+              "Share of contracted SOW that's been billed.",
+              "Bar fades cream → green by progress.",
             ]}
           />
         </div>
@@ -435,23 +469,16 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
   );
 }
 
-function HealthChip({ health }: { health: Health }) {
-  const style = HEALTH_STYLE[health];
+function HealthChip({ health }: { health: CardHealth }) {
+  const style = CARD_HEALTH_STYLE[health];
   const bullets =
     health === "healthy"
-      ? [
-          "Cumulative delivered ≥ invoiced",
-          "On or ahead of plan — no action needed",
-        ]
+      ? ["Closed last Q at or above target (≥100%)"]
       : health === "watch"
-      ? [
-          "Behind on cumulative delivery",
-          "Gap is ≤ 1 month of SOW — recoverable inside the current month",
-        ]
-      : [
-          "Cumulative gap exceeds 1 month of SOW",
-          "Won't catch up this month without intervention",
-        ];
+      ? ["Closed last Q at 75–99%"]
+      : health === "behind"
+      ? ["Closed last Q under 75%"]
+      : ["Too new to score — no closed Q yet"];
   return (
     <TooltipProvider>
       <Tooltip>
@@ -653,10 +680,9 @@ function MonthlyBreakdownPopover({
     cumInvoiced: number; // Σ invoiced across every Q up to and including this one
   };
 
-  const start = row.start_date ? new Date(row.start_date) : null;
-  const startValid = start && !isNaN(start.getTime());
-  const startYear = startValid ? start!.getFullYear() : null;
-  const startMonth = startValid ? start!.getMonth() + 1 : null; // 1-indexed
+  const start = parseISODateLocal(row.start_date);
+  const startYear = start ? start.getFullYear() : null;
+  const startMonth = start ? start.getMonth() + 1 : null; // 1-indexed
 
   // Contract-month index (M1-based). Returns 1 for the first contract month.
   // Falls back to a calendar-based index if start_date is missing, so the
@@ -902,22 +928,18 @@ function MonthlyBreakdownPopover({
 }
 
 export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
-  // "As of <last completed month>" — shown in the section header so
-  // reviewers know the card totals exclude the in-progress month. Mirrors
-  // the cutoff used inside the card (`isPastOrCurrent` in the parent).
-  const asOfLabel = (() => {
-    const d = new Date();
-    const last = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-    return last.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  })();
-  // Triage-first: behind → watch → healthy, alphabetical inside each tier.
-  // This is preserved when we group by pod below (Map keeps insertion order),
-  // so attention-needing clients float to the top of every pod's grid.
+  // Card totals exclude the in-progress month, so the section "as of" point
+  // is the last completed calendar month.
+  const asOfLabel = lastCompletedMonthLabel();
+  // Triage-first: behind → watch → healthy → new (no closed Q), alphabetical
+  // inside each tier. This is preserved when we group by pod below (Map keeps
+  // insertion order), so attention-needing clients float to the top of every
+  // pod's grid.
   const sorted = useMemo(
     () =>
       [...rows].sort((a, b) => {
-        const rankA = HEALTH_RANK[healthOf(a)];
-        const rankB = HEALTH_RANK[healthOf(b)];
+        const rankA = CARD_HEALTH_RANK[lastQHealthFromRow(a)];
+        const rankB = CARD_HEALTH_RANK[lastQHealthFromRow(b)];
         if (rankA !== rankB) return rankA - rankB;
         return a.name.localeCompare(b.name);
       }),
@@ -926,8 +948,13 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
 
   // Section-level rollup so the heading itself answers "how are clients going?"
   const summary = useMemo(() => {
-    const counts: Record<Health, number> = { healthy: 0, watch: 0, behind: 0 };
-    for (const r of rows) counts[healthOf(r)]++;
+    const counts: Record<CardHealth, number> = {
+      healthy: 0,
+      watch: 0,
+      behind: 0,
+      no_q: 0,
+    };
+    for (const r of rows) counts[lastQHealthFromRow(r)]++;
     return counts;
   }, [rows]);
 
@@ -940,21 +967,18 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
             Client Delivery At a Glance{" "}
             <DataSourceBadge
               type="live"
-              source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One card per filtered client. SOW is lifetime. Delivered / Invoiced sum the per-month rows for the active date range, expanded to complete contract quarters."
+              source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One card per filtered client. SOW is lifetime. Delivered / Invoiced sum the per-month rows for the active date range, expanded to complete contract quarters (M1–M3 = Q1 anchored to each client's start_date)."
               shows={[
-                "Triage-first sort: BEHIND clients surface at the top of each pod, then WATCH, then HEALTHY (alphabetical within each tier).",
-                "Health chip in the card header: BEHIND = cumulative gap > 1 month of SOW; WATCH = behind but recoverable inside the current month; HEALTHY = at or ahead of plan.",
+                "Triage-first sort: BEHIND surfaces at the top of each pod, then WATCH, then HEALTHY, then NEW (alphabetical within each tier).",
+                "Health chip uses last full Q closure: BEHIND = closed under 75%; WATCH = closed at 75–99%; HEALTHY = closed at or above target (≥100%); NEW = no closed Q yet.",
                 "Two horizontal bars: Delivered vs Invoiced (top) and Invoiced vs SOW (bottom) — color-coded by %, raw numbers on the right.",
-                "Quarter context below the bars: Last full Q (most recent settled quarter, delivered/invoiced/%) and Current Q (partial progress against the Q's invoicing target, with M of 3).",
-                "Footer line reads the sheet's own phrasing (\"More invoiced than delivered: 18\" or \"At balance\") for the period, with a Cumulative line underneath when it differs.",
+                "Quarter context: Last full Q (most recent settled quarter, delivered/invoiced/%) and Current Q (partial progress, with M of 3).",
                 "Click \"Monthly detail\" for the per-month breakdown — AS OF row = last completed month, IN PROGRESS / LAST FULL chips tag the corresponding quarters' invoicing cells.",
                 "Card totals exclude the in-progress month, so they always reflect data through the last completed month.",
               ]}
             />
           </h3>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80]">
-            As of {asOfLabel}
-          </span>
+          <AsOfBadge label={asOfLabel} />
         </div>
         {scopeLabel && (
           <p className="mt-1 font-mono text-[11px] text-[#8FB5D9]">
@@ -977,6 +1001,19 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
               {summary.healthy} healthy
             </span>
+            {summary.no_q > 0 && (
+              <>
+                <span className="text-[#2a2a2a]">·</span>
+                <span
+                  className="flex items-center gap-1"
+                  style={{ color: "#DDCFAC" }}
+                  title="No closed Q yet — too new to score"
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+                  {summary.no_q} new
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1001,12 +1038,13 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
                 .map(([pod, items]) => (
                   <motion.div
                     key={`pod-group-${pod}`}
+                    id={`client-delivery-pod-${pod.replace(/\s+/g, "-").toLowerCase()}`}
                     layout
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={CARD_TRANSITION}
-                    className="space-y-2"
+                    className="space-y-2 scroll-mt-[180px]"
                   >
                     <div className="flex items-center gap-2">
                       {podBadge(pod)}
@@ -1022,11 +1060,13 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
                         {items.map((row) => (
                           <motion.div
                             key={row.id}
+                            id={`client-delivery-${row.id}`}
                             layout
                             initial={{ opacity: 0, y: 6 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -6 }}
                             transition={CARD_TRANSITION}
+                            className="scroll-mt-[180px]"
                           >
                             <ClientDeliveryCard row={row} />
                           </motion.div>

@@ -34,10 +34,12 @@ import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySe
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
 import { PodGoalsRow } from "@/components/dashboard/ContractClientProgress";
 import {
+  AsOfBadge,
   SortableHead as SortableHeadShared,
   TooltipBody,
   displayPod,
   elapsedContractPct,
+  lastCompletedMonthLabel,
   pacingColor,
 } from "@/components/dashboard/shared-helpers";
 import {
@@ -47,7 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, parseISODateLocal } from "@/lib/utils";
 import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import {
@@ -126,12 +128,12 @@ const POD_COLORS: Record<string, string> = {
   "Pod 5": "bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30",
 };
 
-function podBadge(pod: string | null) {
+function podBadge(pod: string | null, kind: "editorial" | "growth" = "editorial") {
   if (!pod) return <span className="text-[#606060]">{"\u2014"}</span>;
   const color = POD_COLORS[pod] ?? "bg-secondary text-secondary-foreground";
   return (
     <Badge variant="outline" className={color}>
-      {displayPod(pod, "editorial")}
+      {displayPod(pod, kind)}
     </Badge>
   );
 }
@@ -366,6 +368,7 @@ export default function EditorialClientsPage() {
                   ]}
                 />
               </h2>
+              <AsOfBadge label={lastCompletedMonthLabel()} />
               <span className="h-px flex-1 bg-[#2a2a2a]" />
             </div>
             <CumulativePipelineSection filteredClients={filteredClients} />
@@ -585,8 +588,11 @@ function ClientEngagementTimeline({
     }
 
     const dates = activeClients.flatMap((c) => {
-      const result: Date[] = [new Date(c.start_date!)];
-      if (c.end_date) result.push(new Date(c.end_date));
+      const result: Date[] = [];
+      const s = parseISODateLocal(c.start_date);
+      const e = parseISODateLocal(c.end_date);
+      if (s) result.push(s);
+      if (e) result.push(e);
       return result;
     });
 
@@ -700,10 +706,12 @@ function ClientEngagementTimeline({
 
         {/* Top row: "As of …" caption (left) + period toggle (right). */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <p className="font-mono text-[11px] text-[#909090]">
-            As of <span className="text-[#65FFAA] font-semibold">{asOfLabel}</span>
-            {" "}— the latest month with actual output in the Operating Model.
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <AsOfBadge label={asOfLabel} />
+            <p className="font-mono text-[11px] text-[#606060]">
+              latest month with actual output in the Operating Model.
+            </p>
+          </div>
           <div className="flex gap-1 bg-[#0d0d0d] rounded-md p-0.5 border border-[#2a2a2a] shrink-0">
             <button
               onClick={() => setCumView("monthly")}
@@ -1066,10 +1074,10 @@ function ContractTimelineTab({
                 />
               </h3>
               <a
-                href="https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY/edit"
+                href="https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY/edit#gid=1646003860"
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open the Deliverables Master Tracker in Google Sheets"
+                title="Open the 'v2 Editorial SOW & Engagement info' tab of the Master Tracker in Google Sheets"
                 className="group inline-flex items-center gap-2 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80] hover:bg-[#42CA80]/20 hover:border-[#42CA80]/50 hover:text-[#65FFAA] transition-colors"
               >
                 Open source sheet
@@ -1109,10 +1117,8 @@ function ContractTimelineTab({
                       {client.name}
                     </TableCell>
                     <TableCell>{statusBadge(client.status)}</TableCell>
-                    <TableCell>{podBadge(client.editorial_pod)}</TableCell>
-                    <TableCell className="text-xs text-[#C4BCAA]">
-                      {client.growth_pod ?? "\u2014"}
-                    </TableCell>
+                    <TableCell>{podBadge(client.editorial_pod, "editorial")}</TableCell>
+                    <TableCell>{podBadge(client.growth_pod, "growth")}</TableCell>
                     <TableCell className="font-mono text-xs text-[#C4BCAA] whitespace-nowrap">
                       {formatDate(client.start_date)}
                     </TableCell>
@@ -1324,8 +1330,8 @@ function DeliverablesSOWTab({
       // Fold in clients.start_date / end_date so the SOW overview's onboarding
       // window is preserved when deliveries haven't started yet.
       const c = clientById.get(cid);
-      const sheetStart = c?.start_date ? new Date(c.start_date) : null;
-      const sheetEnd = c?.end_date ? new Date(c.end_date) : null;
+      const sheetStart = parseISODateLocal(c?.start_date);
+      const sheetEnd = parseISODateLocal(c?.end_date);
       const startYm = sheetStart
         ? earlierYm(firstYm, { y: sheetStart.getFullYear(), m: sheetStart.getMonth() + 1 })
         : firstYm;
@@ -1386,12 +1392,11 @@ function DeliverablesSOWTab({
     // so the card still renders honestly.
     const expandedMonthsFor = (c: Client): Set<string> | null => {
       if (!hasFilter || !filterFrom || !filterTo) return null;
-      const startStr = effectiveStart(c);
-      const start = startStr ? new Date(startStr) : null;
+      const start = parseISODateLocal(effectiveStart(c));
       const months = new Set<string>();
       const pushKey = (y: number, m: number) =>
         months.add(`${y}-${String(m).padStart(2, "0")}`);
-      if (!start || isNaN(start.getTime())) {
+      if (!start) {
         // No contract start — fall through to literal filter months only.
         let y = filterFrom.getFullYear();
         let m = filterFrom.getMonth() + 1;

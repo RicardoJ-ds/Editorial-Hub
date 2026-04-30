@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, parseISODateLocal } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { Search, X } from "lucide-react";
 import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
@@ -148,14 +148,10 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
       let minStart: Date | null = null;
       let maxEnd: Date | null = null;
       for (const c of pool) {
-        if (c.start_date) {
-          const d = new Date(c.start_date);
-          if (!isNaN(d.getTime()) && (!minStart || d < minStart)) minStart = d;
-        }
-        if (c.end_date) {
-          const d = new Date(c.end_date);
-          if (!isNaN(d.getTime()) && (!maxEnd || d > maxEnd)) maxEnd = d;
-        }
+        const ds = parseISODateLocal(c.start_date);
+        if (ds && (!minStart || ds < minStart)) minStart = ds;
+        const de = parseISODateLocal(c.end_date);
+        if (de && (!maxEnd || de > maxEnd)) maxEnd = de;
       }
       if (minStart && maxEnd) {
         setDateRange({ type: "range", from: minStart, to: maxEnd });
@@ -199,8 +195,8 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
       const rangeEnd = dateRange.to ?? dateRange.from;
 
       filtered = filtered.filter((c) => {
-        const clientStart = c.start_date ? new Date(c.start_date) : null;
-        const clientEnd = c.end_date ? new Date(c.end_date) : null;
+        const clientStart = parseISODateLocal(c.start_date);
+        const clientEnd = parseISODateLocal(c.end_date);
         if (!clientStart) return true;
         if (clientStart > rangeEnd) return false;
         if (clientEnd && clientEnd < rangeStart) return false;

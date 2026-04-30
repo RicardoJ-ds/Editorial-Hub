@@ -5,10 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api";
 import type { Client, CumulativeMetric } from "@/lib/types";
 import { ClientPipelineCard } from "./ClientPipelineCard";
-import {
-  CumulativePipelineCards,
-  PodPipelineCardsGrid,
-} from "./CumulativePipelineCards";
+import { CumulativePipelineHeader } from "./CumulativePipelineHeader";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import { podBadge } from "./shared-helpers";
 
@@ -85,6 +82,13 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
     return map;
   }, [filteredClients]);
 
+  // Lookup so per-client cards can compute a pacing badge from start/end_date.
+  const clientByName = useMemo(() => {
+    const map = new Map<string, Client>();
+    for (const c of filteredClients ?? []) map.set(c.name, c);
+    return map;
+  }, [filteredClients]);
+
 
   if (loading) {
     return (
@@ -99,19 +103,10 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
 
   return (
     <div className="space-y-8">
-      {/* Top cards — scope-aware. Portfolio mode drops cumulative sums in
-          favor of triage signals (bottleneck, funnel health, most stuck,
-          pod attention). Pod / single-client modes show the totals that
-          actually mean something at that scope. */}
-      <CumulativePipelineCards
-        filteredClients={filteredClients ?? []}
-        rows={displayRows}
-      />
-
-      {/* Per-pod aggregate cards — pacing-aware so a pod with new clients
-          isn't unfairly punished for lower absolute %. Replaces the wide
-          pipeline matrix. Hidden when only one pod is in scope. */}
-      <PodPipelineCardsGrid
+      {/* Section header — replaces the old top-row cards. Portfolio / pod
+          views show scope summary + 4 stage mini-bars + anomaly chip.
+          Single-client view shows status + pod chips + contract window. */}
+      <CumulativePipelineHeader
         filteredClients={filteredClients ?? []}
         rows={displayRows}
       />
@@ -126,7 +121,11 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
       ) : (
         <div className="space-y-6">
           {rowsByPod.map(([pod, rows]) => (
-            <div key={`pod-group-${pod}`} className="space-y-3">
+            <div
+              key={`pod-group-${pod}`}
+              id={`cumulative-pipeline-pod-${pod.replace(/\s+/g, "-").toLowerCase()}`}
+              className="space-y-3 scroll-mt-[180px]"
+            >
               <div className="flex items-center gap-2 border-b border-[#1f1f1f] pb-1.5">
                 {podBadge(pod)}
                 <span className="font-mono text-xs text-[#606060]">
@@ -141,6 +140,7 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
                     data={row}
                     sow={clientToSow.get(row.client_name) ?? null}
                     pod={pod}
+                    client={clientByName.get(row.client_name) ?? null}
                   />
                 ))}
               </div>
