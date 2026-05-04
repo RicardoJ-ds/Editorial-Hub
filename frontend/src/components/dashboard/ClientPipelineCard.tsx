@@ -69,7 +69,12 @@ function PipelineBar({
 }
 
 export function ClientPipelineCard({ data, sow = null, pod = null, client = null }: Props) {
-  const overallPct = sow && sow > 0 ? (((data.articles_approved ?? 0) / sow) * 100) : 0;
+  // Articles use SENT (delivered to the client), not approved — the
+  // approval step is downstream of delivery and the latter is what
+  // billing tracks. Topics and CBs keep `approved` because those gates
+  // require explicit client sign-off.
+  const articlesValue = data.articles_sent ?? 0;
+  const overallPct = sow && sow > 0 ? ((articlesValue / sow) * 100) : 0;
   return (
     <div
       id={client ? `cumulative-pipeline-${client.id}` : undefined}
@@ -92,7 +97,7 @@ export function ClientPipelineCard({ data, sow = null, pod = null, client = null
       <div className="space-y-2">
         <PipelineBar label="Topics"    stage="topics"    value={data.topics_approved   ?? 0} sow={sow} />
         <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_approved      ?? 0} sow={sow} />
-        <PipelineBar label="Articles"  stage="articles"  value={data.articles_approved ?? 0} sow={sow} />
+        <PipelineBar label="Articles"  stage="articles"  value={articlesValue}                 sow={sow} />
         <PipelineBar label="Published" stage="published" value={data.published_live    ?? 0} sow={sow} />
       </div>
 

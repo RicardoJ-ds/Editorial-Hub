@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
+  Compass,
   LayoutDashboard,
   Users,
   Download,
@@ -30,6 +31,7 @@ interface NavItem {
 }
 
 const dashboardNav: NavItem[] = [
+  { label: "Overview", href: "/overview", icon: Compass },
   { label: "Editorial Clients", href: "/editorial-clients", icon: LayoutDashboard },
   { label: "Team KPIs", href: "/team-kpis", icon: Users },
 ];

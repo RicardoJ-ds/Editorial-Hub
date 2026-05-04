@@ -61,6 +61,7 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 | Path | Dashboard | Notes |
 |---|---|---|
 | `/` | Home | Lands on dashboard picker |
+| `/overview` | **Overview** (exec snapshot) | Mirrors D1's unfiltered top-row cards (Time-to Metrics + Delivery Overview + Cumulative Pipeline strip + Monthly Goals Range Snapshot). Owns "Most Behind" + "Pod Attention" cards (removed from D1). Each section deep-links into D1. |
 | `/editorial-clients` | D1: Contract & Timeline + Deliverables vs SOW tabs | Client-level SOW tracking |
 | `/team-kpis` | D2: KPI heatmap + Capacity Projections + AI Compliance tabs | Team performance |
 | `/capacity-planning` | **Capacity Maintenance** (CP v2 prototype, localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md`. Sidebar entry was renamed from "Capacity Planning v2" |

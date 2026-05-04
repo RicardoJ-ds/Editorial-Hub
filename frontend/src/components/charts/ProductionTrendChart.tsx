@@ -39,14 +39,23 @@ function formatLabel(year: number, month: number): string {
   return `${MONTH_NAMES[month]} ${String(year).slice(-2)}`;
 }
 
+interface ChartRow {
+  month: string;
+  Actual: number | null;
+  Projected: number | null;
+  /** Per-client contribution for the month — populated only on the
+   *  filtered code path (where we re-aggregate from clientProduction).
+   *  Sorted descending by value so the tooltip shows the top contributors
+   *  first. */
+  breakdown?: { name: string; value: number; isActual: boolean }[];
+}
+
 // At the transition from Actual → Projected the two Recharts series don't
 // share a point, so the dashed Projected line starts one month later than
 // the solid Actual line ends — producing a visible gap. Copy the final
 // Actual value into that same row's Projected field so the dashed series
 // has a starting anchor and visually continues the solid line.
-function bridgeActualToProjected(
-  rows: { month: string; Actual: number | null; Projected: number | null }[],
-) {
+function bridgeActualToProjected(rows: ChartRow[]) {
   for (let i = 0; i < rows.length - 1; i++) {
     const cur = rows[i];
     const next = rows[i + 1];
@@ -66,7 +75,10 @@ interface TooltipPayloadEntry {
   name: string;
   value: number;
   color: string;
+  payload?: ChartRow;
 }
+
+const BREAKDOWN_LIMIT = 10;
 
 function CustomTooltip({
   active,
@@ -78,6 +90,9 @@ function CustomTooltip({
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
+  const breakdown = payload[0]?.payload?.breakdown ?? [];
+  const visible = breakdown.slice(0, BREAKDOWN_LIMIT);
+  const hidden = breakdown.length - visible.length;
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] px-3 py-2 shadow-lg">
       <p className="mb-1 font-mono text-xs font-semibold text-white">
@@ -95,6 +110,34 @@ function CustomTooltip({
           </span>
         </div>
       ))}
+      {visible.length > 0 && (
+        <>
+          <div className="my-1.5 h-px bg-[#2a2a2a]" />
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            By client
+          </p>
+          <ul className="space-y-0.5">
+            {visible.map((row) => (
+              <li
+                key={row.name}
+                className="flex items-center justify-between gap-3 font-mono text-[11px]"
+              >
+                <span className="truncate text-[#C4BCAA]" title={row.name}>
+                  {row.name}
+                </span>
+                <span className="tabular-nums font-semibold text-white">
+                  {row.value}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hidden > 0 && (
+            <p className="mt-1 font-mono text-[10px] text-[#606060]">
+              +{hidden} more client{hidden === 1 ? "" : "s"}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -158,7 +201,17 @@ export function ProductionTrendChart({
         : clientProduction;
       const byMonth = new Map<
         string,
-        { year: number; month: number; actual: number; projected: number }
+        {
+          year: number;
+          month: number;
+          actual: number;
+          projected: number;
+          // Per-client contribution for this month, kept so the tooltip
+          // can show what makes up the total. Stored as actual/projected
+          // separately because a single bucket usually only has one of
+          // them populated.
+          perClient: { name: string; actual: number; projected: number }[];
+        }
       >();
       for (const r of rows) {
         for (const m of r.monthly) {
@@ -169,24 +222,43 @@ export function ProductionTrendChart({
             month: m.month,
             actual: 0,
             projected: 0,
+            perClient: [] as { name: string; actual: number; projected: number }[],
           };
-          bucket.actual += m.actual ?? 0;
-          bucket.projected += m.projected ?? 0;
+          const a = m.actual ?? 0;
+          const p = m.projected ?? 0;
+          bucket.actual += a;
+          bucket.projected += p;
+          if (a !== 0 || p !== 0) {
+            bucket.perClient.push({ name: r.client_name, actual: a, projected: p });
+          }
           byMonth.set(key, bucket);
         }
       }
       const sorted = Array.from(byMonth.values()).sort(
         (a, b) => a.year * 100 + a.month - (b.year * 100 + b.month),
       );
-      const mapped = sorted.map((pt) => {
+      const mapped: ChartRow[] = sorted.map((pt) => {
         const label = formatLabel(pt.year, pt.month);
         // Treat a month as "actual" when actual > 0 (projected-only future months stay null here)
         const isActual = pt.actual > 0;
         if (isActual) lastActualLabel = label;
+        // Tooltip breakdown shows whichever side the chart is plotting
+        // for this month — actual contributors on past months, projected
+        // contributors on future ones — sorted top-down by value so the
+        // biggest drivers are immediately visible.
+        const breakdown = pt.perClient
+          .map((c) => ({
+            name: c.name,
+            value: isActual ? c.actual : c.projected,
+            isActual,
+          }))
+          .filter((c) => c.value > 0)
+          .sort((a, b) => b.value - a.value);
         return {
           month: label,
           Actual: isActual ? pt.actual : null,
           Projected: !isActual ? pt.projected : null,
+          breakdown,
         };
       });
       return { chartData: bridgeActualToProjected(mapped), boundaryLabel: lastActualLabel, source: "filtered" as const };
@@ -196,7 +268,7 @@ export function ProductionTrendChart({
       .filter((pt) => inRange(pt.year, pt.month))
       .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month));
 
-    const mapped = sorted.map((pt) => {
+    const mapped: ChartRow[] = sorted.map((pt) => {
       const label = formatLabel(pt.year, pt.month);
       if (pt.is_actual) lastActualLabel = label;
       return {

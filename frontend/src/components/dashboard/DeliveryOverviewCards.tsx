@@ -36,7 +36,7 @@ import type { Client } from "@/lib/types";
 // reorder when the user changes filters, instead of snapping.
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface SummaryRow extends HealthInput {
+export interface SummaryRow extends HealthInput {
   id: number;
   name: string;
   editorial_pod: string | null;
@@ -62,12 +62,20 @@ type Scope =
 // below. Each row in the Most Behind / Closing in 90D cards is wired to call
 // this so the user can drill from a triage signal into the full client card.
 // `scroll-mt-[180px]` on the target accounts for the sticky filter band + h2.
+//
+// Route-aware: the same cards mount on /overview where these targets don't
+// exist. In that case, navigate the user to D1 with the right hash so the
+// section scrolls into view after the page renders.
 function scrollToClient(clientId: number) {
-  const el =
-    typeof document !== "undefined"
-      ? document.getElementById(`client-delivery-${clientId}`)
-      : null;
-  if (!el) return;
+  if (typeof document === "undefined") return;
+  const targetId = `client-delivery-${clientId}`;
+  const el = document.getElementById(targetId);
+  if (!el) {
+    if (typeof window !== "undefined") {
+      window.location.assign(`/editorial-clients#${targetId}`);
+    }
+    return;
+  }
   el.scrollIntoView({ behavior: "smooth", block: "start" });
   // Brief highlight so the user's eye lands on the right card after scroll.
   el.classList.add("ring-2", "ring-[#42CA80]/60", "ring-offset-2", "ring-offset-black", "transition-shadow");
@@ -77,12 +85,16 @@ function scrollToClient(clientId: number) {
 }
 
 function scrollToPod(pod: string) {
+  if (typeof document === "undefined") return;
   const slug = pod.replace(/\s+/g, "-").toLowerCase();
-  const el =
-    typeof document !== "undefined"
-      ? document.getElementById(`client-delivery-pod-${slug}`)
-      : null;
-  if (!el) return;
+  const targetId = `client-delivery-pod-${slug}`;
+  const el = document.getElementById(targetId);
+  if (!el) {
+    if (typeof window !== "undefined") {
+      window.location.assign(`/editorial-clients#${targetId}`);
+    }
+    return;
+  }
   el.scrollIntoView({ behavior: "smooth", block: "start" });
   // Outline the whole pod group briefly so the user sees they landed on
   // the right pod, not a single client card.
@@ -184,11 +196,22 @@ export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Pro
   // tell which cards are new vs. carried-over across filter swaps.
   const cards = useMemo(() => buildCardsForScope(scope, allClients), [scope, allClients]);
 
+  // Column count tracks card count so a row never has empty slots:
+  //   • 5 in single-client scope (status + 4 ratios)
+  //   • 4 in pod scope (after Most Behind moved to /overview)
+  //   • 3 in portfolio scope (after Most Behind + Pod Attention moved)
+  const lgCols =
+    cards.length >= 5
+      ? "lg:grid-cols-5"
+      : cards.length === 4
+      ? "lg:grid-cols-4"
+      : "lg:grid-cols-3";
+
   return (
     <motion.div
       layout
       transition={cardTransition}
-      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
+      className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${lgCols}`}
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {cards.map(({ key, node }) => (
@@ -300,14 +323,13 @@ function buildCardsForScope(
           />
         ),
       },
-      {
-        key: "pod-most-behind",
-        node: <MostBehindCard rows={podRows} clients={podClients} />,
-      },
     ];
   }
 
-  // portfolio (all or multi-pod)
+  // portfolio (all or multi-pod). "Most Behind" and "Pod Attention" are
+  // intentionally absent here — both live on the Overview dashboard now,
+  // where exec viewers get the triage signals first. D1 still surfaces
+  // the same data via the per-client cards below.
   const r = scope.rows;
   const c = scope.clients;
   return [
@@ -320,10 +342,8 @@ function buildCardsForScope(
         />
       ),
     },
-    { key: "port-most-behind", node: <MostBehindCard rows={r} clients={c} /> },
     { key: "port-closing", node: <ClosingSoonCard clients={c} /> },
     { key: "port-recent-q", node: <RecentQClosesCard rows={r} clients={c} /> },
-    { key: "port-pod-attn", node: <PodAttentionCard rows={r} clients={c} /> },
   ];
 }
 
@@ -811,7 +831,7 @@ function ContractTimingCard({ client }: { client: Client }) {
 }
 
 // Top 3 clients with the most negative cumulative variance, listed inline.
-function MostBehindCard({
+export function MostBehindCard({
   rows,
   clients,
 }: {
@@ -959,7 +979,7 @@ function BehindRow({ item, dense = false }: { item: BehindRowItem; dense?: boole
 
 type ClosingSource = "sow" | "ops";
 
-function ClosingSoonCard({ clients }: { clients: Client[] }) {
+export function ClosingSoonCard({ clients }: { clients: Client[] }) {
   // Two end-date sources: SOW Overview (`end_date`) is the contract's
   // declared close; Operating Model (`operating_model_end_date`) is the
   // last month with non-zero production projection. They diverge when
@@ -1341,7 +1361,7 @@ function RecentQClosesCard({
   );
 }
 
-function PodAttentionCard({
+export function PodAttentionCard({
   rows,
   clients,
 }: {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -226,6 +227,7 @@ function DashboardSkeleton() {
 // ---------------------------------------------------------------------------
 
 export default function EditorialClientsPage() {
+  const searchParams = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
   const [deliverables, setDeliverables] = useState<DeliverableMonthly[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
@@ -286,9 +288,18 @@ export default function EditorialClientsPage() {
     );
   }
 
+  // Deep-link friendly tab default — reads `?tab=deliverables-sow` from the
+  // URL when present (e.g. on a click from the Overview dashboard); falls
+  // back to Contract & Timeline. Hash fragments on the URL keep working via
+  // the browser's native hash scroll + each section's scroll-mt offset.
+  const initialTab =
+    searchParams?.get("tab") === "deliverables-sow"
+      ? "deliverables-sow"
+      : "contract-timeline";
+
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="contract-timeline" onValueChange={() => {
+      <Tabs defaultValue={initialTab} onValueChange={() => {
         const scroller = document.querySelector('.ml-\\[240px\\]') as HTMLElement | null;
         if (scroller) scroller.scrollTo({ top: 0, behavior: "smooth" });
         else window.scrollTo({ top: 0, behavior: "smooth" });

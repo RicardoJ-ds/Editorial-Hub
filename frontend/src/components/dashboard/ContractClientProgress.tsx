@@ -147,7 +147,10 @@ function aggregateGoalsByPod(
   for (const r of rows) {
     const ct = (r.content_type ?? "").trim().toLowerCase() || "default";
     const key = `${r.client_name}|${r.month_year}|${ct}`;
-    const pod = normalizePod(clientToPod.get(r.client_name) ?? r.editorial_team_pod);
+    // Always defer to the canonical client→pod map so every row of a client
+    // lands in the SAME pod bucket. The per-row sheet column would split a
+    // client across two pods when its values were inconsistent.
+    const pod = clientToPod.get(r.client_name) ?? "Unassigned";
     let e = perCMC.get(key);
     if (!e) {
       e = {
@@ -599,10 +602,14 @@ function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
   // Canonical source of truth for "what pod is this client on" is the filtered
   // Client row's editorial_pod. Keeps the FilterBar's POD filter consistent
   // across both aggregations regardless of how the sheet column was named.
+  // Every filtered client gets an entry — clients without an editorial_pod
+  // map to "Unassigned" so the goal aggregator can't fall back to the sheet's
+  // per-row pod column (which is inconsistent across rows of the same client
+  // and used to split a client across two pod groups).
   const clientToPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients) {
-      if (c.editorial_pod) map.set(c.name, normalizePod(c.editorial_pod));
+      map.set(c.name, c.editorial_pod ? normalizePod(c.editorial_pod) : "Unassigned");
     }
     return map;
   }, [filteredClients]);

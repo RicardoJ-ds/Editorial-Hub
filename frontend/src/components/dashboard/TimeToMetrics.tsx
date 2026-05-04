@@ -199,8 +199,8 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
     setTip({ x, y, card, align });
   };
 
-  // Per-client milestone data, grouped by pod. Every client appears as a
-  // row; clients with no CKO or no milestone dates render as empty rows.
+  // Per-client milestone data, grouped by Growth Pod. Every client appears
+  // as a row; clients with no CKO or no milestone dates render as empty rows.
   // Pods are ordered numerically (Pod 1, 2, …, Unassigned last); clients
   // within each pod are sorted alphabetically.
   const clientMilestonesByPod = useMemo(() => {
@@ -217,7 +217,7 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
     });
     const byPod = new Map<string, typeof rows>();
     for (const r of rows) {
-      const pod = normalizePod(r.client.editorial_pod);
+      const pod = normalizePod(r.client.growth_pod);
       if (!byPod.has(pod)) byPod.set(pod, []);
       byPod.get(pod)!.push(r);
     }
@@ -834,7 +834,7 @@ function MilestoneWaterfall({ groups }: { groups: MilestoneGroup[] }) {
                       className="font-mono text-[10px] font-semibold uppercase tracking-wider"
                       style={{ color: podColor }}
                     >
-                      {displayPod(pod, "editorial")}
+                      {displayPod(pod, "growth")}
                     </span>
                     <span className="font-mono text-[10px] text-[#606060]">({rows.length})</span>
                   </div>

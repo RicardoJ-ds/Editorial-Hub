@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Database, RefreshCcw } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Database, Info, RefreshCcw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiGet } from "@/lib/api";
 
@@ -356,10 +356,12 @@ export default function DataQualityPage() {
             Data Quality
           </h1>
           <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-[#909090]">
-            Per-client discrepancies between source sheets. Each tab is one
-            class of drift the maintainer should reconcile — fixing them
-            keeps the dashboards honest. The data is read live from the DB
-            on every load (no cache).
+            Things to be aware of when reading the dashboards, in two flavors:{" "}
+            <span className="text-[#C4BCAA]">per-client drift</span> the
+            maintainer can reconcile in the source sheets (tabs below), and{" "}
+            <span className="text-[#C4BCAA]">modeling limitations</span> that
+            need code or data-model work to remove (panel below). Live from
+            the DB on every load, no cache.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -385,6 +387,8 @@ export default function DataQualityPage() {
           {error}
         </div>
       )}
+
+      <KnownLimitations />
 
       {loading && !data ? (
         <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-8 text-center font-mono text-[12px] text-[#606060]">
@@ -425,6 +429,104 @@ export default function DataQualityPage() {
           </Tabs>
         </>
       ) : null}
+    </div>
+  );
+}
+
+// Items to be aware of — modeling decisions or upstream-data limits that
+// can make the dashboards look "wrong" when they're actually behaving as
+// designed. Distinct from per-client discrepancies further below (which
+// the maintainer fixes by editing a source sheet); these are systemic and
+// fixed by code/data-model work, not by the Ops team.
+interface KnownItem {
+  title: string;
+  /** Concrete behavior a maintainer might observe and flag as wrong. */
+  symptom: string;
+  /** Root cause — usually a data-model decision or an upstream limitation. */
+  why: string;
+  /** Optional roadmap path to remove the limitation. */
+  unlock?: string;
+}
+
+const KNOWN_ITEMS: KnownItem[] = [
+  {
+    title: "Pod assignments are not historical",
+    symptom:
+      "Filtering by Editorial Pod or Growth Pod uses today's roster. A client that moved from Pod 1 → Pod 2 last quarter shows only under Pod 2, even when reviewing months they were actually worked by Pod 1.",
+    why:
+      "We store one Editorial Pod (from the ET CP capacity plan) and one Growth Pod (from BigQuery team_pod_assignments) per client. Both are single-value columns on the clients table, not month-stamped — so when a member or a client changes pods, the prior assignment is overwritten on the next sync.",
+    unlock:
+      "Add a pod-membership history table (client × pod × valid_from / valid_to) and switch every pod aggregator to look up the pod valid for the month being aggregated.",
+  },
+  {
+    title: "Goals data before Aug/Sep 2025 is partial",
+    symptom:
+      "Per-client month-by-month rows for early-2025 months show smaller totals than what was actually delivered. The Monthly Goals vs Delivery section already shows a yellow banner about it.",
+    why:
+      "Pre-Aug/Sep 2025 rows came from a different upstream sheet that didn't track all clients or all weeks. We ingested what was available so older months render, but the totals understate reality.",
+    unlock:
+      "Backfill the Master Tracker's [Month Year] Goals vs Delivery sheets for early-2025 months from the original sources, then re-sync.",
+  },
+  {
+    title: "Per-row pod columns in source sheets are ignored",
+    symptom:
+      "Goals vs Delivery and Cumulative sheets carry their own pod columns (editorial_team_pod, growth_team_pod, account_team_pod) that sometimes disagree with the clients table. The dashboards do not honor those columns, so a client could read 'Pod 2' on a sheet row but render under Pod 1 on the dashboard.",
+    why:
+      "Those per-row columns are inconsistent across rows of the same client (one row says Pod 1, another is blank). To keep every aggregator agreeing on a single pod per client, we use only clients.editorial_pod / clients.growth_pod as the source of truth.",
+    unlock:
+      "If a client's pod looks wrong, fix it in the SOW Overview / capacity plan (Editorial) or in BigQuery team_pod_assignments (Growth). The next sync propagates everywhere.",
+  },
+];
+
+function KnownLimitations() {
+  const count = KNOWN_ITEMS.length;
+  return (
+    <div className="space-y-2 rounded-md border border-[#F5BC4E]/30 bg-[#F5BC4E]/5 px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#F5BC4E]">
+          <Info className="h-3 w-3" />
+          Modeling limitations
+        </p>
+        <p className="font-mono text-[10px] text-[#F5BC4E]/70">
+          {count} known {count === 1 ? "item" : "items"}
+        </p>
+      </div>
+      <p className="text-[11px] leading-snug text-[#909090]">
+        These behave as designed but can look wrong at first glance. Not
+        per-client drift — they need a code or data-model change to remove,
+        not a sheet edit.
+      </p>
+      <ol className="mt-1 space-y-2">
+        {KNOWN_ITEMS.map((it, i) => (
+          <li
+            key={it.title}
+            className="rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2"
+          >
+            <p className="flex items-center gap-2 font-mono text-[11px] font-semibold text-white">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#F5BC4E]/15 text-[10px] text-[#F5BC4E]">
+                {i + 1}
+              </span>
+              {it.title}
+            </p>
+            <dl className="mt-1.5 space-y-1 text-[11px] leading-snug">
+              <KnownField label="Symptom" body={it.symptom} />
+              <KnownField label="Why" body={it.why} />
+              {it.unlock && <KnownField label="How to unlock" body={it.unlock} />}
+            </dl>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function KnownField({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="grid grid-cols-[110px_1fr] gap-x-3">
+      <dt className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+        {label}
+      </dt>
+      <dd className="text-[#C4BCAA]">{body}</dd>
     </div>
   );
 }
