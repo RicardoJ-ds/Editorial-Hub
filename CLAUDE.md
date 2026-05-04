@@ -4,6 +4,29 @@
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
+### Version-bump procedure
+
+When asked to "update the version":
+
+1. **Default = bump PATCH only** (e.g., `0.3.2 → 0.3.3`).
+2. **Bumping PHASE (`0.3.x → 0.4.0`) or rolling to `1.0` requires explicit
+   confirmation.** PHASE changes signal a new project focus area — never
+   auto-roll. `1.0` is reserved for when CP v2 is wired to the database and
+   RBAC is signed off.
+3. Update all four surfaces in one commit:
+   - `frontend/src/lib/version.ts` — `VERSION` constant (single source of truth).
+   - `CLAUDE.md` (this file) — the "Current version" line above.
+   - `CHANGELOG.md` — add a new top section under the new `## X.Y.Z — <date>`
+     heading, plain-language for stakeholders.
+   - Sidebar version chip reads `version.ts` automatically; no edit.
+4. Create an annotated git tag `vX.Y.Z` on the bump commit
+   (e.g., `git tag -a v0.3.3 -m "…"`).
+5. **Confirm before pushing tags** (`git push origin vX.Y.Z`).
+
+Phase reference: `0.1.x` initial Hub · `0.2.x` data foundation · `0.3.x` UI
+maturity (current) · `0.4.x` CP v2 → DB migration (next) · `1.0` Hub
+becomes primary tool of record.
+
 BI platform for Graphite's Editorial Team. Replaces the CP/Ops team's workflow
 across three Google Sheets with a single app. Today: **read-only dashboards**
 driven by one-time CSV seeds; **Capacity Planning v2** prototype is live but
