@@ -2,11 +2,23 @@
 
 Plain-language summary of every release for the Editorial Ops team and stakeholders. Newest first.
 
-> Versioning note — pre-launch software. We're at `v0.x` until Capacity Planning v2 is wired to the database and access controls are signed off; that release becomes `v1.0`.
+## Versioning note
+
+We use **`0.PHASE.ITERATION`**. The middle digit names the project's current focus area; the patch digit is uncapped (so `0.3.10` is fine — there's no implicit "1.0 in N releases").
+
+| Phase | Focus | When |
+|---|---|---|
+| `0.1.x` | Initial Hub — Dashboard 1 + Dashboard 2 read-only, sheet ingestion, Google login | through early Apr 2026 |
+| `0.2.x` | Data foundation — CP v2 prototype, BigQuery growth pods, Notion KPIs, live sync system | mid Apr 2026 |
+| `0.3.x` | UI maturity — refinement rounds, scope-aware cards, Overview dashboard | Apr 22 → onward |
+| `0.4.x` | (next) CP v2 → DB migration, dashboards switched onto `cp2_*` reads | upcoming |
+| **`1.0`** | The Hub becomes the Editorial team's primary tool of record (CP v2 wired to DB + RBAC sign-off) | when the above lands |
+
+> **Renamed from the prior scheme (May 5).** Earlier releases were labeled v0.1 → v0.4. Mapping for stakeholders who may remember the old labels: v0.1 → 0.1.0 · (untagged data-foundation work) → 0.2.0 · v0.2 → 0.3.0 · v0.3 → 0.3.1 · v0.4 → 0.3.2.
 
 ---
 
-## v0.4 — May 4
+## 0.3.2 — May 4 *(was v0.4)*
 
 **New: Overview dashboard (`/overview`)**
 
@@ -47,7 +59,7 @@ Plain-language summary of every release for the Editorial Ops team and stakehold
 
 ---
 
-## v0.3 — Apr 28
+## 0.3.1 — Apr 28 *(was v0.3)*
 
 **Editorial Clients · Delivery Overview (top cards)**
 
@@ -80,14 +92,13 @@ Plain-language summary of every release for the Editorial Ops team and stakehold
 
 ---
 
-## v0.2 — Apr 22 *(first refinement round)*
+## 0.3.0 — Apr 22 *(was v0.2 — first refinement round)*
 
 - Renamed *Pod* → *Editorial Pod* / *Growth Pod* everywhere visible.
 - Trimmed Contract & Timeline table from 17 → 9 columns.
 - Period filter now has a month-range slider, defaulting to current month ±6.
 - Delivery Trend chart re-built as a heatmap (was a tangled line chart).
 - Per-client cards grouped into pod subsections instead of one flat list.
-- Growth Pod assignments now pulled live from BigQuery (replacing a stale sheet).
 - Tooltip cleanup — every card explains its formula in 2–3 short bullets.
 - Import page split into *Wizard* and *Re-sync past months* tabs.
 - *Refresh computed KPIs* step now runs at the end of every sync.
@@ -95,11 +106,18 @@ Plain-language summary of every release for the Editorial Ops team and stakehold
 
 ---
 
-## v0.1 — Initial Hub *(launch through early April)*
+## 0.2.0 — mid Apr *(data foundation)*
+
+- **Capacity Planning v2 prototype** shipped (localStorage-backed): roster, allocation, leave, weekly actuals, schema, glossary, migration validator.
+- **Growth Pod assignments** now pulled live from BigQuery (replacing a stale spreadsheet).
+- **Notion-backed KPIs**: Revision Rate, Turnaround Time, Second Reviews — all computed from the Notion DB, no more manual entry.
+- **Live sync system**: SYNC button in the header runs every importer, then the *Refresh computed KPIs* step at the end so the heatmap updates the same session.
+
+---
+
+## 0.1.0 — Initial Hub *(launch through early April)*
 
 - Replaced 3 Google Sheets with a single dashboard app for the Editorial team.
 - **Dashboard 1 — Editorial Clients:** Contract & Timeline tab, Deliverables vs SOW tab, per-client cards grouped by pod, monthly goals vs delivery.
 - **Dashboard 2 — Team KPIs:** heatmap of 9 KPIs, capacity projections, AI compliance — all from real data.
-- **Capacity Planning v2 prototype:** roster, allocation, leave, weekly actuals, schema, glossary.
-- **Sync button + history:** one click pulls fresh data from every spreadsheet and refreshes computed KPIs.
 - **Google login:** access restricted to `@graphitehq.com`.

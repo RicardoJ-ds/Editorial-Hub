@@ -1,5 +1,9 @@
 # Editorial Hub
 
+**Current version: `0.3.2`** — see `CHANGELOG.md` for the full history and the
+versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
+`frontend/src/lib/version.ts`). Bump that constant on every release.
+
 BI platform for Graphite's Editorial Team. Replaces the CP/Ops team's workflow
 across three Google Sheets with a single app. Today: **read-only dashboards**
 driven by one-time CSV seeds; **Capacity Planning v2** prototype is live but

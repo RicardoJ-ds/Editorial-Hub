@@ -15,6 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { VERSION } from "@/lib/version";
 import type { HeaderUser } from "@/components/layout/Header";
 
 function getInitials(name: string): string {
@@ -161,8 +162,30 @@ export function Sidebar({ user }: { user: HeaderUser }) {
         <NavSection label="Admin" items={adminNav} pathname={pathname} />
       </nav>
 
-      {/* Footer — user identity + logout */}
+      {/* Footer — user identity + logout + version chip */}
       <div className="border-t border-[#1e1e1e] px-3 py-3">
+        {/* Version chip — collapsed shows just the number; expanded shows the
+            full label. Read from src/lib/version.ts (the single source of
+            truth) so a release bumps every UI surface at once. */}
+        <div
+          className="mb-2 hidden items-center justify-between gap-2 group-hover/sidebar:flex"
+          title={`Editorial Hub v${VERSION}`}
+        >
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            Version
+          </span>
+          <span className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#C4BCAA]">
+            v{VERSION}
+          </span>
+        </div>
+        <div
+          className="mb-2 flex justify-center group-hover/sidebar:hidden"
+          title={`Editorial Hub v${VERSION}`}
+        >
+          <span className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1 py-0.5 font-mono text-[9px] font-semibold text-[#606060]">
+            v{VERSION}
+          </span>
+        </div>
         {/* Collapsed: avatar only, centered */}
         <div className="flex items-center justify-center group-hover/sidebar:hidden" title={user.name}>
           {user.picture ? (
