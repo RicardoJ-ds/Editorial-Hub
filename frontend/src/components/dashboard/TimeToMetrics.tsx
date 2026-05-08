@@ -6,6 +6,7 @@ import { SummaryCard } from "./SummaryCard";
 import { DataSourceBadge } from "./DataSourceBadge";
 import { displayPod } from "./shared-helpers";
 import { cn } from "@/lib/utils";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,11 @@ import {
 
 interface TimeToMetricsProps {
   clients: Client[];
+  /** When true, suppresses the internal sticky h2 header so the consumer can
+   *  provide its own (e.g. /overview wraps every section in a uniform
+   *  `<Section>` component). Default false — D1 keeps using the built-in
+   *  header. */
+  hideHeader?: boolean;
 }
 
 interface MilestoneTooltip {
@@ -134,7 +140,8 @@ type MetricCard = MetricDef & {
   contributors: Contributor[];
 };
 
-export function TimeToMetrics({ clients }: TimeToMetricsProps) {
+export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProps) {
+  const { axis: podAxis } = useCurrentPodAxis();
   // Per-card stats AND the full list of contributing clients, so the hover
   // tooltip can show every (client, from-date → to-date, days) triple used.
   const cards = useMemo<MetricCard[]>(() => {
@@ -148,9 +155,10 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
         const days = daysBetween(a, b);
         values.push(days);
         if (days !== null && a && b) {
+          const rawPod = podAxis === "growth" ? c.growth_pod : c.editorial_pod;
           contributors.push({
             clientName: c.name,
-            pod: normalizePod(c.editorial_pod),
+            pod: normalizePod(rawPod),
             fromDate: a,
             toDate: b,
             days,
@@ -160,7 +168,7 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
       contributors.sort((x, y) => y.days - x.days);
       return { ...d, stats: statsOf(values), contributors };
     });
-  }, [clients]);
+  }, [clients, podAxis]);
 
   // Single shared tooltip instance for all 8 cards — avoids mounting 8 portals.
   // Mouse-out schedules a short close delay so the user can move into the
@@ -231,23 +239,25 @@ export function TimeToMetrics({ clients }: TimeToMetricsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
-        <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
-          Time-to Metrics
-          <DataSourceBadge
-            type="live"
-            source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from milestone date fields: Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published."
-            shows={[
-              "Each card = one milestone handoff (e.g. Consulting KO → First Article).",
-              "Big number is the average across filtered clients, in days.",
-              "Min/Max shows the fastest and slowest client in the filter.",
-              "Lower is better — smaller numbers mean smoother onboardings.",
-            ]}
-          />
-        </h2>
-        <span className="h-px flex-1 bg-[#2a2a2a]" />
-        <span className="text-[10px] font-mono text-[#909090]">Reference: Consulting KO (Day 0)</span>
-      </div>
+      {!hideHeader && (
+        <div className="sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
+          <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
+            Time-to Metrics
+            <DataSourceBadge
+              type="live"
+              source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from milestone date fields: Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published."
+              shows={[
+                "Each card = one milestone handoff (e.g. Consulting KO → First Article).",
+                "Big number is the average across filtered clients, in days.",
+                "Min/Max shows the fastest and slowest client in the filter.",
+                "Lower is better — smaller numbers mean smoother onboardings.",
+              ]}
+            />
+          </h2>
+          <span className="h-px flex-1 bg-[#2a2a2a]" />
+          <span className="text-[10px] font-mono text-[#909090]">Reference: Consulting KO (Day 0)</span>
+        </div>
+      )}
 
       {/* Row 1: Primary — from Consulting KO */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

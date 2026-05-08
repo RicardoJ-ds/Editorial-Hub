@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +18,7 @@ import {
 import { ClientStatusCard } from "./FilterContextCard";
 import { parseISODateLocal } from "@/lib/utils";
 import type { Client } from "@/lib/types";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scope-aware Delivery Overview cards.
@@ -58,21 +59,57 @@ type Scope =
   | { kind: "pod"; pod: string; clients: Client[]; rows: SummaryRow[] }
   | { kind: "portfolio"; clients: Client[]; rows: SummaryRow[] };
 
+// Filter params we propagate when redirecting from /overview into D1, so a
+// VP scanning the Overview with filters applied keeps that exact narrowing
+// after the click. FilterBar reads each of these on mount and pre-applies
+// them. Date range is intentionally excluded (defaults to current ±6 mo on
+// D1, which is the most useful starting point on the operational view).
+const D1_PROPAGATED_FILTER_KEYS = [
+  "search",
+  "editorial_pod",
+  "growth_pod",
+  "status",
+] as const;
+
+/** Build a D1 query string that preserves the current page's filter params
+ *  (when the call originates from /overview) and overlays any explicit
+ *  overrides — e.g. `search={clientName}` for a per-client click, or
+ *  `editorial_pod={pod}` for a per-pod click. */
+function buildD1QueryString(overrides: Record<string, string | undefined>): string {
+  if (typeof window === "undefined") return "";
+  const current = new URLSearchParams(window.location.search);
+  const out = new URLSearchParams();
+  for (const key of D1_PROPAGATED_FILTER_KEYS) {
+    const v = current.get(key);
+    if (v) out.set(key, v);
+  }
+  // D1 deep links always land on Deliverables vs SOW since that's where the
+  // per-client cards + pod groups live.
+  out.set("tab", "deliverables-sow");
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v) out.set(k, v);
+  }
+  return out.toString();
+}
+
 // Scroll to the per-client card in the "Client Delivery At a Glance" section
 // below. Each row in the Most Behind / Closing in 90D cards is wired to call
 // this so the user can drill from a triage signal into the full client card.
 // `scroll-mt-[180px]` on the target accounts for the sticky filter band + h2.
 //
 // Route-aware: the same cards mount on /overview where these targets don't
-// exist. In that case, navigate the user to D1 with the right hash so the
-// section scrolls into view after the page renders.
-function scrollToClient(clientId: number) {
+// exist. In that case, navigate the user to D1 with the right hash + filter
+// params so the section scrolls into view after the page renders, with the
+// Overview's filters preserved (and the clicked client pre-applied to the
+// search box when `clientName` is provided).
+function scrollToClient(clientId: number, clientName?: string) {
   if (typeof document === "undefined") return;
   const targetId = `client-delivery-${clientId}`;
   const el = document.getElementById(targetId);
   if (!el) {
     if (typeof window !== "undefined") {
-      window.location.assign(`/editorial-clients#${targetId}`);
+      const q = buildD1QueryString({ search: clientName });
+      window.location.assign(`/editorial-clients?${q}#${targetId}`);
     }
     return;
   }
@@ -91,7 +128,11 @@ function scrollToPod(pod: string) {
   const el = document.getElementById(targetId);
   if (!el) {
     if (typeof window !== "undefined") {
-      window.location.assign(`/editorial-clients#${targetId}`);
+      // Preserve the Overview filters AND set editorial_pod to the clicked
+      // pod — `pod` is the canonical "Pod N" label used elsewhere in the
+      // app and is what FilterBar's editorial_pod URL key expects.
+      const q = buildD1QueryString({ editorial_pod: pod });
+      window.location.assign(`/editorial-clients?${q}#${targetId}`);
     }
     return;
   }
@@ -157,13 +198,18 @@ function sowWeightedElapsedPct(
 function detectScope(
   filteredClients: Client[],
   rows: SummaryRow[],
+  podAxis: "editorial" | "growth",
 ): Scope {
   if (filteredClients.length === 1) {
     const client = filteredClients[0];
     const row = rows.find((r) => r.id === client.id) ?? null;
     return { kind: "client", client, row };
   }
-  const pods = new Set(filteredClients.map((c) => normalizePod(c.editorial_pod)));
+  // Detect "single pod scope" against whichever pod axis is active. The
+  // user's toggle (or pod lock) is the source of truth.
+  const pods = new Set(
+    filteredClients.map((c) => normalizePod(podAxis === "growth" ? c.growth_pod : c.editorial_pod)),
+  );
   if (filteredClients.length > 1 && pods.size === 1) {
     return {
       kind: "pod",
@@ -187,9 +233,10 @@ interface Props {
 const cardTransition = { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const };
 
 export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Props) {
+  const { axis } = useCurrentPodAxis();
   const scope = useMemo(
-    () => detectScope(filteredClients, rows),
-    [filteredClients, rows],
+    () => detectScope(filteredClients, rows, axis),
+    [filteredClients, rows, axis],
   );
 
   // Each card gets a stable key per scope kind + slot so AnimatePresence can
@@ -198,14 +245,16 @@ export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Pro
 
   // Column count tracks card count so a row never has empty slots:
   //   • 5 in single-client scope (status + 4 ratios)
-  //   • 4 in pod scope (after Most Behind moved to /overview)
-  //   • 3 in portfolio scope (after Most Behind + Pod Attention moved)
+  //   • 3 in pod scope (after Delivery Progress + Most Behind moved to /overview)
+  //   • 2 in portfolio scope (after Delivery Progress + Most Behind + Pod Attention moved)
   const lgCols =
     cards.length >= 5
       ? "lg:grid-cols-5"
       : cards.length === 4
       ? "lg:grid-cols-4"
-      : "lg:grid-cols-3";
+      : cards.length === 3
+      ? "lg:grid-cols-3"
+      : "lg:grid-cols-2";
 
   return (
     <motion.div
@@ -289,23 +338,12 @@ function buildCardsForScope(
     const totDel = podRows.reduce((a, r) => a + r.articles_delivered, 0);
     const totInv = podRows.reduce((a, r) => a + r.articles_invoiced, 0);
     const variance = totDel - totInv;
-    const podLabel = displayPod(scope.pod, "editorial");
-    // Same five-card layout as portfolio scope but everything is filtered to
-    // this pod's clients only. Cards mirror the last-Q lens we adopted across
-    // the dashboard — Delivery Progress / Last Q Closes / Most Behind all
-    // grade against the most recently CLOSED contract quarter, not lifetime
-    // cumulative variance. Variance is kept as the only lifetime signal so
-    // the user still sees the pod's overall delivery vs invoicing balance.
+    // Pod scope cards mirror the last-Q lens used across the dashboard.
+    // Delivery Progress lives on /overview's Triage lens, not here — D1 still
+    // surfaces the same per-pod last-Q signal via Last Q Closes + the
+    // per-client cards below. Variance is the lifetime delivery vs invoicing
+    // balance for the pod.
     return [
-      {
-        key: "pod-mix",
-        node: (
-          <DeliveryMixCard
-            rows={podRows}
-            subtitle={`${podLabel} · ${podRows.length} clients`}
-          />
-        ),
-      },
       {
         key: "pod-recent-q",
         node: <RecentQClosesCard rows={podRows} clients={podClients} />,
@@ -326,22 +364,14 @@ function buildCardsForScope(
     ];
   }
 
-  // portfolio (all or multi-pod). "Most Behind" and "Pod Attention" are
-  // intentionally absent here — both live on the Overview dashboard now,
-  // where exec viewers get the triage signals first. D1 still surfaces
-  // the same data via the per-client cards below.
+  // portfolio (all or multi-pod). "Delivery Progress", "Most Behind" and
+  // "Pod Attention" are intentionally absent here — all three live on the
+  // Overview dashboard's Triage lens, where exec viewers get the triage
+  // signals first. D1 still surfaces the same data via Last Q Closes,
+  // Closing in 90d, and the per-client cards below.
   const r = scope.rows;
   const c = scope.clients;
   return [
-    {
-      key: "port-mix",
-      node: (
-        <DeliveryMixCard
-          rows={r}
-          subtitle={`${r.length} of ${allClients.length} clients`}
-        />
-      ),
-    },
     { key: "port-closing", node: <ClosingSoonCard clients={c} /> },
     { key: "port-recent-q", node: <RecentQClosesCard rows={r} clients={c} /> },
   ];
@@ -371,7 +401,7 @@ function lastQHealth(row: SummaryRow): Health | null {
   return "behind";
 }
 
-function DeliveryMixCard({
+export function DeliveryMixCard({
   rows,
   subtitle,
 }: {
@@ -951,7 +981,7 @@ function BehindRow({ item, dense = false }: { item: BehindRowItem; dense?: boole
     <li>
       <button
         type="button"
-        onClick={() => scrollToClient(row.id)}
+        onClick={() => scrollToClient(row.id, client.name)}
         title={`Jump to ${client.name}'s card`}
         className={
           // Hover bg is lighter than both the card surface (#161616) and the
@@ -977,92 +1007,51 @@ function BehindRow({ item, dense = false }: { item: BehindRowItem; dense?: boole
   );
 }
 
-type ClosingSource = "sow" | "ops";
-
 export function ClosingSoonCard({ clients }: { clients: Client[] }) {
-  // Two end-date sources: SOW Overview (`end_date`) is the contract's
-  // declared close; Operating Model (`operating_model_end_date`) is the
-  // last month with non-zero production projection. They diverge when
-  // ops has already wound a client down or a renewal isn't reflected in
-  // the SOW yet — toggle so the user can audit the discrepancies.
-  const [source, setSource] = useState<ClosingSource>("sow");
-
+  // End-date source = Operating Model `operating_model_end_date` (last month
+  // with non-zero production projection). The earlier SOW/Ops toggle was
+  // removed — operators consistently want the projected close, not the
+  // contract close, since the SOW is often stale on renewals/silent churn.
+  // The SOW/Ops divergence audit lives at /admin/data-quality if needed.
   const closing = useMemo(() => {
     const today = new Date();
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() + 90);
     return clients
       .map((c) => {
-        const raw =
-          source === "sow" ? c.end_date : c.operating_model_end_date;
-        const parsed = parseISODateLocal(raw);
+        const parsed = parseISODateLocal(c.operating_model_end_date);
         if (!parsed) return null;
         // Operating Model dates are month-precision (anchored to day 1 of the
         // last projected month). A client whose ops_end is "Apr 2026" closes
         // some time during April, so for cutoff comparisons we treat it as
         // end-of-month — otherwise a client closing this month would already
         // appear "past" by the second day of the month and drop off the list.
-        const end =
-          source === "ops"
-            ? new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0)
-            : parsed;
+        const end = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0);
         if (end < today) return null;
         if (end > cutoff) return null;
         return { client: c, end };
       })
       .filter((x): x is { client: Client; end: Date } => x !== null)
       .sort((a, b) => a.end.getTime() - b.end.getTime());
-  }, [clients, source]);
+  }, [clients]);
 
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="flex h-full flex-col pt-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <CardTitleWithTooltip
-              label="Closing in 90d"
-              body={{
-                title: "Closing in 90d",
-                bullets: [
-                  "SOW = contract end date · Ops = last projected month.",
-                  "Toggle to spot mismatches (renewal not entered, silent churn).",
-                  "Full divergence list at /admin/data-quality.",
-                ],
-              }}
-            />
-            <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-              {source === "sow"
-                ? "By SOW Overview end date"
-                : "By Operating Model last projected month"}
-            </p>
-          </div>
-          <div
-            role="tablist"
-            aria-label="End-date source"
-            className="shrink-0 inline-flex rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5 font-mono text-[10px] uppercase tracking-wider"
-          >
-            {(["sow", "ops"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                role="tab"
-                aria-selected={source === s}
-                onClick={() => setSource(s)}
-                className={
-                  source === s
-                    ? "rounded-sm bg-[#1f1f1f] px-1.5 py-0.5 text-white"
-                    : "rounded-sm px-1.5 py-0.5 text-[#606060] hover:text-[#C4BCAA]"
-                }
-                title={
-                  s === "sow"
-                    ? "SOW Overview end date"
-                    : "Last month with projected production in the Operating Model"
-                }
-              >
-                {s === "sow" ? "SOW" : "Ops"}
-              </button>
-            ))}
-          </div>
+        <div className="min-w-0">
+          <CardTitleWithTooltip
+            label="Closing in 90d"
+            body={{
+              title: "Closing in 90d",
+              bullets: [
+                "Source: last month with projected production in the Operating Model.",
+                "Cross-checks against SOW Overview live at /admin/data-quality.",
+              ],
+            }}
+          />
+          <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
+            By Operating Model last projected month
+          </p>
         </div>
         <p
           className="mt-1.5 font-mono text-2xl font-bold tabular-nums"
@@ -1077,7 +1066,7 @@ export function ClosingSoonCard({ clients }: { clients: Client[] }) {
           <>
             <ul className="mt-1 space-y-0.5">
               {closing.slice(0, 3).map((item) => (
-                <ClosingRow key={item.client.id} item={item} source={source} />
+                <ClosingRow key={item.client.id} item={item} />
               ))}
             </ul>
             {closing.length > 3 && (
@@ -1100,7 +1089,7 @@ export function ClosingSoonCard({ clients }: { clients: Client[] }) {
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      Closing in 90d · {source === "sow" ? "SOW" : "Operating Model"}
+                      Closing in 90d · Operating Model
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       {closing.length} clients · click a row to jump to its card
@@ -1108,12 +1097,7 @@ export function ClosingSoonCard({ clients }: { clients: Client[] }) {
                   </div>
                   <ul className="max-h-[320px] overflow-y-auto p-1">
                     {closing.map((item) => (
-                      <ClosingRow
-                        key={item.client.id}
-                        item={item}
-                        source={source}
-                        dense
-                      />
+                      <ClosingRow key={item.client.id} item={item} dense />
                     ))}
                   </ul>
                 </PopoverContent>
@@ -1126,13 +1110,11 @@ export function ClosingSoonCard({ clients }: { clients: Client[] }) {
   );
 }
 
-// Urgency tiers shared by both toggle modes so the colors mean the same
-// thing — closer = heavier weight. SOW maps days→tier, Ops maps
-// months→tier so "this month" = same dark-green tone as "0–30d".
-//
-// Palette (Graphite DS): P3 (dark green) → P2 (lighter green) → WN1 (cream).
-// Imminent gets the heaviest swatch so it reads as "weight on the calendar"
-// rather than "red emergency"; later closes fade to cream as informational.
+// Urgency tiers — closer = heavier weight. Months-ahead → tier so "this
+// month" reads as the most pressing. Palette (Graphite DS): P3 (dark green)
+// → P2 (lighter green) → WN1 (cream). Imminent gets the heaviest swatch so
+// it reads as "weight on the calendar" rather than "red emergency"; later
+// closes fade to cream as informational.
 type UrgencyTier = "imminent" | "soon" | "later";
 
 // Same pill style as podBadge / statusBadge across the app: 15% bg tint,
@@ -1160,11 +1142,6 @@ const URGENCY_STYLE: Record<
   }, // WN1 cream
 };
 
-function urgencyFromDays(days: number): UrgencyTier {
-  if (days <= 30) return "imminent";
-  if (days <= 60) return "soon";
-  return "later";
-}
 function urgencyFromMonthsAhead(m: number): UrgencyTier {
   if (m <= 0) return "imminent";
   if (m === 1) return "soon";
@@ -1173,42 +1150,32 @@ function urgencyFromMonthsAhead(m: number): UrgencyTier {
 
 function ClosingRow({
   item,
-  source,
   dense = false,
 }: {
   item: { client: Client; end: Date };
-  source: ClosingSource;
   dense?: boolean;
 }) {
   const { client, end } = item;
-  // SOW dates are real calendar days, so "Xd" is accurate. Operating Model
-  // dates are month-precision (anchored to end-of-month for filtering), so
-  // a day count would be fake precision — use a month-relative label instead.
-  let label: string;
-  let tier: UrgencyTier;
-  if (source === "sow") {
-    const days = Math.max(0, Math.round((end.getTime() - Date.now()) / 86400000));
-    label = `${days}d`;
-    tier = urgencyFromDays(days);
-  } else {
-    const today = new Date();
-    const monthsAhead =
-      (end.getFullYear() - today.getFullYear()) * 12 +
-      (end.getMonth() - today.getMonth());
-    label =
-      monthsAhead <= 0
-        ? "this month"
-        : monthsAhead === 1
-        ? "next month"
-        : `in ${monthsAhead} months`;
-    tier = urgencyFromMonthsAhead(monthsAhead);
-  }
+  // Operating Model dates are month-precision (anchored to end-of-month for
+  // filtering), so a day count would be fake precision — use a month-relative
+  // label instead.
+  const today = new Date();
+  const monthsAhead =
+    (end.getFullYear() - today.getFullYear()) * 12 +
+    (end.getMonth() - today.getMonth());
+  const label =
+    monthsAhead <= 0
+      ? "this month"
+      : monthsAhead === 1
+      ? "next month"
+      : `in ${monthsAhead} months`;
+  const tier = urgencyFromMonthsAhead(monthsAhead);
   const style = URGENCY_STYLE[tier];
   return (
     <li>
       <button
         type="button"
-        onClick={() => scrollToClient(client.id)}
+        onClick={() => scrollToClient(client.id, client.name)}
         title={`Jump to ${client.name}'s card`}
         className={
           "flex w-full items-baseline justify-between gap-2 rounded font-mono text-[11px] transition-colors hover:bg-[#242424] " +
@@ -1323,7 +1290,7 @@ function RecentQClosesCard({
           <div className="mt-auto space-y-0.5 pt-2">
             <button
               type="button"
-              onClick={() => scrollToClient(stats.bestEntry!.id)}
+              onClick={() => scrollToClient(stats.bestEntry!.id, stats.bestEntry!.name)}
               title={`Jump to ${stats.bestEntry.name}'s card`}
               className="-mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline justify-between gap-2 rounded px-1.5 py-0.5 font-mono text-[10px] transition-colors hover:bg-[#242424]"
             >
@@ -1337,7 +1304,7 @@ function RecentQClosesCard({
             </button>
             <button
               type="button"
-              onClick={() => scrollToClient(stats.worstEntry!.id)}
+              onClick={() => scrollToClient(stats.worstEntry!.id, stats.worstEntry!.name)}
               title={`Jump to ${stats.worstEntry.name}'s card`}
               className="-mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline justify-between gap-2 rounded px-1.5 py-0.5 font-mono text-[10px] transition-colors hover:bg-[#242424]"
             >
@@ -1372,12 +1339,20 @@ export function PodAttentionCard({
   // its last full Q closure (under 75% = behind), then surface the pod
   // carrying the most behind clients PLUS the actual behind clients in
   // that pod (Most Behind row format) so the user can drill straight in.
+  const { axis: podAxis } = useCurrentPodAxis();
   const { sorted, behindByPod } = useMemo(() => {
     const byId = new Map(clients.map((c) => [c.id, c]));
     const byPod: Record<string, { behind: number; withQ: number; total: number }> = {};
     const behindByPod: Record<string, BehindRowItem[]> = {};
     for (const r of rows) {
-      const pod = normalizePod(r.editorial_pod) || "Unassigned";
+      // Prefer the axis-relevant pod from the live `clients` list. Falls
+      // back to the row's hardcoded `editorial_pod` for rows whose client
+      // has been filtered out.
+      const client = byId.get(r.id);
+      const rawPod = client
+        ? (podAxis === "growth" ? client.growth_pod : client.editorial_pod)
+        : r.editorial_pod;
+      const pod = normalizePod(rawPod) || "Unassigned";
       const slot = byPod[pod] ?? { behind: 0, withQ: 0, total: 0 };
       slot.total += 1;
       const tier = lastQHealth(r);
@@ -1403,7 +1378,7 @@ export function PodAttentionCard({
       (a, b) => b[1].behind - a[1].behind,
     );
     return { sorted, behindByPod };
-  }, [rows, clients]);
+  }, [rows, clients, podAxis]);
 
   const totalBehind = sorted.reduce((a, [, { behind }]) => a + behind, 0);
   const totalWithQ = sorted.reduce((a, [, { withQ }]) => a + withQ, 0);

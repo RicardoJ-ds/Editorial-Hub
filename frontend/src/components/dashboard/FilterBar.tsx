@@ -33,11 +33,23 @@ function normalizePod(raw: string | null | undefined): string {
 
 interface FilterBarProps {
   clients: Client[];
+  /** Optional per-client *data* range (first → last month with any row in
+   *  deliverables_monthly). When provided, the auto-fit uses these bounds
+   *  instead of the contract `start_date`/`end_date` so the resulting date
+   *  filter covers every month we actually have data for — including
+   *  post-contract reconciliations and historical pre-current-contract
+   *  engagements. Falls back to contract dates per-client when missing. */
+  dataRanges?: Map<number, { start: Date; end: Date }>;
   onFilterChange: (filtered: Client[]) => void;
   onDateRangeChange?: (range: DateRange) => void;
 }
 
-export function FilterBar({ clients, onFilterChange, onDateRangeChange }: FilterBarProps) {
+export function FilterBar({
+  clients,
+  dataRanges,
+  onFilterChange,
+  onDateRangeChange,
+}: FilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -148,9 +160,14 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
       let minStart: Date | null = null;
       let maxEnd: Date | null = null;
       for (const c of pool) {
-        const ds = parseISODateLocal(c.start_date);
+        // Prefer the actual deliverables_monthly span when available — that
+        // covers historical pre-contract engagements and post-contract
+        // reconciliations that the SOW contract dates miss. Falls back to
+        // contract dates when a client has no rows yet.
+        const range = dataRanges?.get(c.id);
+        const ds = range?.start ?? parseISODateLocal(c.start_date);
+        const de = range?.end ?? parseISODateLocal(c.end_date);
         if (ds && (!minStart || ds < minStart)) minStart = ds;
-        const de = parseISODateLocal(c.end_date);
         if (de && (!maxEnd || de > maxEnd)) maxEnd = de;
       }
       if (minStart && maxEnd) {
@@ -159,7 +176,7 @@ export function FilterBar({ clients, onFilterChange, onDateRangeChange }: Filter
         setDateRange({ type: "all" });
       }
     },
-    [clients, search, editorialPod, growthPod, status],
+    [clients, dataRanges, search, editorialPod, growthPod, status],
   );
 
   useEffect(() => {

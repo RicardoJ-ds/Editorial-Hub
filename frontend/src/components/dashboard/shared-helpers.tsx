@@ -360,22 +360,37 @@ export function goalStatusBadge(cbPct: number, adPct: number) {
 // latest Operating Model month with actuals); only the visual is shared.
 // ---------------------------------------------------------------------------
 
-export function AsOfBadge({ label }: { label: string | null | undefined }) {
+export function AsOfBadge({
+  label,
+  fallback,
+}: {
+  label: string | null | undefined;
+  /** When true, the label was derived from the Gregorian calendar because
+   *  we couldn't pin the date inside a known Editorial month. Surfaces a
+   *  small "cal." suffix + tooltip so reviewers know not to blindly trust
+   *  the boundary. */
+  fallback?: boolean;
+}) {
   if (!label) return null;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80]">
+    <span
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80]"
+      title={
+        fallback
+          ? "Editorial week distribution not loaded for this date — using calendar month as a fallback"
+          : undefined
+      }
+    >
       As of {label}
+      {fallback && (
+        <span className="font-normal normal-case text-[10px] text-[#909090]">
+          · cal.
+        </span>
+      )}
     </span>
   );
 }
 
-/** Returns the human-readable label for the last completed calendar month —
- *  e.g. "March 2026". The default "as of" point for sections whose data is
- *  capped at the last fully-settled month. */
-export function lastCompletedMonthLabel(now: Date = new Date()): string {
-  const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  return last.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-}
 
 // ---------------------------------------------------------------------------
 // Sort hook

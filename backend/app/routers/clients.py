@@ -4,11 +4,38 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import current_access, get_sync_session
 from app.database import get_db
-from app.models import Client, ProductionHistory
+from app.models import Client, PodAssignment, ProductionHistory
 from app.schemas import ClientCreate, ClientResponse, ClientUpdate
+from app.services.access import AccessProfile
 
 router = APIRouter()
+
+
+def _scope_filter(profile: AccessProfile) -> set[str] | None:
+    """Returns the set of client names the caller is allowed to see, or
+    None when the caller has access to every client.
+
+    `client_scope='all'` → None (no filter).
+    `client_scope='assigned'` → intersect Client.name with the user's
+    pod_assignments rows. When `pod_kind_lock` is set, narrow further
+    to that pod kind only.
+    """
+    if profile.client_scope == "all" or not profile.is_authenticated:
+        # Unauthenticated callers historically reached /api/clients freely;
+        # we don't break that here since the rest of the dashboard still
+        # depends on the global request flow. The `is_authenticated` guard
+        # mirrors the existing trust-the-frontend posture documented in
+        # api.ts. Phase 3 doesn't tighten it; that's a follow-up.
+        return None
+
+    with get_sync_session() as session:
+        q = select(PodAssignment.client_name).where(PodAssignment.email == profile.email)
+        if profile.pod_kind_lock:
+            q = q.where(PodAssignment.pod_kind == profile.pod_kind_lock)
+        rows = session.execute(q).all()
+        return {r[0] for r in rows if r[0]}
 
 
 async def _operating_model_end_dates(db: AsyncSession, client_ids: list[int]) -> dict[int, date]:
@@ -50,6 +77,7 @@ async def list_clients(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
+    profile: AccessProfile = Depends(current_access),
 ):
     stmt = select(Client)
 
@@ -61,6 +89,15 @@ async def list_clients(
         stmt = stmt.where(Client.growth_pod == growth_pod)
     if editorial_pod:
         stmt = stmt.where(Client.editorial_pod == editorial_pod)
+
+    # Scope-restricted users (Editorial Team / Growth Team / Leadership)
+    # only see clients they have a pod_assignments row for. Empty set →
+    # they see no clients (e.g. brand-new hire not yet on the sheet).
+    allowed = _scope_filter(profile)
+    if allowed is not None:
+        if not allowed:
+            return []
+        stmt = stmt.where(Client.name.in_(allowed))
 
     stmt = stmt.offset(skip).limit(limit).order_by(Client.name)
     result = await db.execute(stmt)

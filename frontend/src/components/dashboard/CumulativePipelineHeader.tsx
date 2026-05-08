@@ -8,6 +8,7 @@ import {
   type PipelineStage,
 } from "./shared-helpers";
 import { normalizePod } from "./ContractClientProgress";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import {
   Tooltip,
   TooltipContent,
@@ -41,7 +42,11 @@ interface Aggregate {
 }
 
 export function CumulativePipelineHeader({ filteredClients, rows }: Props) {
-  const scope = useMemo(() => buildScope(filteredClients, rows), [filteredClients, rows]);
+  const { axis } = useCurrentPodAxis();
+  const scope = useMemo(
+    () => buildScope(filteredClients, rows, axis),
+    [filteredClients, rows, axis],
+  );
   if (scope.kind === "client") return <ClientHeader client={scope.client} />;
   return <ScopeHeader subtitle={scope.subtitle} agg={scope.agg} />;
 }
@@ -54,7 +59,11 @@ type Scope =
   | { kind: "client"; client: Client }
   | { kind: "pod" | "portfolio"; subtitle: string; agg: Aggregate };
 
-function buildScope(filteredClients: Client[], rows: CumulativeMetric[]): Scope {
+function buildScope(
+  filteredClients: Client[],
+  rows: CumulativeMetric[],
+  podAxis: "editorial" | "growth",
+): Scope {
   if (filteredClients.length === 1) {
     return { kind: "client", client: filteredClients[0] };
   }
@@ -78,9 +87,10 @@ function buildScope(filteredClients: Client[], rows: CumulativeMetric[]): Scope 
   }
 
   const pods = new Set(
-    filteredClients.map((c) =>
-      c.editorial_pod ? normalizePod(c.editorial_pod) : "Unassigned",
-    ),
+    filteredClients.map((c) => {
+      const raw = podAxis === "growth" ? c.growth_pod : c.editorial_pod;
+      return raw ? normalizePod(raw) : "Unassigned";
+    }),
   );
   if (pods.size === 1) {
     const pod = Array.from(pods)[0];

@@ -20,10 +20,10 @@ import { DataSourceBadge } from "./DataSourceBadge";
 import {
   TooltipBody,
   contentTypeRatio,
-  goalStatusBadge,
   pctColorNum,
   podBadge,
 } from "./shared-helpers";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "./DateRangeFilter";
 
@@ -323,30 +323,10 @@ function GoalCell({ data }: { data: PodGoalAgg | null }) {
       </div>
     );
   }
-  const cbPct = data.cbGoal > 0 ? Math.round((data.cbDelivered / data.cbGoal) * 100) : 0;
-  const adPct = data.adGoal > 0 ? Math.round((data.adDelivered / data.adGoal) * 100) : 0;
-
+  // Goal Status badge (On Track / Behind / At Risk) intentionally removed
+  // pending refactor. The CB / Article arc gauges below carry the raw %.
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-3 transition-colors hover:border-[#333] animate-fade-slide">
-      <div className="mb-2 flex items-center justify-end">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger render={<span className="cursor-help" />}>
-              {goalStatusBadge(cbPct, adPct)}
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              <TooltipBody
-                title="Goal Status"
-                bullets={[
-                  "Avg of CB % and Article % for the pod across the active date range",
-                  "≥75% On Track · 50–74% Behind · <50% At Risk",
-                ]}
-              />
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
       <div className="flex items-center justify-center gap-4">
         <ArcWithTooltip
           value={data.cbDelivered}
@@ -600,19 +580,19 @@ function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
   }, []);
 
   // Canonical source of truth for "what pod is this client on" is the filtered
-  // Client row's editorial_pod. Keeps the FilterBar's POD filter consistent
-  // across both aggregations regardless of how the sheet column was named.
-  // Every filtered client gets an entry — clients without an editorial_pod
-  // map to "Unassigned" so the goal aggregator can't fall back to the sheet's
-  // per-row pod column (which is inconsistent across rows of the same client
-  // and used to split a client across two pod groups).
+  // Client row's pod field. The pod axis (`editorial_pod` vs `growth_pod`)
+  // comes from the user's access profile + their toggle selection — see
+  // `useCurrentPodAxis`. Every filtered client gets an entry; clients with
+  // no value on the active axis map to "Unassigned".
+  const { axis } = useCurrentPodAxis();
   const clientToPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients) {
-      map.set(c.name, c.editorial_pod ? normalizePod(c.editorial_pod) : "Unassigned");
+      const raw = axis === "growth" ? c.growth_pod : c.editorial_pod;
+      map.set(c.name, raw ? normalizePod(raw) : "Unassigned");
     }
     return map;
-  }, [filteredClients]);
+  }, [filteredClients, axis]);
 
   const filterNames = useMemo(
     () => new Set(filteredClients.map((c) => c.name)),
@@ -684,21 +664,9 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
               "Pod gauges (top row): each pod's combined CB / Article progress across the clients it owns.",
               "Per-client gauges (subsections below): same chart, scoped to one client. Each pod groups its clients into its own subsection.",
               "Numbers are content-type weighted so a jumbo counts as 2 and an LP as 0.5 — matches the source sheet's ratio column.",
-              "Color: green ≥75% On Track · amber 50–74% Behind · red <50% At Risk.",
             ]}
           />
         </div>
-        <p className="text-[11px] text-[#909090]">
-          <InfoLabel
-            text="On Track / Behind / At Risk"
-            title="Goal Status Tiers"
-            bullets={[
-              "≥75% — On Track",
-              "50–74% — Behind",
-              "<50% — At Risk",
-            ]}
-          />
-        </p>
       </div>
 
       {/* Pod gauges — top row. Same fixed-width grid every responsive
@@ -770,8 +738,7 @@ const GAUGE_TRANSITION = { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const };
 // pod row and its drill-down read consistently. Just adds the client name in
 // the header.
 function ClientMiniGauge({ data }: { data: ClientGoalDatum }) {
-  const cbPct = data.cbGoal > 0 ? Math.round((data.cbDelivered / data.cbGoal) * 100) : 0;
-  const adPct = data.adGoal > 0 ? Math.round((data.adDelivered / data.adGoal) * 100) : 0;
+  // Goal Status badge removed pending refactor — see GoalCell.
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-3 transition-colors hover:border-[#333] animate-fade-slide">
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -781,22 +748,6 @@ function ClientMiniGauge({ data }: { data: ClientGoalDatum }) {
         >
           {data.client}
         </p>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger render={<span className="cursor-help shrink-0" />}>
-              {goalStatusBadge(cbPct, adPct)}
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              <TooltipBody
-                title="Goal Status"
-                bullets={[
-                  "Avg of CB % and Article % for this client across the active range",
-                  "≥75% On Track · 50–74% Behind · <50% At Risk",
-                ]}
-              />
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
       <div className="flex items-center justify-center gap-4">
         <ArcWithTooltip

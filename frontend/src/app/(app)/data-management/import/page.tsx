@@ -924,26 +924,28 @@ function StepComplete({
 
 function HistoricalResyncTab() {
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
-  const [result, setResult] = useState<ImportResultItem | null>(null);
+  const [results, setResults] = useState<ImportResultItem[] | null>(null);
 
   const run = useCallback(async () => {
     setStatus("running");
-    setResult(null);
+    setResults(null);
     try {
-      const r = await apiPost<ImportResultItem>(
+      const r = await apiPost<ImportResultItem[]>(
         "/api/migrate/goals-historical-resync",
         {},
       );
-      setResult(r);
-      setStatus(r.success ? "done" : "error");
+      setResults(r);
+      setStatus(r.every((x) => x.success) ? "done" : "error");
     } catch (err) {
-      setResult({
-        sheet: "Master Tracker - Goals vs Delivery",
-        rows_parsed: 0,
-        rows_imported: 0,
-        success: false,
-        errors: [err instanceof Error ? err.message : "Resync failed"],
-      });
+      setResults([
+        {
+          sheet: "Past-months resync",
+          rows_parsed: 0,
+          rows_imported: 0,
+          success: false,
+          errors: [err instanceof Error ? err.message : "Resync failed"],
+        },
+      ]);
       setStatus("error");
     }
   }, []);
@@ -954,16 +956,17 @@ function HistoricalResyncTab() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-xl">
             <h3 className="text-base font-semibold text-white">
-              Re-sync historical Goals vs Delivery months
+              Re-sync past-only / annual sheets
             </h3>
             <p className="mt-1 text-sm text-[#C4BCAA]">
               The normal <b className="text-white">Sync</b> button only re-imports the
-              current month. Use this when an older month&apos;s numbers were retroactively
-              edited in the sheet and you want the dashboard to reflect the corrections.
+              current month. Use this when older numbers were edited retroactively, or
+              when next year&apos;s Editorial week distribution has been added.
             </p>
             <p className="mt-2 font-mono text-[11px] text-[#606060]">
-              Runs a single sync across every <span className="text-[#C4BCAA]">[Month Year] Goals vs Delivery</span> tab.
-              Results below break down rows imported per tab and let you preview the source sheet data.
+              Runs across every <span className="text-[#C4BCAA]">[Month Year] Goals vs Delivery</span> tab and every
+              <span className="text-[#C4BCAA]"> &lt;YYYY&gt; Week Distribution</span> tab in the Master Tracker.
+              The week distribution drives the &quot;As of&quot; badge — re-sync after the team locks in a new year.
             </p>
           </div>
           <Button
@@ -995,9 +998,9 @@ function HistoricalResyncTab() {
         </div>
       )}
 
-      {result && (status === "done" || status === "error") && (
+      {results && (status === "done" || status === "error") && (
         <SyncResultDetail
-          results={[result as SyncResultItem]}
+          results={results as SyncResultItem[]}
           title={status === "done" ? "Re-sync Complete" : "Re-sync Completed with Errors"}
         />
       )}

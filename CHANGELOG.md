@@ -18,6 +18,46 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.3 — May 8
+
+**Access Control is real now.** The /admin/access page is no longer a mockup; it enforces who sees what.
+
+- Six seeded groups: **Admin** (Daniela + Ricardo), **VPs and Managers** (Rafa, Marcos, Juan, Ethan, Caitlin, Ainoa), **Leadership** (auto-populated — Senior Editors + Growth Leads from the Team Pods sheet), **BI Team** (Ricardo, Simon, Paolo), and the new **Editorial Team** + **Growth Team** groups (auto-populated, replace the mockup "Senior Editors and Editors" + "Account Team" entries).
+- Seeded members are protected — admins can add/remove others, but the original list can't be deleted via the UI.
+- Auto-sync badge on the three pod-derived groups; membership refreshes whenever the Team Pods sync runs.
+- View-only across the matrix — no edit on dashboards. Per-user overrides (in **Users × Views**) win over group defaults.
+- **Preview Access** (admin-only) — render the dashboard exactly as another user would see it, then "Exit preview" to come back.
+
+**New: Team Pods importer (Editorial + Growth).** The teams sheet's people-chips carry email addresses; the importer reads them via Sheets API metadata and writes them to a new `pod_assignments` table. Powers everything below. Runs alongside the past-months resync AND in the regular import wizard. The current sheet is a temporary copy — we'll swap it for the original once access lands.
+
+**Pod-aware filtering across the dashboards.**
+
+- A new top-bar toggle (next to SYNC) lets Admin / VPs / BI Team flip the dashboards between **Editorial Pod** and **Growth Pod** grouping.
+- Editorial Team and Growth Team users are locked to their own axis (no toggle, only their pod's clients).
+- Leadership sees only their assigned clients (across both pod kinds).
+- Sidebar nav now hides items the user can't access (no broken links into restricted pages).
+
+**Overview dashboard additions** (per Daniela's ask).
+
+- **Right-side comments rail** — Notion / Google-Docs style threads anchored per section, narrowed per client when the filter narrows. Admin-only create.
+- **Production History** chart added.
+- **Client Delivery at a Glance** added, **collapsed by pod by default** so the page doesn't dump 50+ cards on first paint.
+- **Cumulative Pipeline** per-client cards now show only Articles + Published on this view (Topics + CBs hidden — they're upstream of billing and not what executives are reviewing here).
+
+**Editorial Clients · Monthly Goals fix.**
+
+- The CB / Article gauges (formerly *Range Snapshot*) now read **Current Month Progress** — they always show this Editorial month so far, regardless of the date filter.
+- Amber chip surfaces "{Month YYYY} · not date-filtered" with a tooltip clarifying the gauges aren't following the date range.
+- The detailed month-by-month table below stays date-scoped (no change there).
+
+**"As of" badges driven by the Editorial calendar.**
+
+- New `editorial_weeks` table imports the Master Tracker's `<YYYY> Week Distribution` tabs (annual config, runs with past-months resync).
+- Badges across D1 / Overview / Client Delivery now use the team's Editorial calendar — until Week 1 of the new month begins, "As of" still references the prior month.
+- Falls back to calendar months with a small `· cal.` chip when today lands outside imported weeks.
+
+---
+
 ## 0.3.2 — May 4 *(was v0.4)*
 
 **New: Overview dashboard (`/overview`)**

@@ -8,6 +8,9 @@ import { ClientPipelineCard } from "./ClientPipelineCard";
 import { CumulativePipelineHeader } from "./CumulativePipelineHeader";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import { podBadge } from "./shared-helpers";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
+
+type PipelineStage = "topics" | "cbs" | "articles" | "published";
 
 interface Props {
   filteredClients?: Client[];
@@ -15,9 +18,17 @@ interface Props {
    *  a pod-aggregate row so reviewers see pod totals right before the
    *  per-client detail they roll up from. */
   beforeClientCards?: React.ReactNode;
+  /** Which pipeline stages to render on each per-client card. Default = all
+   *  four. Overview passes `["articles","published"]` so the Overview cards
+   *  read as a slim "billable / shipped" snapshot. */
+  cardStages?: PipelineStage[];
 }
 
-export function CumulativePipelineSection({ filteredClients, beforeClientCards }: Props) {
+export function CumulativePipelineSection({
+  filteredClients,
+  beforeClientCards,
+  cardStages,
+}: Props) {
   const [rows, setRows] = useState<CumulativeMetric[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,13 +45,15 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
   // account pod labels, not editorial) — that would mix axes and surface
   // e.g. a "Pod 7" row in a matrix otherwise indexed by editorial pod.
   // Blank editorial_pod → "Unassigned".
+  const { axis: podAxis } = useCurrentPodAxis();
   const clientToEditorialPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients ?? []) {
-      map.set(c.name, c.editorial_pod ? normalizePod(c.editorial_pod) : "Unassigned");
+      const raw = podAxis === "growth" ? c.growth_pod : c.editorial_pod;
+      map.set(c.name, raw ? normalizePod(raw) : "Unassigned");
     }
     return map;
-  }, [filteredClients]);
+  }, [filteredClients, podAxis]);
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
@@ -141,6 +154,7 @@ export function CumulativePipelineSection({ filteredClients, beforeClientCards }
                     sow={clientToSow.get(row.client_name) ?? null}
                     pod={pod}
                     client={clientByName.get(row.client_name) ?? null}
+                    stages={cardStages}
                   />
                 ))}
               </div>

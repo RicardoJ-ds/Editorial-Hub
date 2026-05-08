@@ -34,13 +34,13 @@ import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards"
 import { GoalsVsDeliverySection } from "@/components/dashboard/GoalsVsDeliverySection";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
 import { PodGoalsRow } from "@/components/dashboard/ContractClientProgress";
+import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
 import {
   AsOfBadge,
   SortableHead as SortableHeadShared,
   TooltipBody,
   displayPod,
   elapsedContractPct,
-  lastCompletedMonthLabel,
   pacingColor,
 } from "@/components/dashboard/shared-helpers";
 import {
@@ -228,6 +228,7 @@ function DashboardSkeleton() {
 
 export default function EditorialClientsPage() {
   const searchParams = useSearchParams();
+  const d1AsOf = useEditorialAsOf();
   const [clients, setClients] = useState<Client[]>([]);
   const [deliverables, setDeliverables] = useState<DeliverableMonthly[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
@@ -279,6 +280,47 @@ export default function EditorialClientsPage() {
     setDateRange(range);
   }, []);
 
+  // Per-client first → last month with any deliverables_monthly row. Powers
+  // FilterBar's auto-fit so picking a client (or pod) snaps the date filter
+  // to the actual data window — including historical pre-current-contract
+  // rows and post-contract reconciliations the SOW dates miss. Computed
+  // once per `deliverables` change; reused across renders.
+  const dataRanges = useMemo(() => {
+    const map = new Map<number, { start: Date; end: Date }>();
+    const byClient = new Map<number, DeliverableMonthly[]>();
+    for (const d of deliverables) {
+      const arr = byClient.get(d.client_id);
+      if (arr) arr.push(d);
+      else byClient.set(d.client_id, [d]);
+    }
+    for (const [cid, rows] of byClient) {
+      if (rows.length === 0) continue;
+      let minCell = Infinity;
+      let maxCell = -Infinity;
+      let minY = 0, minM = 0, maxY = 0, maxM = 0;
+      for (const r of rows) {
+        const cell = r.year * 12 + (r.month - 1);
+        if (cell < minCell) {
+          minCell = cell;
+          minY = r.year;
+          minM = r.month;
+        }
+        if (cell > maxCell) {
+          maxCell = cell;
+          maxY = r.year;
+          maxM = r.month;
+        }
+      }
+      if (minCell === Infinity) continue;
+      map.set(cid, {
+        start: new Date(minY, minM - 1, 1),
+        // End-of-month so the date filter's "to" boundary includes the row.
+        end: new Date(maxY, maxM, 0),
+      });
+    }
+    return map;
+  }, [deliverables]);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -315,6 +357,7 @@ export default function EditorialClientsPage() {
             </h1>
             <FilterBar
               clients={clients}
+              dataRanges={dataRanges}
               onFilterChange={handleFilterChange}
               onDateRangeChange={handleDateRangeChange}
             />
@@ -379,7 +422,7 @@ export default function EditorialClientsPage() {
                   ]}
                 />
               </h2>
-              <AsOfBadge label={lastCompletedMonthLabel()} />
+              <AsOfBadge label={d1AsOf.label} fallback={d1AsOf.isFallback} />
               <span className="h-px flex-1 bg-[#2a2a2a]" />
             </div>
             <CumulativePipelineSection filteredClients={filteredClients} />
@@ -1194,6 +1237,7 @@ interface ClientDeliverableSummary {
   name: string;
   status: string;
   editorial_pod: string | null;
+  growth_pod: string | null;
   articles_sow: number;
   articles_delivered: number;
   articles_invoiced: number;
@@ -1294,6 +1338,21 @@ function DeliverablesSOWTab({
     const toLbl = `${monthNames[to.getMonth()]} ${String(to.getFullYear()).slice(-2)}`;
     const range = fromLbl === toLbl ? fromLbl : `${fromLbl} – ${toLbl}`;
     return `Expanded to complete contract quarters touching ${range}`;
+  }, [dateRange]);
+
+  // Year/month bounds for the popover. The popover shows every detected
+  // billing period that overlaps these bounds — partial overlap is fine, the
+  // period stays whole. When the filter is "all", we pass null so the
+  // popover renders every period for the client.
+  const popoverFilterRange = useMemo(() => {
+    if (dateRange.type !== "range" || !dateRange.from) return null;
+    const to = dateRange.to ?? dateRange.from;
+    return {
+      fromYear: dateRange.from.getFullYear(),
+      fromMonth: dateRange.from.getMonth() + 1,
+      toYear: to.getFullYear(),
+      toMonth: to.getMonth() + 1,
+    };
   }, [dateRange]);
 
   // Per-client relationship metadata derived from deliverables_monthly (the
@@ -1581,10 +1640,15 @@ function DeliverablesSOWTab({
 
       const pct = sow > 0 ? Math.round((delivered / sow) * 100) : 0;
 
-      // Monthly popover: include every in-scope row — past, current, and
-      // future. `is_future` tells the popover to render projected rows with
-      // a muted/marker style so the reader can see what's forecast vs real.
-      const monthly_breakdown = clientDeliverables
+      // Monthly popover: feed it the FULL client deliverables (no filter
+      // applied here). The popover detects billing periods on the complete
+      // history and only hides periods that don't overlap the user's date
+      // range — so a 7-month merged invoicing period in the spreadsheet
+      // shows up whole instead of getting sliced by a partial-Q filter.
+      // `is_future` tells the popover to render projected rows with a
+      // muted/marker style so the reader can see what's forecast vs real.
+      const monthly_breakdown = deliverables
+        .filter((d) => d.client_id === c.id)
         .slice()
         .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month))
         .map((d) => ({
@@ -1601,6 +1665,7 @@ function DeliverablesSOWTab({
         name: c.name,
         status: c.status,
         editorial_pod: c.editorial_pod,
+        growth_pod: c.growth_pod,
         articles_sow: sow,
         articles_delivered: delivered,
         articles_invoiced: invoiced,
@@ -1608,6 +1673,7 @@ function DeliverablesSOWTab({
         variance_cumulative: cumulativeVariance,
         pct_complete: pct,
         start_date: meta?.startDate ?? c.start_date,
+        end_date: c.end_date,
         term_months: meta?.termMonths ?? c.term_months,
         monthly_breakdown,
       };
@@ -1660,7 +1726,11 @@ function DeliverablesSOWTab({
         />
       )}
       {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete */}
-      <ClientDeliveryCards rows={rows} scopeLabel={cardsScopeLabel} />
+      <ClientDeliveryCards
+        rows={rows}
+        scopeLabel={cardsScopeLabel}
+        filterRange={popoverFilterRange}
+      />
     </div>
   );
 }

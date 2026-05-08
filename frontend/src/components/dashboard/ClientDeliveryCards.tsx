@@ -16,14 +16,13 @@ import {
 } from "@/components/ui/popover";
 import { cn, parseISODateLocal } from "@/lib/utils";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
+import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import {
   AsOfBadge,
-  HEALTH_STYLE,
   TooltipBody,
-  lastCompletedMonthLabel,
   pacingColor,
   podBadge,
-  type Health,
 } from "./shared-helpers";
 
 export interface ClientDeliveryCardRow {
@@ -31,6 +30,7 @@ export interface ClientDeliveryCardRow {
   name: string;
   status: string;
   editorial_pod: string | null;
+  growth_pod: string | null;
   articles_sow: number;
   articles_delivered: number;
   articles_invoiced: number;
@@ -45,6 +45,10 @@ export interface ClientDeliveryCardRow {
   pct_complete: number;
   /** Contract start date (ISO string). Combined with term_months, this drives the "Month N/M" chip. */
   start_date?: string | null;
+  /** Contract end date (ISO string). Drives post-contract truncation in the
+   *  popover for COMPLETED / INACTIVE clients — months past this date stop
+   *  joining the prior billing period. */
+  end_date?: string | null;
   term_months?: number | null;
   /** Per-month rows that contributed to the card totals (drives the detail popover). */
   monthly_breakdown?: Array<{
@@ -59,6 +63,17 @@ export interface ClientDeliveryCardRow {
   }>;
 }
 
+/** Year/month bounds that constrain which billing periods render in the
+ *  Monthly Detail popover. A period is shown when at least one of its months
+ *  falls inside the bound (period stays whole — its other months show too,
+ *  even if outside the bound). Null = no filter, show every period. */
+export interface FilterRange {
+  fromYear: number;
+  fromMonth: number;
+  toYear: number;
+  toMonth: number;
+}
+
 interface Props {
   rows: ClientDeliveryCardRow[];
   /**
@@ -68,9 +83,37 @@ interface Props {
    * which lands quarterly — is comparable to delivery, which is monthly).
    */
   scopeLabel?: string | null;
+  /** User's active date filter, propagated into the popover so it can hide
+   *  periods that don't overlap. When null/undefined, the popover renders
+   *  every detected period for the client. */
+  filterRange?: FilterRange | null;
+  /** When true, each pod group renders inside a `<details>` element that
+   *  starts collapsed. Used by the Overview dashboard so a portfolio-wide
+   *  view doesn't dump 50+ cards on the page at once. Default = false
+   *  (D1 behavior unchanged). */
+  defaultCollapsedByPod?: boolean;
 }
 
 const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Per-period variance bucketing — mirrors the conditional-format the
+// "Delivered vs Invoiced" sheet uses: zero is the target, modest deltas are
+// a watch signal, large deltas (over- or under-delivered) are a flag. Magnitude-
+// based on purpose so an over-delivery (+10) reads the same as an under-
+// delivery (−10) at a glance — the sign is right next to the cell anyway.
+function varianceColor(v: number): string {
+  const abs = Math.abs(v);
+  if (abs === 0) return "#42CA80"; // P2 green — on target
+  if (abs <= 5) return "#F5BC4E"; // S6 amber — drifting
+  return "#ED6958"; // S7 red — out of bounds
+}
+
+function varianceBg(v: number): string {
+  const abs = Math.abs(v);
+  if (abs === 0) return "rgba(66,202,128,0.10)";
+  if (abs <= 5) return "rgba(245,188,78,0.10)";
+  return "rgba(237,105,88,0.10)";
+}
 
 // Shared layout-animation tuning so the cards section feels consistent with
 // the Delivery Overview row above. Slow enough to feel intentional, fast
@@ -78,9 +121,183 @@ const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
 const CARD_TRANSITION = { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quarter helpers — Health logic now lives in shared-helpers.tsx so the
-// Delivery Progress mix card can reuse the same triage rule.
+// Billing-period detection — replaces the old fixed M1–M3 = Q1 quarter scheme
+// with a data-driven grouping that mirrors the spreadsheet's merged-cell
+// layout. A new period opens on a month with invoiced > 0; subsequent months
+// with invoiced === 0 join it. Periods come out as 1-, 2-, 3- or 5-month
+// spans — whatever the contract actually invoices on. Numbered Q1, Q2, …
+// within each contract year (M1–M12 = Y1, M13–M24 = Y2, …); Y2+ periods get
+// a `Y{n}` suffix to stay distinguishable across years.
 // ─────────────────────────────────────────────────────────────────────────────
+
+type MonthRow = NonNullable<ClientDeliveryCardRow["monthly_breakdown"]>[number];
+
+interface BillingPeriod {
+  /** Sequential index across all detected periods (0-based). The card and
+   *  popover compare against this to mark LAST FULL / IN PROGRESS, so it has
+   *  to stay stable between the two. */
+  qIdx: number;
+  /** Display label like "Q3" or "Q1 Y2". Empty for prelude/post-contract. */
+  label: string;
+  /** Calendar-month span: "Jan–Mar 26" or "Dec 25–Feb 26". */
+  monthsLabel: string;
+  startYear: number;
+  startMonth: number;
+  endYear: number;
+  endMonth: number;
+  /** Months in chronological order. */
+  months: MonthRow[];
+  /** Σ invoiced across the period. In practice equals the first month's value
+   *  because the rest are 0 (merged cells in the source sheet). */
+  invoicedQ: number;
+  /** True when this is the unbilled prefix — months before any invoicing.
+   *  Rendered without a Q label or chip; numbering picks up at the first real
+   *  billing period. Rare in practice (most contracts invoice from M1). */
+  isPrelude: boolean;
+  /** True when this entry is a single post-contract row (typically a final
+   *  reconciliation / credit). Stands alone — no Q label, no LAST FULL /
+   *  IN PROGRESS chip, but its non-zero invoicing still ticks Cum Inv. */
+  isPostContract: boolean;
+}
+
+function detectBillingPeriods(row: ClientDeliveryCardRow): BillingPeriod[] {
+  const monthly = row.monthly_breakdown ?? [];
+  if (monthly.length === 0) return [];
+  const sorted = [...monthly].sort((a, b) =>
+    a.year !== b.year ? a.year - b.year : a.month - b.month,
+  );
+  const start = parseISODateLocal(row.start_date);
+  const startYear = start ? start.getFullYear() : null;
+  const startMonth = start ? start.getMonth() + 1 : null;
+
+  // Post-contract truncation: when a contract is finished and we know its end
+  // date, months past that month stop joining the prior period. All-zero post
+  // rows are dropped (importer noise). Non-zero post rows (e.g. a final
+  // credit) become standalone "POST" entries so the user sees them but
+  // they don't pollute the last in-contract billing period.
+  const end = parseISODateLocal(row.end_date);
+  const isFinished =
+    row.status === "COMPLETED" ||
+    row.status === "INACTIVE" ||
+    row.status === "PAUSED";
+  const enforcePost = isFinished && end != null;
+  const endYearStrict = end ? end.getFullYear() : null;
+  const endMonthStrict = end ? end.getMonth() + 1 : null;
+  const isPostContract = (y: number, m: number): boolean => {
+    if (!enforcePost || endYearStrict == null || endMonthStrict == null) return false;
+    if (y > endYearStrict) return true;
+    if (y === endYearStrict && m > endMonthStrict) return true;
+    return false;
+  };
+
+  type Raw = Omit<BillingPeriod, "qIdx" | "label" | "monthsLabel">;
+  const raw: Raw[] = [];
+  let current: Raw | null = null;
+  let prelude: Raw | null = null;
+  for (const r of sorted) {
+    if (isPostContract(r.year, r.month)) {
+      // Close any open period first — post-contract rows never extend it.
+      if (prelude) {
+        raw.push(prelude);
+        prelude = null;
+      }
+      if (current) {
+        raw.push(current);
+        current = null;
+      }
+      // Drop all-zero noise; surface only rows with real data.
+      if (r.invoiced === 0 && r.delivered === 0) continue;
+      raw.push({
+        startYear: r.year,
+        startMonth: r.month,
+        endYear: r.year,
+        endMonth: r.month,
+        months: [r],
+        invoicedQ: r.invoiced,
+        isPrelude: false,
+        isPostContract: true,
+      });
+      continue;
+    }
+
+    if (r.invoiced > 0) {
+      // First non-zero closes any preceding prelude or open period.
+      if (prelude) {
+        raw.push(prelude);
+        prelude = null;
+      }
+      if (current) raw.push(current);
+      current = {
+        startYear: r.year,
+        startMonth: r.month,
+        endYear: r.year,
+        endMonth: r.month,
+        months: [r],
+        invoicedQ: r.invoiced,
+        isPrelude: false,
+        isPostContract: false,
+      };
+    } else if (current) {
+      // Zero-invoiced month joins the open period (matches merged cells).
+      current.endYear = r.year;
+      current.endMonth = r.month;
+      current.months.push(r);
+    } else if (prelude) {
+      prelude.endYear = r.year;
+      prelude.endMonth = r.month;
+      prelude.months.push(r);
+    } else {
+      prelude = {
+        startYear: r.year,
+        startMonth: r.month,
+        endYear: r.year,
+        endMonth: r.month,
+        months: [r],
+        invoicedQ: 0,
+        isPrelude: true,
+        isPostContract: false,
+      };
+    }
+  }
+  if (current) raw.push(current);
+  if (prelude) raw.push(prelude);
+
+  // Number billing periods Q1, Q2, … within each contract year. Year boundary
+  // is the period's start month: M1–M12 = Y1, M13–M24 = Y2, etc. Prelude and
+  // post-contract entries don't consume a Q number — they render with no
+  // label / a "POST" tag respectively.
+  let prevYearIdx = -1;
+  let qInYear = 0;
+  return raw.map((p, idx) => {
+    let label = "";
+    const skipNumbering = p.isPrelude || p.isPostContract;
+    if (!skipNumbering && startYear != null && startMonth != null) {
+      const mi = (p.startYear - startYear) * 12 + (p.startMonth - startMonth) + 1;
+      const yearIdx = mi >= 1 ? Math.floor((mi - 1) / 12) : 0;
+      if (yearIdx !== prevYearIdx) {
+        qInYear = 0;
+        prevYearIdx = yearIdx;
+      }
+      qInYear += 1;
+      label = yearIdx === 0 ? `Q${qInYear}` : `Q${qInYear} Y${yearIdx + 1}`;
+    } else if (!skipNumbering) {
+      // No start_date — fall back to flat sequential numbering.
+      qInYear += 1;
+      label = `Q${qInYear}`;
+    }
+    const startStr = `${MONTH_SHORT[p.startMonth]} ${String(p.startYear).slice(-2)}`;
+    const endStr = `${MONTH_SHORT[p.endMonth]} ${String(p.endYear).slice(-2)}`;
+    let monthsLabel: string;
+    if (p.startYear === p.endYear && p.startMonth === p.endMonth) {
+      monthsLabel = startStr;
+    } else if (p.startYear === p.endYear) {
+      monthsLabel = `${MONTH_SHORT[p.startMonth]}–${MONTH_SHORT[p.endMonth]} ${String(p.endYear).slice(-2)}`;
+    } else {
+      monthsLabel = `${startStr}–${endStr}`;
+    }
+    return { ...p, qIdx: idx, label, monthsLabel };
+  });
+}
 
 interface CurrentQuarter {
   qIdx: number;
@@ -88,7 +305,10 @@ interface CurrentQuarter {
   monthsLabel: string;
   deliveredActual: number;
   invoiced: number;
+  /** 1-based position of today's calendar month within the period. */
   monthInQ: number;
+  /** Total months in the period — drives the M{n}/{N} chip and pacing math. */
+  qLength: number;
 }
 interface LastFullQuarter {
   qIdx: number;
@@ -102,101 +322,57 @@ interface QuarterMeta {
   lastFullQ: LastFullQuarter | null;
 }
 
-// Aggregates the row's monthly breakdown into contract-relative quarters
-// (M1–M3 = Q1, anchored to start_date — same scheme the popover uses) and
-// extracts (a) the Q today's calendar month sits in and (b) the most recent
-// fully-completed Q. Returns nulls on missing data so callers can no-op.
-function contractQuarterMeta(row: ClientDeliveryCardRow): QuarterMeta {
-  const empty: QuarterMeta = { currentQ: null, lastFullQ: null };
-  const monthly = row.monthly_breakdown;
-  if (!monthly?.length) return empty;
-  const start = parseISODateLocal(row.start_date);
-  if (!start) return empty;
-  const startYear = start.getFullYear();
-  const startMonth = start.getMonth() + 1;
-
+// "Last full" = latest period whose end month is ≤ last completed calendar
+// month. "Current" = period whose [start, end] window contains today.
+// Preludes are skipped (no Q to attach a chip to).
+function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
+  if (periods.length === 0) return { currentQ: null, lastFullQ: null };
   const today = new Date();
-  const lastCompleted = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const monthIdx = (y: number, m: number) =>
-    (y - startYear) * 12 + (m - startMonth) + 1;
-
-  const todayMi = monthIdx(today.getFullYear(), today.getMonth() + 1);
-  const lastCompletedMi = monthIdx(
-    lastCompleted.getFullYear(),
-    lastCompleted.getMonth() + 1,
-  );
-  if (todayMi < 1) return empty;
-
-  const currentQIdx = Math.floor((todayMi - 1) / 3);
-  // A Q is "fully completed" only when its last contract month (qIdx*3+3) ≤
-  // last completed month. Otherwise we don't know the closing figures yet.
-  const lastFullQIdx =
-    lastCompletedMi >= 3 ? Math.floor(lastCompletedMi / 3) - 1 : -1;
-
-  const aggs = new Map<
-    number,
-    { delivered: number; deliveredActual: number; invoiced: number }
-  >();
-  for (const r of monthly) {
-    const mi = monthIdx(r.year, r.month);
-    if (mi < 1) continue;
-    const qIdx = Math.floor((mi - 1) / 3);
-    const a = aggs.get(qIdx) ?? {
-      delivered: 0,
-      deliveredActual: 0,
-      invoiced: 0,
-    };
-    a.delivered += r.delivered;
-    if (!(r.is_future ?? false)) a.deliveredActual += r.delivered;
-    a.invoiced += r.invoiced;
-    aggs.set(qIdx, a);
-  }
-
-  const labelFor = (qIdx: number): string => {
-    const yearIdx = Math.floor(qIdx / 4);
-    const qInYear = (qIdx % 4) + 1;
-    // Calendar year of the Q's first month — gives "Q1 26" etc.
-    const firstMonthAbs = startYear * 12 + (startMonth - 1) + qIdx * 3;
-    const firstY = Math.floor(firstMonthAbs / 12);
-    return yearIdx === 0
-      ? `Q${qInYear} ${String(firstY).slice(-2)}`
-      : `Q${qInYear} Y${yearIdx + 1}`;
-  };
-
-  // Calendar months that make up the Q ("Jan–Mar"). Anchored to start_date,
-  // so a December-start contract correctly reads "Dec–Feb" for its Q1.
-  const monthsLabelFor = (qIdx: number): string => {
-    const firstAbs = startYear * 12 + (startMonth - 1) + qIdx * 3;
-    const firstMonth = (firstAbs % 12) + 1;
-    const lastMonth = ((firstAbs + 2) % 12) + 1;
-    return `${MONTH_SHORT[firstMonth]}–${MONTH_SHORT[lastMonth]}`;
-  };
+  const todayY = today.getFullYear();
+  const todayM = today.getMonth() + 1;
+  const lastCompleted = new Date(todayY, today.getMonth() - 1, 1);
+  const cellOf = (y: number, m: number) => y * 12 + (m - 1);
+  const todayCell = cellOf(todayY, todayM);
+  const lastCell = cellOf(lastCompleted.getFullYear(), lastCompleted.getMonth() + 1);
 
   let currentQ: CurrentQuarter | null = null;
-  const currentAgg = aggs.get(currentQIdx);
-  if (currentAgg) {
-    currentQ = {
-      qIdx: currentQIdx,
-      label: labelFor(currentQIdx),
-      monthsLabel: monthsLabelFor(currentQIdx),
-      deliveredActual: currentAgg.deliveredActual,
-      invoiced: currentAgg.invoiced,
-      monthInQ: ((todayMi - 1) % 3) + 1,
-    };
-  }
-
   let lastFullQ: LastFullQuarter | null = null;
-  const lastFullAgg = lastFullQIdx >= 0 ? aggs.get(lastFullQIdx) : null;
-  if (lastFullAgg) {
-    lastFullQ = {
-      qIdx: lastFullQIdx,
-      label: labelFor(lastFullQIdx),
-      monthsLabel: monthsLabelFor(lastFullQIdx),
-      delivered: lastFullAgg.delivered,
-      invoiced: lastFullAgg.invoiced,
-    };
-  }
+  for (const p of periods) {
+    if (p.isPrelude || p.isPostContract) continue;
+    const startCell = cellOf(p.startYear, p.startMonth);
+    const endCell = cellOf(p.endYear, p.endMonth);
 
+    if (startCell <= todayCell && todayCell <= endCell) {
+      let deliveredActual = 0;
+      let monthInQ = 0;
+      for (let i = 0; i < p.months.length; i++) {
+        const m = p.months[i];
+        if (!(m.is_future ?? false)) deliveredActual += m.delivered;
+        if (m.year === todayY && m.month === todayM) monthInQ = i + 1;
+      }
+      currentQ = {
+        qIdx: p.qIdx,
+        label: p.label,
+        monthsLabel: p.monthsLabel,
+        deliveredActual,
+        invoiced: p.invoicedQ,
+        monthInQ,
+        qLength: p.months.length,
+      };
+    }
+
+    if (endCell <= lastCell) {
+      let delivered = 0;
+      for (const m of p.months) delivered += m.delivered;
+      lastFullQ = {
+        qIdx: p.qIdx,
+        label: p.label,
+        monthsLabel: p.monthsLabel,
+        delivered,
+        invoiced: p.invoicedQ,
+      };
+    }
+  }
   return { currentQ, lastFullQ };
 }
 
@@ -283,40 +459,22 @@ function DeliveryBar({
   );
 }
 
-// Bucket a client by its last full Q closure — same rule as the overview
-// cards' Delivery Progress / Pod Attention so a client tagged "behind" on
-// a card matches the count in the section header above. Returns "no_q"
-// when there's no closed quarter yet (new contract, too early to score).
-type CardHealth = Health | "no_q";
+// Behind / Watch / Healthy / New classification helpers used to live here
+// and surface as a chip on every card + a rollup pill in the section header.
+// Removed pending a refactor of the underlying concept (the "behind" framing
+// hides nuance for clients with mixed cadences). Add the helpers back once
+// the new model is decided.
 
-function lastQHealthFromRow(row: ClientDeliveryCardRow): CardHealth {
-  const q = contractQuarterMeta(row).lastFullQ;
-  if (!q || q.invoiced <= 0) return "no_q";
-  const pct = (q.delivered / q.invoiced) * 100;
-  if (pct >= 100) return "healthy";
-  if (pct >= 75) return "watch";
-  return "behind";
-}
-
-const CARD_HEALTH_RANK: Record<CardHealth, number> = {
-  behind: 0,
-  watch: 1,
-  healthy: 2,
-  no_q: 3,
-};
-
-const CARD_HEALTH_STYLE: Record<
-  CardHealth,
-  { label: string; color: string; bg: string }
-> = {
-  ...HEALTH_STYLE,
-  no_q: { label: "New", color: "#DDCFAC", bg: "rgba(221,207,172,0.10)" },
-};
-
-function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
+function ClientDeliveryCard({
+  row,
+  filterRange,
+}: {
+  row: ClientDeliveryCardRow;
+  filterRange?: FilterRange | null;
+}) {
   const monthChip = contractMonthChip(row.start_date, row.term_months);
-  const health = lastQHealthFromRow(row);
-  const qMeta = contractQuarterMeta(row);
+  const periods = useMemo(() => detectBillingPeriods(row), [row]);
+  const qMeta = useMemo(() => quarterMetaFromPeriods(periods), [periods]);
   const hasQContext = !!(qMeta.lastFullQ || qMeta.currentQ);
   const statusLabel =
     row.status === "ACTIVE" ? "Active" : row.status.toLowerCase();
@@ -355,9 +513,9 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
         )}
       </div>
 
-      {/* Status row — health is the prominent triage signal */}
-      <div className="mt-1.5 flex items-center gap-2">
-        <HealthChip health={health} />
+      {/* Status row — Behind/Watch/Healthy/New chip removed pending refactor
+          of the health concept. Just keep the contract status text. */}
+      <div className="mt-1.5">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
           {statusLabel}
         </span>
@@ -380,8 +538,8 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
                 monthInQ={null}
                 tooltipTitle="Last full Q closure"
                 tooltipBullets={[
-                  "Most recent fully-completed contract quarter",
-                  "Delivered ÷ Q's invoicing target (contracted)",
+                  "Most recent fully-completed billing period",
+                  "Delivered ÷ period invoicing target (contracted)",
                   "<100% = closed behind",
                 ]}
               />
@@ -394,11 +552,12 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
                 delivered={qMeta.currentQ.deliveredActual}
                 target={qMeta.currentQ.invoiced}
                 monthInQ={qMeta.currentQ.monthInQ}
+                qLength={qMeta.currentQ.qLength}
                 tooltipTitle="Current Q progress"
                 tooltipBullets={[
-                  "Quarter today's month falls in",
+                  "Period today's month falls in (1–5 months depending on cadence)",
                   "Delivered: settled months only (excludes projections)",
-                  "% = partial progress vs full Q goal",
+                  "% = partial progress vs full-period invoicing target",
                 ]}
               />
             )}
@@ -461,46 +620,13 @@ function ClientDeliveryCard({ row }: { row: ClientDeliveryCardRow }) {
       <div className="mt-3 flex justify-end border-t border-[#2a2a2a] pt-2">
         <MonthlyBreakdownPopover
           row={row}
+          periods={periods}
           currentQIdx={qMeta.currentQ?.qIdx ?? null}
           lastFullQIdx={qMeta.lastFullQ?.qIdx ?? null}
+          filterRange={filterRange}
         />
       </div>
     </div>
-  );
-}
-
-function HealthChip({ health }: { health: CardHealth }) {
-  const style = CARD_HEALTH_STYLE[health];
-  const bullets =
-    health === "healthy"
-      ? ["Closed last Q at or above target (≥100%)"]
-      : health === "watch"
-      ? ["Closed last Q at 75–99%"]
-      : health === "behind"
-      ? ["Closed last Q under 75%"]
-      : ["Too new to score — no closed Q yet"];
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span
-              className="inline-flex items-center gap-1 rounded-sm px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-wider cursor-help"
-              style={{ color: style.color, backgroundColor: style.bg }}
-            />
-          }
-        >
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: style.color }}
-          />
-          {style.label}
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-          <TooltipBody title={style.label} bullets={bullets} />
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
   );
 }
 
@@ -515,6 +641,7 @@ function QuarterRow({
   delivered,
   target,
   monthInQ,
+  qLength,
   tooltipTitle,
   tooltipBullets,
 }: {
@@ -524,6 +651,10 @@ function QuarterRow({
   delivered: number;
   target: number;
   monthInQ: number | null;
+  /** Total months in the period — drives the M{n}/{N} chip and pacing math
+   *  for variable-length billing periods. Only relevant for the "current"
+   *  kind; lastFull omits it. */
+  qLength?: number;
   tooltipTitle: string;
   tooltipBullets: React.ReactNode[];
 }) {
@@ -531,11 +662,12 @@ function QuarterRow({
   const barPct = pct === null ? 0 : Math.min(pct, 100);
   // Last Full Q: closure is final, judge by absolute %. Current Q: pacing-
   // aware — at M1 of 3, expecting 17% delivery, so 20% is on-pace, not red.
+  // For variable-length periods, scale "elapsed" against actual qLength.
   let color: string;
   if (pct === null) {
     color = "#606060";
-  } else if (kind === "current" && monthInQ !== null) {
-    const elapsedInQ = ((monthInQ - 0.5) / 3) * 100;
+  } else if (kind === "current" && monthInQ !== null && qLength != null && qLength > 0) {
+    const elapsedInQ = ((monthInQ - 0.5) / qLength) * 100;
     color = pacingColor(pct, elapsedInQ);
   } else {
     color = pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
@@ -574,9 +706,9 @@ function QuarterRow({
           <span className="font-mono text-[10px] text-[#606060] tabular-nums">
             · {monthsLabel}
           </span>
-          {monthInQ !== null && (
+          {monthInQ !== null && qLength != null && (
             <span className="font-mono text-[10px] text-[#606060] tabular-nums">
-              · M{monthInQ}/3
+              · M{monthInQ}/{qLength}
             </span>
           )}
         </div>
@@ -642,57 +774,18 @@ function BreakdownHeader({
 
 function MonthlyBreakdownPopover({
   row,
+  periods,
   currentQIdx,
   lastFullQIdx,
+  filterRange,
 }: {
   row: ClientDeliveryCardRow;
+  periods: BillingPeriod[];
   currentQIdx: number | null;
   lastFullQIdx: number | null;
+  filterRange?: FilterRange | null;
 }) {
-  const rows = row.monthly_breakdown ?? [];
-  if (rows.length === 0) return null;
-
-  // Matches the sheet's mental model: Article Deliveries is monthly, but
-  // Invoicing / Cumulative are quarterly — and the sheet's quarters are
-  // CONTRACT-relative (M1–M3 = Q1, M4–M6 = Q2, …) anchored to the client's
-  // start_date, not calendar quarters. Group by contract-relative Q so the
-  // Invoiced total lines up with the sheet for clients that start outside
-  // a calendar quarter boundary (e.g. Boulevard starts Dec → Q1 = Dec/Jan/Feb).
-  type MonthRow = {
-    year: number;
-    month: number;
-    delivered: number;
-    invoiced: number;
-    cumDelivered: number;
-    /** True for months after today — numbers come from forecasted rows in
-     *  the sheet, not real deliveries. Rendered muted/italic. */
-    isFuture: boolean;
-    /** True for the current calendar month. Its cumulative figures are what
-     *  the card's summary totals show, so we highlight the row. */
-    isCurrent: boolean;
-  };
-  type QGroup = {
-    key: string;
-    qIdx: number;
-    label: string;
-    months: MonthRow[];
-    invoicedQ: number; // Σ invoiced within this Q's months
-    cumInvoiced: number; // Σ invoiced across every Q up to and including this one
-  };
-
-  const start = parseISODateLocal(row.start_date);
-  const startYear = start ? start.getFullYear() : null;
-  const startMonth = start ? start.getMonth() + 1 : null; // 1-indexed
-
-  // Contract-month index (M1-based). Returns 1 for the first contract month.
-  // Falls back to a calendar-based index if start_date is missing, so the
-  // grouping still works but will display "Q? · yy" using calendar quarters.
-  const contractMonthIndex = (y: number, m: number): number => {
-    if (startYear == null || startMonth == null) {
-      return (y - 2000) * 12 + m; // monotonic anchor for stable grouping
-    }
-    return (y - startYear) * 12 + (m - startMonth) + 1;
-  };
+  if (periods.length === 0) return null;
 
   // Highlight the **last completed month** (today's month minus one), not
   // the in-progress current month. The popover's Cum Del at that row is
@@ -702,47 +795,95 @@ function MonthlyBreakdownPopover({
   const nowY = lastCompleted.getFullYear();
   const nowM = lastCompleted.getMonth() + 1;
 
-  const groups: QGroup[] = [];
-  const running = { delivered: 0, invoiced: 0 };
-  for (const r of rows) {
-    const mi = contractMonthIndex(r.year, r.month); // 1..N
-    const contractQIdx = Math.floor((mi - 1) / 3); // 0-based Q
-    const yearIdx = Math.floor(contractQIdx / 4); // 0 = Y1, 1 = Y2, …
-    const qInYear = (contractQIdx % 4) + 1;
-    const qLabel = yearIdx === 0 ? `Q${qInYear}` : `Q${qInYear} Y${yearIdx + 1}`;
-    const qKey = `contract-Q${contractQIdx}`;
+  // Walk detected periods (already in chronological order) and accumulate
+  // Cum Del per month + Cum Inv per period boundary. Each period becomes one
+  // row-span block on the right; left columns stay one row per month.
+  type DisplayRow = {
+    year: number;
+    month: number;
+    delivered: number;
+    cumDelivered: number;
+    isFuture: boolean;
+    isCurrent: boolean;
+  };
+  type DisplayPeriod = {
+    qIdx: number;
+    label: string;
+    isPrelude: boolean;
+    invoicedQ: number;
+    cumInvoiced: number;
+    /** Period variance = Σ delivered − Σ invoiced across the period's months.
+     *  Mirrors the spreadsheet's per-period variance cell (typically merged
+     *  alongside the invoicing cell). null for the prelude (no invoicing yet,
+     *  no useful variance to report). */
+    variance: number | null;
+    rows: DisplayRow[];
+  };
 
-    running.delivered += r.delivered;
-    running.invoiced += r.invoiced;
-    const mrow: MonthRow = {
-      year: r.year,
-      month: r.month,
-      delivered: r.delivered,
-      invoiced: r.invoiced,
-      cumDelivered: running.delivered,
-      isFuture: r.is_future ?? false,
-      isCurrent: r.year === nowY && r.month === nowM,
-    };
-    const existing = groups.find((g) => g.key === qKey);
-    if (existing) {
-      existing.months.push(mrow);
-      existing.invoicedQ += r.invoiced;
-      existing.cumInvoiced = running.invoiced;
-    } else {
-      groups.push({
-        key: qKey,
-        qIdx: contractQIdx,
-        label: qLabel,
-        months: [mrow],
-        invoicedQ: r.invoiced,
-        cumInvoiced: running.invoiced,
+  // Period-aware filter expansion: a period is shown when at least one of
+  // its months overlaps the user's date range. The period stays whole — its
+  // other months still render so the user can see "Q1 spans Jan–Apr" even
+  // when their filter is Feb–Jun. Cum Del / Cum Inv keep their running
+  // totals from the start of the contract so the visible numbers reconcile
+  // with the spreadsheet (we accumulate across ALL periods first, then
+  // filter what to render).
+  const overlapsFilter = (p: BillingPeriod): boolean => {
+    if (!filterRange) return true;
+    const startCell = p.startYear * 12 + (p.startMonth - 1);
+    const endCell = p.endYear * 12 + (p.endMonth - 1);
+    const fromCell = filterRange.fromYear * 12 + (filterRange.fromMonth - 1);
+    const toCell = filterRange.toYear * 12 + (filterRange.toMonth - 1);
+    return endCell >= fromCell && startCell <= toCell;
+  };
+
+  const allDisplay: (DisplayPeriod & { isPostContract: boolean })[] = [];
+  let cumDelivered = 0;
+  let cumInvoiced = 0;
+  for (const p of periods) {
+    cumInvoiced += p.invoicedQ;
+    const rows: DisplayRow[] = [];
+    let periodDelivered = 0;
+    let periodInvoiced = 0;
+    for (const m of p.months) {
+      cumDelivered += m.delivered;
+      periodDelivered += m.delivered;
+      periodInvoiced += m.invoiced;
+      rows.push({
+        year: m.year,
+        month: m.month,
+        delivered: m.delivered,
+        cumDelivered,
+        isFuture: m.is_future ?? false,
+        isCurrent: m.year === nowY && m.month === nowM,
       });
     }
+    // Variance is only meaningful when there's an invoicing target. Prelude
+    // periods have invoicing of 0 by definition — surface as null so we can
+    // render an em-dash instead of a misleading 0/red bucket.
+    const variance = p.isPrelude ? null : periodDelivered - periodInvoiced;
+    allDisplay.push({
+      qIdx: p.qIdx,
+      label: p.label,
+      isPrelude: p.isPrelude,
+      isPostContract: p.isPostContract,
+      invoicedQ: p.invoicedQ,
+      cumInvoiced,
+      variance,
+      rows,
+    });
   }
 
+  const display = allDisplay.filter((p) => {
+    const original = periods.find((o) => o.qIdx === p.qIdx);
+    return original ? overlapsFilter(original) : true;
+  });
+
+  // Grand totals reflect the full client history, not the filtered slice —
+  // matches the card's "Lifetime" framing in the section above.
   const grandTotals = {
-    delivered: running.delivered,
-    invoiced: running.invoiced,
+    delivered: cumDelivered,
+    invoiced: cumInvoiced,
+    variance: cumDelivered - cumInvoiced,
   };
 
   return (
@@ -785,7 +926,11 @@ function MonthlyBreakdownPopover({
               <span className="rounded-sm bg-[#42CA80]/15 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">last full</span>
               {" "}/{" "}
               <span className="rounded-sm bg-[#F5BC4E]/15 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">in progress</span>
-              {" "}tag the most recent settled Q vs. the Q today sits in. Delivered is monthly; Invoicing + Cumulative are quarterly.
+              {" "}tag the most recent settled period vs. the period today sits in. Delivered is monthly; Invoicing + Cumulative follow each contract&apos;s billing cadence (1-, 2-, 3- or 5-month spans).
+            </li>
+            <li>
+              <span className="rounded-sm bg-[#909090]/15 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#909090]">post</span>
+              {" "}= activity recorded after contract end (final reconciliation, credit). Stands alone — not part of any billing period, but still ticks the cumulative.
             </li>
           </ul>
         </div>
@@ -820,28 +965,49 @@ function MonthlyBreakdownPopover({
                 />
                 <BreakdownHeader
                   label="Invoiced (Q)"
-                  title="Invoiced per Quarter"
+                  title="Invoiced per period"
                   bullets={[
-                    "Total invoicing within the contract Q",
-                    "Spans the Q's months (like the sheet)",
+                    "Total invoicing within each detected billing period.",
+                    "Spans the period's months — matches merged cells in the sheet.",
+                    "Period length varies by cadence (1, 2, 3, 5 months …).",
                   ]}
                 />
                 <BreakdownHeader
                   label="Cum Inv"
                   title="Cumulative Invoiced"
                   bullets={[
-                    "Running total of invoicing across every Q in scope",
+                    "Running total of invoicing across every billing period in scope.",
+                  ]}
+                />
+                <BreakdownHeader
+                  label="Variance"
+                  title="Period variance"
+                  bullets={[
+                    "Σ delivered − Σ invoiced across the period's months.",
+                    "Green = 0 (on target) · Amber = ±1–5 · Red = beyond ±5.",
+                    "Mirrors the conditional-format on the sheet's Variance row.",
                   ]}
                 />
               </tr>
             </thead>
             <tbody>
-              {groups.map((g) =>
-                g.months.map((m, i) => {
+              {display.length === 0 && (
+                <tr className="border-t border-[#1a1a1a]">
+                  <td
+                    colSpan={6}
+                    className="px-3 py-4 text-center font-mono text-[10px] text-[#606060]"
+                  >
+                    No billing periods overlap the current filter — widen the
+                    date range to see this client&apos;s detail.
+                  </td>
+                </tr>
+              )}
+              {display.map((p) =>
+                p.rows.map((m, i) => {
                   const isFirst = i === 0;
                   return (
                     <tr
-                      key={`${g.key}-${m.year}-${m.month}`}
+                      key={`${p.qIdx}-${m.year}-${m.month}`}
                       className={cn(
                         "border-t border-[#1a1a1a]",
                         isFirst && "border-t-2 border-[#2a2a2a]",
@@ -874,29 +1040,60 @@ function MonthlyBreakdownPopover({
                       {isFirst && (
                         <>
                           <td
-                            rowSpan={g.months.length}
+                            rowSpan={p.rows.length}
                             className="border-l border-[#2a2a2a] bg-[#111111] px-2 py-0.5 text-center align-middle tabular-nums text-white"
                           >
-                            <div className="font-semibold">{g.invoicedQ}</div>
-                            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-                              {g.label}
-                            </div>
-                            {g.qIdx === lastFullQIdx && (
-                              <div className="mt-0.5 inline-block rounded-sm bg-[#42CA80]/15 px-1 py-px font-mono text-[9px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">
-                                Last full
-                              </div>
-                            )}
-                            {g.qIdx === currentQIdx && (
-                              <div className="mt-0.5 inline-block rounded-sm bg-[#F5BC4E]/15 px-1 py-px font-mono text-[9px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">
-                                In progress
-                              </div>
+                            {p.isPrelude ? (
+                              <span className="font-mono text-[10px] text-[#606060]">—</span>
+                            ) : p.isPostContract ? (
+                              <>
+                                <div className="font-semibold">{p.invoicedQ}</div>
+                                <div className="mt-0.5 inline-block rounded-sm bg-[#909090]/15 px-1 py-px font-mono text-[9px] font-semibold uppercase not-italic tracking-wider text-[#909090]">
+                                  Post
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-semibold">{p.invoicedQ}</div>
+                                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+                                  {p.label}
+                                </div>
+                                {p.qIdx === lastFullQIdx && (
+                                  <div className="mt-0.5 inline-block rounded-sm bg-[#42CA80]/15 px-1 py-px font-mono text-[9px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">
+                                    Last full
+                                  </div>
+                                )}
+                                {p.qIdx === currentQIdx && (
+                                  <div className="mt-0.5 inline-block rounded-sm bg-[#F5BC4E]/15 px-1 py-px font-mono text-[9px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">
+                                    In progress
+                                  </div>
+                                )}
+                              </>
                             )}
                           </td>
                           <td
-                            rowSpan={g.months.length}
+                            rowSpan={p.rows.length}
                             className="bg-[#111111] px-2 py-0.5 text-center align-middle tabular-nums text-[#C4BCAA]"
                           >
-                            {g.cumInvoiced}
+                            {p.isPrelude ? "—" : p.cumInvoiced}
+                          </td>
+                          <td
+                            rowSpan={p.rows.length}
+                            className="border-l border-[#2a2a2a] px-2 py-0.5 text-center align-middle font-semibold tabular-nums"
+                            style={
+                              p.variance === null
+                                ? { color: "#606060" }
+                                : {
+                                    color: varianceColor(p.variance),
+                                    backgroundColor: varianceBg(p.variance),
+                                  }
+                            }
+                          >
+                            {p.variance === null
+                              ? "—"
+                              : p.variance > 0
+                              ? `+${p.variance}`
+                              : p.variance}
                           </td>
                         </>
                       )}
@@ -918,6 +1115,17 @@ function MonthlyBreakdownPopover({
                   {grandTotals.invoiced}
                 </td>
                 <td className="bg-[#111111] px-2 py-1" />
+                <td
+                  className="border-l border-[#2a2a2a] px-2 py-1 text-center tabular-nums font-semibold"
+                  style={{
+                    color: varianceColor(grandTotals.variance),
+                    backgroundColor: varianceBg(grandTotals.variance),
+                  }}
+                >
+                  {grandTotals.variance > 0
+                    ? `+${grandTotals.variance}`
+                    : grandTotals.variance}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -927,36 +1135,23 @@ function MonthlyBreakdownPopover({
   );
 }
 
-export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
+export function ClientDeliveryCards({
+  rows,
+  scopeLabel,
+  filterRange,
+  defaultCollapsedByPod = false,
+}: Props) {
   // Card totals exclude the in-progress month, so the section "as of" point
-  // is the last completed calendar month.
-  const asOfLabel = lastCompletedMonthLabel();
-  // Triage-first: behind → watch → healthy → new (no closed Q), alphabetical
-  // inside each tier. This is preserved when we group by pod below (Map keeps
-  // insertion order), so attention-needing clients float to the top of every
-  // pod's grid.
+  // is the last fully-completed Editorial month (per the week distribution).
+  const asOf = useEditorialAsOf();
+  const { axis: podAxis } = useCurrentPodAxis();
+  // Alphabetical sort by client name. The previous triage-first sort
+  // depended on the Behind/Watch/Healthy classification — that concept
+  // is being refactored, so we render in a neutral order until it lands.
   const sorted = useMemo(
-    () =>
-      [...rows].sort((a, b) => {
-        const rankA = CARD_HEALTH_RANK[lastQHealthFromRow(a)];
-        const rankB = CARD_HEALTH_RANK[lastQHealthFromRow(b)];
-        if (rankA !== rankB) return rankA - rankB;
-        return a.name.localeCompare(b.name);
-      }),
+    () => [...rows].sort((a, b) => a.name.localeCompare(b.name)),
     [rows],
   );
-
-  // Section-level rollup so the heading itself answers "how are clients going?"
-  const summary = useMemo(() => {
-    const counts: Record<CardHealth, number> = {
-      healthy: 0,
-      watch: 0,
-      behind: 0,
-      no_q: 0,
-    };
-    for (const r of rows) counts[lastQHealthFromRow(r)]++;
-    return counts;
-  }, [rows]);
 
   return (
     <div className="space-y-4">
@@ -967,54 +1162,22 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
             Client Delivery At a Glance{" "}
             <DataSourceBadge
               type="live"
-              source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One card per filtered client. SOW is lifetime. Delivered / Invoiced sum the per-month rows for the active date range, expanded to complete contract quarters (M1–M3 = Q1 anchored to each client's start_date)."
+              source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One card per filtered client. SOW is lifetime. Delivered / Invoiced sum the per-month rows for the active date range, grouped by each contract's billing cadence (1-, 2-, 3- or 5-month periods — matches the spreadsheet's merged-cell layout)."
               shows={[
-                "Triage-first sort: BEHIND surfaces at the top of each pod, then WATCH, then HEALTHY, then NEW (alphabetical within each tier).",
-                "Health chip uses last full Q closure: BEHIND = closed under 75%; WATCH = closed at 75–99%; HEALTHY = closed at or above target (≥100%); NEW = no closed Q yet.",
+                "One card per filtered client, sorted alphabetically inside each pod.",
                 "Two horizontal bars: Delivered vs Invoiced (top) and Invoiced vs SOW (bottom) — color-coded by %, raw numbers on the right.",
-                "Quarter context: Last full Q (most recent settled quarter, delivered/invoiced/%) and Current Q (partial progress, with M of 3).",
-                "Click \"Monthly detail\" for the per-month breakdown — AS OF row = last completed month, IN PROGRESS / LAST FULL chips tag the corresponding quarters' invoicing cells.",
+                "Period context: Last full Q (most recent settled billing period, delivered/invoiced/%) and Current Q (partial progress, M of N where N is the period length).",
+                "Click \"Monthly detail\" for the per-month breakdown — AS OF row = last completed month, IN PROGRESS / LAST FULL chips tag the corresponding billing periods' invoicing cells.",
                 "Card totals exclude the in-progress month, so they always reflect data through the last completed month.",
               ]}
             />
           </h3>
-          <AsOfBadge label={asOfLabel} />
+          <AsOfBadge label={asOf.label} fallback={asOf.isFallback} />
         </div>
         {scopeLabel && (
           <p className="mt-1 font-mono text-[11px] text-[#8FB5D9]">
             {scopeLabel}
           </p>
-        )}
-        {rows.length > 0 && (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider tabular-nums">
-            <span className="flex items-center gap-1" style={{ color: "#ED6958" }}>
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-              {summary.behind} behind
-            </span>
-            <span className="text-[#2a2a2a]">·</span>
-            <span className="flex items-center gap-1" style={{ color: "#F5C542" }}>
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-              {summary.watch} watch
-            </span>
-            <span className="text-[#2a2a2a]">·</span>
-            <span className="flex items-center gap-1" style={{ color: "#42CA80" }}>
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-              {summary.healthy} healthy
-            </span>
-            {summary.no_q > 0 && (
-              <>
-                <span className="text-[#2a2a2a]">·</span>
-                <span
-                  className="flex items-center gap-1"
-                  style={{ color: "#DDCFAC" }}
-                  title="No closed Q yet — too new to score"
-                >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-                  {summary.no_q} new
-                </span>
-              </>
-            )}
-          </div>
         )}
       </div>
 
@@ -1028,30 +1191,24 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
             {(() => {
               const groups = new Map<string, ClientDeliveryCardRow[]>();
               for (const r of sorted) {
-                const pod = normalizePod(r.editorial_pod);
+                const rawPod = podAxis === "growth" ? r.growth_pod : r.editorial_pod;
+                const pod = normalizePod(rawPod);
                 const list = groups.get(pod);
                 if (list) list.push(r);
                 else groups.set(pod, [r]);
               }
               return Array.from(groups.entries())
                 .sort(([a], [b]) => sortPodKey(a, b))
-                .map(([pod, items]) => (
-                  <motion.div
-                    key={`pod-group-${pod}`}
-                    id={`client-delivery-pod-${pod.replace(/\s+/g, "-").toLowerCase()}`}
-                    layout
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={CARD_TRANSITION}
-                    className="space-y-2 scroll-mt-[180px]"
-                  >
+                .map(([pod, items]) => {
+                  const groupHeader = (
                     <div className="flex items-center gap-2">
                       {podBadge(pod)}
                       <span className="font-mono text-[11px] text-[#606060]">
                         {items.length} client{items.length === 1 ? "" : "s"}
                       </span>
                     </div>
+                  );
+                  const groupGrid = (
                     <motion.div
                       layout
                       className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -1068,13 +1225,51 @@ export function ClientDeliveryCards({ rows, scopeLabel }: Props) {
                             transition={CARD_TRANSITION}
                             className="scroll-mt-[180px]"
                           >
-                            <ClientDeliveryCard row={row} />
+                            <ClientDeliveryCard row={row} filterRange={filterRange} />
                           </motion.div>
                         ))}
                       </AnimatePresence>
                     </motion.div>
-                  </motion.div>
-                ));
+                  );
+                  // Overview wraps each pod block in a <details> so the
+                  // page doesn't dump 50+ cards on first paint. D1 keeps
+                  // the open layout since users land there to scan.
+                  return (
+                    <motion.div
+                      key={`pod-group-${pod}`}
+                      id={`client-delivery-pod-${pod.replace(/\s+/g, "-").toLowerCase()}`}
+                      layout
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={CARD_TRANSITION}
+                      className="space-y-2 scroll-mt-[180px]"
+                    >
+                      {defaultCollapsedByPod ? (
+                        <details className="group/pod">
+                          <summary className="flex cursor-pointer list-none items-center gap-2 rounded border border-[#1f1f1f] bg-[#0d0d0d] px-3 py-1.5 transition-colors hover:border-[#2a2a2a]">
+                            {podBadge(pod)}
+                            <span className="font-mono text-[11px] text-[#606060]">
+                              {items.length} client{items.length === 1 ? "" : "s"}
+                            </span>
+                            <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-[#606060] group-open/pod:hidden">
+                              ▸ expand
+                            </span>
+                            <span className="ml-auto hidden font-mono text-[10px] uppercase tracking-wider text-[#606060] group-open/pod:inline">
+                              ▾ collapse
+                            </span>
+                          </summary>
+                          <div className="mt-2">{groupGrid}</div>
+                        </details>
+                      ) : (
+                        <>
+                          {groupHeader}
+                          {groupGrid}
+                        </>
+                      )}
+                    </motion.div>
+                  );
+                });
             })()}
           </AnimatePresence>
         </motion.div>

@@ -7,6 +7,7 @@ import { ClientStatusCard } from "./FilterContextCard";
 import { CardTitleWithTooltip, displayPod } from "./shared-helpers";
 import { normalizePod } from "./ContractClientProgress";
 import type { Client } from "@/lib/types";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scope-aware Goals vs Delivery overview cards.
@@ -80,7 +81,8 @@ export function GoalsOverviewCards({
   totals,
   asOfLabel,
 }: Props) {
-  const scope = useMemo(() => detectScope(filteredClients), [filteredClients]);
+  const { axis } = useCurrentPodAxis();
+  const scope = useMemo(() => detectScope(filteredClients, axis), [filteredClients, axis]);
   const cards = useMemo(
     () => buildCards(scope, perClient, totals, asOfLabel),
     [scope, perClient, totals, asOfLabel],
@@ -117,14 +119,18 @@ type Scope =
   | { kind: "pod"; pod: string; clients: Client[] }
   | { kind: "portfolio"; clients: Client[] };
 
-function detectScope(filteredClients: Client[]): Scope {
+function detectScope(
+  filteredClients: Client[],
+  axis: "editorial" | "growth",
+): Scope {
   if (filteredClients.length === 1) {
     return { kind: "client", client: filteredClients[0] };
   }
   const pods = new Set(
-    filteredClients.map((c) =>
-      c.editorial_pod ? normalizePod(c.editorial_pod) : "Unassigned",
-    ),
+    filteredClients.map((c) => {
+      const raw = axis === "growth" ? c.growth_pod : c.editorial_pod;
+      return raw ? normalizePod(raw) : "Unassigned";
+    }),
   );
   if (filteredClients.length > 1 && pods.size === 1) {
     return {

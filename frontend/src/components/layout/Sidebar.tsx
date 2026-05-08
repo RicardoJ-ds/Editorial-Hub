@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VERSION } from "@/lib/version";
+import { useAccessProfile } from "@/lib/accessClient";
 import type { HeaderUser } from "@/components/layout/Header";
 
 function getInitials(name: string): string {
@@ -29,12 +30,27 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** View slugs that grant access. ANY-of semantics: user can see the
+   *  link when their `view_slugs` intersects with this list. Empty / null
+   *  = always visible (used for routes that don't participate in RBAC,
+   *  but every entry below currently maps to something). */
+  requiredViews?: string[];
 }
 
 const dashboardNav: NavItem[] = [
-  { label: "Overview", href: "/overview", icon: Compass },
-  { label: "Editorial Clients", href: "/editorial-clients", icon: LayoutDashboard },
-  { label: "Team KPIs", href: "/team-kpis", icon: Users },
+  { label: "Overview", href: "/overview", icon: Compass, requiredViews: ["overview"] },
+  {
+    label: "Editorial Clients",
+    href: "/editorial-clients",
+    icon: LayoutDashboard,
+    requiredViews: ["d1.contract", "d1.deliverables"],
+  },
+  {
+    label: "Team KPIs",
+    href: "/team-kpis",
+    icon: Users,
+    requiredViews: ["d2.kpi", "d2.capacity", "d2.ai"],
+  },
 ];
 
 // Maintain CRUD pages (Clients / Deliverables / Capacity / KPI Scores) are
@@ -43,14 +59,22 @@ const dashboardNav: NavItem[] = [
 // "Capacity Maintenance" entry below is the proposal prototype; the
 // proposal banner inside that page declares its prototype status.
 const dataManagementNav: NavItem[] = [
-  { label: "Import Data", href: "/data-management/import", icon: Download },
-  { label: "Capacity Maintenance", href: "/capacity-planning", icon: Sparkles },
+  { label: "Import Data", href: "/data-management/import", icon: Download, requiredViews: ["data.import"] },
+  { label: "Capacity Maintenance", href: "/capacity-planning", icon: Sparkles, requiredViews: ["cp2"] },
 ];
 
 const adminNav: NavItem[] = [
-  { label: "Access Control", href: "/admin/access", icon: Shield },
-  { label: "Data Quality", href: "/admin/data-quality", icon: ShieldAlert },
+  { label: "Access Control", href: "/admin/access", icon: Shield, requiredViews: ["admin.access"] },
+  { label: "Data Quality", href: "/admin/data-quality", icon: ShieldAlert, requiredViews: ["admin.data_quality"] },
 ];
+
+function visibleItems(items: NavItem[], grantedViews: Set<string>): NavItem[] {
+  return items.filter((item) => {
+    const required = item.requiredViews ?? [];
+    if (required.length === 0) return true; // always-visible item
+    return required.some((slug) => grantedViews.has(slug));
+  });
+}
 
 function NavSection({
   label,
@@ -104,6 +128,20 @@ function NavSection({
 
 export function Sidebar({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
+  const access = useAccessProfile();
+  // Until the access profile loads, render every nav item — avoids the
+  // sidebar flickering "empty" on first paint. After load, sections with
+  // zero visible items disappear entirely.
+  const grantedViews = access ? new Set(access.view_slugs) : null;
+  const dashItems = grantedViews
+    ? visibleItems(dashboardNav, grantedViews)
+    : dashboardNav;
+  const dataItems = grantedViews
+    ? visibleItems(dataManagementNav, grantedViews)
+    : dataManagementNav;
+  const adminItems = grantedViews
+    ? visibleItems(adminNav, grantedViews)
+    : adminNav;
 
   return (
     <aside
@@ -155,11 +193,18 @@ export function Sidebar({ user }: { user: HeaderUser }) {
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — sections collapse out entirely when the user has no
+          items in them (e.g. Editorial Team users see only Dashboards) */}
       <nav className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-2">
-        <NavSection label="Dashboards" items={dashboardNav} pathname={pathname} />
-        <NavSection label="Data" items={dataManagementNav} pathname={pathname} />
-        <NavSection label="Admin" items={adminNav} pathname={pathname} />
+        {dashItems.length > 0 && (
+          <NavSection label="Dashboards" items={dashItems} pathname={pathname} />
+        )}
+        {dataItems.length > 0 && (
+          <NavSection label="Data" items={dataItems} pathname={pathname} />
+        )}
+        {adminItems.length > 0 && (
+          <NavSection label="Admin" items={adminItems} pathname={pathname} />
+        )}
       </nav>
 
       {/* Footer — user identity + logout + version chip below */}

@@ -73,7 +73,11 @@ function formatMonthKey(m: string): string | null {
 // Routes that render their own SyncControls inline with the filter bar.
 // On those routes we hide the global header bar entirely so the dashboard
 // can use that vertical space.
-const HEADER_HIDDEN_ROUTES = new Set(["/editorial-clients", "/team-kpis"]);
+const HEADER_HIDDEN_ROUTES = new Set([
+  "/overview",
+  "/editorial-clients",
+  "/team-kpis",
+]);
 
 export function Header() {
   const pathname = usePathname();

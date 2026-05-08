@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { SyncAllModal } from "@/components/data-management/SyncAllModal";
 import { apiGet } from "@/lib/api";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 
 type SyncState = "idle" | "syncing" | "success" | "error";
 
@@ -102,6 +103,7 @@ export function SyncControls() {
         }}
         onComplete={handleSyncComplete}
       />
+      <PodAxisToggle />
       <LastSyncBadge />
       <button
         type="button"
@@ -132,6 +134,46 @@ export function SyncControls() {
                 : "Sync"}
         </span>
       </button>
+    </div>
+  );
+}
+
+/** Top-bar toggle that flips the dashboard's pod-axis between Editorial /
+ *  Growth. Renders only when the access profile has `can_toggle_axis` —
+ *  pod-locked teams (Editorial Team / Growth Team) get nothing here.
+ *  Selection persists in localStorage; changing it emits a notification
+ *  so every chart subscribed via `useCurrentPodAxis` re-renders. */
+function PodAxisToggle() {
+  const { axis, canToggle, setAxis } = useCurrentPodAxis();
+  if (!canToggle) return null;
+  return (
+    <div
+      role="tablist"
+      aria-label="Pod grouping"
+      className="inline-flex items-center rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5 font-mono text-[10px] uppercase tracking-wider"
+    >
+      {(["editorial", "growth"] as const).map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          role="tab"
+          aria-selected={axis === kind}
+          onClick={() => setAxis(kind)}
+          title={
+            kind === "editorial"
+              ? "Group charts by Editorial Pod"
+              : "Group charts by Growth Pod"
+          }
+          className={
+            "rounded-sm px-2 py-1 transition-colors " +
+            (axis === kind
+              ? "bg-[#1f1f1f] text-white"
+              : "text-[#606060] hover:text-[#C4BCAA]")
+          }
+        >
+          {kind === "editorial" ? "Editorial" : "Growth"}
+        </button>
+      ))}
     </div>
   );
 }

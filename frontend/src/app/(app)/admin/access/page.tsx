@@ -1,518 +1,784 @@
 "use client";
 
-// Access Control — UI mockup only. No backend wiring; all state is local
-// to this page. Will plug into real auth + permission system once design
-// is signed off.
-
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Eye, EyeOff, Loader2, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, Shield, Users as UsersIcon, History } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import {
+  refreshAccessProfile,
+  setPreviewAs,
+  useAccessProfile,
+  type AccessProfile,
+} from "@/lib/accessClient";
 
-// ─── Mock data ───────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────
+// Types — mirror backend `app/routers/access.py` schemas.
+// ────────────────────────────────────────────────────────────────────────
 
-interface MockUser {
-  id: string;
-  name: string;
-  email: string;
-  role: "Editor" | "SE" | "Lead" | "Director" | "Admin";
-  pod: string | null;
-  team: "editorial" | "growth" | "leadership" | "bi";
-}
-
-interface MockGroup {
-  id: string;
-  name: string;
-  description: string;
-  memberIds: string[];
-  defaultPerms: Permission[];
-}
-
-type Permission = "view" | "edit" | "none";
-
-interface ViewSection {
-  id: string;
+interface ApiView {
+  slug: string;
   label: string;
-  parent: string;
+  parent_label: string;
+  sort_order: number;
 }
-
-const VIEW_SECTIONS: ViewSection[] = [
-  { id: "d1.contract", label: "Contract & Timeline", parent: "Editorial Clients" },
-  { id: "d1.deliverables", label: "Deliverables vs SOW", parent: "Editorial Clients" },
-  { id: "d2.kpi", label: "KPI Performance", parent: "Team KPIs" },
-  { id: "d2.capacity", label: "Capacity Projections", parent: "Team KPIs" },
-  { id: "d2.ai", label: "AI Compliance", parent: "Team KPIs" },
-  { id: "cp2", label: "Capacity Planning v2", parent: "Proposal" },
-  { id: "data.import", label: "Import Data", parent: "Data" },
-  { id: "admin.access", label: "Access Control", parent: "Admin" },
-];
-
-const MOCK_USERS: MockUser[] = [
-  { id: "u1", name: "Ricardo Jaramillo", email: "ricardo@graphitehq.com", role: "Admin", pod: null, team: "bi" },
-  { id: "u2", name: "Alex Kim", email: "alex.kim@graphitehq.com", role: "Director", pod: null, team: "leadership" },
-  { id: "u3", name: "Maria López", email: "maria@graphitehq.com", role: "Lead", pod: "Editorial Pod 1", team: "editorial" },
-  { id: "u4", name: "Jordan Patel", email: "jordan@graphitehq.com", role: "Editor", pod: "Editorial Pod 1", team: "editorial" },
-  { id: "u5", name: "Sam Reyes", email: "sam@graphitehq.com", role: "Editor", pod: "Editorial Pod 2", team: "editorial" },
-  { id: "u6", name: "Priya Singh", email: "priya@graphitehq.com", role: "Editor", pod: "Editorial Pod 3", team: "editorial" },
-  { id: "u7", name: "Liu Wei", email: "liu@graphitehq.com", role: "Lead", pod: "Editorial Pod 4", team: "editorial" },
-  { id: "u8", name: "Devon Brown", email: "devon@graphitehq.com", role: "Editor", pod: "Editorial Pod 5", team: "editorial" },
-  { id: "u9", name: "Hana Sato", email: "hana@graphitehq.com", role: "SE", pod: "Growth Pod 1", team: "growth" },
-  { id: "u10", name: "Noah Becker", email: "noah@graphitehq.com", role: "SE", pod: "Growth Pod 2", team: "growth" },
-  { id: "u11", name: "Yara Ahmed", email: "yara@graphitehq.com", role: "SE", pod: "Growth Pod 3", team: "growth" },
-  { id: "u12", name: "Kai Andersen", email: "kai@graphitehq.com", role: "Director", pod: null, team: "leadership" },
-];
-
-// Mock groups mirror the PRD §7 spec:
-//   • All primary users see Editorial Client Data (D1)
-//   • Account Team blocked from Editorial Team KPIs (D2)
-//   • Editorial + Account teams = read-only
-//   • Capacity Planner + Leadership = edit ("configuration access")
-//   • Editors see own metrics only; Senior Editors see own + pod + client
-//   • BI team has full edit (build / troubleshoot)
-// Permissions order matches VIEW_SECTIONS:
-// d1.contract, d1.deliverables, d2.kpi, d2.capacity, d2.ai, cp2, data.import, admin.access
-const MOCK_GROUPS: MockGroup[] = [
-  {
-    id: "g.leadership",
-    name: "Leadership / Capacity Planner",
-    description: "PRD §7 — configuration / edit access across both dashboards plus CP v2.",
-    memberIds: ["u2", "u12"],
-    defaultPerms: ["edit", "edit", "edit", "edit", "edit", "edit", "edit", "view"],
-  },
-  {
-    id: "g.bi",
-    name: "BI Team",
-    description: "PRD §7 — full edit for build + troubleshoot. Owns admin / access matrix.",
-    memberIds: ["u1"],
-    defaultPerms: ["edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit"],
-  },
-  {
-    id: "g.editorial.leads",
-    name: "Senior Editors / Pod Leads",
-    description: "PRD §7 — read-only D1; D2 limited to own + pod + client metrics.",
-    memberIds: ["u3", "u7"],
-    defaultPerms: ["view", "view", "view", "view", "view", "view", "none", "none"],
-  },
-  {
-    id: "g.editorial.editors",
-    name: "Editors",
-    description: "PRD §7 — read-only D1 for their pod; D2 limited to own metrics only.",
-    memberIds: ["u4", "u5", "u6", "u8"],
-    defaultPerms: ["view", "view", "view", "none", "none", "none", "none", "none"],
-  },
-  {
-    id: "g.account.team",
-    name: "Account Team",
-    description: "PRD §7 — read-only D1 only. Explicitly blocked from D2 (Team KPIs).",
-    memberIds: ["u9", "u10", "u11"],
-    defaultPerms: ["view", "view", "none", "none", "none", "none", "none", "none"],
-  },
-];
-
-interface AuditEntry {
-  id: string;
-  when: string; // ISO
+interface ApiGroupSummary {
+  slug: string;
+  name: string;
+  description: string | null;
+  is_seeded: boolean;
+  is_pod_derived: boolean;
+  last_synced_at: string | null;
+  member_count: number;
+}
+interface ApiGroupMember {
+  email: string;
+  source: "seed" | "manual" | "derived";
+  can_remove: boolean;
+}
+interface ApiGroupDetail {
+  slug: string;
+  name: string;
+  description: string | null;
+  is_seeded: boolean;
+  is_pod_derived: boolean;
+  last_synced_at: string | null;
+  members: ApiGroupMember[];
+  permissions: Record<string, boolean>;
+}
+interface ApiUserMatrixRow {
+  email: string;
+  display_name: string;
+  groups: string[];
+  pod_kind: string | null;
+  pod_number: string | null;
+  role: string | null;
+  permissions: Record<string, boolean>;
+  overrides: Record<string, boolean>;
+}
+interface ApiAuditEntry {
+  id: number;
+  when: string;
   actor: string;
-  affected: string;
-  change: string;
+  action: string;
+  affected: string | null;
+  detail: Record<string, unknown>;
 }
 
-const MOCK_AUDIT: AuditEntry[] = [
-  { id: "a1", when: "2026-04-26T22:14:00Z", actor: "Alex Kim", affected: "Yara Ahmed", change: "Granted view on Capacity Projections" },
-  { id: "a2", when: "2026-04-25T15:42:00Z", actor: "Ricardo Jaramillo", affected: "Editorial Editors (group)", change: "Removed edit on D1: Contract & Timeline" },
-  { id: "a3", when: "2026-04-24T11:08:00Z", actor: "Alex Kim", affected: "Kai Andersen", change: "Added to group: Leadership" },
-  { id: "a4", when: "2026-04-23T18:30:00Z", actor: "Ricardo Jaramillo", affected: "BI Team (group)", change: "Created group with edit on all sections" },
-  { id: "a5", when: "2026-04-22T09:55:00Z", actor: "Alex Kim", affected: "Devon Brown", change: "Granted view on D2: AI Compliance" },
-  { id: "a6", when: "2026-04-20T14:01:00Z", actor: "Ricardo Jaramillo", affected: "All users", change: "Initial access matrix seeded from team_members table" },
-];
+// ────────────────────────────────────────────────────────────────────────
+// Page shell — gates on access.access view; shows a no-access message
+// otherwise so the redirect doesn't bounce admins into a black screen.
+// ────────────────────────────────────────────────────────────────────────
 
-// ─── Tab 1: Users × Views matrix ────────────────────────────────────────────
+export default function AccessControlPage() {
+  const profile = useAccessProfile();
 
-const PERM_STYLE: Record<Permission, { label: string; bg: string; color: string; border: string }> = {
-  view: { label: "View",  bg: "rgba(143,181,217,0.10)",  color: "#8FB5D9", border: "rgba(143,181,217,0.30)" },
-  edit: { label: "Edit",  bg: "rgba(66,202,128,0.10)",   color: "#42CA80", border: "rgba(66,202,128,0.30)" },
-  none: { label: "—",     bg: "transparent",              color: "#404040", border: "#1f1f1f" },
-};
+  if (!profile) {
+    return (
+      <div className="flex h-64 items-center justify-center text-[#606060]">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading access profile…
+      </div>
+    );
+  }
 
-function PermPill({ perm }: { perm: Permission }) {
-  const s = PERM_STYLE[perm];
+  if (!profile.is_authenticated || !profile.view_slugs.includes("admin.access")) {
+    return (
+      <div className="mx-auto max-w-xl rounded-lg border border-[#2a2a2a] bg-[#161616] p-6">
+        <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
+          No Access
+        </h2>
+        <p className="mt-2 text-sm text-[#C4BCAA]">
+          You don&apos;t have permission to view the Access Control matrix. If you
+          believe this is a mistake, contact an Admin.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">Admin</p>
+        <h1 className="mt-1 font-mono text-lg font-bold uppercase tracking-[0.2em] text-white">
+          Access Control
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm text-[#C4BCAA]">
+          Per-user and per-group permissions. View-only across the matrix —
+          nobody can edit dashboard data through these grants. Group defaults
+          flow to every member; per-user overrides win when both apply.
+        </p>
+      </header>
+
+      {profile.is_preview && (
+        <div className="flex items-center justify-between gap-4 rounded-md border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-[#F5BC4E]">
+          <span className="inline-flex items-center gap-2">
+            <Eye className="h-3.5 w-3.5" /> Previewing as <b>{profile.email}</b>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto py-1 text-[11px] uppercase tracking-wider text-[#F5BC4E] hover:bg-[#F5BC4E]/15"
+            onClick={() => void setPreviewAs(null)}
+          >
+            <X className="mr-1 h-3 w-3" /> Exit preview
+          </Button>
+        </div>
+      )}
+
+      {profile.is_admin && !profile.is_preview && <PreviewAsControl />}
+
+      <Tabs defaultValue="groups">
+        <TabsList variant="line">
+          <TabsTrigger value="groups">Groups</TabsTrigger>
+          <TabsTrigger value="users">Users × Views</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="groups">
+          <GroupsTab profile={profile} />
+        </TabsContent>
+        <TabsContent value="users">
+          <UsersViewsTab profile={profile} />
+        </TabsContent>
+        <TabsContent value="audit">
+          <AuditTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Preview-as control (admin only)
+// ────────────────────────────────────────────────────────────────────────
+
+function PreviewAsControl() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const onSubmit = useCallback(async () => {
+    if (!email.trim()) return;
+    await setPreviewAs(email.trim().toLowerCase());
+    setOpen(false);
+    setEmail("");
+  }, [email]);
+  return (
+    <div className="rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[#909090]">
+          <ShieldCheck className="h-3.5 w-3.5" /> Preview Access
+        </span>
+        <p className="text-[11px] text-[#606060]">
+          Render the dashboard as another user — admin-only, in-memory, no
+          persisted state.
+        </p>
+        {!open && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-auto py-1 text-[11px]"
+            onClick={() => setOpen(true)}
+          >
+            Start preview
+          </Button>
+        )}
+      </div>
+      {open && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Input
+            placeholder="email@graphitehq.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-8 max-w-[280px] text-xs"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void onSubmit();
+              if (e.key === "Escape") setOpen(false);
+            }}
+          />
+          <Button size="sm" onClick={onSubmit} disabled={!email.trim()}>
+            Apply
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Groups tab
+// ────────────────────────────────────────────────────────────────────────
+
+function GroupsTab({ profile }: { profile: AccessProfile }) {
+  const [groups, setGroups] = useState<ApiGroupSummary[] | null>(null);
+  const [views, setViews] = useState<ApiView[] | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ApiGroupDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const loadGroups = useCallback(async () => {
+    const [gs, vs] = await Promise.all([
+      apiGet<ApiGroupSummary[]>("/api/access/groups"),
+      apiGet<ApiView[]>("/api/access/views"),
+    ]);
+    setGroups(gs);
+    setViews(vs);
+    if (selectedSlug == null && gs.length > 0) setSelectedSlug(gs[0].slug);
+  }, [selectedSlug]);
+
+  useEffect(() => {
+    void loadGroups();
+  }, [loadGroups]);
+
+  const loadDetail = useCallback(async (slug: string) => {
+    setLoadingDetail(true);
+    try {
+      const d = await apiGet<ApiGroupDetail>(`/api/access/groups/${slug}`);
+      setDetail(d);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedSlug) void loadDetail(selectedSlug);
+  }, [selectedSlug, loadDetail]);
+
+  if (!groups || !views) {
+    return <LoadingBlock label="Loading groups…" />;
+  }
+
+  // Sort views by parent label then sort_order so the matrix groups together.
+  const viewsSorted = [...views].sort((a, b) => a.sort_order - b.sort_order);
+
+  return (
+    <div className="grid grid-cols-12 gap-4">
+      <aside className="col-span-12 lg:col-span-3">
+        <ul className="space-y-1">
+          {groups.map((g) => {
+            const active = g.slug === selectedSlug;
+            return (
+              <li key={g.slug}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSlug(g.slug)}
+                  className={
+                    "w-full rounded-md border px-3 py-2 text-left transition-colors " +
+                    (active
+                      ? "border-[#42CA80]/40 bg-[#42CA80]/10"
+                      : "border-[#2a2a2a] bg-[#0d0d0d] hover:border-[#3a3a3a]")
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-white">
+                      {g.name}
+                    </span>
+                    <span className="font-mono text-[10px] text-[#606060] tabular-nums">
+                      {g.member_count}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+                    {g.is_pod_derived && <SyncBadge syncedAt={g.last_synced_at} />}
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+
+      <section className="col-span-12 lg:col-span-9">
+        {!detail || loadingDetail ? (
+          <LoadingBlock label="Loading group…" />
+        ) : (
+          <GroupDetailPane
+            detail={detail}
+            views={viewsSorted}
+            isAdmin={profile.is_admin}
+            onChanged={async () => {
+              await loadDetail(detail.slug);
+              await loadGroups();
+            }}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function SyncBadge({ syncedAt }: { syncedAt: string | null }) {
   return (
     <span
-      className="inline-flex h-6 min-w-[44px] items-center justify-center rounded border font-mono text-[10px] uppercase tracking-wider"
-      style={{ background: s.bg, color: s.color, borderColor: s.border }}
+      title={
+        syncedAt
+          ? `Auto-populated from Team Pods sheet · last synced ${new Date(syncedAt).toLocaleString()}`
+          : "Auto-populated from Team Pods sheet"
+      }
+      className="inline-flex items-center gap-1 rounded-sm border border-[#42CA80]/30 bg-[#42CA80]/10 px-1 py-px font-mono text-[9px] uppercase tracking-wider text-[#42CA80]"
     >
-      {s.label}
+      <RefreshCw className="h-2.5 w-2.5" /> sync
     </span>
   );
 }
 
-function buildInitialMatrix(): Record<string, Record<string, Permission>> {
-  // Seed each user's permission row from the first group they're in (mock).
-  const matrix: Record<string, Record<string, Permission>> = {};
-  for (const u of MOCK_USERS) {
-    const group = MOCK_GROUPS.find((g) => g.memberIds.includes(u.id));
-    const row: Record<string, Permission> = {};
-    VIEW_SECTIONS.forEach((sec, idx) => {
-      row[sec.id] = group?.defaultPerms[idx] ?? "none";
-    });
-    matrix[u.id] = row;
-  }
-  return matrix;
-}
-
-function UsersMatrixTab() {
-  const [search, setSearch] = useState("");
-  const [matrix] = useState(() => buildInitialMatrix());
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return MOCK_USERS;
-    return MOCK_USERS.filter(
-      (u) =>
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        (u.pod ?? "").toLowerCase().includes(q),
-    );
-  }, [search]);
-
-  // Group sections by parent for the column header band.
-  const sectionGroups = useMemo(() => {
-    const groups: { parent: string; sections: ViewSection[] }[] = [];
-    for (const sec of VIEW_SECTIONS) {
-      const last = groups[groups.length - 1];
-      if (last && last.parent === sec.parent) last.sections.push(sec);
-      else groups.push({ parent: sec.parent, sections: [sec] });
-    }
-    return groups;
-  }, []);
-
+function GroupDetailPane({
+  detail,
+  views,
+  isAdmin,
+  onChanged,
+}: {
+  detail: ApiGroupDetail;
+  views: ApiView[];
+  isAdmin: boolean;
+  onChanged: () => Promise<void>;
+}) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="relative max-w-sm flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#606060]" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter users…"
-            className="h-9 pl-8 bg-[#161616] border-[#2a2a2a] text-sm"
-          />
-        </div>
-        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-          {filtered.length} user{filtered.length === 1 ? "" : "s"}
-        </p>
+    <div className="space-y-5">
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">Group</p>
+        <h2 className="mt-1 font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
+          {detail.name}
+        </h2>
+        {detail.description && (
+          <p className="mt-1 max-w-3xl text-sm text-[#C4BCAA]">{detail.description}</p>
+        )}
       </div>
 
-      <Card className="border-[#2a2a2a] bg-[#0d0d0d]">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse font-mono text-[11px]">
-              <thead>
-                <tr className="border-b border-[#1f1f1f] bg-[#0a0a0a]">
-                  <th
-                    rowSpan={2}
-                    className="sticky left-0 z-10 bg-[#0a0a0a] px-3 py-2 text-left font-semibold uppercase tracking-wider text-[#C4BCAA]"
-                  >
-                    User
-                  </th>
-                  {sectionGroups.map((g) => (
-                    <th
-                      key={g.parent}
-                      colSpan={g.sections.length}
-                      className="border-l border-[#1f1f1f] px-3 py-1.5 text-center font-semibold uppercase tracking-wider text-[#909090]"
-                    >
-                      {g.parent}
-                    </th>
-                  ))}
-                </tr>
-                <tr className="border-b border-[#1f1f1f] bg-[#0a0a0a]">
-                  {VIEW_SECTIONS.map((sec, i) => (
-                    <th
-                      key={sec.id}
-                      className={`px-3 py-2 text-center text-[10px] font-medium uppercase tracking-wider text-[#606060] ${
-                        i === 0 ||
-                        VIEW_SECTIONS[i - 1]?.parent !== sec.parent
-                          ? "border-l border-[#1f1f1f]"
-                          : ""
-                      }`}
-                    >
-                      {sec.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((u) => (
-                  <tr
-                    key={u.id}
-                    className="border-b border-[#161616] hover:bg-[#141414]"
-                  >
-                    <td className="sticky left-0 z-10 bg-[#0d0d0d] px-3 py-2 align-middle">
-                      <div className="flex flex-col leading-tight">
-                        <span className="text-white normal-case font-sans text-sm">
-                          {u.name}
-                        </span>
-                        <span className="text-[10px] text-[#606060]">
-                          {u.email}
-                          {u.pod ? ` · ${u.pod}` : ""}
-                          {` · ${u.role}`}
-                        </span>
-                      </div>
-                    </td>
-                    {VIEW_SECTIONS.map((sec, i) => {
-                      const parentChange =
-                        i === 0 || VIEW_SECTIONS[i - 1]?.parent !== sec.parent;
-                      return (
-                        <td
-                          key={sec.id}
-                          className={`px-3 py-2 text-center ${
-                            parentChange ? "border-l border-[#1f1f1f]" : ""
-                          }`}
-                        >
-                          <PermPill perm={matrix[u.id][sec.id]} />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <PermissionMatrix
+        views={views}
+        permissions={detail.permissions}
+        editable={isAdmin}
+        onSet={async (viewSlug, canView) => {
+          await apiPut(`/api/access/groups/${detail.slug}/permissions/${viewSlug}`, {
+            can_view: canView,
+          });
+          await refreshAccessProfile();
+          await onChanged();
+        }}
+      />
 
+      <MembersBlock
+        slug={detail.slug}
+        members={detail.members}
+        isAdmin={isAdmin}
+        onChanged={onChanged}
+      />
+    </div>
+  );
+}
+
+function PermissionMatrix({
+  views,
+  permissions,
+  editable,
+  onSet,
+}: {
+  views: ApiView[];
+  permissions: Record<string, boolean>;
+  editable: boolean;
+  onSet: (viewSlug: string, canView: boolean) => Promise<void>;
+}) {
+  // Group views by parent so the columns stack visually.
+  const grouped = useMemo(() => {
+    const out = new Map<string, ApiView[]>();
+    for (const v of views) {
+      const arr = out.get(v.parent_label) ?? [];
+      arr.push(v);
+      out.set(v.parent_label, arr);
+    }
+    return Array.from(out.entries());
+  }, [views]);
+
+  return (
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+      <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+        Default permissions
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">
+        {grouped.map(([parent, vs]) => (
+          <div key={parent}>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[#909090]">{parent}</p>
+            <ul className="mt-1.5 space-y-1">
+              {vs.map((v) => (
+                <li
+                  key={v.slug}
+                  className="flex items-center justify-between gap-2 rounded border border-[#1f1f1f] bg-[#161616] px-2 py-1.5"
+                >
+                  <span className="font-mono text-[11px] text-[#C4BCAA] truncate" title={v.label}>
+                    {v.label}
+                  </span>
+                  <PermPill
+                    canView={!!permissions[v.slug]}
+                    editable={editable}
+                    onClick={() => void onSet(v.slug, !permissions[v.slug])}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PermPill({
+  canView,
+  editable,
+  onClick,
+  hasOverride,
+}: {
+  canView: boolean;
+  editable: boolean;
+  onClick: () => void;
+  hasOverride?: boolean;
+}) {
+  const cls = canView
+    ? "border-[#42CA80]/30 bg-[#42CA80]/10 text-[#42CA80]"
+    : "border-[#1f1f1f] bg-transparent text-[#404040]";
+  const interactive = editable
+    ? "cursor-pointer hover:brightness-125 transition"
+    : "cursor-default";
+  return (
+    <button
+      type="button"
+      disabled={!editable}
+      onClick={onClick}
+      className={
+        "inline-flex h-6 min-w-[44px] items-center justify-center gap-1 rounded border font-mono text-[10px] uppercase tracking-wider " +
+        cls + " " + interactive
+      }
+    >
+      {canView ? "View" : "—"}
+      {hasOverride && (
+        <span
+          title="Per-user override active"
+          className="inline-block h-1.5 w-1.5 rounded-full bg-[#F5BC4E]"
+        />
+      )}
+    </button>
+  );
+}
+
+function MembersBlock({
+  slug,
+  members,
+  isAdmin,
+  onChanged,
+}: {
+  slug: string;
+  members: ApiGroupMember[];
+  isAdmin: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = useCallback(async () => {
+    if (!newEmail.trim()) return;
+    setSubmitting(true);
+    setErr(null);
+    try {
+      await apiPost(`/api/access/groups/${slug}/members`, { email: newEmail.trim() });
+      setNewEmail("");
+      setAdding(false);
+      await onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to add member");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [newEmail, slug, onChanged]);
+
+  const removeMember = useCallback(
+    async (email: string) => {
+      if (!confirm(`Remove ${email} from this group?`)) return;
+      try {
+        await apiDelete(`/api/access/groups/${slug}/members/${encodeURIComponent(email)}`);
+        await onChanged();
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to remove member");
+      }
+    },
+    [slug, onChanged],
+  );
+
+  return (
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+          Members ({members.length})
+        </p>
+        {isAdmin && !adding && (
+          <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
+            <Plus className="mr-1 h-3 w-3" /> Add member
+          </Button>
+        )}
+      </div>
+
+      {adding && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Input
+            placeholder="email@graphitehq.com"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="h-8 max-w-[280px] text-xs"
+            disabled={submitting}
+          />
+          <Button size="sm" onClick={submit} disabled={!newEmail.trim() || submitting}>
+            {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setAdding(false);
+              setErr(null);
+              setNewEmail("");
+            }}
+          >
+            Cancel
+          </Button>
+          {err && <span className="text-xs text-[#ED6958]">{err}</span>}
+        </div>
+      )}
+
+      {members.length === 0 ? (
+        <p className="mt-3 text-xs text-[#606060]">No members yet.</p>
+      ) : (
+        <ul className="mt-3 grid grid-cols-1 gap-1.5 md:grid-cols-2">
+          {members.map((m) => (
+            <li
+              key={m.email}
+              className="flex items-center justify-between gap-2 rounded border border-[#1f1f1f] bg-[#161616] px-2 py-1.5"
+            >
+              <div className="min-w-0 flex-1 truncate">
+                <span className="font-mono text-[11px] text-white">{m.email}</span>
+                <span className="ml-2 inline-block rounded-sm border border-[#2a2a2a] px-1 py-px font-mono text-[9px] uppercase tracking-wider text-[#909090]">
+                  {m.source}
+                </span>
+              </div>
+              {isAdmin && m.can_remove && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-[#ED6958] hover:bg-[#ED6958]/10"
+                  onClick={() => void removeMember(m.email)}
+                  title={
+                    m.source === "derived"
+                      ? "Auto-populated from Team Pods — will reappear on next sync"
+                      : "Remove this member"
+                  }
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Users × Views tab
+// ────────────────────────────────────────────────────────────────────────
+
+function UsersViewsTab({ profile }: { profile: AccessProfile }) {
+  const [users, setUsers] = useState<ApiUserMatrixRow[] | null>(null);
+  const [views, setViews] = useState<ApiView[] | null>(null);
+  const [filter, setFilter] = useState("");
+
+  const load = useCallback(async () => {
+    const [us, vs] = await Promise.all([
+      apiGet<ApiUserMatrixRow[]>("/api/access/users"),
+      apiGet<ApiView[]>("/api/access/views"),
+    ]);
+    setUsers(us);
+    setViews(vs);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (!users || !views) return <LoadingBlock label="Loading users…" />;
+
+  const viewsSorted = [...views].sort((a, b) => a.sort_order - b.sort_order);
+  const q = filter.trim().toLowerCase();
+  const filtered = q
+    ? users.filter(
+        (u) =>
+          u.email.toLowerCase().includes(q) ||
+          u.display_name.toLowerCase().includes(q) ||
+          u.groups.some((g) => g.toLowerCase().includes(q)),
+      )
+    : users;
+
+  const setOverride = async (email: string, viewSlug: string, canView: boolean) => {
+    await apiPut(`/api/access/users/${encodeURIComponent(email)}/overrides/${viewSlug}`, {
+      can_view: canView,
+    });
+    await refreshAccessProfile();
+    await load();
+  };
+  const clearOverride = async (email: string, viewSlug: string) => {
+    try {
+      await apiDelete(
+        `/api/access/users/${encodeURIComponent(email)}/overrides/${viewSlug}`,
+      );
+    } catch {
+      // No-op when there's no override to clear.
+    }
+    await refreshAccessProfile();
+    await load();
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <Input
+          placeholder="Filter users…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="h-8 max-w-[320px] text-xs"
+        />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+          {filtered.length} users
+        </span>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+        <table className="w-full border-collapse text-left">
+          <thead className="bg-[#161616]">
+            <tr>
+              <th className="sticky left-0 z-10 bg-[#161616] px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-[#909090]">
+                User
+              </th>
+              {viewsSorted.map((v) => (
+                <th
+                  key={v.slug}
+                  className="px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-[#909090]"
+                  title={`${v.parent_label} · ${v.label}`}
+                >
+                  {v.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((u) => (
+              <tr key={u.email} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
+                <td className="sticky left-0 z-10 bg-inherit px-3 py-2">
+                  <div className="font-mono text-[12px] text-white">{u.display_name}</div>
+                  <div className="font-mono text-[10px] text-[#606060]">
+                    {u.email}
+                    {u.groups.length > 0 && (
+                      <span className="ml-1 text-[#404040]">
+                        · {u.groups.join(", ")}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                {viewsSorted.map((v) => {
+                  const can = !!u.permissions[v.slug];
+                  const hasOverride = Object.prototype.hasOwnProperty.call(u.overrides, v.slug);
+                  return (
+                    <td key={v.slug} className="px-2 py-2 text-center">
+                      <PermPill
+                        canView={can}
+                        editable={profile.is_admin}
+                        hasOverride={hasOverride}
+                        onClick={() => {
+                          if (!profile.is_admin) return;
+                          // Cycle: no-override → override-grant → override-revoke → clear.
+                          if (!hasOverride) {
+                            void setOverride(u.email, v.slug, !can);
+                          } else {
+                            void clearOverride(u.email, v.slug);
+                          }
+                        }}
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="font-mono text-[10px] text-[#606060]">
-        Mockup — no permission changes are saved. Wiring deferred until the
-        access model is signed off.
+        Click a cell to set / clear a per-user override. Amber dot = override
+        in place. Cells without a dot inherit from the user&apos;s group(s).
       </p>
     </div>
   );
 }
 
-// ─── Tab 2: Groups ──────────────────────────────────────────────────────────
-
-function GroupsTab() {
-  const [selectedId, setSelectedId] = useState<string>(MOCK_GROUPS[0].id);
-  const selected = MOCK_GROUPS.find((g) => g.id === selectedId)!;
-  const members = MOCK_USERS.filter((u) => selected.memberIds.includes(u.id));
-
-  return (
-    <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-      {/* Group list */}
-      <Card className="border-[#2a2a2a] bg-[#0d0d0d] h-fit">
-        <CardContent className="p-0">
-          <ul>
-            {MOCK_GROUPS.map((g) => {
-              const active = g.id === selectedId;
-              return (
-                <li key={g.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(g.id)}
-                    className={`block w-full px-4 py-3 text-left transition-colors ${
-                      active
-                        ? "bg-[#1a1a1a]"
-                        : "hover:bg-[#141414]"
-                    }`}
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span
-                        className={`font-mono text-[11px] uppercase tracking-wider ${
-                          active ? "text-white" : "text-[#C4BCAA]"
-                        }`}
-                      >
-                        {g.name}
-                      </span>
-                      <span className="font-mono text-[10px] text-[#606060] tabular-nums">
-                        {g.memberIds.length}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] leading-snug text-[#909090] line-clamp-2">
-                      {g.description}
-                    </p>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </CardContent>
-      </Card>
-
-      {/* Detail */}
-      <div className="space-y-4">
-        <Card className="border-[#2a2a2a] bg-[#0d0d0d]">
-          <CardContent className="space-y-3 p-4">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-                Group
-              </p>
-              <h3 className="mt-1 font-mono text-base font-bold uppercase tracking-[0.15em] text-white">
-                {selected.name}
-              </h3>
-              <p className="mt-1 text-[12px] text-[#909090]">
-                {selected.description}
-              </p>
-            </div>
-
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060] mb-2">
-                Default Permissions
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                {VIEW_SECTIONS.map((sec, idx) => (
-                  <div
-                    key={sec.id}
-                    className="flex items-center justify-between gap-3 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-[10px] uppercase tracking-wider text-[#909090]">
-                        {sec.parent}
-                      </p>
-                      <p className="truncate text-[12px] text-white">
-                        {sec.label}
-                      </p>
-                    </div>
-                    <PermPill perm={selected.defaultPerms[idx]} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-[#2a2a2a] bg-[#0d0d0d]">
-          <CardContent className="p-4">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060] mb-3">
-              Members ({members.length})
-            </p>
-            {members.length === 0 ? (
-              <p className="text-[12px] text-[#606060]">No members in this group.</p>
-            ) : (
-              <ul className="divide-y divide-[#161616]">
-                {members.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] text-white">{m.name}</p>
-                      <p className="truncate font-mono text-[10px] text-[#606060]">
-                        {m.email}
-                        {m.pod ? ` · ${m.pod}` : ""}
-                        {` · ${m.role}`}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-// ─── Tab 3: Audit log ───────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────
+// Audit log tab
+// ────────────────────────────────────────────────────────────────────────
 
 function AuditTab() {
+  const [entries, setEntries] = useState<ApiAuditEntry[] | null>(null);
+  useEffect(() => {
+    apiGet<ApiAuditEntry[]>("/api/access/audit?limit=200")
+      .then(setEntries)
+      .catch(() => setEntries([]));
+  }, []);
+
+  if (!entries) return <LoadingBlock label="Loading audit log…" />;
+  if (entries.length === 0) {
+    return (
+      <p className="text-sm text-[#606060]">
+        No access-control changes recorded yet.
+      </p>
+    );
+  }
+
   return (
-    <Card className="border-[#2a2a2a] bg-[#0d0d0d]">
-      <CardContent className="p-0">
-        <ul>
-          {MOCK_AUDIT.map((a) => {
-            const date = new Date(a.when);
-            return (
-              <li
-                key={a.id}
-                className="flex items-baseline justify-between gap-4 border-b border-[#161616] px-4 py-3 last:border-b-0"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] text-white leading-snug">
-                    <span className="text-[#C4BCAA]">{a.actor}</span>
-                    {" · "}
-                    {a.change}
-                    {" · "}
-                    <span className="text-[#909090]">{a.affected}</span>
-                  </p>
-                </div>
-                <span
-                  className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-[#606060]"
-                  title={date.toLocaleString()}
-                >
-                  {date.toLocaleString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </CardContent>
-    </Card>
+    <ul className="space-y-1.5">
+      {entries.map((e) => (
+        <li
+          key={e.id}
+          className="rounded border border-[#1f1f1f] bg-[#0d0d0d] px-3 py-2"
+        >
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#909090]">
+              {new Date(e.when).toLocaleString()}
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#42CA80]">
+              {e.action}
+            </span>
+          </div>
+          <div className="mt-0.5 font-mono text-[11px] text-white">
+            {e.actor} → {e.affected ?? "(group)"}
+          </div>
+          <div className="mt-0.5 font-mono text-[10px] text-[#606060]">
+            {Object.entries(e.detail)
+              .filter(([k]) => k !== "affected")
+              .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+              .join(" · ")}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-// ─── Page ───────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────
+// Misc
+// ────────────────────────────────────────────────────────────────────────
 
-export default function AccessControlPage() {
+function LoadingBlock({ label }: { label: string }) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-            Admin
-          </p>
-          <h1 className="mt-1 font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
-            Access Control
-          </h1>
-          <p className="mt-1 text-[12px] text-[#909090] max-w-2xl">
-            Per-user and per-group access to dashboards and admin sections.
-            Mockup — no permissions are enforced yet; the real auth + RBAC
-            wiring lands once the matrix design is signed off.
-          </p>
-        </div>
-        <span className="rounded border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#F5BC4E]">
-          UI Mockup
-        </span>
-      </div>
-
-      <Tabs defaultValue="users">
-        <TabsList variant="line">
-          <TabsTrigger
-            value="users"
-            className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-          >
-            <UsersIcon className="mr-2 inline-block h-3.5 w-3.5" />
-            Users × Views
-          </TabsTrigger>
-          <TabsTrigger
-            value="groups"
-            className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-          >
-            <Shield className="mr-2 inline-block h-3.5 w-3.5" />
-            Groups
-          </TabsTrigger>
-          <TabsTrigger
-            value="audit"
-            className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-          >
-            <History className="mr-2 inline-block h-3.5 w-3.5" />
-            Audit Log
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users" className="mt-4">
-          <UsersMatrixTab />
-        </TabsContent>
-        <TabsContent value="groups" className="mt-4">
-          <GroupsTab />
-        </TabsContent>
-        <TabsContent value="audit" className="mt-4">
-          <AuditTab />
-        </TabsContent>
-      </Tabs>
+    <div className="flex h-32 items-center justify-center font-mono text-[11px] text-[#606060]">
+      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> {label}
     </div>
   );
 }

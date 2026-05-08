@@ -15,12 +15,15 @@ from sqlalchemy.orm import Session as SyncSession
 
 from app.config import settings
 from app.database import get_db, prepare_sync_url
-from app.models import AuditLog
+from app.models import AuditLog, EditorialWeek
+from app.schemas import EditorialWeekResponse
 from app.services.migration_service import (
     CAPACITY_PLAN_PREFIX,
     IMPORT_DISPATCH,
     import_all,
     import_goals_vs_delivery,
+    import_team_pods,
+    import_week_distribution,
     list_available_sheets,
     preview_sheet,
 )
@@ -284,47 +287,78 @@ async def sync_all():
     )
 
 
-@router.post("/goals-historical-resync", response_model=ImportResultResponse)
+@router.post("/goals-historical-resync", response_model=list[ImportResultResponse])
 async def resync_historical_goals():
-    """Force re-import of every Goals vs Delivery tab, including past months.
+    """Force re-import of past-only / annual sheets the regular SYNC button
+    skips. Today that's:
+      • Every Goals vs Delivery monthly tab (the normal SYNC only refreshes
+        the current month's tab + skips months recorded in
+        `sheet_sync_history`).
+      • The '<YYYY> Week Distribution' tabs from the Master Tracker — annual
+        config that defines when each Editorial month starts. The "as of"
+        badge across the dashboards reads from this.
 
-    The normal SYNC button only re-imports the current calendar month's tab
-    and skips past-month tabs that are already recorded in `sheet_sync_history`.
-    Use this endpoint when someone retroactively edits an older month's numbers
-    and you want the dashboard to reflect the corrected values.
+    Run when someone retroactively edits older numbers, or at the start of a
+    new calendar year once the next-year week distribution is locked in.
     """
 
     def _run():
         session = _get_sync_session()
         try:
-            return import_goals_vs_delivery(session, mode="all")
+            return [
+                import_goals_vs_delivery(session, mode="all"),
+                import_week_distribution(session),
+                import_team_pods(session),
+            ]
         finally:
             session.close()
 
     try:
-        r = await asyncio.to_thread(_run)
+        results = await asyncio.to_thread(_run)
     except Exception as exc:
-        logger.exception("Historical Goals vs Delivery resync failed")
+        logger.exception("Historical resync failed")
         raise HTTPException(status_code=500, detail=f"Resync failed: {exc}") from exc
 
-    return ImportResultResponse(
-        sheet=r.sheet,
-        rows_parsed=r.rows_parsed,
-        rows_imported=r.rows_imported,
-        success=r.success,
-        errors=r.errors,
-        details=[
-            TabDetailResponse(
-                tab_name=d.tab_name,
-                month_year=d.month_year,
-                rows_parsed=d.rows_parsed,
-                rows_imported=d.rows_imported,
-                status=d.status,
-                skipped_reason=d.skipped_reason,
-            )
-            for d in r.details
-        ],
+    return [
+        ImportResultResponse(
+            sheet=r.sheet,
+            rows_parsed=r.rows_parsed,
+            rows_imported=r.rows_imported,
+            success=r.success,
+            errors=r.errors,
+            details=[
+                TabDetailResponse(
+                    tab_name=d.tab_name,
+                    month_year=d.month_year,
+                    rows_parsed=d.rows_parsed,
+                    rows_imported=d.rows_imported,
+                    status=d.status,
+                    skipped_reason=d.skipped_reason,
+                )
+                for d in r.details
+            ],
+        )
+        for r in results
+    ]
+
+
+@router.get("/editorial-weeks", response_model=list[EditorialWeekResponse])
+async def list_editorial_weeks(
+    year: int | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Read-only feed of the editorial-week rows the past-months resync wrote.
+    Lives on `/api/migrate/...` because it's tightly coupled to the importer
+    that populates it; no separate router warranted."""
+    stmt = select(EditorialWeek).order_by(
+        EditorialWeek.year,
+        EditorialWeek.month,
+        EditorialWeek.week_number,
     )
+    if year is not None:
+        stmt = stmt.where(EditorialWeek.year == year)
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
 
 class RefreshKpisResponse(BaseModel):

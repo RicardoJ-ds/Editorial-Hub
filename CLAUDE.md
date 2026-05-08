@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.2`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.3`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
@@ -45,7 +45,7 @@ still writes to `localStorage`, not the database.
 
 - **Frontend**: Next.js **16.2** + React 19 + shadcn/ui + Tailwind v4 (`frontend/`)
 - **Backend**: FastAPI + SQLAlchemy async + PostgreSQL 16 (`backend/`)
-- **Auth**: Google OAuth, restricted to `@graphitehq.com` (see `frontend/proxy.ts`, `frontend/src/lib/auth.ts`). Session is a JWT cookie signed with `AUTH_SECRET`.
+- **Auth**: Google OAuth, restricted to `@graphitehq.com` (see `frontend/proxy.ts`, `frontend/src/lib/auth.ts`). Session is a JWT cookie signed with `AUTH_SECRET`. Frontend forwards the email to the backend via `X-User-Email` header (see `frontend/src/lib/api.ts` + `frontend/src/app/api/me/route.ts`); backend resolves view-level RBAC via `app/auth_deps.py` + `app/services/access.py`. Admin-only `X-Preview-As` header impersonates another user for "preview access".
 - **Local dev**: Docker Compose (postgres:5480, backend:8050, frontend:4050)
 - **Production**:
   - Frontend → **Vercel** (alias `editorial-hub-kappa.vercel.app`)
@@ -93,7 +93,7 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 | `/team-kpis` | D2: KPI heatmap + Capacity Projections + AI Compliance tabs | Team performance |
 | `/capacity-planning` | **Capacity Maintenance** (CP v2 prototype, localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md`. Sidebar entry was renamed from "Capacity Planning v2" |
 | `/data-management/import` | Import Wizard + Re-sync past months | The other CRUD pages (Clients, Deliverables, Capacity, KPI Entry) are still routable but hidden from the sidebar — they'll be replaced by the CP v2 maintain screens |
-| `/admin/access` | **Access Control** (UI mockup) | Per-user × view permission matrix + groups + audit log. Mock data only; real RBAC wiring deferred until design is signed off |
+| `/admin/access` | **Access Control** | Live RBAC matrix. Groups tab (left rail + permission matrix + members) + Users × Views (with overrides) + Audit Log. Six seeded groups: Admin, VPs and Managers, Leadership (auto-from sheet), BI Team, Editorial Team (auto-from sheet), Growth Team (auto-from sheet). Admin-only edits + Preview-As. Backend tables: `access_views`, `access_groups`, `access_group_members`, `access_group_view_permissions`, `access_user_overrides`. |
 | `/admin/data-quality` | **Data Quality** | End-date drift (SOW Overview vs Operating Model) + delivered drift (`clients` cumulative vs `deliverables_monthly`). Read-only — sourced from `GET /api/admin/discrepancies`. |
 | `/(auth)/login` | Google OAuth handshake | Redirects back to `/` |
 
@@ -124,6 +124,7 @@ ID: `1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY`
 |---|---|---|
 | Cumulative | `cumulative_metrics` | ✅ seeded |
 | [Month Year] Goals vs Delivery (x9) | `goals_vs_delivery` | ✅ seeded |
+| `<YYYY> Week Distribution` | `editorial_weeks` | ✅ via past-months resync — defines when each Editorial month begins (drives "As of" badge) |
 
 ### Spreadsheet 3 — Writer AI Monitoring
 ID: `13kl0_6YuzsJ3xEzNLzDZeR-sHMaNJNw6oJGmwb-CBOU`
@@ -132,6 +133,16 @@ ID: `13kl0_6YuzsJ3xEzNLzDZeR-sHMaNJNw6oJGmwb-CBOU`
 |---|---|---|
 | Data / Rewrites / Yellow-Red Flags_v2 | `ai_monitoring_records` | ✅ seeded (1,168 rows); **new scans paused upstream** |
 | Surfer's API usage | `surfer_api_usage` | ✅ seeded |
+
+### Spreadsheet 4 — Team Pods
+ID env-driven via `TEAM_PODS_ID`; currently a **temporary copy** at `1N6q1ZYC4W9BYusewdwqwprUu9zSmbQp99mC3f2y3_HI` — must be swapped to the original sheet before prod.
+
+| Sheet | Destination | Ingested? |
+|---|---|---|
+| Editorial Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=editorial) | ✅ chip-based: emails come from people-chip metadata via `spreadsheets.get(includeGridData=true)` |
+| Growth Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=growth) | ✅ same chip-based path; tab has different headers + 2 pod-member columns |
+
+Powers RBAC group auto-population (Editorial Team / Growth Team / Leadership) and the per-pod client filter at `/api/clients/`.
 
 ### Notion Database (separate connector, not a sheet)
 Imported via `backend/app/services/notion_import.py` (paginated read + bulk upsert — fix shipped in `612c854`, Apr 16). Populates `notion_articles`, feeds 3 KPIs: Revision Rate, Turnaround Time, Second Reviews.

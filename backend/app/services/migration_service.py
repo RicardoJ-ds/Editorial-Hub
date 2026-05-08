@@ -22,11 +22,13 @@ from app.models import (
     CumulativeMetric,
     DeliverableMonthly,
     DeliveryTemplate,
+    EditorialWeek,
     EngagementRule,
     GoalsVsDelivery,
     KpiScore,
     ModelAssumption,
     NotionArticle,
+    PodAssignment,
     ProductionHistory,
     SheetSyncHistory,
     SurferAPIUsage,
@@ -38,6 +40,7 @@ logger = logging.getLogger(__name__)
 SPREADSHEET_ID = settings.spreadsheet_id
 MASTER_TRACKER_ID = settings.master_tracker_id
 AI_MONITORING_ID = settings.ai_monitoring_id
+TEAM_PODS_ID = settings.team_pods_id
 
 # Human-readable descriptions for known sheets
 SHEET_DESCRIPTIONS: dict[str, str] = {
@@ -55,6 +58,7 @@ SHEET_DESCRIPTIONS: dict[str, str] = {
     "AI Monitoring - Surfer Usage": "Monthly Surfer AI detector API usage per pod",
     "Master Tracker - Cumulative": "All-time cumulative pipeline metrics per client — topics, CBs, articles, published",
     "Master Tracker - Goals vs Delivery": "Weekly goals vs delivery tracking per month — CB and article delivery pacing",
+    "Team Pods - Editorial + Growth": "Per-client pod assignments — editor / writer / account team / growth lead by client. Source-of-truth for pod-aware filtering and group auto-population.",
     "Notion Database": "Article workflow tracking from Notion export — 13K+ records with statuses, dates, assignments",
     "Monthly KPI Scores": "Manual KPI scores entered by SEs — Internal Quality, External Quality, Mentorship, Feedback Adoption",
     "Growth Pods": "Growth team → client mapping from BigQuery (team_pod_assignments ⋈ salesforce_int_Account). Updates clients.growth_pod.",
@@ -75,6 +79,7 @@ IMPORT_DISPATCH: dict[str, str] = {
     "AI Monitoring - Surfer Usage": "import_ai_monitoring_surfer",
     "Master Tracker - Cumulative": "import_cumulative",
     "Master Tracker - Goals vs Delivery": "import_goals_vs_delivery",
+    "Team Pods - Editorial + Growth": "import_team_pods",
     "Notion Database": "import_notion_database",
     "Monthly KPI Scores": "import_monthly_kpi_scores",
     "Growth Pods": "import_growth_pods",
@@ -582,6 +587,26 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
 
     service = get_sheets_client()
     ssid, tab_name = _resolve_sheet_source(sheet_name)
+
+    # "Master Tracker - Week Distribution" is a logical name; the real tabs
+    # are year-prefixed (e.g. "2026 Week Distribution"). Resolve to the
+    # latest year's tab so the preview shows the most recent calendar.
+    if sheet_name == "Master Tracker - Week Distribution":
+        meta_pre = (
+            service.spreadsheets().get(spreadsheetId=ssid, fields="sheets.properties").execute()
+        )
+        latest_year = -1
+        latest_title: str | None = None
+        for s in meta_pre.get("sheets", []):
+            title = s.get("properties", {}).get("title", "")
+            m = _YEAR_TAB_RE.search(title)
+            if m:
+                y = int(m.group("year"))
+                if y > latest_year:
+                    latest_year = y
+                    latest_title = title
+        if latest_title:
+            tab_name = latest_title
     # Empty tab_name → resolve to the first (non-hidden) tab of the spreadsheet.
     if not tab_name:
         meta_pre = (
@@ -2237,6 +2262,615 @@ def import_cumulative(session: Session) -> ImportResult:
         session.rollback()
         result.success = False
         result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_week_distribution — annual config, runs only via the past-months
+# resync flow. Intentionally NOT in IMPORT_DISPATCH so the import wizard and
+# the regular SYNC button don't touch it.
+# ---------------------------------------------------------------------------
+
+
+_WEEK_CELL_RE = re.compile(
+    r"Week\s*(?P<wn>\d+)\s*:\s*(?P<sm>\d{1,2})/(?P<sd>\d{1,2})\s*-\s*(?P<em>\d{1,2})/(?P<ed>\d{1,2})",
+    re.IGNORECASE,
+)
+_YEAR_TAB_RE = re.compile(r"\b(?P<year>20\d{2})\b\s*Week\s*Distribution", re.IGNORECASE)
+_MONTH_BY_NAME = {
+    name.lower(): idx + 1
+    for idx, name in enumerate(
+        [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ]
+    )
+}
+
+
+def import_week_distribution(session: Session) -> ImportResult:
+    """Import every '<YYYY> Week Distribution' tab from the Master Tracker
+    into `editorial_weeks`. Sheet shape: row 2 carries month-name headers
+    across columns; rows 3-7 carry per-week ranges in 'Week N: MM/DD - MM/DD'
+    form. Year is inferred from the tab name. Idempotent upsert by
+    (year, month, week_number)."""
+    sheet_name = "Master Tracker - Week Distribution"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=MASTER_TRACKER_ID, fields="sheets.properties.title")
+            .execute()
+        )
+        tab_titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        target_tabs: list[tuple[str, int]] = []
+        for title in tab_titles:
+            m = _YEAR_TAB_RE.search(title)
+            if m:
+                target_tabs.append((title, int(m.group("year"))))
+
+        if not target_tabs:
+            result.errors.append("No '<YYYY> Week Distribution' tab found in Master Tracker")
+            result.success = False
+            return result
+
+        for tab_title, year in target_tabs:
+            resp = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=MASTER_TRACKER_ID, range=f"'{tab_title}'")
+                .execute()
+            )
+            all_rows = resp.get("values", [])
+            if len(all_rows) < 3:
+                continue
+            month_header = all_rows[1] if len(all_rows) > 1 else []
+            col_to_month: dict[int, int] = {}
+            for col_idx, raw in enumerate(month_header):
+                key = (raw or "").strip().lower()
+                if key in _MONTH_BY_NAME:
+                    col_to_month[col_idx] = _MONTH_BY_NAME[key]
+
+            for week_row in all_rows[2:]:
+                for col_idx, cell in enumerate(week_row):
+                    month = col_to_month.get(col_idx)
+                    if not month:
+                        continue
+                    text_val = (cell or "").strip()
+                    if not text_val:
+                        continue
+                    m = _WEEK_CELL_RE.search(text_val)
+                    if not m:
+                        continue
+                    wn = int(m.group("wn"))
+                    sm = int(m.group("sm"))
+                    sd = int(m.group("sd"))
+                    em = int(m.group("em"))
+                    ed = int(m.group("ed"))
+                    # Year carry — a week wrapping Dec → Jan ends in the
+                    # following calendar year.
+                    end_year = year if em >= sm else year + 1
+                    try:
+                        start_date = date(year, sm, sd)
+                        end_date = date(end_year, em, ed)
+                    except ValueError as ve:
+                        result.errors.append(f"{tab_title}: bad date in '{text_val}' ({ve})")
+                        continue
+
+                    result.rows_parsed += 1
+                    existing = (
+                        session.execute(
+                            select(EditorialWeek).where(
+                                EditorialWeek.year == year,
+                                EditorialWeek.month == month,
+                                EditorialWeek.week_number == wn,
+                            )
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if existing:
+                        existing.start_date = start_date
+                        existing.end_date = end_date
+                    else:
+                        session.add(
+                            EditorialWeek(
+                                year=year,
+                                month=month,
+                                week_number=wn,
+                                start_date=start_date,
+                                end_date=end_date,
+                            )
+                        )
+                    result.rows_imported += 1
+
+        session.commit()
+    except Exception as exc:
+        logger.exception("Error importing Week Distribution")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_team_pods — Editorial + Growth pod rosters from the "[Int] Team Pods"
+# spreadsheet. Source-of-truth for "which email works on which client" and
+# "what pod is this person in". Powers RBAC group auto-population +
+# pod-aware client filtering.
+#
+# Sheet shape (per latest "Editorial Team [<Mon> <YYYY>]" / "Growth Team
+# [<Mon> <YYYY>]" tab):
+#   Row 1: title banner ("EDITORIAL TEAM - MAY")
+#   Row 2: black header row — POD NUMBER | POD MEMBERS | CLIENT | SENIOR
+#                              EDITOR | EDITOR | WRITER (Editorial)
+#                            | (Growth: similar but role columns differ)
+#   Row 3+: data, with Pod # and Pod Members only on the FIRST row of each
+#           pod's block. Subsequent rows in the same pod block leave
+#           col A and col B blank but do populate cols C–F per client.
+#
+# Cells in cols B/D/E/F are Google Sheets people-chips. The chip carries
+# the email; cell text is the rendered display name. We pull chip metadata
+# via spreadsheets.get(includeGridData=True) with a chipRuns projection.
+# ---------------------------------------------------------------------------
+
+
+_MONTH_NAME_TO_NUM = {
+    name.lower(): idx + 1
+    for idx, name in enumerate(
+        [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ]
+    )
+}
+_TEAM_TAB_RE = re.compile(
+    r"^(?P<kind>Editorial|Growth)\s+Team\s*\[(?P<month>\w+)(?:\s+(?P<year>\d{4}))?\]\s*$",
+    re.IGNORECASE,
+)
+
+
+def _pick_latest_team_tab(tabs: list[str], kind: str) -> str | None:
+    """Pick the most recent '<kind> Team [<Mon> <YYYY>]' tab. Falls back to
+    the latest by lexical sort when year is omitted (some legacy tabs use
+    just the month name)."""
+    candidates: list[tuple[int, int, str]] = []  # (year, month_num, tab_name)
+    for t in tabs:
+        m = _TEAM_TAB_RE.match(t.strip())
+        if not m:
+            continue
+        if m.group("kind").lower() != kind.lower():
+            continue
+        month_num = _MONTH_NAME_TO_NUM.get(m.group("month").lower(), 0)
+        year = int(m.group("year")) if m.group("year") else 0
+        candidates.append((year, month_num, t))
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    return candidates[0][2]
+
+
+def _emails_for_cell(cell: dict) -> list[tuple[str, str]]:
+    """Return [(email, display_text)] for every people-chip in a cell.
+    `display_text` is the chip's rendered substring within the cell text,
+    used so the importer can store the original spelling. Cells with no
+    chips return []."""
+    chip_runs = cell.get("chipRuns") or []
+    text = cell.get("formattedValue") or ""
+    out: list[tuple[str, str]] = []
+    if not chip_runs:
+        return out
+    # chipRuns are sorted by startIndex; the run's display name spans from
+    # its startIndex to the next run's startIndex (or end of text).
+    sorted_runs = sorted(chip_runs, key=lambda r: r.get("startIndex", 0))
+    for i, run in enumerate(sorted_runs):
+        start = run.get("startIndex", 0)
+        end = (
+            sorted_runs[i + 1].get("startIndex", len(text))
+            if i + 1 < len(sorted_runs)
+            else len(text)
+        )
+        chip = run.get("chip", {}).get("personProperties", {}) or {}
+        email = (chip.get("email") or "").strip().lower()
+        if not email:
+            continue
+        # Display name = whatever the chip span renders as in the cell. We
+        # strip trailing role tags `(SE)` / `(E)` so the stored display name
+        # is just the person's name.
+        raw_span = text[start:end]
+        # The role tag (if any) lives at the END of this chip's span — could
+        # be Editorial-style `(SE)` or Growth-style `(SR GL)` / `(GD - external)`.
+        cleaned = (
+            re.sub(r"\([A-Za-z][A-Za-z\s\-]{0,20}\)\s*$", "", raw_span).strip().rstrip(",").strip()
+        )
+        out.append((email, cleaned or text[:80]))
+    return out
+
+
+def _role_tag_for_chip(cell: dict, chip_index: int) -> str | None:
+    """Extract the role tag that follows the chip at `chip_index` in the
+    cell text. Editorial uses single-letter tags like `(SE)` / `(E)`; Growth
+    uses multi-letter tags like `(GD)`, `(SR GL)`, `(JR GL)`, `(GD - external)`.
+    Returns the inner text (whitespace-squeezed, uppercased) or None."""
+    chip_runs = sorted(
+        (cell.get("chipRuns") or []),
+        key=lambda r: r.get("startIndex", 0),
+    )
+    if chip_index >= len(chip_runs):
+        return None
+    text = cell.get("formattedValue") or ""
+    start = chip_runs[chip_index].get("startIndex", 0)
+    end = (
+        chip_runs[chip_index + 1].get("startIndex", len(text))
+        if chip_index + 1 < len(chip_runs)
+        else len(text)
+    )
+    # Allow letters, spaces, and hyphens inside the parens — covers
+    # `(SR GL)`, `(GD - external)`, etc.
+    m = re.search(r"\(([A-Za-z][A-Za-z\s\-]{0,20})\)", text[start:end])
+    if not m:
+        return None
+    return re.sub(r"\s+", " ", m.group(1).strip()).upper()
+
+
+# Map role-tag (from Pod Members column) + role-by-column to canonical role.
+# Keys are tag text after stripping parens, uppercasing, and squeezing internal
+# whitespace to single spaces. Both Editorial-style (`SE` / `E` / `W`) and
+# Growth-style (`SR GL` / `GD` / `JR GL`) tags are listed here.
+_ROLE_TAG_CANONICAL = {
+    "SE": "senior_editor",
+    "E": "editor",
+    "W": "writer",
+    "AD": "account_director",
+    "AM": "account_manager",
+    "MD": "managing_director",
+    "GLEAD": "growth_lead",
+    "GL": "growth_lead",
+    "SR GL": "sr_growth_lead",
+    "JR GL": "jr_growth_lead",
+    "GD": "growth_director",
+    "SR GD": "sr_growth_director",
+    "GD - EXTERNAL": "growth_director_external",
+    "CS": "content_specialist",
+}
+
+# Header labels we explicitly DON'T treat as role columns. The importer also
+# skips any header whose label contains "link", "comment", "type", "url", or
+# "note", so this list only covers exact matches that the substring rule
+# would miss.
+_NON_ROLE_HEADERS = {
+    "pod number",
+    "pod members",
+    "client-facing pod members",
+    "non client-facing pod members",
+    "non-client-facing pod members",
+    "client",
+}
+_NON_ROLE_SUBSTRINGS = ("link", "comment", "type", "url", "note", "sharedrive")
+
+
+def _is_role_header(label: str) -> bool:
+    """Returns True when the (lowercased) header label looks like a role
+    column. Permissive — anything that isn't a known structural / metadata
+    column gets treated as a role."""
+    if label in _NON_ROLE_HEADERS:
+        return False
+    for sub in _NON_ROLE_SUBSTRINGS:
+        if sub in label:
+            return False
+    return True
+
+
+def _canonical_role_from_header(label: str) -> str:
+    """Convert a header like 'SR GROWTH DIRECTOR/ MANAGING DIRECTOR' to a
+    snake_case role key. Slashes and ampersands collapse — these columns
+    legitimately represent one of two interchangeable roles."""
+    norm = label.lower()
+    norm = re.sub(r"[\/\\&]", "_or_", norm)
+    norm = re.sub(r"[^a-z0-9]+", "_", norm)
+    norm = norm.strip("_")
+    return norm or "role"
+
+
+def import_team_pods(session: Session) -> ImportResult:
+    """Import latest Editorial Team + Growth Team tabs into pod_assignments.
+    Returns one ImportResult covering both kinds; per-kind status is tracked
+    via `details` (one TabImportDetail per pod_kind) so the wizard can show
+    them as separate rows."""
+    sheet_name = "Team Pods - Editorial + Growth"
+    result = ImportResult(sheet=sheet_name)
+
+    try:
+        service = get_sheets_client()
+    except Exception as exc:
+        logger.exception("Could not build Sheets client for Team Pods import")
+        result.success = False
+        result.errors.append(f"Auth failed: {exc}")
+        return result
+
+    try:
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=TEAM_PODS_ID, fields="sheets(properties(title))")
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("Could not list Team Pods tabs")
+        result.success = False
+        result.errors.append(f"Could not list tabs: {exc}")
+        return result
+
+    all_tabs = [s["properties"]["title"] for s in meta.get("sheets", [])]
+
+    for pod_kind in ("editorial", "growth"):
+        detail = TabImportDetail(
+            tab_name=f"{pod_kind.title()} Team",
+            month_year="(latest)",
+            preview_key=None,
+        )
+        tab = _pick_latest_team_tab(all_tabs, pod_kind)
+        if not tab:
+            detail.status = "failed"
+            detail.skipped_reason = f"No '{pod_kind.title()} Team [<Mon> <YYYY>]' tab found"
+            result.details.append(detail)
+            result.errors.append(detail.skipped_reason)
+            result.success = False
+            continue
+        detail.tab_name = tab
+
+        try:
+            resp = (
+                service.spreadsheets()
+                .get(
+                    spreadsheetId=TEAM_PODS_ID,
+                    ranges=[f"'{tab}'!A1:Z200"],
+                    includeGridData=True,
+                    fields=(
+                        "sheets(data(rowData(values("
+                        "formattedValue,"
+                        "chipRuns(startIndex,chip(personProperties(email)))"
+                        "))))"
+                    ),
+                )
+                .execute()
+            )
+        except Exception as exc:
+            logger.exception("Could not fetch Team Pods tab %s", tab)
+            detail.status = "failed"
+            detail.skipped_reason = f"Fetch failed: {exc}"
+            result.details.append(detail)
+            result.errors.append(f"Fetch failed for tab '{tab}': {exc}")
+            result.success = False
+            continue
+
+        sheets = resp.get("sheets", [])
+        rows = sheets[0]["data"][0].get("rowData", []) if sheets else []
+        if len(rows) < 3:
+            detail.status = "failed"
+            detail.skipped_reason = "Fewer than 3 rows — header row missing?"
+            result.details.append(detail)
+            result.errors.append(f"Tab '{tab}' has fewer than 3 rows — header row missing?")
+            result.success = False
+            continue
+
+        # Find the header row dynamically — Editorial keeps it at row 2,
+        # Growth at row 3 (because of an extra title banner row). The header
+        # row is whichever has a cell whose lowercased value is exactly
+        # "client" (the column heading, not a client name in a data row).
+        header_row_idx: int | None = None
+        for hi, hrow in enumerate(rows[:6]):
+            for hc in hrow.get("values", []):
+                if (hc.get("formattedValue") or "").strip().lower() == "client":
+                    header_row_idx = hi
+                    break
+            if header_row_idx is not None:
+                break
+
+        if header_row_idx is None:
+            detail.status = "failed"
+            detail.skipped_reason = "Could not locate header row (no 'CLIENT' column)"
+            result.details.append(detail)
+            result.errors.append(f"Tab '{tab}' missing CLIENT column in first 6 rows")
+            result.success = False
+            continue
+
+        header_cells = rows[header_row_idx].get("values", [])
+        col_idx: dict[str, int] = {}
+        for i, hc in enumerate(header_cells):
+            label = (hc.get("formattedValue") or "").strip().lower()
+            if label:
+                col_idx[label] = i
+
+        c_pod_num = col_idx.get("pod number")
+        c_client = col_idx.get("client")
+        if c_client is None:
+            detail.status = "failed"
+            detail.skipped_reason = "Header row missing required 'CLIENT' column"
+            result.details.append(detail)
+            result.errors.append(f"Tab '{tab}' header row missing required 'CLIENT' column")
+            result.success = False
+            continue
+
+        # Pod-member column(s). Editorial has one ("POD MEMBERS"); Growth has
+        # two ("CLIENT-FACING POD MEMBERS" + "NON CLIENT-FACING POD MEMBERS").
+        # We collect chips from ALL of them into the rolling pod-member list.
+        pod_member_cols: list[int] = [i for label, i in col_idx.items() if "pod members" in label]
+
+        # Role columns — anything that isn't structural / metadata. The
+        # canonical role name comes from the header, normalized.
+        role_cols: list[tuple[int, str]] = []
+        for label, idx in col_idx.items():
+            if not _is_role_header(label):
+                continue
+            role_cols.append((idx, _canonical_role_from_header(label)))
+
+        # Wipe and rewrite this pod_kind's rows. Cleaner than upserting because
+        # the team's roster shifts month-to-month; stale assignments would
+        # accumulate otherwise.
+        session.query(PodAssignment).filter(PodAssignment.pod_kind == pod_kind).delete()
+
+        current_pod_num: str | None = None
+        current_pod_members: list[tuple[str, str, str | None]] = []  # (email, name, role_tag)
+        seen_keys: set[tuple[str, str, str, str]] = set()
+
+        for row in rows[header_row_idx + 1 :]:
+            cells = row.get("values", [])
+            if not cells:
+                continue
+            detail.rows_parsed += 1
+
+            # Pod # forwards-fills.
+            if c_pod_num is not None and c_pod_num < len(cells):
+                pn_text = (cells[c_pod_num].get("formattedValue") or "").strip()
+                if pn_text:
+                    current_pod_num = pn_text
+                    current_pod_members = []  # reset on new pod block
+
+            # Pod members — collect chips from EVERY pod-member column on
+            # this row (Growth has 2 columns; Editorial has 1). Reset only
+            # when at least one pod-member cell on this row carries chips,
+            # so blank continuation rows keep the prior pod's roster.
+            new_members: list[tuple[str, str, str | None]] = []
+            any_pm_chip = False
+            for pm_col in pod_member_cols:
+                if pm_col >= len(cells):
+                    continue
+                pm_cell = cells[pm_col]
+                chips = _emails_for_cell(pm_cell)
+                if chips:
+                    any_pm_chip = True
+                for chip_i, (email, name) in enumerate(chips):
+                    tag = _role_tag_for_chip(pm_cell, chip_i)
+                    new_members.append((email, name, tag))
+            if any_pm_chip:
+                current_pod_members = new_members
+
+            # Each row inside a pod block represents one client.
+            client = (
+                (cells[c_client].get("formattedValue") or "").strip()
+                if c_client < len(cells)
+                else ""
+            )
+            if not client:
+                continue
+
+            # 1) Per-row role columns (SE / E / W / AD / AM / etc).
+            for col_index, role in role_cols:
+                if col_index >= len(cells):
+                    continue
+                cell = cells[col_index]
+                for email, display_name in _emails_for_cell(cell):
+                    key = (email, client, pod_kind, role)
+                    if key in seen_keys:
+                        continue
+                    seen_keys.add(key)
+                    session.add(
+                        PodAssignment(
+                            email=email,
+                            display_name=display_name,
+                            pod_kind=pod_kind,
+                            pod_number=current_pod_num,
+                            client_name=client,
+                            role=role,
+                            source_tab=tab,
+                        )
+                    )
+                    detail.rows_imported += 1
+
+            # 2) Pod members — emit a "pod_member" row per (member, this client)
+            #    plus a role-tagged row when the tag maps to a canonical role.
+            for email, name, tag in current_pod_members:
+                # Generic membership entry — useful for "what pod is this
+                # email in" lookups regardless of role.
+                key = (email, client, pod_kind, "pod_member")
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    session.add(
+                        PodAssignment(
+                            email=email,
+                            display_name=name,
+                            pod_kind=pod_kind,
+                            pod_number=current_pod_num,
+                            client_name=client,
+                            role="pod_member",
+                            source_tab=tab,
+                        )
+                    )
+                    detail.rows_imported += 1
+                # Role-tag entry — e.g. (SE) → senior_editor. Skip if we
+                # already wrote the same row from the per-column pass.
+                if tag:
+                    canonical = _ROLE_TAG_CANONICAL.get(tag.upper())
+                    if canonical:
+                        key = (email, client, pod_kind, canonical)
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            session.add(
+                                PodAssignment(
+                                    email=email,
+                                    display_name=name,
+                                    pod_kind=pod_kind,
+                                    pod_number=current_pod_num,
+                                    client_name=client,
+                                    role=canonical,
+                                    source_tab=tab,
+                                )
+                            )
+                            detail.rows_imported += 1
+
+        try:
+            session.commit()
+            detail.status = "imported"
+        except Exception as exc:
+            logger.exception("Commit failed for Team Pods import (%s)", pod_kind)
+            session.rollback()
+            detail.status = "failed"
+            detail.skipped_reason = str(exc)
+            result.success = False
+            result.errors.append(str(exc))
+
+        result.rows_parsed += detail.rows_parsed
+        result.rows_imported += detail.rows_imported
+        result.details.append(detail)
+
+    # Refresh the auto-populated RBAC groups (Editorial Team / Growth Team /
+    # Leadership) from the freshly-imported pod_assignments. Wrap the whole
+    # call so a downstream RBAC issue can't sink the Team Pods import — the
+    # importer's primary contract is "data lands in pod_assignments".
+    if result.rows_imported > 0:
+        try:
+            from app.services.access import refresh_pod_derived_members
+
+            summary = refresh_pod_derived_members(session)
+            logger.info("Refreshed RBAC derived members: %s", summary)
+        except Exception:
+            logger.exception("Could not refresh RBAC derived-member groups")
+            result.errors.append(
+                "Team Pods imported but RBAC derived-member refresh failed (see logs)."
+            )
+
     return result
 
 

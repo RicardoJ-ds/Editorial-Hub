@@ -206,6 +206,207 @@ class ProductionHistory(Base):
     )
 
 
+class OverviewComment(Base):
+    """Notion/Docs-style comments anchored to Overview-dashboard sections.
+
+    `section_id` is the slug of the section (e.g. 'delivery-overview') —
+    mirrors the anchor IDs the page already uses for SectionIndex
+    scroll-spy. `client_name` ties the comment to one client at a time;
+    when the user has multiple clients in their filter the rail groups
+    threads per client, narrowing to one when filtered.
+
+    Admin-only create (per spec). Anyone with overview access can read.
+    Resolution is tracked so DaniQ can clear handled comments without
+    losing history."""
+
+    __tablename__ = "overview_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    section_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    author_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    author_name: Mapped[str | None] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    resolved_by_email: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AccessView(Base):
+    """Catalog of dashboard views that participate in the access matrix.
+    Slug is the stable key the frontend + API speak in. `parent_label` /
+    `sort_order` purely drive UI grouping."""
+
+    __tablename__ = "access_views"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    parent_label: Mapped[str] = mapped_column(String(80), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class AccessGroup(Base):
+    """RBAC group. Seeded groups (Admin / VPs / Leadership / BI Team /
+    Editorial Team / Growth Team) get `is_seeded=True` so the seed-member
+    rows tied to them are protected. `is_pod_derived` flags groups whose
+    membership is recomputed on every Team Pods import."""
+
+    __tablename__ = "access_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    is_seeded: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_pod_derived: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AccessGroupMember(Base):
+    """Group membership. `source` is what protects the seeded list:
+      - `seed`     → from the original spec, can never be removed.
+      - `manual`   → admin added them via the UI, can be removed.
+      - `derived`  → auto-populated from `pod_assignments`, refreshed on
+                     each Team Pods import. The whole `derived` set is
+                     wiped + rewritten per refresh — manual rows survive.
+    UNIQUE on (group_id, email) so the same person can't be in a group twice."""
+
+    __tablename__ = "access_group_members"
+    __table_args__ = (
+        UniqueConstraint("group_id", "email", name="uq_access_group_members_group_email"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("access_groups.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)  # seed | manual | derived
+    added_by_email: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class AccessGroupViewPermission(Base):
+    """Default view permission for a group. View-only across the board —
+    `can_view=False` means the view is hidden / forbidden for that group's
+    members (unless overridden per-user)."""
+
+    __tablename__ = "access_group_view_permissions"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id",
+            "view_id",
+            name="uq_access_group_view_permissions_group_view",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("access_groups.id", ondelete="CASCADE"), nullable=False
+    )
+    view_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("access_views.id", ondelete="CASCADE"), nullable=False
+    )
+    can_view: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class AccessUserOverride(Base):
+    """Per-user override on a single view. Trumps every group default the
+    user inherits from. `can_view=True` grants access the user wouldn't
+    otherwise have; `can_view=False` revokes a view their groups grant."""
+
+    __tablename__ = "access_user_overrides"
+    __table_args__ = (
+        UniqueConstraint("email", "view_id", name="uq_access_user_overrides_email_view"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    view_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("access_views.id", ondelete="CASCADE"), nullable=False
+    )
+    can_view: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    set_by_email: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PodAssignment(Base):
+    """One row per (email, client, role) tuple imported from the Team Pods
+    spreadsheet's Editorial Team / Growth Team tabs. Source-of-truth for "who
+    works on what" — feeds the RBAC layer (group auto-population, pod-aware
+    client filtering) and any future "show clients I'm assigned to" UI.
+
+    `pod_kind` distinguishes editorial vs growth; the same email can appear
+    under both kinds (rare, but the schema doesn't preclude it).
+
+    Email is whatever the Sheets people-chip exposes. The same person may
+    have multiple workspace emails (e.g. `derrik@` and `derrik.chinn@`); we
+    don't try to canonicalize — we store the chip's email verbatim and let
+    the auth layer match against whichever email the session carries.
+    """
+
+    __tablename__ = "pod_assignments"
+    __table_args__ = (
+        UniqueConstraint(
+            "email",
+            "client_name",
+            "pod_kind",
+            "role",
+            name="uq_pod_assignments_email_client_kind_role",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    pod_kind: Mapped[str] = mapped_column(String(20), nullable=False)  # 'editorial' | 'growth'
+    pod_number: Mapped[str | None] = mapped_column(String(20))
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(40), nullable=False)
+    # Tab the row was imported from — preserved so we can reconcile against
+    # the source sheet when debugging assignments.
+    source_tab: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class EditorialWeek(Base):
+    """Editorial-calendar week distribution per (year, month, week_number).
+    Sourced from the Master Tracker's '{Year} Week Distribution' tab. Defines
+    when each Editorial month begins for "as of" math — Week 1's start is the
+    first day the team considers itself in that month, regardless of where
+    Gregorian month boundaries fall."""
+
+    __tablename__ = "editorial_weeks"
+    __table_args__ = (
+        UniqueConstraint("year", "month", "week_number", name="uq_editorial_weeks_ymw"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    week_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
 class DeliveryTemplate(Base):
     __tablename__ = "delivery_templates"
 

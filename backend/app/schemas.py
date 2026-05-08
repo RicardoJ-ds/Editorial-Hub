@@ -131,6 +131,37 @@ class DeliverableResponse(DeliverableBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class OverviewCommentResponse(BaseModel):
+    """One comment in the right-rail Overview thread."""
+
+    id: int
+    section_id: str
+    client_name: str
+    author_email: str
+    author_name: str | None
+    body: str
+    resolved_at: datetime | None
+    resolved_by_email: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EditorialWeekResponse(BaseModel):
+    """One per-week row imported from the Master Tracker '{Year} Week
+    Distribution' tab. Powers the dashboard's "As of" badge."""
+
+    id: int
+    year: int
+    month: int
+    week_number: int
+    start_date: date
+    end_date: date
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- Team Member schemas ---
 class TeamMemberBase(BaseModel):
     name: str

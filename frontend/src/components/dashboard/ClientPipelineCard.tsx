@@ -28,6 +28,10 @@ interface Props {
   pod?: string | null;
   /** Source client object — used solely to anchor the scroll-target id. */
   client?: Client | null;
+  /** Which pipeline stages to render. Defaults to all four. The Overview
+   *  dashboard passes `["articles","published"]` so its compact cards
+   *  show only the billable / shipped stages. */
+  stages?: PipelineStage[];
 }
 
 // Per-client pipeline cards live below the per-pod aggregate row, which
@@ -68,13 +72,20 @@ function PipelineBar({
   );
 }
 
-export function ClientPipelineCard({ data, sow = null, pod = null, client = null }: Props) {
+export function ClientPipelineCard({
+  data,
+  sow = null,
+  pod = null,
+  client = null,
+  stages = ["topics", "cbs", "articles", "published"],
+}: Props) {
   // Articles use SENT (delivered to the client), not approved — the
   // approval step is downstream of delivery and the latter is what
   // billing tracks. Topics and CBs keep `approved` because those gates
   // require explicit client sign-off.
   const articlesValue = data.articles_sent ?? 0;
   const overallPct = sow && sow > 0 ? ((articlesValue / sow) * 100) : 0;
+  const visible = new Set(stages);
   return (
     <div
       id={client ? `cumulative-pipeline-${client.id}` : undefined}
@@ -95,10 +106,10 @@ export function ClientPipelineCard({ data, sow = null, pod = null, client = null
           directly comparable. Color is purely informational here; the pacing
           chip on the per-pod card above carries the "behind / ahead" signal. */}
       <div className="space-y-2">
-        <PipelineBar label="Topics"    stage="topics"    value={data.topics_approved   ?? 0} sow={sow} />
-        <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_approved      ?? 0} sow={sow} />
-        <PipelineBar label="Articles"  stage="articles"  value={articlesValue}                 sow={sow} />
-        <PipelineBar label="Published" stage="published" value={data.published_live    ?? 0} sow={sow} />
+        {visible.has("topics")    && <PipelineBar label="Topics"    stage="topics"    value={data.topics_approved   ?? 0} sow={sow} />}
+        {visible.has("cbs")       && <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_approved      ?? 0} sow={sow} />}
+        {visible.has("articles")  && <PipelineBar label="Articles"  stage="articles"  value={articlesValue}                 sow={sow} />}
+        {visible.has("published") && <PipelineBar label="Published" stage="published" value={data.published_live    ?? 0} sow={sow} />}
       </div>
 
       {/* Footer */}

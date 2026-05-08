@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import engine
 from app.models import Base  # noqa: F401 — importing module registers all models with Base.metadata
 from app.routers import (
+    access,
     admin,
     ai_monitoring,
     capacity,
@@ -20,6 +21,7 @@ from app.routers import (
     kpis,
     migration,
     notion_articles,
+    overview_comments,
     team_members,
 )
 
@@ -79,12 +81,26 @@ async def _run_data_migrations(conn) -> None:
         logger.exception("production_history dedupe/constraint migration failed (continuing)")
 
 
+def _seed_access(_conn) -> None:
+    """Run the RBAC seed inside a sync session bound to the same connection
+    used for `Base.metadata.create_all`. Idempotent."""
+    from sqlalchemy.orm import Session as SyncSession
+
+    from app.services.access import seed_access_baseline
+
+    with SyncSession(bind=_conn) as session:
+        seed_access_baseline(session)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup, then apply idempotent data migrations.
+    # Create tables on startup, then apply idempotent data migrations,
+    # then seed the RBAC baseline (views + groups + seed members + default
+    # permission matrix). All idempotent.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await _run_data_migrations(conn)
+        await conn.run_sync(_seed_access)
     yield
     await engine.dispose()
 
@@ -114,6 +130,10 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(ai_monitoring.router, prefix="/api/ai-monitoring", tags=["ai-monitoring"])
 app.include_router(goals_delivery.router, prefix="/api/goals-delivery", tags=["goals-delivery"])
+app.include_router(access.router, prefix="/api/access", tags=["access"])
+app.include_router(
+    overview_comments.router, prefix="/api/overview/comments", tags=["overview-comments"]
+)
 app.include_router(migration.router, prefix="/api/migrate", tags=["migration"])
 app.include_router(
     client_delivery.router, prefix="/api/dashboard/client-delivery", tags=["dashboard"]

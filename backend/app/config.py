@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     master_tracker_id: str = ""
     ai_monitoring_id: str = ""
     notion_database_id: str = ""
+    # Editorial + Growth team pods, one tab per month per kind. Currently
+    # points at a temporary copy — swap to the original sheet ID before prod.
+    # See memory/reference_team_pods_sheet.md.
+    team_pods_id: str = "1N6q1ZYC4W9BYusewdwqwprUu9zSmbQp99mC3f2y3_HI"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
