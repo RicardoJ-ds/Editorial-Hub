@@ -577,6 +577,11 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
     # look like '[March 2026] Goals vs Delivery'; cumulative tab is 'Cumulative').
     if "] Goals vs Delivery" in sheet_name or sheet_name == "Cumulative":
         return MASTER_TRACKER_ID, sheet_name
+    # Raw Team Pods tab names ('Editorial Team [May 2026]' / 'Growth Team [May 2026]')
+    # surface as TabImportDetail.tab_name from import_team_pods; route to the
+    # Team Pods spreadsheet so the post-import preview resolves.
+    if sheet_name.startswith("Editorial Team [") or sheet_name.startswith("Growth Team ["):
+        return TEAM_PODS_ID, sheet_name
     return SPREADSHEET_ID, sheet_name
 
 
