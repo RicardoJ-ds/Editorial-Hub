@@ -1446,6 +1446,16 @@ def import_operating_model(session: Session) -> ImportResult:
             if canonical in name_lookup and alias not in name_lookup:
                 name_lookup[alias] = name_lookup[canonical]
 
+        # Pre-load every existing ProductionHistory row into an in-memory
+        # dict keyed by (client_id, year, month). Without this we'd issue a
+        # SELECT per (row × month_column) — ~50 clients × 53 months ≈ 2,650
+        # round-trips to Neon, taking 60-180s and tripping the browser's
+        # fetch timeout (and Vercel/Cloudflare 30s proxy cutoff).
+        existing_rows = session.execute(select(ProductionHistory)).scalars().all()
+        existing_by_key: dict[tuple[int, int, int], ProductionHistory] = {
+            (r.client_id, r.year, r.month): r for r in existing_rows
+        }
+
         # Skip row 0 (labels), row 1 (month headers), row 2 (Production total)
         # Data rows start at index 3
         data_rows = all_rows[3:]
@@ -1484,18 +1494,10 @@ def import_operating_model(session: Session) -> ImportResult:
                 articles_actual = val if is_actual else None
                 articles_projected = val if not is_actual else None
 
-                # Upsert: match by (client_id, year, month)
-                existing = (
-                    session.execute(
-                        select(ProductionHistory).where(
-                            ProductionHistory.client_id == client_id,
-                            ProductionHistory.year == year,
-                            ProductionHistory.month == month,
-                        )
-                    )
-                    .scalars()
-                    .first()
-                )
+                # Upsert: match by (client_id, year, month) via the
+                # pre-loaded in-memory dict.
+                key = (client_id, year, month)
+                existing = existing_by_key.get(key)
 
                 if existing:
                     existing.articles_actual = articles_actual
@@ -1503,17 +1505,17 @@ def import_operating_model(session: Session) -> ImportResult:
                     existing.is_actual = is_actual
                     existing.source = "operating_model"
                 else:
-                    session.add(
-                        ProductionHistory(
-                            client_id=client_id,
-                            year=year,
-                            month=month,
-                            articles_actual=articles_actual,
-                            articles_projected=articles_projected,
-                            is_actual=is_actual,
-                            source="operating_model",
-                        )
+                    new_row = ProductionHistory(
+                        client_id=client_id,
+                        year=year,
+                        month=month,
+                        articles_actual=articles_actual,
+                        articles_projected=articles_projected,
+                        is_actual=is_actual,
+                        source="operating_model",
                     )
+                    session.add(new_row)
+                    existing_by_key[key] = new_row
 
                 result.rows_imported += 1
 
@@ -2644,6 +2646,12 @@ def import_team_pods(session: Session) -> ImportResult:
             result.success = False
             continue
         detail.tab_name = tab
+        # Surface the actual month/year inside the brackets ("May 2026")
+        # instead of the literal "(latest)" placeholder so the wizard's
+        # tab-detail row reads as a real label.
+        bracket_match = re.search(r"\[([^\]]+)\]", tab)
+        if bracket_match:
+            detail.month_year = bracket_match.group(1).strip()
 
         try:
             resp = (
