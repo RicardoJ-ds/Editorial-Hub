@@ -297,27 +297,50 @@ async def resync_historical_goals():
       • The '<YYYY> Week Distribution' tabs from the Master Tracker — annual
         config that defines when each Editorial month starts. The "as of"
         badge across the dashboards reads from this.
+      • Team Pods (Editorial + Growth) so RBAC group auto-membership stays
+        in sync with the latest sheet.
+
+    Each importer runs in its own session and is wrapped in a guard so one
+    failure doesn't abort the others — failed steps come back as
+    `success=False` ImportResults with the error message, letting the UI
+    surface partial results.
 
     Run when someone retroactively edits older numbers, or at the start of a
     new calendar year once the next-year week distribution is locked in.
     """
 
-    def _run():
-        session = _get_sync_session()
-        try:
-            return [
-                import_goals_vs_delivery(session, mode="all"),
-                import_week_distribution(session),
-                import_team_pods(session),
-            ]
-        finally:
-            session.close()
+    steps = [
+        ("Goals vs Delivery (all months)", lambda s: import_goals_vs_delivery(s, mode="all")),
+        ("Master Tracker - Week Distribution", import_week_distribution),
+        ("Team Pods - Editorial + Growth", import_team_pods),
+    ]
 
-    try:
-        results = await asyncio.to_thread(_run)
-    except Exception as exc:
-        logger.exception("Historical resync failed")
-        raise HTTPException(status_code=500, detail=f"Resync failed: {exc}") from exc
+    def _run():
+        results: list = []
+        for label, fn in steps:
+            session = _get_sync_session()
+            try:
+                results.append(fn(session))
+            except Exception as exc:
+                logger.exception("%s failed during historical resync", label)
+                from app.services.migration_service import ImportResult as _IR
+
+                results.append(
+                    _IR(
+                        sheet=label,
+                        success=False,
+                        errors=[f"{type(exc).__name__}: {exc}"],
+                    )
+                )
+                try:
+                    session.rollback()
+                except Exception:
+                    logger.warning("Rollback failed for %s (continuing)", label)
+            finally:
+                session.close()
+        return results
+
+    results = await asyncio.to_thread(_run)
 
     return [
         ImportResultResponse(
