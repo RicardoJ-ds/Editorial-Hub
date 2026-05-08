@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { displayPod } from "@/components/dashboard/shared-helpers";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import type { Client, DeliverableMonthly } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -149,6 +150,7 @@ function quarterLabel(year: number, q: number): string {
 }
 
 export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChartProps) {
+  const { axis: podAxis } = useCurrentPodAxis();
   // Default: Running total + Quarter granularity — matches how Finance reads the book.
   const [mode, setMode] = useState<Mode>("cumulative");
   const [granularity, setGranularity] = useState<Granularity>("quarter");
@@ -156,9 +158,12 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
 
   const clientToPod = useMemo(() => {
     const map = new Map<number, string>();
-    for (const c of clients) map.set(c.id, normalizePod(c.editorial_pod));
+    for (const c of clients) {
+      const raw = podAxis === "growth" ? c.growth_pod : c.editorial_pod;
+      map.set(c.id, normalizePod(raw));
+    }
     return map;
-  }, [clients]);
+  }, [clients, podAxis]);
 
   // Build the grid: rows = pods (+ All pods header), columns = periods (month or quarter).
   const { rows, columns } = useMemo(() => {
@@ -398,7 +403,7 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
                               : POD_COLORS[row.pod] ?? "#606060",
                           }}
                         />
-                        {row.pod === ALL_KEY ? row.pod : displayPod(row.pod, "editorial")}
+                        {row.pod === ALL_KEY ? row.pod : displayPod(row.pod, podAxis)}
                       </span>
                     </td>
                     {row.cells.map((cell, ci) => {

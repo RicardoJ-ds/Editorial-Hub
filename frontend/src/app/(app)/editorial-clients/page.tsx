@@ -28,6 +28,7 @@ import { SyncControls } from "@/components/layout/SyncControls";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { ClientNotesPanel, hasClientNote } from "@/components/dashboard/ClientNotesPanel";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { DeliveryOverviewCards } from "@/components/dashboard/DeliveryOverviewCards";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
@@ -582,6 +583,7 @@ function ClientEngagementTimeline({
   clients: Client[];
   clientProduction: ClientProductionRow[];
 }) {
+  const { axis: podAxis } = useCurrentPodAxis();
   const [cumView, setCumView] = useState<"monthly" | "quarterly">("monthly");
   // Current month in YYYY-MM — used to highlight the live column and split
   // actual (historic) from projected (future). The Operating Model carries
@@ -887,7 +889,8 @@ function ClientEngagementTimeline({
           style={{ scrollbarGutter: "stable" }}
         >
           {activeClients.map((client, idx) => {
-            const podColor = TIMELINE_POD_COLORS[client.editorial_pod ?? ""] ?? "#606060";
+            const rawPod = podAxis === "growth" ? client.growth_pod : client.editorial_pod;
+            const podColor = TIMELINE_POD_COLORS[rawPod ?? ""] ?? "#606060";
             const prod = productionByClient.get(client.name);
             const totals = prod?.totals ?? null;
             const perMonth = prod?.monthly ?? [];
@@ -1054,7 +1057,7 @@ function ClientEngagementTimeline({
                 style={{ backgroundColor: color, opacity: 0.85 }}
               />
               <span className="text-[11px] font-mono text-[#606060]">
-                {displayPod(pod, "editorial")}
+                {displayPod(pod, podAxis)}
               </span>
             </div>
           ))}

@@ -22,12 +22,18 @@ interface Props {
    *  four. Overview passes `["articles","published"]` so the Overview cards
    *  read as a slim "billable / shipped" snapshot. */
   cardStages?: PipelineStage[];
+  /** Wrap each per-pod block in a collapsed `<details>` so the page
+   *  doesn't dump 50+ cards at first paint. Mirrors the
+   *  `defaultCollapsedByPod` pattern on `ClientDeliveryCards` — Overview
+   *  passes this to keep the screen scannable. */
+  defaultCollapsedByPod?: boolean;
 }
 
 export function CumulativePipelineSection({
   filteredClients,
   beforeClientCards,
   cardStages,
+  defaultCollapsedByPod = false,
 }: Props) {
   const [rows, setRows] = useState<CumulativeMetric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,24 +134,15 @@ export function CumulativePipelineSection({
       {beforeClientCards}
 
       {/* Per-client cards — grouped into discrete subsections per pod so you
-          can scan one pod at a time instead of a flat alphabetical grid. */}
+          can scan one pod at a time instead of a flat alphabetical grid.
+          On Overview, each pod block wraps in a collapsed `<details>` so
+          the page doesn't dump 50+ cards at first paint. */}
       {rowsByPod.length === 0 ? (
         <p className="text-center text-sm text-[#606060] py-8">No cumulative pipeline data available.</p>
       ) : (
-        <div className="space-y-6">
-          {rowsByPod.map(([pod, rows]) => (
-            <div
-              key={`pod-group-${pod}`}
-              id={`cumulative-pipeline-pod-${pod.replace(/\s+/g, "-").toLowerCase()}`}
-              className="space-y-3 scroll-mt-[180px]"
-            >
-              <div className="flex items-center gap-2 border-b border-[#1f1f1f] pb-1.5">
-                {podBadge(pod)}
-                <span className="font-mono text-xs text-[#606060]">
-                  {rows.length} client{rows.length === 1 ? "" : "s"}
-                </span>
-                <span className="h-px flex-1 bg-[#1f1f1f]" />
-              </div>
+        <div className="space-y-3">
+          {rowsByPod.map(([pod, rows]) => {
+            const grid = (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {rows.map((row) => (
                   <ClientPipelineCard
@@ -153,13 +150,50 @@ export function CumulativePipelineSection({
                     data={row}
                     sow={clientToSow.get(row.client_name) ?? null}
                     pod={pod}
+                    podKind={podAxis}
                     client={clientByName.get(row.client_name) ?? null}
                     stages={cardStages}
                   />
                 ))}
               </div>
-            </div>
-          ))}
+            );
+            return (
+              <div
+                key={`pod-group-${pod}`}
+                id={`cumulative-pipeline-pod-${pod.replace(/\s+/g, "-").toLowerCase()}`}
+                className="space-y-2 scroll-mt-[180px]"
+              >
+                {defaultCollapsedByPod ? (
+                  <details className="group/pod">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 rounded border border-[#1f1f1f] bg-[#0d0d0d] px-3 py-1.5 transition-colors hover:border-[#2a2a2a]">
+                      {podBadge(pod, podAxis)}
+                      <span className="font-mono text-[11px] text-[#606060]">
+                        {rows.length} client{rows.length === 1 ? "" : "s"}
+                      </span>
+                      <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-[#606060] group-open/pod:hidden">
+                        ▸ expand
+                      </span>
+                      <span className="ml-auto hidden font-mono text-[10px] uppercase tracking-wider text-[#606060] group-open/pod:inline">
+                        ▾ collapse
+                      </span>
+                    </summary>
+                    <div className="mt-2">{grid}</div>
+                  </details>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 border-b border-[#1f1f1f] pb-1.5">
+                      {podBadge(pod, podAxis)}
+                      <span className="font-mono text-xs text-[#606060]">
+                        {rows.length} client{rows.length === 1 ? "" : "s"}
+                      </span>
+                      <span className="h-px flex-1 bg-[#1f1f1f]" />
+                    </div>
+                    {grid}
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -32,7 +32,7 @@ from sqlalchemy import select
 from app.auth_deps import (
     current_access,
     get_sync_session,
-    require_admin,
+    require_access_editor,
     require_authenticated,
 )
 from app.models import (
@@ -70,7 +70,8 @@ class AccessMeResponse(BaseModel):
 class ViewResponse(BaseModel):
     slug: str
     label: str
-    parent_label: str
+    parent_label: str  # section: "Dashboards" / "Data" / "Admin"
+    dashboard_label: str  # middle level (e.g. "Editorial Clients", "Overview")
     sort_order: int
 
 
@@ -110,6 +111,11 @@ class UserMatrixRow(BaseModel):
     role: str | None
     permissions: dict[str, bool]  # view_slug → effective can_view (group ∪ override)
     overrides: dict[str, bool]  # view_slug → override-only (for UI badges)
+    # True when this email is a seeded member of the **admin** group
+    # (Daniela / Ricardo by default). The two pills under Access Control
+    # are locked for these users regardless of who's editing — a guard
+    # against the original admin baseline being accidentally locked out.
+    is_seeded_admin: bool = False
 
 
 class AuditEntryResponse(BaseModel):
@@ -171,6 +177,7 @@ def list_views(_: AccessProfile = Depends(require_authenticated)):
                 slug=v.slug,
                 label=v.label,
                 parent_label=v.parent_label,
+                dashboard_label=v.dashboard_label or v.label,
                 sort_order=v.sort_order,
             )
             for v in rows
@@ -252,6 +259,9 @@ def list_users(_: AccessProfile = Depends(require_authenticated)):
     """Returns one row per known email — the union of every email that
     appears in any access table or the pod_assignments roster. Drives the
     Users × Views matrix tab."""
+    from app.services.access import seeded_admin_emails
+
+    seeded_admins = seeded_admin_emails()
     with get_sync_session() as session:
         # Gather distinct emails from the three sources.
         member_emails = {
@@ -313,6 +323,7 @@ def list_users(_: AccessProfile = Depends(require_authenticated)):
                     role=inf.get("role"),
                     permissions=permissions,
                     overrides=override_map,
+                    is_seeded_admin=email.lower() in seeded_admins,
                 )
             )
         return out
@@ -354,16 +365,43 @@ def access_audit(
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Mutations (admin only)
+# Mutations
 # ───────────────────────────────────────────────────────────────────────
+#
+# Two privilege tiers:
+#   • require_admin           — true Admin group. Required for sensitive
+#     ops that could escalate privilege: membership changes on the admin
+#     group, permission grants on `admin.access` / `admin.access.edit`,
+#     and overrides on those same views.
+#   • require_access_editor   — Admin OR holder of the `admin.access.edit`
+#     view. Cell-level edits to anything that ISN'T the admin group or the
+#     access-edit views themselves.
+#
+# Each endpoint applies the right tier as its dependency, then re-checks
+# the sensitive cases inline so a non-admin holding `admin.access.edit`
+# still gets a 403 when reaching for the escalation paths.
+
+# View slugs that, when targeted, require true admin (not just access editor).
+# Granting these is the privilege-escalation door, so we bolt it shut.
+_ADMIN_ONLY_VIEW_SLUGS = frozenset({"admin.access", "admin.access.edit"})
+
+# Group slugs whose membership changes require true admin.
+_ADMIN_ONLY_GROUP_SLUGS = frozenset({"admin"})
+
+
+def _ensure_admin(actor: AccessProfile, reason: str) -> None:
+    if not actor.is_admin:
+        raise HTTPException(status_code=403, detail=reason)
 
 
 @router.post("/groups/{slug}/members", response_model=GroupDetailResponse)
 def add_group_member(
     slug: str,
     body: AddMemberBody,
-    actor: AccessProfile = Depends(require_admin),
+    actor: AccessProfile = Depends(require_access_editor),
 ):
+    if slug in _ADMIN_ONLY_GROUP_SLUGS:
+        _ensure_admin(actor, "Only Admin-group members can edit Admin group membership")
     email = body.email.strip().lower()
     with get_sync_session() as session:
         group = session.execute(
@@ -402,8 +440,10 @@ def add_group_member(
 def remove_group_member(
     slug: str,
     email: str,
-    actor: AccessProfile = Depends(require_admin),
+    actor: AccessProfile = Depends(require_access_editor),
 ):
+    if slug in _ADMIN_ONLY_GROUP_SLUGS:
+        _ensure_admin(actor, "Only Admin-group members can edit Admin group membership")
     email = email.strip().lower()
     with get_sync_session() as session:
         group = session.execute(
@@ -444,8 +484,20 @@ def set_group_permission(
     slug: str,
     view_slug: str,
     body: SetPermissionBody,
-    actor: AccessProfile = Depends(require_admin),
+    actor: AccessProfile = Depends(require_access_editor),
 ):
+    # The Admin group's permissions are immutable — admin = full access by
+    # definition; flipping any cell off would brick the matrix for everyone.
+    if slug in _ADMIN_ONLY_GROUP_SLUGS:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin group permissions are read-only — admin always has full access.",
+        )
+    if view_slug in _ADMIN_ONLY_VIEW_SLUGS:
+        _ensure_admin(
+            actor,
+            "Only Admin-group members can grant Access Control view/edit privileges",
+        )
     with get_sync_session() as session:
         group = session.execute(
             select(AccessGroup).where(AccessGroup.slug == slug)
@@ -486,9 +538,28 @@ def set_user_override(
     email: str,
     view_slug: str,
     body: SetOverrideBody,
-    actor: AccessProfile = Depends(require_admin),
+    actor: AccessProfile = Depends(require_access_editor),
 ):
+    if view_slug in _ADMIN_ONLY_VIEW_SLUGS:
+        _ensure_admin(
+            actor,
+            "Only Admin-group members can override Access Control view/edit privileges",
+        )
     email = email.strip().lower()
+    # Seeded admins (Daniela / Ricardo) are immutable across EVERY view,
+    # for EVERYONE — even other admins can't override them. Protects the
+    # original admin baseline so admins can't accidentally revoke each
+    # other's access on any matrix column.
+    from app.services.access import seeded_admin_emails
+
+    if email in seeded_admin_emails():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"{email} is a seeded Admin and is locked across the whole "
+                "matrix. Per-user overrides aren't allowed on seeded admins."
+            ),
+        )
     with get_sync_session() as session:
         view = session.execute(
             select(AccessView).where(AccessView.slug == view_slug)
@@ -533,8 +604,28 @@ def set_user_override(
 def clear_user_override(
     email: str,
     view_slug: str,
-    actor: AccessProfile = Depends(require_admin),
+    actor: AccessProfile = Depends(require_access_editor),
 ):
+    if view_slug in _ADMIN_ONLY_VIEW_SLUGS:
+        _ensure_admin(
+            actor,
+            "Only Admin-group members can clear Access Control view/edit overrides",
+        )
+    email_norm = email.strip().lower()
+    # Seeded admins (Daniela / Ricardo) shouldn't carry overrides on any
+    # view. Stale rows are wiped by the seed step at startup, but we also
+    # reject the API path so the UI lock is mirrored on the server.
+    from app.services.access import seeded_admin_emails
+
+    if email_norm in seeded_admin_emails():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"{email_norm} is a seeded Admin; per-user overrides aren't "
+                "allowed on seeded admins. Stale overrides are cleaned up on "
+                "the next backend restart."
+            ),
+        )
     email = email.strip().lower()
     with get_sync_session() as session:
         view = session.execute(

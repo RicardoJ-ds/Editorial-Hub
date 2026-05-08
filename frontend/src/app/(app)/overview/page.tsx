@@ -266,6 +266,7 @@ export default function OverviewPage() {
             <CumulativePipelineSection
               filteredClients={filteredClients}
               cardStages={["articles", "published"]}
+              defaultCollapsedByPod
             />
           </Section>
 
@@ -825,7 +826,7 @@ function PodOutput({
                       className="inline-block h-1.5 w-1.5 rounded-full"
                       style={{ backgroundColor: fill }}
                     />
-                    <span className="text-[#C4BCAA]">{displayPod(d.pod)}</span>
+                    <span className="text-[#C4BCAA]">{displayPod(d.pod, axis)}</span>
                     <span className="text-[#606060]">· {d.clients} client{d.clients === 1 ? "" : "s"}</span>
                   </span>
                   <span className="shrink-0 font-semibold tabular-nums text-white">

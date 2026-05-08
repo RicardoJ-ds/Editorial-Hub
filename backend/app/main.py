@@ -80,6 +80,19 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("production_history dedupe/constraint migration failed (continuing)")
 
+    # 2. access_views: add `dashboard_label` for the 3-level matrix header.
+    #    The seed step refreshes label/parent/dashboard on every restart, so
+    #    once the column exists, values get populated automatically.
+    try:
+        await conn.execute(
+            text(
+                "ALTER TABLE access_views "
+                "ADD COLUMN IF NOT EXISTS dashboard_label VARCHAR(120) NOT NULL DEFAULT ''"
+            )
+        )
+    except Exception:
+        logger.exception("access_views dashboard_label migration failed (continuing)")
+
 
 def _seed_access(_conn) -> None:
     """Run the RBAC seed inside a sync session bound to the same connection

@@ -47,18 +47,26 @@ from app.models import (
 # + restarting the backend extends the matrix with `can_view=False` rows
 # for every existing group; admins then explicitly grant access.
 
-_VIEWS: list[tuple[str, str, str, int]] = [
-    # (slug,                    label,                  parent,            sort_order)
-    ("overview", "Overview", "Dashboards", 10),
-    ("d1.contract", "Contract & Timeline", "Editorial Clients", 20),
-    ("d1.deliverables", "Deliverables vs SOW", "Editorial Clients", 21),
-    ("d2.kpi", "KPI Performance", "Team KPIs", 30),
-    ("d2.capacity", "Capacity Projections", "Team KPIs", 31),
-    ("d2.ai", "AI Compliance", "Team KPIs", 32),
-    ("cp2", "Capacity Planning v2", "Proposal", 40),
-    ("data.import", "Import Data", "Data", 50),
-    ("admin.access", "Access Control", "Admin", 60),
-    ("admin.data_quality", "Data Quality", "Admin", 61),
+_VIEWS: list[tuple[str, str, str, str, int]] = [
+    # (slug,             label,                  dashboard_label,        section,       sort_order)
+    # Section is the top-row group; dashboard_label is the middle row; label is the leaf
+    # (tab name, or = dashboard_label when the dashboard has no tabs).
+    ("overview", "Overview", "Overview", "Dashboards", 10),
+    ("d1.contract", "Contract & Timeline", "Editorial Clients", "Dashboards", 20),
+    ("d1.deliverables", "Deliverables vs SOW", "Editorial Clients", "Dashboards", 21),
+    ("d2.kpi", "KPI Performance", "Team KPIs", "Dashboards", 30),
+    ("d2.capacity", "Capacity Projections", "Team KPIs", "Dashboards", 31),
+    ("d2.ai", "AI Compliance", "Team KPIs", "Dashboards", 32),
+    ("cp2", "Capacity Planning v2", "Capacity Planning v2", "Data", 40),
+    ("data.import", "Import Data", "Import Data", "Data", 50),
+    ("admin.access", "Access Control", "Access Control", "Admin", 60),
+    # Edit privilege for the Access Control matrix. Rendered as a second
+    # "Edit" pill next to "View" in the matrix UI rather than a separate
+    # column. Granting this lets a user toggle cell permissions and edit
+    # group memberships, but NOT touch the admin group or grant the edit
+    # privilege itself — those stay admin-only to prevent escalation.
+    ("admin.access.edit", "Edit Access Control", "Access Control", "Admin", 61),
+    ("admin.data_quality", "Data Quality", "Data Quality", "Admin", 62),
 ]
 
 # ─── Group catalog ───────────────────────────────────────────────────────
@@ -142,6 +150,25 @@ _SEED_MEMBERS: dict[str, list[str]] = {
     "growth_team": [],
 }
 
+
+def seeded_emails() -> set[str]:
+    """Union of every email seeded into any group. Used by callers that
+    need a quick is-this-user-seeded check without running a per-group
+    membership query."""
+    out: set[str] = set()
+    for emails in _SEED_MEMBERS.values():
+        out.update(e.lower().strip() for e in emails)
+    return out
+
+
+def seeded_admin_emails() -> set[str]:
+    """Just the admin-group seed members (Daniela + Ricardo by default).
+    Used to lock these accounts against ANY override on the Access Control
+    views — not even other admins can revoke them, so the original admin
+    baseline can't accidentally be locked out by a misclick."""
+    return {e.lower().strip() for e in _SEED_MEMBERS.get("admin", [])}
+
+
 # ─── Default permission matrix ───────────────────────────────────────────
 # Maps group_slug → set of view slugs the group can_view by default.
 # Anything not listed defaults to can_view=False.
@@ -211,15 +238,23 @@ def seed_access_baseline(session: Session) -> None:
     permissions or non-seed memberships are preserved."""
 
     # 1) Views — insert any missing slugs. Existing rows get their label /
-    #    parent / sort_order refreshed so renames in `_VIEWS` propagate.
+    #    parent / dashboard_label / sort_order refreshed so renames in
+    #    `_VIEWS` propagate on every restart.
     existing_views = {v.slug: v for v in session.execute(select(AccessView)).scalars().all()}
-    for slug, label, parent, order in _VIEWS:
+    for slug, label, dashboard_label, parent, order in _VIEWS:
         v = existing_views.get(slug)
         if v is None:
-            v = AccessView(slug=slug, label=label, parent_label=parent, sort_order=order)
+            v = AccessView(
+                slug=slug,
+                label=label,
+                dashboard_label=dashboard_label,
+                parent_label=parent,
+                sort_order=order,
+            )
             session.add(v)
         else:
             v.label = label
+            v.dashboard_label = dashboard_label
             v.parent_label = parent
             v.sort_order = order
 
@@ -295,6 +330,22 @@ def seed_access_baseline(session: Session) -> None:
                     can_view=(slug in allowed_views),
                 )
             )
+
+    # 5) Wipe any per-user overrides on seeded admins (Daniela / Ricardo).
+    #    The rule is "seeded admins are immutable across the matrix" so
+    #    stale overrides are an inconsistent state. Idempotent — empty on
+    #    every clean run.
+    seeded_admin_set = {e.lower().strip() for e in _SEED_MEMBERS.get("admin", [])}
+    if seeded_admin_set:
+        stale_overrides = (
+            session.execute(
+                select(AccessUserOverride).where(AccessUserOverride.email.in_(seeded_admin_set))
+            )
+            .scalars()
+            .all()
+        )
+        for ov in stale_overrides:
+            session.delete(ov)
 
     session.commit()
 

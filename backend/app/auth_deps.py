@@ -102,6 +102,25 @@ def require_admin(
     return profile
 
 
+def require_access_editor(
+    profile: AccessProfile = Depends(current_access),
+) -> AccessProfile:
+    """Cell-level edits on the Access Control matrix. Allowed for true
+    admins (admin group) AND for users with the `admin.access.edit` view.
+    Endpoints using this dep must still self-enforce escalation guards
+    (no granting `admin.access.edit` or admin-group changes by non-admins)."""
+    if not profile.is_authenticated:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if profile.is_admin:
+        return profile
+    if "admin.access.edit" in profile.view_slugs:
+        return profile
+    raise HTTPException(
+        status_code=403,
+        detail="Edit access to the Access Control matrix is required",
+    )
+
+
 def require_view(view_slug: str):
     """Returns a dependency that 403s unless the profile has `view_slug` in
     its view set. Use as `Depends(require_view("admin.access"))`."""

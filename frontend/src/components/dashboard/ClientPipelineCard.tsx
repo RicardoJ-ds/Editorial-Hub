@@ -26,6 +26,10 @@ interface Props {
    *  account_team_pod column — that column carries growth/account pod
    *  labels and would mix axes with the editorial-pod grouping above. */
   pod?: string | null;
+  /** Which pod axis the parent is grouping by. Drives the chip label —
+   *  "Editorial Pod 1" vs "Growth Pod 1". Default editorial keeps the
+   *  prior behavior intact when callers don't pass it. */
+  podKind?: "editorial" | "growth";
   /** Source client object — used solely to anchor the scroll-target id. */
   client?: Client | null;
   /** Which pipeline stages to render. Defaults to all four. The Overview
@@ -76,6 +80,7 @@ export function ClientPipelineCard({
   data,
   sow = null,
   pod = null,
+  podKind = "editorial",
   client = null,
   stages = ["topics", "cbs", "articles", "published"],
 }: Props) {
@@ -94,7 +99,7 @@ export function ClientPipelineCard({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          {podBadge(pod ?? "Unassigned")}
+          {podBadge(pod ?? "Unassigned", podKind)}
           <span className="font-semibold text-white text-sm truncate">{data.client_name}</span>
         </div>
         {data.client_type && (

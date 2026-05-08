@@ -639,12 +639,14 @@ function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
 
 export function PodGoalsRow({ filteredClients, dateRange }: Props) {
   const { loading, goalPods } = usePodAggregates(filteredClients, dateRange);
+  const { axis: podAxis } = useCurrentPodAxis();
 
   if (loading) return <Skeleton className="h-[180px]" />;
   if (goalPods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] px-4 py-6 text-center text-sm text-[#606060]">
-        No editorial-pod goal data for the selected filters.
+        No {podAxis === "growth" ? "growth-pod" : "editorial-pod"} goal data
+        for the selected filters.
       </div>
     );
   }
@@ -689,7 +691,7 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
               className="flex flex-col gap-2"
             >
               <div className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-1.5">
-                {podBadge(g.pod)}
+                {podBadge(g.pod, podAxis)}
                 <span className="font-mono text-[11px] text-[#606060]">
                   {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
                 </span>
@@ -713,7 +715,7 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
             return (
               <div key={`pcs-${g.pod}`} className="space-y-2">
                 <div className="flex items-center gap-2">
-                  {podBadge(g.pod)}
+                  {podBadge(g.pod, podAxis)}
                   <span className="font-mono text-[11px] text-[#606060]">
                     {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
                   </span>
@@ -783,12 +785,14 @@ function ClientMiniGauge({ data }: { data: ClientGoalDatum }) {
 
 export function PodPipelineRow({ filteredClients }: Props) {
   const { loading, pipelinePods } = usePodAggregates(filteredClients);
+  const { axis: podAxis } = useCurrentPodAxis();
 
   if (loading) return <Skeleton className="h-[220px]" />;
   if (pipelinePods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] px-4 py-6 text-center text-sm text-[#606060]">
-        No editorial-pod pipeline data for the selected filters.
+        No {podAxis === "growth" ? "growth-pod" : "editorial-pod"} pipeline
+        data for the selected filters.
       </div>
     );
   }
@@ -837,7 +841,7 @@ export function PodPipelineRow({ filteredClients }: Props) {
         {pipelinePods.map((p) => (
           <div key={`p-${p.pod}`} className="flex flex-col gap-2">
             <div className="flex items-center gap-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-1.5">
-              {podBadge(p.pod)}
+              {podBadge(p.pod, podAxis)}
               <span className="font-mono text-[11px] text-[#606060]">
                 {p.clientCount} client{p.clientCount === 1 ? "" : "s"}
               </span>

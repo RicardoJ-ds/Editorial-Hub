@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { PreviewBanner } from "@/components/layout/PreviewBanner";
 import { getSession } from "@/lib/session";
 
 export default async function AppLayout({
@@ -19,6 +20,7 @@ export default async function AppLayout({
       <TooltipProvider>
         <Sidebar user={user} />
         <div className="ml-[64px] flex flex-1 flex-col overflow-auto">
+          <PreviewBanner />
           <div className="sticky top-0 z-30 bg-black">
             <Header />
           </div>

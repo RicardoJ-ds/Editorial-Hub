@@ -18,6 +18,46 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.5 — May 8
+
+**Access Control — granular edit role + protections.**
+
+- New **Edit Access Control** privilege rendered as a second pill (in blue) next to the View pill under the Access Control column. Granting it lets a non-admin selectively edit the matrix without making them a full Admin. Sensitive ops stay admin-only: Admin-group permissions and membership, plus granting Edit Access Control itself, can never be touched by a non-admin.
+- **Admin group is now read-only** in the matrix. Admins always have full access by definition; the row can no longer be modified by anyone.
+- **Seeded Admins (Daniela, Ricardo) are immutable** across the whole matrix. No one — including other admins — can override their access. Stale overrides on these accounts are auto-cleaned on every backend restart.
+- **View-only banner** on the Access Control page when a viewer doesn't have edit access, so they understand why pills aren't clickable.
+- **Capacity Planning v2** moved out of the "Proposal" section into "Data" (matches where it belongs in the sidebar).
+
+**Access Control matrix — visual pass.**
+
+- New **3-level column header**: Section → Dashboard → Tab. Top row groups columns under Dashboards / Data / Admin; the middle row labels each dashboard (Overview, Editorial Clients, Team KPIs, Capacity Planning v2, Import Data, Access Control, Data Quality); the bottom row only appears for dashboards with tabs.
+- **Stronger column dividers** between sections (heavier 2px line) and between dashboards within a section (lighter 1px line) so the groupings are visible while scrolling.
+- The "Group" / "User" sticky-left column gets its own right-edge divider so the matrix data is properly bounded.
+- **Override visualization** in Users × Views: cells now show a green ↑ when a user has *more* access than their group, or a red ↓ when they have *less*. The amber dot is gone — direction is always shown. User rows show the same arrows next to the name with a count. A "Show only overrides" filter toggle and an override count chip appear at the top.
+- **Groups tab matrix layout** mirrors Users × Views: rows = groups, columns = views, click any cell to grant/revoke. Click a group name to expand inline and see members in a 3-column grid.
+
+**Preview Access — full flow.**
+
+- Starting a preview now redirects you to the previewed user's first accessible page (instead of stranding you on the No Access wall when previewing as a non-admin).
+- **Sticky amber banner** at the top of every page while preview is active, with an Exit Preview button that's always reachable no matter where you navigate.
+- Exit Preview returns you to the path you were on when you started preview — usually back to Access Control.
+
+**Access changes propagate to other users on tab focus.**
+
+- Other users' open tabs silently refresh their access profile when they switch back to the tab. If their access changed (something added or revoked), the UI updates seamlessly — no flicker, no full reload, no scroll-position loss. If access didn't change, nothing visibly happens.
+
+**Editorial / Growth toggle works everywhere it should.**
+
+- Fixed: with Growth selected, the Cumulative Pipeline section, Time-to Metrics Client Milestone Journey, Client Engagement Timeline legend, and Pod Attention card were all still grouping or labeling by Editorial Pod. Every per-pod chart, badge, and section header now follows the active toggle.
+- New toggle visual: segmented control with a sliding indicator that animates between Editorial / Growth via a spring transition. Editorial uses Graphite green; Growth uses sky-blue — color-coded so the active axis is identifiable at a glance.
+- Empty-state copy updates correctly ("No growth-pod pipeline data" vs "No editorial-pod pipeline data").
+
+**Overview dashboard — Cumulative Pipeline collapsed by pod.**
+
+- Each pod block on the Overview's Cumulative Pipeline section is now collapsed behind an expand row by default, matching Client Delivery at a Glance below it. Keeps the page scannable when there are 50+ clients.
+
+---
+
 ## 0.3.4 — May 8
 
 **Sync stability fixes.** All cleanup on top of 0.3.3 — same day.

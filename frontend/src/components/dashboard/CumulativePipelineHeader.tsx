@@ -96,7 +96,7 @@ function buildScope(
     const pod = Array.from(pods)[0];
     return {
       kind: "pod",
-      subtitle: `${displayPod(pod)} · ${agg.clients} clients`,
+      subtitle: `${displayPod(pod, podAxis)} · ${agg.clients} clients`,
       agg,
     };
   }

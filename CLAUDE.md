@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.4`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.5`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
@@ -45,7 +45,7 @@ still writes to `localStorage`, not the database.
 
 - **Frontend**: Next.js **16.2** + React 19 + shadcn/ui + Tailwind v4 (`frontend/`)
 - **Backend**: FastAPI + SQLAlchemy async + PostgreSQL 16 (`backend/`)
-- **Auth**: Google OAuth, restricted to `@graphitehq.com` (see `frontend/proxy.ts`, `frontend/src/lib/auth.ts`). Session is a JWT cookie signed with `AUTH_SECRET`. Frontend forwards the email to the backend via `X-User-Email` header (see `frontend/src/lib/api.ts` + `frontend/src/app/api/me/route.ts`); backend resolves view-level RBAC via `app/auth_deps.py` + `app/services/access.py`. Admin-only `X-Preview-As` header impersonates another user for "preview access".
+- **Auth**: Google OAuth, restricted to `@graphitehq.com` (see `frontend/proxy.ts`, `frontend/src/lib/auth.ts`). Session is a JWT cookie signed with `AUTH_SECRET`. Frontend forwards the email to the backend via `X-User-Email` header (see `frontend/src/lib/api.ts` + `frontend/src/app/api/me/route.ts`); backend resolves view-level RBAC via `app/auth_deps.py` + `app/services/access.py`. Two privilege tiers gate matrix mutations: `require_admin` (Admin group only — for Admin-group changes and `admin.access` / `admin.access.edit` grants) and `require_access_editor` (Admin OR `admin.access.edit` view — for cell toggles + member changes on non-Admin groups). Admin-only `X-Preview-As` header impersonates another user. Access profile auto-refreshes on tab focus so revocations propagate without a manual page reload.
 - **Local dev**: Docker Compose (postgres:5480, backend:8050, frontend:4050)
 - **Production**:
   - Frontend → **Vercel** (alias `editorial-hub-kappa.vercel.app`)
@@ -93,7 +93,7 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 | `/team-kpis` | D2: KPI heatmap + Capacity Projections + AI Compliance tabs | Team performance |
 | `/capacity-planning` | **Capacity Maintenance** (CP v2 prototype, localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md`. Sidebar entry was renamed from "Capacity Planning v2" |
 | `/data-management/import` | Import Wizard + Re-sync past months | The other CRUD pages (Clients, Deliverables, Capacity, KPI Entry) are still routable but hidden from the sidebar — they'll be replaced by the CP v2 maintain screens |
-| `/admin/access` | **Access Control** | Live RBAC matrix. Groups tab (left rail + permission matrix + members) + Users × Views (with overrides) + Audit Log. Six seeded groups: Admin, VPs and Managers, Leadership (auto-from sheet), BI Team, Editorial Team (auto-from sheet), Growth Team (auto-from sheet). Admin-only edits + Preview-As. Backend tables: `access_views`, `access_groups`, `access_group_members`, `access_group_view_permissions`, `access_user_overrides`. |
+| `/admin/access` | **Access Control** | Live RBAC matrix. Both Groups and Users × Views tabs render as a single matrix table with a 3-level column header (Section → Dashboard → Tab) and per-section dividers. Groups: row-per-group with click-to-expand member lists in a 3-col grid. Users × Views: row-per-user with override-direction arrows (↑ extra grant / ↓ revoke) + "Show only overrides" filter. Editing privilege split: the Access Control column renders **two pills** per row — `View` (green, gated on `admin.access`) and `Edit` (blue, gated on `admin.access.edit`). True admins gate the Admin row, the seeded admin baseline (Daniela / Ricardo), and grants of `admin.access.edit` itself — preventing privilege escalation. Audit Log tab + Preview-As (sticky global banner via `PreviewBanner`, redirects to first accessible page). Backend tables: `access_views`, `access_groups`, `access_group_members`, `access_group_view_permissions`, `access_user_overrides`. |
 | `/admin/data-quality` | **Data Quality** | End-date drift (SOW Overview vs Operating Model) + delivered drift (`clients` cumulative vs `deliverables_monthly`). Read-only — sourced from `GET /api/admin/discrepancies`. |
 | `/(auth)/login` | Google OAuth handshake | Redirects back to `/` |
 

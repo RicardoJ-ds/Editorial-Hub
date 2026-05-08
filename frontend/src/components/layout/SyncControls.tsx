@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { SyncAllModal } from "@/components/data-management/SyncAllModal";
 import { apiGet } from "@/lib/api";
@@ -142,38 +143,75 @@ export function SyncControls() {
  *  Growth. Renders only when the access profile has `can_toggle_axis` —
  *  pod-locked teams (Editorial Team / Growth Team) get nothing here.
  *  Selection persists in localStorage; changing it emits a notification
- *  so every chart subscribed via `useCurrentPodAxis` re-renders. */
+ *  so every chart subscribed via `useCurrentPodAxis` re-renders.
+ *
+ *  Visual: segmented control with a sliding indicator pill. The active
+ *  pill rides via framer-motion `layoutId`, so changing the selection
+ *  animates the green highlight across instead of a hard color swap.
+ *  Each option also gets its own hover ring + axis-tinted active color
+ *  (Graphite green for Editorial, sky-blue for Growth) so admins can
+ *  glance at the badge and know which axis is live. */
 function PodAxisToggle() {
   const { axis, canToggle, setAxis } = useCurrentPodAxis();
   if (!canToggle) return null;
+  const options = [
+    {
+      kind: "editorial" as const,
+      label: "Editorial",
+      hint: "Group charts by Editorial Pod",
+      // Graphite primary green tint when active.
+      activeBg: "bg-[#42CA80]/15",
+      activeText: "text-[#65FFAA]",
+      activeRing: "ring-[#65FFAA]/30",
+    },
+    {
+      kind: "growth" as const,
+      label: "Growth",
+      hint: "Group charts by Growth Pod",
+      // Sky-blue tint distinguishes Growth from Editorial at a glance.
+      activeBg: "bg-[#4ECBE5]/15",
+      activeText: "text-[#4ECBE5]",
+      activeRing: "ring-[#4ECBE5]/30",
+    },
+  ];
   return (
     <div
       role="tablist"
       aria-label="Pod grouping"
-      className="inline-flex items-center rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5 font-mono text-[10px] uppercase tracking-wider"
+      className="relative inline-flex items-center rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5 font-mono text-[10px] uppercase tracking-wider"
     >
-      {(["editorial", "growth"] as const).map((kind) => (
-        <button
-          key={kind}
-          type="button"
-          role="tab"
-          aria-selected={axis === kind}
-          onClick={() => setAxis(kind)}
-          title={
-            kind === "editorial"
-              ? "Group charts by Editorial Pod"
-              : "Group charts by Growth Pod"
-          }
-          className={
-            "rounded-sm px-2 py-1 transition-colors " +
-            (axis === kind
-              ? "bg-[#1f1f1f] text-white"
-              : "text-[#606060] hover:text-[#C4BCAA]")
-          }
-        >
-          {kind === "editorial" ? "Editorial" : "Growth"}
-        </button>
-      ))}
+      {options.map((opt) => {
+        const active = axis === opt.kind;
+        return (
+          <button
+            key={opt.kind}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => setAxis(opt.kind)}
+            title={opt.hint}
+            className={
+              "relative z-10 rounded-sm px-2.5 py-1 transition-colors duration-200 " +
+              (active
+                ? opt.activeText
+                : "text-[#606060] hover:text-[#C4BCAA]")
+            }
+          >
+            {active && (
+              <motion.span
+                layoutId="pod-axis-indicator"
+                aria-hidden
+                transition={{ type: "spring", stiffness: 360, damping: 32 }}
+                className={
+                  "absolute inset-0 rounded-sm ring-1 " +
+                  `${opt.activeBg} ${opt.activeRing}`
+                }
+              />
+            )}
+            <span className="relative z-10">{opt.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

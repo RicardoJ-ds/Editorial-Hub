@@ -5,6 +5,7 @@ import type { Client, GoalsVsDeliveryRow } from "@/lib/types";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { contentTypeRatio, podBadge } from "./shared-helpers";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import { DataQualityNote } from "./GoalsVsDeliverySection";
 import type { DateRange } from "./DateRangeFilter";
@@ -104,6 +105,7 @@ interface ClientAgg {
 }
 
 export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
+  const { axis: podAxis } = useCurrentPodAxis();
   const [metric, setMetric] = useState<Metric>("cb");
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
   // Track which clients have their per-content-type breakdown open.
@@ -138,10 +140,11 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
   const clientToPod = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredClients) {
-      map.set(c.name, normalizePod(c.editorial_pod) || "Unassigned");
+      const raw = podAxis === "growth" ? c.growth_pod : c.editorial_pod;
+      map.set(c.name, normalizePod(raw) || "Unassigned");
     }
     return map;
-  }, [filteredClients]);
+  }, [filteredClients, podAxis]);
 
   const { months, clients, weekNumbers } = useMemo(() => {
     const monthByKey = new Map<string, Date>();
@@ -463,7 +466,7 @@ export function GoalsMonthTable({ rows, filteredClients, dateRange }: Props) {
                         ) : (
                           <span className="w-3 shrink-0" />
                         )}
-                        {podBadge(c.pod)}
+                        {podBadge(c.pod, podAxis)}
                         <span className="font-semibold text-white text-[12px] truncate">
                           {c.name}
                         </span>

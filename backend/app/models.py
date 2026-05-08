@@ -237,8 +237,12 @@ class OverviewComment(Base):
 
 class AccessView(Base):
     """Catalog of dashboard views that participate in the access matrix.
-    Slug is the stable key the frontend + API speak in. `parent_label` /
-    `sort_order` purely drive UI grouping."""
+    Slug is the stable key the frontend + API speak in. The matrix renders
+    a 3-level header: `parent_label` is the section (Dashboards / Data /
+    Admin), `dashboard_label` is the dashboard within that section
+    (Overview / Editorial Clients / Team KPIs / Capacity Planning v2 / …),
+    and `label` is the leaf — the tab inside the dashboard, or the
+    dashboard itself when it has no tabs. `sort_order` orders columns."""
 
     __tablename__ = "access_views"
 
@@ -246,6 +250,7 @@ class AccessView(Base):
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(120), nullable=False)
     parent_label: Mapped[str] = mapped_column(String(80), nullable=False)
+    dashboard_label: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 

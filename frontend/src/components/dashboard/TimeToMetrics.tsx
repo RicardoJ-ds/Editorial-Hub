@@ -207,10 +207,10 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
     setTip({ x, y, card, align });
   };
 
-  // Per-client milestone data, grouped by Growth Pod. Every client appears
-  // as a row; clients with no CKO or no milestone dates render as empty rows.
-  // Pods are ordered numerically (Pod 1, 2, …, Unassigned last); clients
-  // within each pod are sorted alphabetically.
+  // Per-client milestone data, grouped by the active pod axis. Every
+  // client appears as a row; clients with no CKO or no milestone dates
+  // render as empty rows. Pods are ordered numerically (Pod 1, 2, …,
+  // Unassigned last); clients within each pod are sorted alphabetically.
   const clientMilestonesByPod = useMemo(() => {
     const rows = clients.map((c) => {
       const entries: { key: string; label: string; days: number; color: string; shape: string }[] = [];
@@ -225,7 +225,8 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
     });
     const byPod = new Map<string, typeof rows>();
     for (const r of rows) {
-      const pod = normalizePod(r.client.growth_pod);
+      const rawPod = podAxis === "growth" ? r.client.growth_pod : r.client.editorial_pod;
+      const pod = normalizePod(rawPod);
       if (!byPod.has(pod)) byPod.set(pod, []);
       byPod.get(pod)!.push(r);
     }
@@ -235,7 +236,7 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
         pod,
         rows: byPod.get(pod)!.slice().sort((a, b) => a.client.name.localeCompare(b.client.name)),
       }));
-  }, [clients]);
+  }, [clients, podAxis]);
 
   return (
     <div className="space-y-4">
@@ -277,7 +278,9 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
       {clients.length > 1 && <TimeToTrendChart clients={clients} />}
 
       {/* Waterfall chart */}
-      {clientMilestonesByPod.length > 0 && <MilestoneWaterfall groups={clientMilestonesByPod} />}
+      {clientMilestonesByPod.length > 0 && (
+        <MilestoneWaterfall groups={clientMilestonesByPod} podAxis={podAxis} />
+      )}
 
       {/* Shared hover tooltip — fixed-position portal so parent overflow
           never clips it. Pointer events enabled on the popup so the user
@@ -293,7 +296,7 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
-          <MetricContributorsPopup card={tip.card} />
+          <MetricContributorsPopup card={tip.card} podAxis={podAxis} />
         </div>
       )}
     </div>
@@ -324,7 +327,13 @@ function HoverableMetricCard({
   );
 }
 
-function MetricContributorsPopup({ card }: { card: MetricCard }) {
+function MetricContributorsPopup({
+  card,
+  podAxis,
+}: {
+  card: MetricCard;
+  podAxis: "editorial" | "growth";
+}) {
   const byPod = new Map<string, Contributor[]>();
   for (const row of card.contributors) {
     const arr = byPod.get(row.pod) ?? [];
@@ -369,7 +378,7 @@ function MetricContributorsPopup({ card }: { card: MetricCard }) {
                     className="font-mono text-[10px] font-semibold uppercase tracking-wider"
                     style={{ color }}
                   >
-                    {displayPod(pod, "editorial")}
+                    {displayPod(pod, podAxis)}
                   </span>
                   <span className="font-mono text-[10px] text-[#606060]">({rows.length})</span>
                 </div>
@@ -415,6 +424,7 @@ type TrendBucket = {
 
 function TimeToTrendChart({ clients }: { clients: Client[] }) {
   const [metricKey, setMetricKey] = useState<string>("cko_art");
+  const { axis: podAxis } = useCurrentPodAxis();
 
   const metric = useMemo(
     () => METRIC_DEFS.find((m) => m.key === metricKey) ?? METRIC_DEFS[0],
@@ -437,12 +447,13 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
       const toDate = rec[metric.to] ?? null;
       const days = daysBetween(fromDate, toDate);
       if (days !== null) all.push(days);
+      const rawPod = podAxis === "growth" ? c.growth_pod : c.editorial_pod;
       perClient.push({
         key: `client-${c.id}`,
         label: c.name,
         avg: days,
         count: 1,
-        sublabel: c.editorial_pod ? displayPod(c.editorial_pod, "editorial") : undefined,
+        sublabel: rawPod ? displayPod(rawPod, podAxis) : undefined,
         fromDate,
         toDate,
       });
@@ -458,7 +469,7 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
       ? Math.round(all.reduce((a, b) => a + b, 0) / all.length)
       : null;
     return { buckets: perClient, overallAvg };
-  }, [clients, metric]);
+  }, [clients, metric, podAxis]);
 
   // Cap the y-axis so a single extreme cohort doesn't flatten everything else.
   // Use p90 of bucket averages with a sensible floor relative to the overall avg.
@@ -751,7 +762,13 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
 type MilestoneRow = { client: Client; milestones: { key: string; label: string; days: number; color: string; shape: string }[] };
 type MilestoneGroup = { pod: string; rows: MilestoneRow[] };
 
-function MilestoneWaterfall({ groups }: { groups: MilestoneGroup[] }) {
+function MilestoneWaterfall({
+  groups,
+  podAxis,
+}: {
+  groups: MilestoneGroup[];
+  podAxis: "editorial" | "growth";
+}) {
   const [tip, setTip] = useState<MilestoneTooltip | null>(null);
 
   const maxDays = useMemo(
@@ -844,7 +861,7 @@ function MilestoneWaterfall({ groups }: { groups: MilestoneGroup[] }) {
                       className="font-mono text-[10px] font-semibold uppercase tracking-wider"
                       style={{ color: podColor }}
                     >
-                      {displayPod(pod, "growth")}
+                      {displayPod(pod, podAxis)}
                     </span>
                     <span className="font-mono text-[10px] text-[#606060]">({rows.length})</span>
                   </div>

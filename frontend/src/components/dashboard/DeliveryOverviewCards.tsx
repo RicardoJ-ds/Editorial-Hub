@@ -1433,14 +1433,14 @@ export function PodAttentionCard({
         <button
           type="button"
           onClick={() => scrollToPod(topPod)}
-          title={`Jump to ${displayPod(topPod, "editorial")} group`}
+          title={`Jump to ${displayPod(topPod, podAxis)} group`}
           className="mt-1.5 -mx-1.5 flex w-[calc(100%+0.75rem)] flex-col items-start gap-0.5 rounded px-1.5 py-0.5 text-left transition-colors hover:bg-[#242424]"
         >
           <span
             className="block truncate font-mono text-lg font-bold text-white"
-            title={displayPod(topPod, "editorial")}
+            title={displayPod(topPod, podAxis)}
           >
-            {displayPod(topPod, "editorial")}
+            {displayPod(topPod, podAxis)}
           </span>
           <span className="font-mono text-[11px] text-[#ED6958] tabular-nums">
             {behind}/{withQ} behind
@@ -1481,7 +1481,7 @@ export function PodAttentionCard({
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      Behind clients · {displayPod(topPod, "editorial")}
+                      Behind clients · {displayPod(topPod, podAxis)}
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       {topPodBehind.length} clients · click a row to jump to its card
@@ -1515,7 +1515,7 @@ export function PodAttentionCard({
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      All editorial pods · last full Q
+                      All {podAxis === "growth" ? "growth" : "editorial"} pods · last full Q
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       {sorted.length} pods · click a row to jump to its group
@@ -1527,11 +1527,11 @@ export function PodAttentionCard({
                         <button
                           type="button"
                           onClick={() => scrollToPod(pod)}
-                          title={`Jump to ${displayPod(pod, "editorial")} group`}
+                          title={`Jump to ${displayPod(pod, podAxis)} group`}
                           className="flex w-full items-baseline justify-between gap-2 rounded px-2 py-1 text-left font-mono text-[11px] transition-colors hover:bg-[#161616]"
                         >
                           <span className="min-w-0 flex-1 truncate text-[#C4BCAA]">
-                            {displayPod(pod, "editorial")}
+                            {displayPod(pod, podAxis)}
                           </span>
                           <span className="shrink-0 tabular-nums">
                             <span className="text-[#ED6958] font-semibold">

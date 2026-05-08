@@ -84,8 +84,8 @@ export function GoalsOverviewCards({
   const { axis } = useCurrentPodAxis();
   const scope = useMemo(() => detectScope(filteredClients, axis), [filteredClients, axis]);
   const cards = useMemo(
-    () => buildCards(scope, perClient, totals, asOfLabel),
-    [scope, perClient, totals, asOfLabel],
+    () => buildCards(scope, perClient, totals, asOfLabel, axis),
+    [scope, perClient, totals, asOfLabel, axis],
   );
 
   return (
@@ -147,6 +147,7 @@ function buildCards(
   perClient: Map<string, ClientGoalAgg>,
   totals: Props["totals"],
   asOfLabel: string | null,
+  axis: "editorial" | "growth",
 ): { key: string; node: React.ReactNode }[] {
   if (scope.kind === "client") {
     const c = scope.client;
@@ -188,7 +189,7 @@ function buildCards(
   }
 
   if (scope.kind === "pod") {
-    const podLabel = displayPod(scope.pod, "editorial");
+    const podLabel = displayPod(scope.pod, axis);
     const podClientNames = new Set(scope.clients.map((c) => c.name));
     const podClients: ClientGoalAgg[] = [];
     for (const [name, datum] of perClient) {

@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { displayPod } from "@/components/dashboard/shared-helpers";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import type { Client } from "@/lib/types";
 
 const POD_COLORS: Record<string, string> = {
@@ -110,16 +111,17 @@ export function hasClientNote(c: Client): boolean {
 }
 
 export function ClientNotesPanel({ clients }: { clients: Client[] }) {
+  const { axis: podAxis } = useCurrentPodAxis();
   const rows = useMemo(
     () =>
       clients.filter(hasClientNote).map((c) => ({
         id: c.id,
         name: c.name,
-        pod: normalizePod(c.editorial_pod),
+        pod: normalizePod(podAxis === "growth" ? c.growth_pod : c.editorial_pod),
         status: c.status,
         comments: (c.comments ?? "").trim(),
       })),
-    [clients],
+    [clients, podAxis],
   );
 
   const { byPod, pods } = useMemo(() => {
@@ -166,7 +168,7 @@ export function ClientNotesPanel({ clients }: { clients: Client[] }) {
                     className="font-mono text-xs font-semibold uppercase tracking-wider"
                     style={{ color }}
                   >
-                    {displayPod(pod, "editorial")}
+                    {displayPod(pod, podAxis)}
                   </span>
                   <span className="font-mono text-[10px] text-[#606060]">({list.length})</span>
                 </div>

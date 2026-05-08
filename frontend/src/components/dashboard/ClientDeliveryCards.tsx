@@ -1202,7 +1202,7 @@ export function ClientDeliveryCards({
                 .map(([pod, items]) => {
                   const groupHeader = (
                     <div className="flex items-center gap-2">
-                      {podBadge(pod)}
+                      {podBadge(pod, podAxis)}
                       <span className="font-mono text-[11px] text-[#606060]">
                         {items.length} client{items.length === 1 ? "" : "s"}
                       </span>
@@ -1248,7 +1248,7 @@ export function ClientDeliveryCards({
                       {defaultCollapsedByPod ? (
                         <details className="group/pod">
                           <summary className="flex cursor-pointer list-none items-center gap-2 rounded border border-[#1f1f1f] bg-[#0d0d0d] px-3 py-1.5 transition-colors hover:border-[#2a2a2a]">
-                            {podBadge(pod)}
+                            {podBadge(pod, podAxis)}
                             <span className="font-mono text-[11px] text-[#606060]">
                               {items.length} client{items.length === 1 ? "" : "s"}
                             </span>
