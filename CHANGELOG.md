@@ -18,6 +18,17 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.4 — May 8
+
+**Sync stability fixes.** All cleanup on top of 0.3.3 — same day.
+
+- **Past-months resync no longer crashes if one importer fails.** Each step (Goals vs Delivery / Week Distribution / Team Pods) now runs in its own session; a failure shows up as a red row in the result panel with the actual error message, while the other steps still finish. Previously a single failure would surface as a blanket "Failed to fetch" with no way to tell which sheet broke.
+- **Team Pods previews render after import.** The post-import snapshot panel under "Team Pods – Editorial + Growth" was returning 500 because the preview endpoint was looking in the wrong spreadsheet. Both rows now show their first 10 rows like every other importer.
+- **Team Pods rows show the actual month** (`May 2026`) instead of the placeholder `(latest)`.
+- **SYNC – Editorial Operating Model is fast again.** The importer was making one database round-trip per (client × month) cell — ~2,650 round-trips against Neon, taking 60–180 seconds and tripping the browser's fetch timeout. Now does one bulk read upfront, in-memory upserts, single commit. Drops to a couple of seconds.
+
+---
+
 ## 0.3.3 — May 8
 
 **Access Control is real now.** The /admin/access page is no longer a mockup; it enforces who sees what.
