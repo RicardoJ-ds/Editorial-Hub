@@ -18,6 +18,18 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.6 — May 11
+
+**Refinements to Access Control's Groups tab + the Editorial / Growth toggle scope + the Overview comments UX.**
+
+- **Admin → Access Control · Groups tab** — Each group now exposes a "What this group can do" card inside its expanded row showing **Sections**, **Pod axis** (Toggle / Locked Editorial / Locked Growth / No toggle), and **Client scope** (All / Assigned / Own pod only). Plus a "▸ How groups work" collapsible reference table at the top of the tab that summarizes all six seeded groups in one place.
+- **Editorial / Growth toggle is now scoped to the dashboards** — Overview, Editorial Clients, Team KPIs. Hidden on Admin, Data Management, and Capacity Planning pages where it has no effect. Your last selection still persists when you navigate back to a dashboard.
+- **Overview · Comments — Notion-style** — The right-side rail is gone. Each section now has a small comment icon next to its title. Click → a popover opens just below it with that section's threads, no full-screen overlay, no backdrop, no layout shift. Empty sections fade their icon in on hover; sections with threads show the icon plus the open / resolved count.
+- **Overview · Comments — client picker** — The composer's client picker is now a typeahead text input + dropdown (same style as the dashboards' "Search clients..." filter), instead of a native select. Filters as you type.
+- **Overview · Comments — timestamps** — Comment timestamps now read like Notion: `now`, `42m`, `2h`, `10:42 AM` (same day), `Yesterday`, `May 8`, then `May 8, 2024` for older. Hover the timestamp for the full localized date + time.
+
+---
+
 ## 0.3.5 — May 8
 
 **Access Control — granular edit role + protections.**

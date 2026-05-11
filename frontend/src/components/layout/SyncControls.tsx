@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { SyncAllModal } from "@/components/data-management/SyncAllModal";
 import { apiGet } from "@/lib/api";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+
+// Routes that group data by pod and benefit from the Editorial / Growth
+// switcher. Other pages (Admin, Data Management, Capacity Planning) hide
+// the toggle — it's not actionable there and adds visual noise.
+const POD_AXIS_ROUTES = new Set(["/overview", "/editorial-clients", "/team-kpis"]);
 
 type SyncState = "idle" | "syncing" | "success" | "error";
 
@@ -153,7 +159,11 @@ export function SyncControls() {
  *  glance at the badge and know which axis is live. */
 function PodAxisToggle() {
   const { axis, canToggle, setAxis } = useCurrentPodAxis();
+  const pathname = usePathname();
+  // Hide outside the dashboards — the toggle has no effect on Admin,
+  // Data Management, or Capacity Planning pages and was just adding chrome.
   if (!canToggle) return null;
+  if (!pathname || !POD_AXIS_ROUTES.has(pathname)) return null;
   const options = [
     {
       kind: "editorial" as const,

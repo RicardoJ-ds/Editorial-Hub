@@ -472,6 +472,221 @@ function dividerClass(kind: "section" | "dashboard" | ""): string {
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Group behavior catalog — descriptive copy for each seeded group. Keep in
+// sync with backend `_DEFAULT_PERMISSIONS` + the resolver's `client_scope`
+// and `pod_kind_lock`/`can_toggle_axis` outputs in `app/services/access.py`.
+// Surfaces the spec from `feedback/project_access_control_v1_original_prompt`
+// (Admin: all sections + toggle; VPs/Managers + BI Team: toggle, all clients;
+// Leadership: Dashboards only, assigned clients across both pods; Editorial /
+// Growth Team: locked to their pod kind + their pod's clients).
+// ────────────────────────────────────────────────────────────────────────
+
+interface GroupBehavior {
+  sections: string; // Top-level sections this group can open
+  podAxis: "toggle" | "editorial" | "growth" | "none";
+  clientScope: "all" | "assigned" | "own_pod";
+}
+
+const GROUP_BEHAVIOR: Record<string, GroupBehavior> = {
+  admin: { sections: "Dashboards · Data · Admin", podAxis: "toggle", clientScope: "all" },
+  vps_managers: {
+    sections: "Dashboards · Admin (Access Control)",
+    podAxis: "toggle",
+    clientScope: "all",
+  },
+  bi_team: {
+    sections: "Dashboards · Data · Admin (Access Control + Data Quality)",
+    podAxis: "toggle",
+    clientScope: "all",
+  },
+  leadership: {
+    sections: "Dashboards only",
+    podAxis: "none",
+    clientScope: "assigned",
+  },
+  editorial_team: {
+    sections: "Dashboards (no Overview)",
+    podAxis: "editorial",
+    clientScope: "own_pod",
+  },
+  growth_team: {
+    sections: "Dashboards (no Overview)",
+    podAxis: "growth",
+    clientScope: "own_pod",
+  },
+};
+
+function PodAxisChip({ kind }: { kind: GroupBehavior["podAxis"] }) {
+  if (kind === "toggle") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-sm border border-[#65FFAA]/30 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#65FFAA]"
+        title="Can flip the Editorial / Growth toggle in the top bar to switch the pod axis of every chart."
+      >
+        Toggle · Editorial ↔ Growth
+      </span>
+    );
+  }
+  if (kind === "editorial") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-sm border border-[#65FFAA]/30 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#65FFAA]"
+        title="Pod axis is locked to Editorial — toggle is hidden."
+      >
+        Locked · Editorial
+      </span>
+    );
+  }
+  if (kind === "growth") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-sm border border-[#4ECBE5]/30 bg-[#4ECBE5]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#4ECBE5]"
+        title="Pod axis is locked to Growth — toggle is hidden."
+      >
+        Locked · Growth
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#909090]"
+      title="Pod-axis toggle isn't shown for this group."
+    >
+      No toggle
+    </span>
+  );
+}
+
+function ClientScopeChip({ kind }: { kind: GroupBehavior["clientScope"] }) {
+  if (kind === "all") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA]"
+        title="Every client across both pods is visible."
+      >
+        All clients
+      </span>
+    );
+  }
+  if (kind === "assigned") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-sm border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#F5BC4E]"
+        title="Only clients the user is assigned to in the Team Pods sheet — can span both Editorial and Growth pods."
+      >
+        Assigned clients (both pods)
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-sm border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#F5BC4E]"
+      title="Only the clients of this user's own pod kind. Other pods aren't visible at all."
+    >
+      Own pod only
+    </span>
+  );
+}
+
+function GroupCapabilitiesCard({ slug }: { slug: string }) {
+  const behavior = GROUP_BEHAVIOR[slug];
+  if (!behavior) return null;
+  return (
+    <div className="rounded-md border border-[#1f1f1f] bg-[#0a0a0a] px-3 py-2">
+      <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+        What this group can do
+      </p>
+      <div className="mt-1.5 grid gap-1.5 text-[11px] sm:grid-cols-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+            Sections
+          </p>
+          <p className="mt-0.5 font-mono text-[11px] text-[#C4BCAA]">
+            {behavior.sections}
+          </p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+            Pod axis
+          </p>
+          <div className="mt-0.5">
+            <PodAxisChip kind={behavior.podAxis} />
+          </div>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+            Client scope
+          </p>
+          <div className="mt-0.5">
+            <ClientScopeChip kind={behavior.clientScope} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HowGroupsWorkLegend() {
+  return (
+    <details className="group/legend rounded-md border border-[#1f1f1f] bg-[#0a0a0a]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:text-[#C4BCAA]">
+        <span className="font-semibold text-[#606060] group-open/legend:hidden">▸</span>
+        <span className="font-semibold text-[#606060] hidden group-open/legend:inline">▾</span>
+        How groups work
+        <span className="ml-auto text-[#606060] font-normal normal-case tracking-normal">
+          Click for the full Editorial / Growth + scope reference
+        </span>
+      </summary>
+      <div className="border-t border-[#1f1f1f] px-3 py-2.5 font-mono text-[11px] text-[#C4BCAA]">
+        <p className="mb-2 text-[#909090]">
+          Each group&apos;s row below carries a small "What this group can do"
+          card. As a quick reference, here&apos;s the spec all six seeded
+          groups follow:
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-[#1f1f1f] text-[10px] uppercase tracking-wider text-[#606060]">
+                <th className="py-1.5 pr-3">Group</th>
+                <th className="py-1.5 pr-3">Sections</th>
+                <th className="py-1.5 pr-3">Pod axis</th>
+                <th className="py-1.5">Client scope</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["admin", "Admin"],
+                ["vps_managers", "VPs and Managers"],
+                ["bi_team", "BI Team"],
+                ["leadership", "Leadership"],
+                ["editorial_team", "Editorial Team"],
+                ["growth_team", "Growth Team"],
+              ].map(([slug, name]) => {
+                const b = GROUP_BEHAVIOR[slug];
+                if (!b) return null;
+                return (
+                  <tr key={slug} className="border-b border-[#161616]">
+                    <td className="py-1.5 pr-3 text-white">{name}</td>
+                    <td className="py-1.5 pr-3 text-[#C4BCAA]">{b.sections}</td>
+                    <td className="py-1.5 pr-3"><PodAxisChip kind={b.podAxis} /></td>
+                    <td className="py-1.5"><ClientScopeChip kind={b.clientScope} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2.5 text-[10px] text-[#606060]">
+          Per-user overrides in the <b>Users × Views</b> tab can grant or
+          revoke specific views on top of the group default — the group
+          baseline shown here is what every member starts with.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // Groups tab
 // ────────────────────────────────────────────────────────────────────────
 
@@ -544,6 +759,8 @@ function GroupsTab({ profile }: { profile: AccessProfile }) {
 
   return (
     <div className="space-y-3">
+      <HowGroupsWorkLegend />
+
       <div className="flex items-center gap-3">
         <Input
           placeholder="Filter groups…"
@@ -711,8 +928,9 @@ function FragmentRow({
         <tr className="bg-[#0a0a0a]">
           <td
             colSpan={views.length + 1}
-            className="border-t border-[#1a1a1a] px-3 py-3"
+            className="border-t border-[#1a1a1a] px-3 py-3 space-y-3"
           >
+            <GroupCapabilitiesCard slug={detail.slug} />
             <MembersBlock
               slug={detail.slug}
               members={detail.members}

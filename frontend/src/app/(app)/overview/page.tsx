@@ -19,7 +19,10 @@ import { GoalsOverviewCards } from "@/components/dashboard/GoalsOverviewCards";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
-import { OverviewCommentsRail } from "@/components/dashboard/OverviewCommentsRail";
+import {
+  OverviewCommentsProvider,
+  SectionCommentIcon,
+} from "@/components/dashboard/OverviewCommentsRail";
 import { SyncControls } from "@/components/layout/SyncControls";
 import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
 import { useRequireView } from "@/lib/accessClient";
@@ -195,112 +198,149 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="flex gap-6">
-        <SectionIndex sections={SECTIONS} />
-        <div className="flex-1 min-w-0 space-y-12">
-          <Section
-            id="time-to-metrics"
-            title="Time-to Metrics"
-            subtitle="Average milestone handoffs across the filtered clients"
-            deepLinkHref="/editorial-clients?tab=contract-timeline#time-to-metrics"
-          >
-            <TimeToMetrics clients={filteredClients} hideHeader />
-          </Section>
+      <OverviewCommentsProvider
+        sections={SECTIONS}
+        filteredClients={filteredClients}
+      >
+        <div className="flex gap-6">
+          <SectionIndex sections={SECTIONS} />
+          <div className="flex-1 min-w-0 space-y-12">
+            <Section
+              id="time-to-metrics"
+              title="Time-to Metrics"
+              subtitle="Average milestone handoffs across the filtered clients"
+              deepLinkHref="/editorial-clients?tab=contract-timeline#time-to-metrics"
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="time-to-metrics"
+                  sectionLabel="Time-to Metrics"
+                />
+              }
+            >
+              <TimeToMetrics clients={filteredClients} hideHeader />
+            </Section>
 
-          <Section
-            id="delivery-overview"
-            title="Delivery Overview"
-            subtitle={
-              lens === "composition"
-                ? "What does our work look like?"
-                : lens === "trajectory"
-                ? "Where are we trending?"
-                : "Who needs attention right now?"
-            }
-            deepLinkHref="/editorial-clients?tab=deliverables-sow#delivery-overview"
-            rightSlot={<LensSwitcher value={lens} onChange={setLens} />}
-          >
-            {lens === "composition" && (
-              <CompositionView
-                clients={filteredClients}
-                summaries={summaries}
-                cumulative={cumulative}
-                deliverables={deliverables}
-              />
-            )}
-            {lens === "trajectory" && (
-              <TrajectoryView
-                clients={filteredClients}
-                productionTrend={productionTrend}
+            <Section
+              id="delivery-overview"
+              title="Delivery Overview"
+              subtitle={
+                lens === "composition"
+                  ? "What does our work look like?"
+                  : lens === "trajectory"
+                  ? "Where are we trending?"
+                  : "Who needs attention right now?"
+              }
+              deepLinkHref="/editorial-clients?tab=deliverables-sow#delivery-overview"
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="delivery-overview"
+                  sectionLabel="Delivery Overview"
+                />
+              }
+              rightSlot={<LensSwitcher value={lens} onChange={setLens} />}
+            >
+              {lens === "composition" && (
+                <CompositionView
+                  clients={filteredClients}
+                  summaries={summaries}
+                  cumulative={cumulative}
+                  deliverables={deliverables}
+                />
+              )}
+              {lens === "trajectory" && (
+                <TrajectoryView
+                  clients={filteredClients}
+                  productionTrend={productionTrend}
+                  clientProduction={clientProduction}
+                  deliverables={deliverables}
+                />
+              )}
+              {lens === "triage" && (
+                <TriageView clients={filteredClients} summaries={summaries} />
+              )}
+            </Section>
+
+            <Section
+              id="production-history"
+              title="Production History"
+              subtitle="Monthly actuals + projection trajectory across the filtered clients"
+              deepLinkHref="/editorial-clients?tab=contract-timeline#production-history"
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="production-history"
+                  sectionLabel="Production History"
+                />
+              }
+            >
+              <ProductionTrendChart
+                data={productionTrend}
                 clientProduction={clientProduction}
-                deliverables={deliverables}
+                filteredClients={filteredClients}
               />
-            )}
-            {lens === "triage" && (
-              <TriageView clients={filteredClients} summaries={summaries} />
-            )}
-          </Section>
+            </Section>
 
-          <Section
-            id="production-history"
-            title="Production History"
-            subtitle="Monthly actuals + projection trajectory across the filtered clients"
-            deepLinkHref="/editorial-clients?tab=contract-timeline#production-history"
-          >
-            <ProductionTrendChart
-              data={productionTrend}
-              clientProduction={clientProduction}
-              filteredClients={filteredClients}
-            />
-          </Section>
+            <Section
+              id="cumulative-pipeline"
+              title="Cumulative Pipeline"
+              subtitle="All-time funnel coverage — Articles + Published per client"
+              deepLinkHref="/editorial-clients?tab=deliverables-sow#cumulative-pipeline"
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="cumulative-pipeline"
+                  sectionLabel="Cumulative Pipeline"
+                />
+              }
+            >
+              {/* Slim per-client cards: Articles + Published only. The Overview
+                  lens skips Topics + CBs since they're upstream of billing —
+                  executives reviewing here mostly care about shipped vs billed. */}
+              <CumulativePipelineSection
+                filteredClients={filteredClients}
+                cardStages={["articles", "published"]}
+                defaultCollapsedByPod
+              />
+            </Section>
 
-          <Section
-            id="cumulative-pipeline"
-            title="Cumulative Pipeline"
-            subtitle="All-time funnel coverage — Articles + Published per client"
-            deepLinkHref="/editorial-clients?tab=deliverables-sow#cumulative-pipeline"
-          >
-            {/* Slim per-client cards: Articles + Published only. The Overview
-                lens skips Topics + CBs since they're upstream of billing —
-                executives reviewing here mostly care about shipped vs billed. */}
-            <CumulativePipelineSection
-              filteredClients={filteredClients}
-              cardStages={["articles", "published"]}
-              defaultCollapsedByPod
-            />
-          </Section>
+            <Section
+              id="client-delivery"
+              title="Client Delivery"
+              subtitle="Per-client delivery vs invoicing — collapsed by pod to keep the page scannable"
+              deepLinkHref="/editorial-clients?tab=deliverables-sow#client-delivery"
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="client-delivery"
+                  sectionLabel="Client Delivery"
+                />
+              }
+            >
+              <ClientDeliveryCards
+                rows={clientDeliveryRows}
+                defaultCollapsedByPod
+              />
+            </Section>
 
-          <Section
-            id="client-delivery"
-            title="Client Delivery"
-            subtitle="Per-client delivery vs invoicing — collapsed by pod to keep the page scannable"
-            deepLinkHref="/editorial-clients?tab=deliverables-sow#client-delivery"
-          >
-            <ClientDeliveryCards
-              rows={clientDeliveryRows}
-              defaultCollapsedByPod
-            />
-          </Section>
-
-          <Section
-            id="monthly-goals"
-            title="Monthly Goals"
-            subtitle="CB / Article achievement across the filtered scope"
-            deepLinkHref="/editorial-clients?tab=deliverables-sow#monthly-goals"
-          >
-            <GoalsOverviewCards
-              filteredClients={filteredClients}
-              perClient={goalsSummary.perClient}
-              totals={goalsSummary.totals}
-              asOfLabel={goalsSummary.asOfLabel}
-            />
-          </Section>
+            <Section
+              id="monthly-goals"
+              title="Monthly Goals"
+              subtitle="CB / Article achievement across the filtered scope"
+              deepLinkHref="/editorial-clients?tab=deliverables-sow#monthly-goals"
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="monthly-goals"
+                  sectionLabel="Monthly Goals"
+                />
+              }
+            >
+              <GoalsOverviewCards
+                filteredClients={filteredClients}
+                perClient={goalsSummary.perClient}
+                totals={goalsSummary.totals}
+                asOfLabel={goalsSummary.asOfLabel}
+              />
+            </Section>
+          </div>
         </div>
-        <OverviewCommentsRail
-          sections={SECTIONS}
-          filteredClients={filteredClients}
-        />
-      </div>
+      </OverviewCommentsProvider>
     </div>
   );
 }
@@ -316,6 +356,7 @@ function Section({
   deepLinkHref,
   children,
   rightSlot,
+  trailingSlot,
 }: {
   id: string;
   title: string;
@@ -323,14 +364,22 @@ function Section({
   deepLinkHref: string;
   children: React.ReactNode;
   rightSlot?: React.ReactNode;
+  /** Slot rendered immediately after the section title, inline with it
+   *  (NOT at the far-right of the header row). Used for the Notion-style
+   *  comment icon so it reads as part of the title chip rather than
+   *  competing with the right-side "Open in …" button. */
+  trailingSlot?: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-[140px] space-y-3">
+    <section id={id} className="group/sec scroll-mt-[140px] space-y-3">
       <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            {title}
-          </h2>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+              {title}
+            </h2>
+            {trailingSlot}
+          </div>
           <p className="mt-0.5 text-[11px] text-[#606060]">{subtitle}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
