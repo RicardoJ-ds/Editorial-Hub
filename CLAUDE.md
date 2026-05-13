@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.8`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.9`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 

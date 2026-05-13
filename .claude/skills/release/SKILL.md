@@ -62,7 +62,7 @@ Phase reference (don't change without user approval):
 State the proposed version + the reason. If PHASE/1.0 bump, **stop and
 wait for confirmation** before continuing.
 
-## Step 2 — Update the four version surfaces
+## Step 2 — Update the version surfaces
 
 Update **all of these in the same commit**:
 
@@ -71,7 +71,15 @@ Update **all of these in the same commit**:
 3. `CHANGELOG.md` — add a new top section under `## X.Y.Z — <date>`.
    **Plain-language** for stakeholders, mirroring existing entries.
    Group by feature area, not by file.
-4. Sidebar version chip reads from `version.ts` automatically — no edit.
+4. **`frontend/src/content/changelog.ts`** — auto-generated mirror of
+   `CHANGELOG.md` that the in-app Help/Changelog modal renders. After
+   editing `CHANGELOG.md`, regenerate from the repo root:
+   ```bash
+   node -e "const fs=require('fs');const c=fs.readFileSync('CHANGELOG.md','utf8');fs.writeFileSync('frontend/src/content/changelog.ts','// AUTO-GENERATED from CHANGELOG.md by the /release skill. Do not edit by hand.\n// Source of truth: /CHANGELOG.md at the repo root.\nexport const CHANGELOG_MARKDOWN = '+JSON.stringify(c)+';\n');"
+   ```
+   The file's header comment says "DO NOT EDIT" so reviewers know the
+   canonical version lives at the repo root.
+5. Sidebar version chip reads from `version.ts` automatically — no edit.
 
 Generating the changelog body:
 - Run `git log --oneline <previous-tag>..HEAD` and

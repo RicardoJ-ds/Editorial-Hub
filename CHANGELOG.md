@@ -18,6 +18,17 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.9 — May 13
+
+**In-app Help & Changelog modal, surfaced from the sidebar.**
+
+- **Sidebar · Help button** — A new "Help" icon at the bottom of the sidebar (next to the user info) opens a Help & Glossary panel covering: which dashboard answers which question, a glossary of the terms used across the Hub (pod, SOW, variance, cumulative, "current Q", "as of", etc.), how to do common tasks, and the permission tiers in one line.
+- **Sidebar · Version chip is now clickable** — Click `v0.3.9` to open the Changelog tab of the same modal. Plain-language history of every release, scrollable.
+- **Modal · Tabbed interface** — Help & Glossary · Changelog. Tabs preserve state when switching. Modern dark-theme styling with markdown rendering (tables, code, blockquotes, etc.). A "Back to app" button in the footer plus the standard ✕ in the header.
+- **Plus:** the release workflow auto-syncs `CHANGELOG.md` into the bundled in-app copy whenever the version is bumped, so the modal is always current.
+
+---
+
 ## 0.3.8 — May 13 (hotfix)
 
 **Fix backend startup crash on Railway after the 0.3.7 Leadership consolidation.**

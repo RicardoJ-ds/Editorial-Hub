@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Compass,
   LayoutDashboard,
@@ -13,12 +14,14 @@ import {
   Shield,
   ShieldAlert,
   LogOut,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VERSION } from "@/lib/version";
 import { useAccessProfile } from "@/lib/accessClient";
 import { setSidebarExpanded } from "@/lib/sidebarState";
 import { confirmDiscardIfUnsaved } from "@/lib/unsavedChangesClient";
+import { HelpModal, type HelpModalTab } from "@/components/layout/HelpModal";
 import type { HeaderUser } from "@/components/layout/Header";
 
 function getInitials(name: string): string {
@@ -138,6 +141,11 @@ function NavSection({
 export function Sidebar({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
   const access = useAccessProfile();
+  // Help / Changelog modal state. `null` = closed; otherwise the active
+  // tab determines what the modal lands on (Help button → "help"; version
+  // chip → "changelog"). Sidebar owns this state because both triggers
+  // live here.
+  const [helpTab, setHelpTab] = useState<HelpModalTab | null>(null);
   // Until the access profile loads, render every nav item — avoids the
   // sidebar flickering "empty" on first paint. After load, sections with
   // zero visible items disappear entirely.
@@ -282,30 +290,54 @@ export function Sidebar({ user }: { user: HeaderUser }) {
           </form>
         </div>
 
-        {/* Version chip — sits below the user/logout row. Collapsed sidebar
-            shows just the number centered; expanded shows label + chip.
-            Reads from src/lib/version.ts so a release bumps every UI
-            surface at once. */}
-        <div
-          className="mt-2 hidden items-center justify-between gap-2 group-hover/sidebar:flex"
-          title={`Editorial Hub v${VERSION}`}
-        >
-          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-            Version
-          </span>
-          <span className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#C4BCAA]">
+        {/* Help + version row — Help icon (opens HelpModal on the Help
+            tab) and the version chip (opens HelpModal on the Changelog
+            tab). Both are sidebar-aware: collapsed sidebar shows icons
+            only, expanded shows labels. */}
+        <div className="mt-2 hidden items-center justify-between gap-2 group-hover/sidebar:flex">
+          <button
+            type="button"
+            onClick={() => setHelpTab("help")}
+            title="Help & Glossary"
+            className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:bg-[#1f1f1f] hover:text-white"
+          >
+            <HelpCircle className="h-3 w-3" />
+            Help
+          </button>
+          <button
+            type="button"
+            onClick={() => setHelpTab("changelog")}
+            title={`What's new in v${VERSION}`}
+            className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#C4BCAA] transition-colors hover:border-[#42CA80]/40 hover:bg-[#42CA80]/10 hover:text-[#65FFAA]"
+          >
             v{VERSION}
-          </span>
+          </button>
         </div>
-        <div
-          className="mt-2 flex justify-center group-hover/sidebar:hidden"
-          title={`Editorial Hub v${VERSION}`}
-        >
-          <span className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1 py-0.5 font-mono text-[9px] font-semibold text-[#606060]">
+        <div className="mt-2 flex flex-col items-center gap-1.5 group-hover/sidebar:hidden">
+          <button
+            type="button"
+            onClick={() => setHelpTab("help")}
+            title="Help & Glossary"
+            className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-[#606060] transition-colors hover:bg-[#1f1f1f] hover:text-white"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setHelpTab("changelog")}
+            title={`v${VERSION} — what's new`}
+            className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1 py-0.5 font-mono text-[9px] font-semibold text-[#606060] transition-colors hover:border-[#42CA80]/40 hover:bg-[#42CA80]/10 hover:text-[#65FFAA]"
+          >
             v{VERSION}
-          </span>
+          </button>
         </div>
       </div>
+
+      <HelpModal
+        open={helpTab !== null}
+        onOpenChange={(next) => setHelpTab(next ? helpTab ?? "help" : null)}
+        initialTab={helpTab ?? "help"}
+      />
     </aside>
   );
 }
