@@ -18,6 +18,14 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.8 — May 13 (hotfix)
+
+**Fix backend startup crash on Railway after the 0.3.7 Leadership consolidation.**
+
+- The seed loop used to skip a member only when an existing row had `source='seed'` for the same `(group_id, email)` pair. But the database's `(group_id, email)` uniqueness constraint ignores `source`, so any member previously added by an admin via the UI (`source='manual'`) would block a later seed reinsert and crash startup. The new 0.3.7 Leadership roster (Christine Woods, Bryan, Paula Landinez) hit this exact case in production — they had been added manually before being added to the seed list. Fix: the existence check now matches on `(group_id, email)` alone, so manual rows are correctly treated as "already a member" regardless of how they got there.
+
+---
+
 ## 0.3.7 — May 13
 
 **Access-control overhaul (Leadership consolidation, draft mode), data-driven editorial pod assignment, cumulative variance math, plus a tooltip rewrite pass across every dashboard.**

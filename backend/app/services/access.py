@@ -279,7 +279,17 @@ def seed_access_baseline(session: Session) -> None:
     views_by_slug = {v.slug: v for v in session.execute(select(AccessView)).scalars().all()}
     groups_by_slug = {g.slug: g for g in session.execute(select(AccessGroup)).scalars().all()}
 
-    # 3) Seed members — insert any missing seed rows. Never delete.
+    # 3) Seed members — insert any missing rows. Never delete.
+    #
+    # IMPORTANT: skip by (group_id, email) regardless of source. The
+    # UNIQUE constraint `uq_access_group_members_group_email` ignores
+    # source, so a row already added via the admin UI (source='manual')
+    # or auto-derived from a pod sheet (source='derived') will block a
+    # subsequent INSERT with source='seed'. Previously this loop only
+    # looked at source='seed' rows and crashed startup when an admin
+    # had manually added someone who later got promoted into the seed
+    # list (e.g. Christine Woods / Bryan / Paula Landinez when the
+    # leadership consolidation widened the seed roster).
     for group_slug, emails in _SEED_MEMBERS.items():
         group = groups_by_slug[group_slug]
         existing_emails = {
@@ -287,7 +297,6 @@ def seed_access_baseline(session: Session) -> None:
             for row in session.execute(
                 select(AccessGroupMember).where(
                     AccessGroupMember.group_id == group.id,
-                    AccessGroupMember.source == "seed",
                 )
             )
             .scalars()
