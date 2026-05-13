@@ -11,16 +11,19 @@
  *     kind. The toggle is hidden. `useCurrentPodAxis()` returns the
  *     locked value regardless of user actions.
  *
- *   - Admin / VPs and Managers / BI Team → toggle visible. Default is
- *     "editorial" (matches today's behavior). The selection persists in
- *     localStorage so a refresh doesn't reset the dashboard.
+ *   - Admin / Leadership / BI Team → toggle visible. Default is
+ *     "growth". The selection persists in localStorage so a refresh
+ *     doesn't reset the dashboard; flipping to Editorial sticks.
  *
  *   - Leadership → no toggle (sees both axes implicitly via their own
- *     client list). Default to "editorial" but charts grouped by pod
- *     should usually fold both kinds together — that's per-chart logic,
- *     not handled here.
+ *     client list). Default "growth"; charts grouped by pod usually
+ *     fold both kinds together — that's per-chart logic, not handled here.
  *
- *   - Unauthenticated / no group → default "editorial".
+ *   - Unauthenticated / no group → default "growth".
+ *
+ *   Editorial Team is the ONE exception that defaults to "editorial",
+ *   and only because their `pod_kind_lock` forces it — they can't read
+ *   the growth axis. Same locked logic gives Growth Team "growth".
  *
  * The single hook to use throughout the app: `useCurrentPodAxis()`.
  * Components that group by pod call it once and read `axis` to pick the
@@ -32,7 +35,13 @@ import { useSyncExternalStore } from "react";
 import { useAccessProfile } from "@/lib/accessClient";
 
 export type PodAxis = "editorial" | "growth";
-const STORAGE_KEY = "eh.podAxis";
+// Bumped from `eh.podAxis` when the default flipped from Editorial → Growth
+// (May 12 2026). Renaming the key forces every browser to lose its
+// stale Editorial selection from before the default change. Users who
+// genuinely prefer Editorial flip the toggle once after the deploy and
+// the new key is set to "editorial" — preference is preserved from
+// that point forward.
+const STORAGE_KEY = "eh.podAxis.v2";
 
 let stored: PodAxis | null = null;
 const subscribers = new Set<() => void>();
@@ -80,7 +89,7 @@ function getServerSnapshot(): PodAxis | null {
 interface PodAxisHookResult {
   axis: PodAxis;
   /** True when the access profile lets the user flip the axis (Admin /
-   *  VPs and Managers / BI Team). False for pod-locked teams. */
+   *  Leadership / BI Team). False for pod-locked teams. */
   canToggle: boolean;
   /** Setter — no-ops when the user can't toggle. */
   setAxis: (next: PodAxis) => void;
@@ -103,7 +112,17 @@ export function useCurrentPodAxis(): PodAxisHookResult {
   }
 
   const canToggle = !!profile?.can_toggle_axis;
-  const axis: PodAxis = stored ?? "editorial";
+  // Default is "growth" for everyone whose axis isn't locked — Admin,
+  // Leadership, BI Team, and anyone outside a known group. Editorial
+  // Team users hit the locked branch above and always read "editorial";
+  // Growth Team users hit it and read "growth" too.
+  //
+  // While previewing-as another user, IGNORE the admin's localStorage
+  // selection — that's the admin's personal preference, not the
+  // previewed user's. The previewed user should see their default axis.
+  // Stored selection wins only when NOT in preview mode.
+  const inPreview = !!profile?.is_preview;
+  const axis: PodAxis = inPreview ? "growth" : (stored ?? "growth");
   return {
     axis,
     canToggle,

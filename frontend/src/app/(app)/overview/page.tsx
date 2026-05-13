@@ -15,11 +15,11 @@ import {
 } from "@/components/dashboard/DeliveryOverviewCards";
 import { CumulativePipelineSection } from "@/components/dashboard/CumulativePipelineSection";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
-import { GoalsOverviewCards } from "@/components/dashboard/GoalsOverviewCards";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import {
+  ClientCommentsRail,
   OverviewCommentsProvider,
   SectionCommentIcon,
 } from "@/components/dashboard/OverviewCommentsRail";
@@ -29,17 +29,20 @@ import { useRequireView } from "@/lib/accessClient";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import {
   AsOfBadge,
-  contentTypeRatio,
+  CardTitleWithTooltip,
   displayPod,
 } from "@/components/dashboard/shared-helpers";
-import { normalizePod, sortPodKey } from "@/components/dashboard/ContractClientProgress";
+import {
+  normalizePod,
+  PodGoalsRow,
+  sortPodKey,
+} from "@/components/dashboard/ContractClientProgress";
 import { buildLifetimeSummaries } from "@/lib/overviewSummary";
 import type {
   Client,
   ClientProductionRow,
   CumulativeMetric,
   DeliverableMonthly,
-  GoalsVsDeliveryRow,
   ProductionTrendPoint,
 } from "@/lib/types";
 
@@ -63,7 +66,7 @@ const SECTIONS = [
   { id: "monthly-goals", label: "Monthly Goals" },
 ];
 
-type Lens = "composition" | "trajectory" | "triage";
+type Lens = "composition" | "triage";
 
 export default function OverviewPage() {
   // Pod-locked teams (Editorial Team / Growth Team) have no Overview by
@@ -74,7 +77,6 @@ export default function OverviewPage() {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [deliverables, setDeliverables] = useState<DeliverableMonthly[]>([]);
   const [cumulative, setCumulative] = useState<CumulativeMetric[]>([]);
-  const [goalRows, setGoalRows] = useState<GoalsVsDeliveryRow[]>([]);
   const [productionTrend, setProductionTrend] = useState<ProductionTrendPoint[]>([]);
   const [clientProduction, setClientProduction] = useState<ClientProductionRow[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
@@ -98,9 +100,6 @@ export default function OverviewPage() {
     }
     apiGet<CumulativeMetric[]>("/api/goals-delivery/cumulative")
       .then(setCumulative)
-      .catch(() => {});
-    apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/all")
-      .then(setGoalRows)
       .catch(() => {});
     apiGet<ProductionTrendPoint[]>("/api/dashboard/production-trend")
       .then(setProductionTrend)
@@ -128,11 +127,6 @@ export default function OverviewPage() {
   const summaries = useMemo(
     () => buildLifetimeSummaries(filteredClients, deliverables),
     [filteredClients, deliverables],
-  );
-
-  const goalsSummary = useMemo(
-    () => rollupGoalsForPortfolio(goalRows, filteredClients, dateRange),
-    [goalRows, filteredClients, dateRange],
   );
 
   // Lifetime delivery rows for the Client Delivery section. The Overview
@@ -202,6 +196,10 @@ export default function OverviewPage() {
         sections={SECTIONS}
         filteredClients={filteredClients}
       >
+        {/* Right-edge comments sidebar — fixed, hover to expand, sits
+            12px inside the viewport's right edge so the page scrollbar
+            stays clickable. */}
+        <ClientCommentsRail />
         <div className="flex gap-6">
           <SectionIndex sections={SECTIONS} />
           <div className="flex-1 min-w-0 space-y-12">
@@ -226,8 +224,6 @@ export default function OverviewPage() {
               subtitle={
                 lens === "composition"
                   ? "What does our work look like?"
-                  : lens === "trajectory"
-                  ? "Where are we trending?"
                   : "Who needs attention right now?"
               }
               deepLinkHref="/editorial-clients?tab=deliverables-sow#delivery-overview"
@@ -245,14 +241,8 @@ export default function OverviewPage() {
                   summaries={summaries}
                   cumulative={cumulative}
                   deliverables={deliverables}
-                />
-              )}
-              {lens === "trajectory" && (
-                <TrajectoryView
-                  clients={filteredClients}
-                  productionTrend={productionTrend}
                   clientProduction={clientProduction}
-                  deliverables={deliverables}
+                  dateRange={dateRange}
                 />
               )}
               {lens === "triage" && (
@@ -265,6 +255,12 @@ export default function OverviewPage() {
               title="Production History"
               subtitle="Monthly actuals + projection trajectory across the filtered clients"
               deepLinkHref="/editorial-clients?tab=contract-timeline#production-history"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
               trailingSlot={
                 <SectionCommentIcon
                   sectionId="production-history"
@@ -284,6 +280,12 @@ export default function OverviewPage() {
               title="Cumulative Pipeline"
               subtitle="All-time funnel coverage — Articles + Published per client"
               deepLinkHref="/editorial-clients?tab=deliverables-sow#cumulative-pipeline"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
               trailingSlot={
                 <SectionCommentIcon
                   sectionId="cumulative-pipeline"
@@ -303,9 +305,15 @@ export default function OverviewPage() {
 
             <Section
               id="client-delivery"
-              title="Client Delivery"
+              title="Client Delivery at a Glance"
               subtitle="Per-client delivery vs invoicing — collapsed by pod to keep the page scannable"
               deepLinkHref="/editorial-clients?tab=deliverables-sow#client-delivery"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
               trailingSlot={
                 <SectionCommentIcon
                   sectionId="client-delivery"
@@ -316,14 +324,21 @@ export default function OverviewPage() {
               <ClientDeliveryCards
                 rows={clientDeliveryRows}
                 defaultCollapsedByPod
+                hideHeader
               />
             </Section>
 
             <Section
               id="monthly-goals"
               title="Monthly Goals"
-              subtitle="CB / Article achievement across the filtered scope"
+              subtitle="Per-pod CB / Article achievement, scoped to this Editorial month so far"
               deepLinkHref="/editorial-clients?tab=deliverables-sow#monthly-goals"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
               trailingSlot={
                 <SectionCommentIcon
                   sectionId="monthly-goals"
@@ -331,13 +346,16 @@ export default function OverviewPage() {
                 />
               }
             >
-              <GoalsOverviewCards
+              {/* Reuses D1's `PodGoalsRow` — same pod gauges row, but
+                  `hidePerClientBreakdown` keeps the Overview snapshot to
+                  a single row. The deep-link sends users to D1 for the
+                  per-client drill-down. */}
+              <PodGoalsRow
                 filteredClients={filteredClients}
-                perClient={goalsSummary.perClient}
-                totals={goalsSummary.totals}
-                asOfLabel={goalsSummary.asOfLabel}
+                hidePerClientBreakdown
               />
             </Section>
+
           </div>
         </div>
       </OverviewCommentsProvider>
@@ -357,6 +375,7 @@ function Section({
   children,
   rightSlot,
   trailingSlot,
+  titleChip,
 }: {
   id: string;
   title: string;
@@ -369,15 +388,20 @@ function Section({
    *  comment icon so it reads as part of the title chip rather than
    *  competing with the right-side "Open in …" button. */
   trailingSlot?: React.ReactNode;
+  /** Optional chip rendered next to the title — used to surface scope
+   *  notes that need to be visible at-a-glance (e.g. "May 2026 · not
+   *  date-filtered" on Monthly Goals). */
+  titleChip?: React.ReactNode;
 }) {
   return (
     <section id={id} className="group/sec scroll-mt-[140px] space-y-3">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
               {title}
             </h2>
+            {titleChip}
             {trailingSlot}
           </div>
           <p className="mt-0.5 text-[11px] text-[#606060]">{subtitle}</p>
@@ -445,7 +469,6 @@ function LensSwitcher({
 }) {
   const opts: { id: Lens; label: string }[] = [
     { id: "composition", label: "Composition" },
-    { id: "trajectory", label: "Trajectory" },
     { id: "triage", label: "Triage" },
   ];
   return (
@@ -485,10 +508,15 @@ function OverviewSkeleton() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Triage lens — the original five cards (Most Behind / Pod Attention on top,
-// Delivery Mix / Closing 90D / Last Q Closes below).
+// Triage lens — three top cards (Delivery Progress / Most Behind / Pod
+// Attention), all bucketed on the current-Q projected close so catch-up
+// plans baked into projections are honored. The forward-looking "Closing
+// in 90d" card lives below; "Last Q Closes" was removed — its signal is
+// now folded into Most Behind / Pod Attention rows (which show BOTH the
+// last Q's actual close and the current Q's projected close per client).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { ClosingSoonCard } from "@/components/dashboard/DeliveryOverviewCards";
 import type { SummaryRow } from "@/components/dashboard/DeliveryOverviewCards";
 
 function TriageView({
@@ -498,24 +526,18 @@ function TriageView({
   clients: Client[];
   summaries: SummaryRow[];
 }) {
-  // Triage pyramid: portfolio % (Delivery Progress) → worst clients
-  // (Most Behind) → worst pod (Pod Attention) on the top row, then the
-  // forward-looking Closing 90d + Last Q Closes context cards below.
+  // 2 × 2 grid:
+  //   row 1 — Delivery Progress · Most Behind
+  //   row 2 — Pod Attention     · Closing in 90d
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <DeliveryMixCard
-          rows={summaries}
-          subtitle={`${summaries.length} client${summaries.length === 1 ? "" : "s"}`}
-        />
-        <MostBehindCard rows={summaries} clients={clients} />
-        <PodAttentionCard rows={summaries} clients={clients} />
-      </div>
-      <DeliveryOverviewCards
-        allClients={clients}
-        filteredClients={clients}
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <DeliveryMixCard
         rows={summaries}
+        subtitle={`${summaries.length} client${summaries.length === 1 ? "" : "s"}`}
       />
+      <MostBehindCard rows={summaries} clients={clients} />
+      <PodAttentionCard rows={summaries} clients={clients} />
+      <ClosingSoonCard clients={clients} />
     </div>
   );
 }
@@ -530,12 +552,19 @@ function CompositionView({
   summaries,
   cumulative,
   deliverables,
+  clientProduction,
+  dateRange,
 }: {
   clients: Client[];
   summaries: SummaryRow[];
   cumulative: CumulativeMetric[];
   deliverables: DeliverableMonthly[];
+  clientProduction: ClientProductionRow[];
+  dateRange: DateRange;
 }) {
+  // `deliverables` retained on the signature for future use but unused
+  // now — delivered counts read from Operating Model below.
+  void deliverables;
   const { axis } = useCurrentPodAxis();
   const stats = useMemo(() => {
     const podSet = new Set(
@@ -547,34 +576,62 @@ function CompositionView({
     const totalDelivered = summaries.reduce((a, r) => a + r.articles_delivered, 0);
     const totalSow = summaries.reduce((a, r) => a + r.articles_sow, 0);
 
-    // Trailing 3-month delivery vs prior 3-month delivery, summed across
-    // filtered clients. Powers the trend arrow next to the volume number.
-    const ids = new Set(clients.map((c) => c.id));
+    // Resolve the date filter into [startCell, endCell] inclusive month
+    // bounds (or null = no range = use trailing-3-months fallback).
+    const cellOf = (y: number, m: number) => y * 12 + (m - 1);
+    let rangeCells: { lo: number; hi: number; label: string } | null = null;
+    if (dateRange.type === "range" && dateRange.from) {
+      const from = dateRange.from;
+      const to = dateRange.to ?? dateRange.from;
+      rangeCells = {
+        lo: cellOf(from.getFullYear(), from.getMonth() + 1),
+        hi: cellOf(to.getFullYear(), to.getMonth() + 1),
+        label: `${from.toLocaleString("en-US", { month: "short", year: "2-digit" })}${
+          to.getTime() === from.getTime()
+            ? ""
+            : ` – ${to.toLocaleString("en-US", { month: "short", year: "2-digit" })}`
+        }`,
+      };
+    }
+
+    // Trailing 3 completed months — fallback when no date range is set.
     const now = new Date();
     const lastCompleted = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const monthOffset = (back: number) => {
-      const d = new Date(lastCompleted);
-      d.setMonth(d.getMonth() - back);
-      return { y: d.getFullYear(), m: d.getMonth() + 1 };
-    };
-    const inWindow = (y: number, m: number, fromBack: number, toBack: number) => {
-      const cell = y * 12 + (m - 1);
-      const fromCell = monthOffset(fromBack);
-      const toCell = monthOffset(toBack);
-      const fromN = fromCell.y * 12 + (fromCell.m - 1);
-      const toN = toCell.y * 12 + (toCell.m - 1);
-      return cell >= toN && cell <= fromN;
-    };
-    let recent3 = 0;
-    let prior3 = 0;
-    for (const d of deliverables) {
-      if (!ids.has(d.client_id)) continue;
-      const v = d.articles_delivered ?? 0;
-      if (inWindow(d.year, d.month, 2, 0)) recent3 += v;
-      else if (inWindow(d.year, d.month, 5, 3)) prior3 += v;
+    const trailing3Lo = cellOf(
+      lastCompleted.getFullYear(),
+      lastCompleted.getMonth() + 1 - 2,
+    );
+    const trailing3Hi = cellOf(
+      lastCompleted.getFullYear(),
+      lastCompleted.getMonth() + 1,
+    );
+    const trailingLabel = "last 3 months";
+
+    // The two windows we accumulate into:
+    //   recent: the "in-scope" period (date filter, or trailing-3 if no filter)
+    //   prior:  the equal-length window immediately before `recent` —
+    //           drives the ▲▼ % vs prior trend.
+    const windowLo = rangeCells ? rangeCells.lo : trailing3Lo;
+    const windowHi = rangeCells ? rangeCells.hi : trailing3Hi;
+    const windowLength = windowHi - windowLo + 1;
+    const priorLo = windowLo - windowLength;
+    const priorHi = windowLo - 1;
+    const periodLabel = rangeCells ? rangeCells.label : trailingLabel;
+
+    const filteredNamesForSnap = new Set(clients.map((c) => c.name));
+    let recent = 0;
+    let prior = 0;
+    for (const row of clientProduction) {
+      if (!filteredNamesForSnap.has(row.client_name)) continue;
+      for (const mm of row.monthly) {
+        const cell = cellOf(mm.year, mm.month);
+        const v = mm.actual ?? 0;
+        if (cell >= windowLo && cell <= windowHi) recent += v;
+        else if (cell >= priorLo && cell <= priorHi) prior += v;
+      }
     }
     const trendPct =
-      prior3 > 0 ? Math.round(((recent3 - prior3) / prior3) * 100) : null;
+      prior > 0 ? Math.round(((recent - prior) / prior) * 100) : null;
 
     return {
       activeClients: clients.length,
@@ -582,18 +639,32 @@ function CompositionView({
       totalDelivered,
       totalSow,
       sowPct: totalSow > 0 ? Math.round((totalDelivered / totalSow) * 100) : null,
-      recent3,
-      prior3,
+      recent,
+      prior,
       trendPct,
+      periodLabel,
+      windowLo,
+      windowHi,
     };
-  }, [clients, summaries, deliverables, axis]);
+  }, [clients, summaries, clientProduction, axis, dateRange]);
 
+  // Composition lens shows just two cards now: a portfolio snapshot and
+  // a top-contributors list. Content Type Mix and Pod Output were
+  // dropped — pod ranking already lives in the Production History
+  // section, and content mix wasn't moving any decision on Overview.
+  // `cumulative` is no longer read here but kept on the props for
+  // upstream call sites that still pass it.
+  void cumulative;
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <PeriodAtAGlance stats={stats} />
-      <ContentTypeMix cumulative={cumulative} clients={clients} />
-      <TopContributors summaries={summaries} />
-      <PodOutput summaries={summaries} clients={clients} />
+      <TopContributors
+        clients={clients}
+        clientProduction={clientProduction}
+        windowLo={stats.windowLo}
+        windowHi={stats.windowHi}
+        periodLabel={stats.periodLabel}
+      />
     </div>
   );
 }
@@ -604,9 +675,12 @@ interface CompositionStats {
   totalDelivered: number;
   totalSow: number;
   sowPct: number | null;
-  recent3: number;
-  prior3: number;
+  recent: number;
+  prior: number;
   trendPct: number | null;
+  periodLabel: string;
+  windowLo: number;
+  windowHi: number;
 }
 
 function PeriodAtAGlance({ stats }: { stats: CompositionStats }) {
@@ -628,11 +702,11 @@ function PeriodAtAGlance({ stats }: { stats: CompositionStats }) {
       </div>
       <div className="mt-4 border-t border-[#2a2a2a] pt-3">
         <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-          Articles delivered (last 3 months)
+          Articles delivered ({stats.periodLabel})
         </p>
         <div className="mt-1 flex items-baseline gap-2">
           <p className="font-mono text-3xl font-bold tabular-nums text-white">
-            {stats.recent3.toLocaleString()}
+            {stats.recent.toLocaleString()}
           </p>
           {stats.trendPct !== null && (
             <span
@@ -648,7 +722,7 @@ function PeriodAtAGlance({ stats }: { stats: CompositionStats }) {
             </span>
           )}
           <span className="font-mono text-[10px] text-[#606060]">
-            {stats.trendPct !== null ? "vs prior 3 months" : "no prior data"}
+            {stats.trendPct !== null ? "vs prior period" : "no prior data"}
           </span>
         </div>
       </div>
@@ -764,16 +838,44 @@ function contentTypeColor(raw: string): string {
   return "#DDCFAC"; // WN1
 }
 
-function TopContributors({ summaries }: { summaries: SummaryRow[] }) {
-  const top = useMemo(
-    () =>
-      [...summaries]
-        .filter((r) => r.articles_delivered > 0)
-        .sort((a, b) => b.articles_delivered - a.articles_delivered)
-        .slice(0, 5),
-    [summaries],
+function TopContributors({
+  clients,
+  clientProduction,
+  windowLo,
+  windowHi,
+  periodLabel,
+}: {
+  clients: Client[];
+  clientProduction: ClientProductionRow[];
+  windowLo: number;
+  windowHi: number;
+  periodLabel: string;
+}) {
+  // Delivered counts source from the Editorial Operating Model sheet —
+  // `ClientProductionRow.monthly[]` is the per-month feed imported from
+  // that sheet. We sum only `.actual` per the spec ("actual, not
+  // projected") and only within the date filter window (falling back to
+  // trailing 3 months when no range is set — same window as Snapshot).
+  const filteredNames = useMemo(
+    () => new Set(clients.map((c) => c.name)),
+    [clients],
   );
-  const max = top[0]?.articles_delivered ?? 0;
+  const cellOf = (y: number, m: number) => y * 12 + (m - 1);
+  const top = useMemo(() => {
+    const sums: { name: string; delivered: number }[] = [];
+    for (const row of clientProduction) {
+      if (!filteredNames.has(row.client_name)) continue;
+      let delivered = 0;
+      for (const m of row.monthly) {
+        const cell = cellOf(m.year, m.month);
+        if (cell < windowLo || cell > windowHi) continue;
+        delivered += m.actual ?? 0;
+      }
+      if (delivered > 0) sums.push({ name: row.client_name, delivered });
+    }
+    return sums.sort((a, b) => b.delivered - a.delivered).slice(0, 5);
+  }, [clientProduction, filteredNames, windowLo, windowHi]);
+  const max = top[0]?.delivered ?? 0;
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
@@ -781,16 +883,16 @@ function TopContributors({ summaries }: { summaries: SummaryRow[] }) {
         Top contributors
       </p>
       <p className="mt-0.5 text-[11px] text-[#606060]">
-        Highest delivered article volume in scope
+        Highest actual article volume in {periodLabel} — Editorial Operating Model
       </p>
       {top.length === 0 ? (
         <p className="mt-3 text-[11px] text-[#606060]">No data in scope.</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {top.map((r, i) => {
-            const pct = max > 0 ? (r.articles_delivered / max) * 100 : 0;
+            const pct = max > 0 ? (r.delivered / max) * 100 : 0;
             return (
-              <li key={r.id}>
+              <li key={r.name}>
                 <div className="flex items-baseline justify-between gap-2 font-mono text-[11px]">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-[#606060] tabular-nums">
@@ -801,7 +903,7 @@ function TopContributors({ summaries }: { summaries: SummaryRow[] }) {
                     </span>
                   </span>
                   <span className="shrink-0 font-semibold tabular-nums text-white">
-                    {r.articles_delivered.toLocaleString()}
+                    {r.delivered.toLocaleString()}
                   </span>
                 </div>
                 <div className="mt-1 h-1.5 rounded-full bg-[#1f1f1f] overflow-hidden">
@@ -929,6 +1031,9 @@ function TrajectoryView({
   clientProduction: ClientProductionRow[];
   deliverables: DeliverableMonthly[];
 }) {
+  // `deliverables` retained on signature for upstream call-site shape;
+  // not used since Forward View was removed.
+  void deliverables;
   return (
     <div className="space-y-3">
       <ProductionTrendChart
@@ -936,10 +1041,7 @@ function TrajectoryView({
         clientProduction={clientProduction}
         filteredClients={clients}
       />
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <PodVelocity clients={clients} clientProduction={clientProduction} />
-        <ForwardView clients={clients} deliverables={deliverables} />
-      </div>
+      <PodVelocity clients={clients} clientProduction={clientProduction} />
     </div>
   );
 }
@@ -998,9 +1100,17 @@ function PodVelocity({
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA]">
-        Pod velocity
-      </p>
+      <CardTitleWithTooltip
+        label="Pod velocity"
+        body={{
+          title: "Pod velocity",
+          bullets: [
+            "Articles shipped per week, averaged over the last 4 months.",
+            "▲▼ shows the change vs. the prior 4 months.",
+            "Green: +5% or better · Red: −5% or worse · Grey: in between.",
+          ],
+        }}
+      />
       <p className="mt-0.5 text-[11px] text-[#606060]">
         Articles per week, last 4 months · ▲▼ vs prior 4 months
       </p>
@@ -1060,23 +1170,29 @@ function PodVelocity({
 
 function ForwardView({
   clients,
-  deliverables,
+  clientProduction,
 }: {
   clients: Client[];
-  deliverables: DeliverableMonthly[];
+  clientProduction: ClientProductionRow[];
 }) {
   const data = useMemo(() => {
-    const ids = new Set(clients.map((c) => c.id));
+    const filteredNames = new Set(clients.map((c) => c.name));
     const now = new Date();
     const lastCompleted = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const cellOf = (y: number, m: number) => y * 12 + (m - 1);
     const lastCell = cellOf(lastCompleted.getFullYear(), lastCompleted.getMonth() + 1);
 
+    // Projection sources from Editorial Operating Model actuals (same
+    // source as Pod Velocity + Top Contributors) so all three cards
+    // reconcile. Previously this read `deliverables_monthly` which can
+    // be stale for recent months and was returning low / zero values.
     let trailing = 0;
-    for (const d of deliverables) {
-      if (!ids.has(d.client_id)) continue;
-      const distance = lastCell - cellOf(d.year, d.month);
-      if (distance >= 0 && distance < 3) trailing += d.articles_delivered ?? 0;
+    for (const row of clientProduction) {
+      if (!filteredNames.has(row.client_name)) continue;
+      for (const m of row.monthly) {
+        const distance = lastCell - cellOf(m.year, m.month);
+        if (distance >= 0 && distance < 3) trailing += m.actual ?? 0;
+      }
     }
     const monthlyRate = trailing / 3;
     const projectedNextQ = Math.round(monthlyRate * 3);
@@ -1084,27 +1200,29 @@ function ForwardView({
     const ninetyOut = new Date();
     ninetyOut.setDate(ninetyOut.getDate() + 90);
     let closingSoon = 0;
-    let inFinalQ = 0;
     for (const c of clients) {
       const end = c.end_date ? new Date(c.end_date) : null;
       if (end && !Number.isNaN(end.getTime()) && end >= now && end <= ninetyOut) {
         closingSoon += 1;
       }
-      // "Final quarter" — within 90 days of end date.
-      if (end && !Number.isNaN(end.getTime())) {
-        const daysLeft = Math.round((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysLeft >= 0 && daysLeft <= 90) inFinalQ += 1;
-      }
     }
 
-    return { projectedNextQ, monthlyRate, closingSoon, inFinalQ };
-  }, [clients, deliverables]);
+    return { projectedNextQ, monthlyRate, closingSoon };
+  }, [clients, clientProduction]);
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA]">
-        Forward view
-      </p>
+      <CardTitleWithTooltip
+        label="Forward view"
+        body={{
+          title: "Forward view",
+          bullets: [
+            "Projection of next quarter at the current 3-month pace.",
+            "Contracts closing: SOW end dates within the next 90 days.",
+            "Estimate only — not a commitment.",
+          ],
+        }}
+      />
       <p className="mt-0.5 text-[11px] text-[#606060]">
         Projection at current pace · not a commitment
       </p>
@@ -1113,16 +1231,27 @@ function ForwardView({
           label="Projected next quarter"
           value={`~ ${data.projectedNextQ.toLocaleString()} articles`}
           helper={`At ${data.monthlyRate.toFixed(0)}/mo trailing pace`}
+          tooltip={{
+            title: "Projected next quarter",
+            bullets: [
+              "Sum of actuals over the last 3 completed months (Editorial Operating Model).",
+              "Divide by 3 to get the monthly rate; multiply by 3 again to project the next quarter.",
+              "If recent months haven't been imported, the projection reads low — re-sync past months.",
+            ],
+          }}
         />
         <ForwardRow
           label="Contracts closing in 90 days"
           value={data.closingSoon.toString()}
           helper="By SOW Overview end date"
-        />
-        <ForwardRow
-          label="Clients in final quarter"
-          value={data.inFinalQ.toString()}
-          helper="≤90 days remaining on contract"
+          tooltip={{
+            title: "Contracts closing in 90 days",
+            bullets: [
+              "Count of clients whose SOW Overview end date is between today and today + 90 days.",
+              "Reads from `clients.end_date` (the SOW Overview sheet column).",
+              "Clients with no end date set are not counted.",
+            ],
+          }}
         />
       </ul>
     </div>
@@ -1133,16 +1262,25 @@ function ForwardRow({
   label,
   value,
   helper,
+  tooltip,
 }: {
   label: string;
   value: string;
   helper: string;
+  tooltip?: { title: string; bullets: React.ReactNode[] };
 }) {
   return (
     <li className="border-b border-[#1f1f1f] pb-2 last:border-b-0 last:pb-0">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-        {label}
-      </p>
+      {tooltip ? (
+        <CardTitleWithTooltip
+          label={label}
+          body={tooltip}
+        />
+      ) : (
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+          {label}
+        </p>
+      )}
       <p className="mt-0.5 font-mono text-base font-semibold tabular-nums text-white">
         {value}
       </p>
@@ -1151,149 +1289,3 @@ function ForwardRow({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Goals rollup — produces the props GoalsOverviewCards expects, scoped to
-// the filtered clients across the active date range. Same 3-step weighted
-// rollup pattern used in GoalsVsDeliverySection / aggregateGoalsByPod so
-// totals reconcile with what D1 shows.
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface ClientAgg {
-  client: string;
-  cbGoal: number;
-  cbDel: number;
-  adGoal: number;
-  adDel: number;
-}
-
-const MONTH_NAMES_FULL = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-function parseGoalMonth(s: string): { y: number; m: number } | null {
-  const m = s.trim().match(/^(\w+)\s+(\d{4})$/);
-  if (!m) return null;
-  const idx = MONTH_NAMES_FULL.indexOf(m[1]);
-  if (idx < 0) return null;
-  return { y: Number(m[2]), m: idx + 1 };
-}
-
-function inDateRange(
-  ym: { y: number; m: number },
-  range: DateRange,
-): boolean {
-  if (range.type !== "range" || !range.from) return true;
-  const cell = new Date(ym.y, ym.m - 1, 1);
-  const from = new Date(range.from.getFullYear(), range.from.getMonth(), 1);
-  const toSrc = range.to ?? range.from;
-  const to = new Date(toSrc.getFullYear(), toSrc.getMonth() + 1, 0);
-  return cell >= from && cell <= to;
-}
-
-function rollupGoalsForPortfolio(
-  rows: GoalsVsDeliveryRow[],
-  clients: Client[],
-  dateRange: DateRange,
-): {
-  perClient: Map<string, ClientAgg>;
-  totals: { cbGoal: number; cbDel: number; adGoal: number; adDel: number };
-  asOfLabel: string | null;
-} {
-  const activeNames = new Set(clients.map((c) => c.name));
-
-  type CMC = { ratio: number; cbGoal: number; cbDel: number; adGoal: number; adDel: number };
-  const perCMC = new Map<string, CMC>();
-  for (const r of rows) {
-    if (!activeNames.has(r.client_name)) continue;
-    const ym = parseGoalMonth(r.month_year);
-    if (!ym || !inDateRange(ym, dateRange)) continue;
-    const ct = (r.content_type ?? "").trim().toLowerCase() || "default";
-    const key = `${r.client_name}|${r.month_year}|${ct}`;
-    let e = perCMC.get(key);
-    if (!e) {
-      e = {
-        ratio: contentTypeRatio(r.content_type, r.ratios),
-        cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0,
-      };
-      perCMC.set(key, e);
-    }
-    e.cbGoal = Math.max(e.cbGoal, r.cb_monthly_goal ?? 0);
-    e.adGoal = Math.max(e.adGoal, r.ad_monthly_goal ?? 0);
-    e.cbDel = Math.max(e.cbDel, r.cb_delivered_to_date ?? 0);
-    e.adDel = Math.max(e.adDel, r.ad_delivered_to_date ?? 0);
-  }
-
-  const perCM = new Map<
-    string,
-    { client: string; cbGoal: number; cbDel: number; adGoal: number; adDel: number }
-  >();
-  for (const [k, e] of perCMC.entries()) {
-    const [client, month] = k.split("|");
-    const cmKey = `${client}|${month}`;
-    let cm = perCM.get(cmKey);
-    if (!cm) {
-      cm = { client, cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
-      perCM.set(cmKey, cm);
-    }
-    cm.cbGoal += e.cbGoal * e.ratio;
-    cm.cbDel += e.cbDel * e.ratio;
-    cm.adGoal += e.adGoal * e.ratio;
-    cm.adDel += e.adDel * e.ratio;
-  }
-
-  const perClient = new Map<string, ClientAgg>();
-  for (const cm of perCM.values()) {
-    let c = perClient.get(cm.client);
-    if (!c) {
-      c = { client: cm.client, cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
-      perClient.set(cm.client, c);
-    }
-    if (cm.cbGoal > 0) {
-      c.cbGoal += cm.cbGoal;
-      c.cbDel += cm.cbDel;
-    }
-    if (cm.adGoal > 0) {
-      c.adGoal += cm.adGoal;
-      c.adDel += cm.adDel;
-    }
-  }
-
-  let cbGoal = 0, cbDel = 0, adGoal = 0, adDel = 0;
-  for (const c of perClient.values()) {
-    cbGoal += c.cbGoal;
-    cbDel += c.cbDel;
-    adGoal += c.adGoal;
-    adDel += c.adDel;
-  }
-
-  let bestKey = -Infinity;
-  let bestRow: GoalsVsDeliveryRow | null = null;
-  for (const r of rows) {
-    if (!activeNames.has(r.client_name)) continue;
-    const d = parseGoalMonth(r.month_year);
-    if (!d || !inDateRange(d, dateRange)) continue;
-    const key = d.y * 1000 + d.m * 60 + (r.week_number ?? 0);
-    if (key > bestKey) {
-      bestKey = key;
-      bestRow = r;
-    }
-  }
-  const asOfLabel = bestRow
-    ? (() => {
-        const d = parseGoalMonth(bestRow.month_year);
-        if (!d) return null;
-        const monthShort = new Date(d.y, d.m - 1, 1).toLocaleDateString("en-US", {
-          month: "short",
-          year: "2-digit",
-        });
-        return `As of week ${bestRow.week_number} · ${monthShort}`;
-      })()
-    : null;
-
-  return {
-    perClient,
-    totals: { cbGoal, cbDel, adGoal, adDel },
-    asOfLabel,
-  };
-}

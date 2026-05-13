@@ -102,6 +102,26 @@ def require_admin(
     return profile
 
 
+def require_admin_or_leadership(
+    profile: AccessProfile = Depends(current_access),
+) -> AccessProfile:
+    """Admins OR members of the seeded `leadership` group. Used by the
+    client-comments rail on the Overview dashboard — per spec, publishing
+    general client notes is restricted to admins and the leadership tier
+    (VPs / managers). Read access stays open to anyone with the Overview
+    view; only the write paths gate on this dep."""
+    if not profile.is_authenticated:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if profile.is_admin:
+        return profile
+    if "leadership" in profile.group_slugs:
+        return profile
+    raise HTTPException(
+        status_code=403,
+        detail="Only admins and Leadership can manage client comments",
+    )
+
+
 def require_access_editor(
     profile: AccessProfile = Depends(current_access),
 ) -> AccessProfile:

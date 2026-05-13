@@ -18,6 +18,40 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.7 — May 13
+
+**Access-control overhaul (Leadership consolidation, draft mode), data-driven editorial pod assignment, cumulative variance math, plus a tooltip rewrite pass across every dashboard.**
+
+- **Admin → Access Control · Leadership consolidation** — The old pod-derived Leadership group has been retired and the `VPs and Managers` group is now called **Leadership**. Juan Mantilla added to the seed list. Senior Editors / Growth Leads now get their access purely through Editorial Team / Growth Team (their pod's clients, locked to their pod axis). The seeded Leadership tier (VPs + managers) keeps full org-wide reach + Capacity Planning v2 access.
+- **Admin → Access Control · membership exclusions** — Pod-derived groups now filter out roles that don't use the dashboards: **Writers** no longer appear in Editorial Team, and **Content Specialists** no longer appear in Growth Team. The Editorial Team / Growth Team counts you see in the matrix reflect only the people who actually need dashboard access.
+- **Admin → Access Control · draft mode** — Cell edits no longer save instantly. Click toggles now stage changes locally with an amber dashed outline; a sticky bottom banner shows "N unsaved edits" with Save / Discard. Save flushes everything in one batch; switching tabs preserves your draft; sidebar navigation prompts before discarding. A conflict modal surfaces when another admin moved the same cells while you were editing (Save anyway / Discard conflicts / Review).
+- **Admin → Access Control · Users × Views row improvements** — Group memberships now display by **name** ("Growth Team") instead of slug ("growth_team"). The "Show only overrides" toggle is now clearable with an explicit ✕ even when the count drops to zero, and stays visible after toggling — no more getting stuck with an empty matrix.
+- **Admin → Access Control · Preview Access button** — Sits inline with the row instead of pushed to the far right, and renders as a small green outline pill so it reads as an action.
+- **Overview · Triage cards** — Rewritten so they tell one consistent story:
+  - **Delivery Progress** counts each client by **end-of-current-quarter projected variance** (cumulative through end of Q, not last Q in isolation). Healthy: on target or ahead · Within limit: behind by ≤ 5 · Behind: below −5 · **New (1st Q)**: ramping clients in their first contract quarter — kept out of triage entirely.
+  - **Most Behind** + **Pod Attention** use the same lens. Each row shows BOTH last quarter's actual close AND this quarter's projected close, so catch-up plans in flight are visible. Brand-new clients surface in a separate blue "N new (1st Q)" pill.
+  - Over-delivery (e.g. shipping +14 in Q2 to catch up a −14 deficit in Q1) reads as **0 / Healthy**, not Behind. Matches the spreadsheet's Variance row math.
+- **Overview · 2 × 2 layout** — The Triage cards are now arranged 2 × 2 (Delivery Progress · Most Behind · Pod Attention · Closing in 90d), replacing the old 3-on-top + 1-below grid. "Last Q Closes" was removed — its signal is folded into the per-row last-quarter values on Most Behind / Pod Attention.
+- **Overview · Monthly Goals section** — Restored as a pod-aggregation snapshot (no per-client breakdown — Open in Editorial Clients for that). Shows AsOf badge and Open-in-D1 deep link.
+- **Overview · As Of badges** — Now appear on the Cumulative Pipeline and Production History section headers so the period the data covers is unambiguous.
+- **Overview · Sections merged** — "Client Delivery" and "Client Delivery at a Glance" are now a single section title with the As Of badge inline.
+- **Overview · Sidebar comments rail** — A discreet right-edge rail (hover to expand) replaces the old per-section comment icons' dependence on filter scope. Pulls all general + section-anchored threads, narrowed to the current client / pod filter. Optional client field means admins / Leadership can post truly global notes that aren't tied to a single client. Posting from one place refreshes everywhere (single shared store).
+- **Overview · Preview Mode banner** — When admin is impersonating another user, the indicator is now a full-width sticky banner at the top of the app shell (amber, pulsing dot, Exit button) instead of a floating chip that overlapped the SYNC button.
+- **Editorial Clients · pod axis follows the filter** — If you have access to the Editorial / Growth toggle and pick a specific Editorial Pod or Growth Pod in the filter bar, the axis auto-flips to match. No more mismatched groupings.
+- **Editorial Clients · Client Delivery + Cumulative Pipeline pod groups** — Both sections now collapse by pod (same behavior as Overview). One click to expand each pod, keeps long pages scannable.
+- **Editorial Clients · Monthly Goals vs Delivery** — Per-client breakdown is now a collapsible-by-pod list and the section heading is promoted so it reads as a proper sub-section, not a faint caption.
+- **Editorial Clients + Overview · per-client cards** —
+  - Cumulative pipeline bars: hover any horizontal bar (Topics / CBs / Articles / Published) to see the raw count, contracted SOW, and progress %.
+  - Quarter Performance bars (Last Full Q / Current Q): re-coloured as a calm beige → deep green ramp (matching the Topics colour in Cumulative Pipeline) instead of red/amber/green alarm tiers. The actionable signal lives in the new "Projected end of Q" line.
+  - **Projected end of Q** — A new informational row below the Current Q bar shows where the quarter is projected to close (e.g. `+0 On track` / `−3 Slight drift` / `−14 Behind plan`). Catch-up in this quarter cancels earlier deficits.
+  - The "Articles: %" footer was removed from cumulative pipeline cards (info now lives in the bar tooltips).
+- **Editorial Clients + Overview · Monthly detail popover** — The Variance column is now cumulative (matches the spreadsheet's Variance row exactly). Column header tooltips, top-of-popover legend, and per-period chip colors all align.
+- **Capacity Planning · Editorial pod from the sheet** — The hardcoded list of "which clients are in which pod" is gone. Pod assignment is now read directly from the article-breakdown section of the latest `ET CP 2026 [V## <Month YYYY>]` sheet, using the rightmost non-empty Pod column per client. SYNC picks up pod moves automatically. The sheet-version detector also numerically sorts the `V##` portion so `V13` beats `V9`.
+- **Sidebar UX** — Sidebar nav links now prompt before navigating away when there are unsaved Access Control changes. The Preview Access toast follows sidebar hover and stays clear of the SYNC button.
+- **Tooltip + DataSourceBadge copy** — Sweeping rewrite across every dashboard (Overview, Editorial Clients, Team KPIs, all shared cards, all charts). Tooltips are now ≤ 3 bullets, ≤ 10 words per bullet, plain English, no sheet/schema references. Rule documented in `frontend/AGENTS.md` House rules.
+
+---
+
 ## 0.3.6 — May 11
 
 **Refinements to Access Control's Groups tab + the Editorial / Growth toggle scope + the Overview comments UX.**

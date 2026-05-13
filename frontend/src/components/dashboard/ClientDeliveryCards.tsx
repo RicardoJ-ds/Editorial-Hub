@@ -21,7 +21,6 @@ import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import {
   AsOfBadge,
   TooltipBody,
-  pacingColor,
   podBadge,
 } from "./shared-helpers";
 
@@ -92,6 +91,12 @@ interface Props {
    *  view doesn't dump 50+ cards on the page at once. Default = false
    *  (D1 behavior unchanged). */
   defaultCollapsedByPod?: boolean;
+  /** When true, the component's internal "Client Delivery At a Glance"
+   *  h3 + DataSourceBadge + AsOf badge are NOT rendered. Used when the
+   *  parent already provides its own section heading (e.g. the Overview
+   *  page passes the same title at the Section level — without this
+   *  prop the two headings would stack and read as a duplicate). */
+  hideHeader?: boolean;
 }
 
 const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -309,6 +314,16 @@ interface CurrentQuarter {
   monthInQ: number;
   /** Total months in the period — drives the M{n}/{N} chip and pacing math. */
   qLength: number;
+  /** Cumulative variance projected through end of this Q (Σ delivered
+   *  actuals + projections for future months IN this Q − Σ contracted
+   *  invoicing from contract start through end of this Q). Matches the
+   *  spreadsheet's Variance row math and the Overview Triage cards. */
+  projectedEndCumVariance: number;
+  /** Companion field: actual cumulative delivered (actuals + projections)
+   *  through end of this Q, used in the informational tooltip. */
+  projectedEndCumDelivered: number;
+  /** Cumulative invoicing target through end of this Q. */
+  endOfQCumInvoiced: number;
 }
 interface LastFullQuarter {
   qIdx: number;
@@ -337,7 +352,15 @@ function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
 
   let currentQ: CurrentQuarter | null = null;
   let lastFullQ: LastFullQuarter | null = null;
+  // Running totals so we can attach the cumulative-end-of-Q numbers
+  // (matching the spreadsheet's Variance row math) to the current Q.
+  let cumDelivered = 0;
+  let cumInvoiced = 0;
   for (const p of periods) {
+    cumInvoiced += p.invoicedQ;
+    for (const m of p.months) {
+      cumDelivered += m.delivered;
+    }
     if (p.isPrelude || p.isPostContract) continue;
     const startCell = cellOf(p.startYear, p.startMonth);
     const endCell = cellOf(p.endYear, p.endMonth);
@@ -358,6 +381,9 @@ function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
         invoiced: p.invoicedQ,
         monthInQ,
         qLength: p.months.length,
+        projectedEndCumDelivered: cumDelivered,
+        endOfQCumInvoiced: cumInvoiced,
+        projectedEndCumVariance: cumDelivered - cumInvoiced,
       };
     }
 
@@ -398,10 +424,13 @@ function contractMonthChip(
 // a pacing alarm. Cream at 0% → green at 100%.
 function lifetimeBarColor(pct: number): string {
   const t = Math.max(0, Math.min(100, pct)) / 100;
-  // WN1 #DDCFAC (221, 207, 172) → P1 #65FFAA (101, 255, 170)
-  const r = Math.round(221 + (101 - 221) * t);
-  const g = Math.round(207 + (255 - 207) * t);
-  const b = Math.round(172 + (170 - 172) * t);
+  // WN1 #DDCFAC (221, 207, 172) → P3 #2E8C59 (46, 140, 89) — same green
+  // used for Topics in the Cumulative Pipeline cards and matched by the
+  // QuarterRow bars' `progressColor`, so every per-client bar speaks
+  // the same visual language.
+  const r = Math.round(221 + (46 - 221) * t);
+  const g = Math.round(207 + (140 - 207) * t);
+  const b = Math.round(172 + (89 - 172) * t);
   return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -422,8 +451,12 @@ function DeliveryBar({
   tooltipTitle: string;
   tooltipBullets: React.ReactNode[];
 }) {
-  const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-  const color = target > 0 ? lifetimeBarColor(pct) : "#606060";
+  // True ratio (uncapped) for the displayed percentage — over-delivery is
+  // meaningful and should be visible (e.g. 92/90 reads as 102%, not 100%).
+  // The bar fill itself is capped at 100% so it doesn't visually overflow.
+  const pctRaw = target > 0 ? (current / target) * 100 : 0;
+  const barPct = Math.min(pctRaw, 100);
+  const color = target > 0 ? lifetimeBarColor(pctRaw) : "#606060";
   return (
     <div className="flex items-center gap-2">
       <TooltipProvider>
@@ -443,14 +476,14 @@ function DeliveryBar({
       <div className="flex-1 h-2 rounded-full bg-[#1f1f1f] overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: color, opacity: 0.85 }}
+          style={{ width: `${barPct}%`, backgroundColor: color, opacity: 0.85 }}
         />
       </div>
       <span
         className="w-10 text-right font-mono text-[10px] font-semibold tabular-nums"
         style={{ color: target > 0 ? color : "#606060" }}
       >
-        {target > 0 ? `${Math.round(pct)}%` : "—"}
+        {target > 0 ? `${Math.round(pctRaw)}%` : "—"}
       </span>
       <span className="w-20 text-right font-mono text-[10px] text-[#606060] tabular-nums">
         {current}/{target}
@@ -502,9 +535,8 @@ function ClientDeliveryCard({
                 <TooltipBody
                   title="Contract month"
                   bullets={[
-                    "Elapsed month ÷ total term length",
-                    "Spans the full relationship across renewals",
-                    "Source: Delivered vs Invoiced v2 — first and last active months",
+                    "Months elapsed ÷ total contract length.",
+                    "Spans the full relationship across renewals.",
                   ]}
                 />
               </TooltipContent>
@@ -536,30 +568,33 @@ function ClientDeliveryCard({
                 delivered={qMeta.lastFullQ.delivered}
                 target={qMeta.lastFullQ.invoiced}
                 monthInQ={null}
-                tooltipTitle="Last full Q closure"
+                tooltipTitle="Last full quarter"
                 tooltipBullets={[
-                  "Most recent fully-completed billing period",
-                  "Delivered ÷ period invoicing target (contracted)",
-                  "<100% = closed behind",
+                  "Most recent quarter that has fully closed.",
+                  "Delivered ÷ invoicing target for the period.",
+                  "Below 100% means the quarter closed behind.",
                 ]}
               />
             )}
             {qMeta.currentQ && (
-              <QuarterRow
-                kind="current"
-                label={qMeta.currentQ.label}
-                monthsLabel={qMeta.currentQ.monthsLabel}
-                delivered={qMeta.currentQ.deliveredActual}
-                target={qMeta.currentQ.invoiced}
-                monthInQ={qMeta.currentQ.monthInQ}
-                qLength={qMeta.currentQ.qLength}
-                tooltipTitle="Current Q progress"
-                tooltipBullets={[
-                  "Period today's month falls in (1–5 months depending on cadence)",
-                  "Delivered: settled months only (excludes projections)",
-                  "% = partial progress vs full-period invoicing target",
-                ]}
-              />
+              <>
+                <QuarterRow
+                  kind="current"
+                  label={qMeta.currentQ.label}
+                  monthsLabel={qMeta.currentQ.monthsLabel}
+                  delivered={qMeta.currentQ.deliveredActual}
+                  target={qMeta.currentQ.invoiced}
+                  monthInQ={qMeta.currentQ.monthInQ}
+                  qLength={qMeta.currentQ.qLength}
+                  tooltipTitle="Current quarter"
+                  tooltipBullets={[
+                    "The quarter today's month falls in.",
+                    "Counts only delivered actuals — no projections.",
+                    "% is partial progress vs. the quarter's invoicing target.",
+                  ]}
+                />
+                <ProjectedEndOfQNote currentQ={qMeta.currentQ} />
+              </>
             )}
           </div>
         </div>
@@ -581,8 +616,7 @@ function ClientDeliveryCard({
                 <TooltipBody
                   title="SOW (lifetime)"
                   bullets={[
-                    "Contracted article total for the full engagement",
-                    "Source: Editorial SOW overview · # Articles SOW",
+                    "Total articles contracted for the full engagement.",
                   ]}
                 />
               </TooltipContent>
@@ -598,20 +632,14 @@ function ClientDeliveryCard({
             current={row.articles_delivered}
             target={row.articles_invoiced}
             tooltipTitle="Delivered ÷ Invoiced"
-            tooltipBullets={[
-              "Share of billed work that's shipped.",
-              "Bar fades cream → green by progress.",
-            ]}
+            tooltipBullets={["Share of billed work that's shipped."]}
           />
           <DeliveryBar
             label="Invoiced"
             current={row.articles_invoiced}
             target={row.articles_sow}
             tooltipTitle="Invoiced ÷ SOW"
-            tooltipBullets={[
-              "Share of contracted SOW that's been billed.",
-              "Bar fades cream → green by progress.",
-            ]}
+            tooltipBullets={["Share of the contract that's been billed."]}
           />
         </div>
       </div>
@@ -628,6 +656,96 @@ function ClientDeliveryCard({
       </div>
     </div>
   );
+}
+
+/** Calm informative line that sits under the Current Q progress bar.
+ *
+ *  Tells the operator how the current Q is *projected* to close on a
+ *  cumulative basis (delivered actuals + remaining-month projections
+ *  inside this Q − contracted invoicing cumulative through end of Q).
+ *  Same math as the spreadsheet's Variance row and the Overview Triage
+ *  cards, so the three surfaces tell one coherent story.
+ *
+ *  Intentionally neutral: a current-Q progress bar that looks "behind"
+ *  early in the period (e.g. M1/3 at 0%) is often perfectly fine — the
+ *  projections cover it. This note answers "is the plan good?" so the
+ *  visible bar doesn't trigger false alarms. No red/amber here; only
+ *  +X / 0 / -X in a cream font with a one-line context hint. */
+function ProjectedEndOfQNote({
+  currentQ,
+}: {
+  currentQ: CurrentQuarter;
+}) {
+  const v = currentQ.projectedEndCumVariance;
+  const fmt = v > 0 ? `+${v}` : v.toLocaleString();
+  // Three short copy variants. Signed semantics — over-delivery is
+  // healthy. The number itself carries the signed-variance color
+  // (green ≥0 · amber -5 to 0 · red < -5) so the tier is unambiguous
+  // at a glance without the line dominating the card.
+  const hint = v >= 0 ? "On track" : v >= -5 ? "Slight drift" : "Behind plan";
+  const numColor = signedVarianceColor(v);
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <div className="flex cursor-help items-center gap-2 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1" />
+          }
+        >
+          <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-[#8FB5D9]">
+            Projected end of Q
+          </span>
+          <span
+            className="font-mono text-[11px] font-semibold tabular-nums"
+            style={{ color: numColor }}
+          >
+            {fmt}
+          </span>
+          <span
+            className="font-mono text-[10px] uppercase tracking-wider"
+            style={{ color: numColor }}
+          >
+            {hint}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          <TooltipBody
+            title="Projected end of Q"
+            bullets={[
+              "Where this client lands by end of the quarter vs. invoicing.",
+              "Over-delivery this quarter cancels earlier deficits.",
+              "0 on track · ±1–5 slight drift · below −5 behind plan.",
+              `${currentQ.projectedEndCumDelivered.toLocaleString()} delivered · ${currentQ.endOfQCumInvoiced.toLocaleString()} invoiced.`,
+            ]}
+          />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/** Signed-variance color, matches the Overview Triage cards. */
+function signedVarianceColor(v: number): string {
+  if (v >= 0) return "#42CA80";
+  if (v >= -5) return "#F5BC4E";
+  return "#ED6958";
+}
+
+/** Linear interpolation from beige (`#DDCFAC`, low completion) to the
+ *  deep P3 green (`#2E8C59`, full completion) — same green used for
+ *  Topics in the Cumulative Pipeline cards, so the two surfaces share
+ *  visual vocabulary. The Last Full Q + Current Q progress bars use
+ *  this ramp instead of the alarm-coded red/amber/green tiers; the
+ *  actionable signal lives in the Projected end of Q note below. */
+function progressColor(pct: number | null): string {
+  if (pct === null) return "#606060";
+  const p = Math.min(Math.max(pct, 0), 100) / 100;
+  const from = [0xdd, 0xcf, 0xac]; // WN1 cream
+  const to = [0x2e, 0x8c, 0x59]; // P3 deep green — matches Topics in Cumulative Pipeline
+  const r = Math.round(from[0] + (to[0] - from[0]) * p);
+  const g = Math.round(from[1] + (to[1] - from[1]) * p);
+  const b = Math.round(from[2] + (to[2] - from[2]) * p);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 // Two-row quarter readout: a small "Last Full Q" / "Current Q" pill (the
@@ -660,18 +778,13 @@ function QuarterRow({
 }) {
   const pct = target > 0 ? Math.min(Math.round((delivered / target) * 100), 999) : null;
   const barPct = pct === null ? 0 : Math.min(pct, 100);
-  // Last Full Q: closure is final, judge by absolute %. Current Q: pacing-
-  // aware — at M1 of 3, expecting 17% delivery, so 20% is on-pace, not red.
-  // For variable-length periods, scale "elapsed" against actual qLength.
-  let color: string;
-  if (pct === null) {
-    color = "#606060";
-  } else if (kind === "current" && monthInQ !== null && qLength != null && qLength > 0) {
-    const elapsedInQ = ((monthInQ - 0.5) / qLength) * 100;
-    color = pacingColor(pct, elapsedInQ);
-  } else {
-    color = pct >= 75 ? "#42CA80" : pct >= 50 ? "#F5C542" : "#ED6958";
-  }
+  // Beige → green ramp instead of red/amber/green tiers. Low % reads
+  // beige (cream), full reads bright green; mid-progress reads a calm
+  // olive-ish blend. Matches the visual vocabulary of the Cumulative
+  // Pipeline cards and keeps these bars from triggering false-alarm
+  // reds early in a billing period. The Projected end of Q note below
+  // carries the actionable signal (signed-variance color).
+  const color = progressColor(pct);
 
   const badge =
     kind === "lastFull"
@@ -812,10 +925,13 @@ function MonthlyBreakdownPopover({
     isPrelude: boolean;
     invoicedQ: number;
     cumInvoiced: number;
-    /** Period variance = Σ delivered − Σ invoiced across the period's months.
-     *  Mirrors the spreadsheet's per-period variance cell (typically merged
-     *  alongside the invoicing cell). null for the prelude (no invoicing yet,
-     *  no useful variance to report). */
+    /** Period variance = CUMULATIVE delivered − CUMULATIVE invoiced through
+     *  end of this period. Matches the spreadsheet's per-period variance
+     *  cell (the green/red merged block alongside the invoicing cell),
+     *  which uses cumulative math: catch-up over-delivery in one Q nets
+     *  against earlier-Q deficits, so a −14 last Q + 14 this Q reads as
+     *  0, not +14. null for the prelude (no invoicing yet — no useful
+     *  variance to report). */
     variance: number | null;
     rows: DisplayRow[];
   };
@@ -842,12 +958,8 @@ function MonthlyBreakdownPopover({
   for (const p of periods) {
     cumInvoiced += p.invoicedQ;
     const rows: DisplayRow[] = [];
-    let periodDelivered = 0;
-    let periodInvoiced = 0;
     for (const m of p.months) {
       cumDelivered += m.delivered;
-      periodDelivered += m.delivered;
-      periodInvoiced += m.invoiced;
       rows.push({
         year: m.year,
         month: m.month,
@@ -857,10 +969,12 @@ function MonthlyBreakdownPopover({
         isCurrent: m.year === nowY && m.month === nowM,
       });
     }
-    // Variance is only meaningful when there's an invoicing target. Prelude
-    // periods have invoicing of 0 by definition — surface as null so we can
-    // render an em-dash instead of a misleading 0/red bucket.
-    const variance = p.isPrelude ? null : periodDelivered - periodInvoiced;
+    // Variance is cumulative through end of this period: catch-up
+    // over-delivery in one Q nets against earlier-Q deficits so the
+    // column reconciles with the spreadsheet's Variance row. Prelude
+    // periods have no invoicing target — surface as null so we render
+    // an em-dash instead of a misleading 0/red bucket.
+    const variance = p.isPrelude ? null : cumDelivered - cumInvoiced;
     allDisplay.push({
       qIdx: p.qIdx,
       label: p.label,
@@ -916,21 +1030,21 @@ function MonthlyBreakdownPopover({
           <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] leading-snug text-[#909090] list-disc pl-4 marker:text-[#3a3a3a]">
             <li>
               <span className="rounded-sm bg-[#42CA80]/20 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">as of</span>
-              {" "}= last completed month. Its Cum Del matches the card&apos;s Delivered total.
+              {" "}— last completed month.
             </li>
             <li>
               <span className="rounded-sm bg-[#3a2e1a] px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">proj</span>
-              {" "}= future months with forecast values. Excluded from card totals.
+              {" "}— forecast for upcoming months.
             </li>
             <li>
               <span className="rounded-sm bg-[#42CA80]/15 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">last full</span>
               {" "}/{" "}
               <span className="rounded-sm bg-[#F5BC4E]/15 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#F5BC4E]">in progress</span>
-              {" "}tag the most recent settled period vs. the period today sits in. Delivered is monthly; Invoicing + Cumulative follow each contract&apos;s billing cadence (1-, 2-, 3- or 5-month spans).
+              {" "}— most recent closed period vs. the one today falls in.
             </li>
             <li>
               <span className="rounded-sm bg-[#909090]/15 px-1 py-px text-[9px] font-semibold uppercase not-italic tracking-wider text-[#909090]">post</span>
-              {" "}= activity recorded after contract end (final reconciliation, credit). Stands alone — not part of any billing period, but still ticks the cumulative.
+              {" "}— activity after contract end (reconciliation / credits).
             </li>
           </ul>
         </div>
@@ -942,50 +1056,41 @@ function MonthlyBreakdownPopover({
                   label="Month"
                   align="left"
                   title="Month"
-                  bullets={[
-                    "One row per contract month",
-                    "Source: sheet's M1, M2, … columns",
-                  ]}
+                  bullets={["One row per contract month."]}
                 />
                 <BreakdownHeader
                   label="Delivered"
                   title="Delivered"
-                  bullets={[
-                    "Articles delivered this month",
-                    "Source: Article Deliveries row in the sheet",
-                  ]}
+                  bullets={["Articles delivered this month."]}
                 />
                 <BreakdownHeader
                   label="Cum Del"
-                  title="Cumulative Delivered"
+                  title="Cumulative delivered"
                   bullets={[
-                    "Running total of delivered articles in scope",
-                    "AS OF row matches the card's Delivered total",
+                    "Running total of delivered articles.",
+                    "The AS OF row matches the card's Delivered total.",
                   ]}
                 />
                 <BreakdownHeader
                   label="Invoiced (Q)"
                   title="Invoiced per period"
                   bullets={[
-                    "Total invoicing within each detected billing period.",
-                    "Spans the period's months — matches merged cells in the sheet.",
-                    "Period length varies by cadence (1, 2, 3, 5 months …).",
+                    "Invoicing total for each billing period.",
+                    "Period length varies (1–5 months) by contract cadence.",
                   ]}
                 />
                 <BreakdownHeader
                   label="Cum Inv"
-                  title="Cumulative Invoiced"
-                  bullets={[
-                    "Running total of invoicing across every billing period in scope.",
-                  ]}
+                  title="Cumulative invoiced"
+                  bullets={["Running total of invoicing across all periods."]}
                 />
                 <BreakdownHeader
                   label="Variance"
                   title="Period variance"
                   bullets={[
-                    "Σ delivered − Σ invoiced across the period's months.",
-                    "Green = 0 (on target) · Amber = ±1–5 · Red = beyond ±5.",
-                    "Mirrors the conditional-format on the sheet's Variance row.",
+                    "Cumulative delivered − invoiced at end of this period.",
+                    "Over-delivery one quarter cancels earlier deficits.",
+                    "Green: 0 · Amber: ±1–5 · Red: beyond ±5.",
                   ]}
                 />
               </tr>
@@ -1140,6 +1245,7 @@ export function ClientDeliveryCards({
   scopeLabel,
   filterRange,
   defaultCollapsedByPod = false,
+  hideHeader = false,
 }: Props) {
   // Card totals exclude the in-progress month, so the section "as of" point
   // is the last fully-completed Editorial month (per the week distribution).
@@ -1155,31 +1261,36 @@ export function ClientDeliveryCards({
 
   return (
     <div className="space-y-4">
-      {/* Heading */}
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Client Delivery At a Glance{" "}
-            <DataSourceBadge
-              type="live"
-              source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One card per filtered client. SOW is lifetime. Delivered / Invoiced sum the per-month rows for the active date range, grouped by each contract's billing cadence (1-, 2-, 3- or 5-month periods — matches the spreadsheet's merged-cell layout)."
-              shows={[
-                "One card per filtered client, sorted alphabetically inside each pod.",
-                "Two horizontal bars: Delivered vs Invoiced (top) and Invoiced vs SOW (bottom) — color-coded by %, raw numbers on the right.",
-                "Period context: Last full Q (most recent settled billing period, delivered/invoiced/%) and Current Q (partial progress, M of N where N is the period length).",
-                "Click \"Monthly detail\" for the per-month breakdown — AS OF row = last completed month, IN PROGRESS / LAST FULL chips tag the corresponding billing periods' invoicing cells.",
-                "Card totals exclude the in-progress month, so they always reflect data through the last completed month.",
-              ]}
-            />
-          </h3>
-          <AsOfBadge label={asOf.label} fallback={asOf.isFallback} />
+      {/* Heading — suppressed when the parent provides its own section
+          title (Overview merges "Client Delivery" + "At a Glance" into a
+          single section heading; without `hideHeader` the two would
+          stack). D1 still renders the internal heading. */}
+      {!hideHeader && (
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+              Client Delivery At a Glance{" "}
+              <DataSourceBadge
+                type="live"
+                source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One card per filtered client. SOW is lifetime. Delivered / Invoiced sum the per-month rows for the active date range, grouped by each contract's billing cadence (1-, 2-, 3- or 5-month periods — matches the spreadsheet's merged-cell layout)."
+                shows={[
+                  "One card per filtered client, sorted alphabetically inside each pod.",
+                  "Two horizontal bars: Delivered vs Invoiced (top) and Invoiced vs SOW (bottom) — color-coded by %, raw numbers on the right.",
+                  "Period context: Last full Q (most recent settled billing period, delivered/invoiced/%) and Current Q (partial progress, M of N where N is the period length).",
+                  "Click \"Monthly detail\" for the per-month breakdown — AS OF row = last completed month, IN PROGRESS / LAST FULL chips tag the corresponding billing periods' invoicing cells.",
+                  "Card totals exclude the in-progress month, so they always reflect data through the last completed month.",
+                ]}
+              />
+            </h3>
+            <AsOfBadge label={asOf.label} fallback={asOf.isFallback} />
+          </div>
+          {scopeLabel && (
+            <p className="mt-1 font-mono text-[11px] text-[#8FB5D9]">
+              {scopeLabel}
+            </p>
+          )}
         </div>
-        {scopeLabel && (
-          <p className="mt-1 font-mono text-[11px] text-[#8FB5D9]">
-            {scopeLabel}
-          </p>
-        )}
-      </div>
+      )}
 
       {sorted.length === 0 ? (
         <p className="text-center text-xs text-[#606060] py-6">

@@ -142,12 +142,12 @@ export function ClientNotesPanel({ clients }: { clients: Client[] }) {
           Client Notes{" "}
           <DataSourceBadge
             type="live"
-            source="Sheet: 'Editorial SOW overview' → Comments column — Spreadsheet: Editorial Capacity Planning. Scope changes, opt-outs, and other editorial-relevant context. Respects the Client + Pod filters above."
+            source="Client notes (scope changes, opt-outs, context)."
             shows={[
-              "Freeform notes the Editorial team maintains on each client — scope changes, opt-outs, context you need before looking at their delivery numbers.",
-              "Grouped by editorial pod so you can scan one pod's context at a time.",
-              "URLs and [text](url) links in the comments column render as clickable links inline.",
-              "Only clients with notes appear — silence here means no flagged context.",
+              "Freeform context the Editorial team keeps per client.",
+              "Grouped by pod.",
+              "URLs and [text](url) render as clickable links.",
+              "Only clients with notes appear.",
             ]}
           />
         </CardTitle>

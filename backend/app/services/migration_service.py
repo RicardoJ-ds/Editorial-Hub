@@ -947,7 +947,11 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
 
 
 def _detect_capacity_sheet_name(service) -> str | None:
-    """Find the latest 'ET CP 2026 [V...]' sheet name dynamically."""
+    """Find the latest 'ET CP 2026 [V...]' sheet name dynamically.
+    Sorts numerically on the V## portion so `V9` doesn't beat `V13`
+    (alphabetical sort treats `'9' > '1'` and would pick the wrong tab),
+    and `V100+` works too. Falls back to alphabetical sort for tabs that
+    don't have a `V##` token."""
     meta = (
         service.spreadsheets()
         .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
@@ -960,8 +964,13 @@ def _detect_capacity_sheet_name(service) -> str | None:
             candidates.append(title)
     if not candidates:
         return None
-    # Sort so the latest version comes last (V11 > V10, etc.)
-    candidates.sort()
+
+    def _sort_key(title: str) -> tuple[int, str]:
+        m = re.search(r"\[V(\d+)\b", title)
+        version = int(m.group(1)) if m else -1
+        return (version, title)
+
+    candidates.sort(key=_sort_key)
     return candidates[-1]
 
 
@@ -998,56 +1007,29 @@ def import_capacity_plan(session: Session) -> ImportResult:
         # ------------------------------------------------------------------
         # Team members: parse pod assignments section
         # ------------------------------------------------------------------
-        # The pod assignments are hardcoded in the same structure as seed_data.py
-        # but we can also detect them from the sheet. For reliability, use the
-        # same hardcoded structure (the sheet format is fragile).
+        # Team-member roster (Senior Editor + Editors per pod). Still
+        # hardcoded because the CP sheet doesn't surface this in a
+        # parser-friendly format — that's a separate cleanup. The
+        # client → pod mapping that used to live here was REMOVED and
+        # replaced by sheet-derived parsing further down (see "Article
+        # breakdown" block) so admins no longer have to edit code when
+        # a client moves pods.
         pod_teams = {
             "Pod 1": {
                 "senior_editor": "Nina Denison",
                 "editors": ["Robert Thorpe", "Jimmy Bunes"],
-                "clients": ["College HUNKS", "Eventbrite", "Felt", "Gainbridge", "n8n"],
             },
             "Pod 2": {
                 "senior_editor": "Kennedy Stevens",
                 "editors": ["Jimmy Bunes", "Elliot Gardner", "Tiffany Anderson"],
-                "clients": [
-                    "Genstore AI",
-                    "GenstoreAI",
-                    "Get Flex",
-                    "Flex",
-                    "Huntress",
-                    "Maven Clinic",
-                    "Mistplay",
-                    "Miter",
-                    "Workleap + Sharegate",
-                ],
             },
             "Pod 3": {
                 "senior_editor": "Alyssa Zacharias",
                 "editors": ["Lee Anderson", "Haley Drucker"],
-                "clients": [
-                    "BLVD",
-                    "Boulevard",
-                    "Cointracker",
-                    "Leapsome",
-                    "Pylon",
-                    "Vimeo",
-                    "Webflow",
-                ],
             },
             "Pod 5": {
                 "senior_editor": "Maggie Gowland",
                 "editors": ["Lauren Friar", "Shivani Verma"],
-                "clients": [
-                    "Honeybook",
-                    "Fivetran",
-                    "Front",
-                    "Meta fB",
-                    "Meta BMG",
-                    "Meta RL",
-                    "Meta AI",
-                    "Oyster",
-                ],
             },
         }
 
@@ -1109,15 +1091,99 @@ def import_capacity_plan(session: Session) -> ImportResult:
 
         session.flush()
 
-        # Update client editorial_pod assignments
+        # ------------------------------------------------------------------
+        # Client → Editorial Pod (sheet-derived)
+        # ------------------------------------------------------------------
+        # The "ARTICLE BREAKDOWN" section of the CP sheet carries a per-
+        # month block per client: `Pod | Status | Category | % | Projected
+        # | Delivered | Comments`. Each month block repeats horizontally
+        # (May 2026 starts around col AJ in V13). We find the header row
+        # (the one that puts "Client" in col C and "Pod" labels in the
+        # per-month blocks), collect every "Pod" column, and read the
+        # RIGHTMOST non-empty Pod per client — that's the latest-known
+        # editorial-pod assignment.
+        #
+        # Why rightmost non-empty (vs. always the last month):
+        #   - If May (the latest column in V13) has values for everyone →
+        #     it always wins. ✓
+        #   - If a client is blank in May but filled in April → April
+        #     wins instead of nuking their pod to NULL. Safer for
+        #     incomplete snapshots.
+        #   - When a V14 lands with June filled, June wins. ✓
+        #
+        # Existing values are PRESERVED when the sheet has nothing for a
+        # client (no row, blank Pod cell, or no match) so a typo in the
+        # sheet can't accidentally wipe a client's pod.
         clients_all = session.execute(select(Client)).scalars().all()
-        client_name_map = {c.name.lower().strip(): c for c in clients_all}
+        client_lookup = _build_client_name_lookup(clients_all)
 
-        for pod_name, pod_info in pod_teams.items():
-            for client_name in pod_info["clients"]:
-                c = client_name_map.get(client_name.lower().strip())
-                if c:
-                    c.editorial_pod = pod_name
+        header_row_idx: int | None = None
+        pod_col_indices: list[int] = []
+        for idx, row in enumerate(all_rows):
+            # The header row has "Client" as a column label (any column,
+            # but typically col index 2 / column "C") AND at least one
+            # "Pod" label among the per-month blocks to its right.
+            has_client = any(
+                _cell(row, c).strip().lower() == "client" for c in range(min(8, len(row)))
+            )
+            if not has_client:
+                continue
+            pod_cols = [c for c in range(len(row)) if _cell(row, c).strip().lower() == "pod"]
+            if pod_cols:
+                header_row_idx = idx
+                pod_col_indices = pod_cols
+                break
+
+        pod_assignments_written = 0
+        if header_row_idx is None or not pod_col_indices:
+            result.errors.append(
+                "Article-breakdown header not found in CP sheet — skipping "
+                "client → pod assignment. Capacity projections + team "
+                "members were still imported."
+            )
+        else:
+            # Find the client-name column inside the header. Defaults to
+            # col 2 (column "C" in today's layout) but stays adaptive.
+            client_col = next(
+                (
+                    c
+                    for c in range(min(8, len(all_rows[header_row_idx])))
+                    if _cell(all_rows[header_row_idx], c).strip().lower() == "client"
+                ),
+                2,
+            )
+            for row_idx in range(header_row_idx + 1, len(all_rows)):
+                row = all_rows[row_idx]
+                if not row:
+                    continue
+                client_name = _cell(row, client_col).strip()
+                if not client_name:
+                    continue
+                if any(
+                    kw in client_name.lower() for kw in ("total", "median", "average", "production")
+                ):
+                    continue
+                c = _resolve_client(client_lookup, client_name)
+                if c is None:
+                    continue
+                # Rightmost non-empty Pod cell wins.
+                latest: str | None = None
+                for pod_col in reversed(pod_col_indices):
+                    val = _cell(row, pod_col).strip()
+                    if val:
+                        latest = val
+                        break
+                if not latest:
+                    continue
+                normalized = _normalize_editorial_pod(latest)
+                if normalized and c.editorial_pod != normalized:
+                    c.editorial_pod = normalized
+                    pod_assignments_written += 1
+
+        logger.info(
+            "Capacity Plan: editorial_pod sheet-derived writes = %d",
+            pod_assignments_written,
+        )
 
         # ------------------------------------------------------------------
         # Capacity projections: parse from the CAPACITY section (~row 79+)
@@ -1426,25 +1492,13 @@ def import_operating_model(session: Session) -> ImportResult:
             if year is not None and month is not None:
                 month_map[col_idx] = (year, month)
 
-        # Build client name -> id lookup
+        # Build client name → id lookup via the shared helper so we apply
+        # the same alias table everywhere (Operating Model, Capacity
+        # Plan, etc.). The helper returns Client objects; we project
+        # down to id since the rest of this importer keys by id.
         clients = session.execute(select(Client)).scalars().all()
-        name_lookup: dict[str, int] = {}
-        for c in clients:
-            name_lookup[c.name.lower().strip()] = c.id
-
-        # Common aliases (same as import_delivered_invoiced)
-        alias_map = {
-            "get flex": "flex",
-            "genstoreai": "genstoreai",
-            "genstore ai": "genstoreai",
-            "blvd": "boulevard",
-            "meta fb": "meta bmg",
-            "meta bmg": "meta bmg",
-            "college hunks": "college hunks",
-        }
-        for alias, canonical in alias_map.items():
-            if canonical in name_lookup and alias not in name_lookup:
-                name_lookup[alias] = name_lookup[canonical]
+        client_lookup = _build_client_name_lookup(clients)
+        name_lookup: dict[str, int] = {k: v.id for k, v in client_lookup.items()}
 
         # Pre-load every existing ProductionHistory row into an in-memory
         # dict keyed by (client_id, year, month). Without this we'd issue a
@@ -3557,6 +3611,57 @@ def _normalize_growth_pod(raw: str | None) -> str | None:
         return None
     digits = "".join(ch for ch in t if ch.isdigit())
     return f"Pod {int(digits)}" if digits else t
+
+
+# Editorial pods follow the exact same shape — alias for clarity at call sites.
+_normalize_editorial_pod = _normalize_growth_pod
+
+
+# Client-name drift between the sheets we ingest and the canonical
+# `clients.name` column. Keep this in lock-step with what import_sow_overview
+# seeds (the source of truth for client names). Each entry is
+# `lower(sheet_name) → lower(canonical_name)`. Used by every importer that
+# joins a sheet row to a Client by name.
+_CLIENT_NAME_ALIASES: dict[str, str] = {
+    "get flex": "flex",
+    "genstoreai": "genstoreai",
+    "genstore ai": "genstoreai",
+    "blvd": "boulevard",
+    "meta fb": "meta bmg",
+    "meta bmg": "meta bmg",
+    "college hunks": "college hunks",
+}
+
+
+def _build_client_name_lookup(clients: list[Client]) -> dict[str, Client]:
+    """Build a `lowercased_name → Client` map enriched with `_CLIENT_NAME_ALIASES`.
+    Pass in every Client from the DB; the alias entries map known sheet-side
+    drift back to the canonical row. Centralizing this keeps every importer
+    (Operating Model, Capacity Plan, …) matching client names the same way."""
+    lookup: dict[str, Client] = {c.name.lower().strip(): c for c in clients}
+    for alias, canonical in _CLIENT_NAME_ALIASES.items():
+        if canonical in lookup and alias not in lookup:
+            lookup[alias] = lookup[canonical]
+    return lookup
+
+
+def _resolve_client(lookup: dict[str, Client], raw_name: str) -> Client | None:
+    """Find the Client row matching `raw_name` from a sheet cell. Tries
+    exact lowercase first, then aliases, then a fuzzy alphanumeric-only
+    key match (`_name_key`) so 'Meta-AI' / 'Meta AI' / 'metaai' all
+    resolve to the same row. Returns None when nothing matches."""
+    if not raw_name:
+        return None
+    key = raw_name.strip().lower()
+    hit = lookup.get(key)
+    if hit:
+        return hit
+    # Fuzzy fallback — strip everything that isn't [a-z0-9].
+    norm = _name_key(raw_name)
+    for k, v in lookup.items():
+        if _name_key(k) == norm:
+            return v
+    return None
 
 
 def _fetch_growth_pod_pairs() -> list[dict]:

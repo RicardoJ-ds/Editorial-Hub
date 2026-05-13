@@ -44,7 +44,7 @@ from app.models import (
     AuditLog,
     PodAssignment,
 )
-from app.services.access import AccessProfile, audit_access, resolve_access
+from app.services.access import AccessProfile, audit_access
 
 router = APIRouter()
 
@@ -187,7 +187,11 @@ def list_views(_: AccessProfile = Depends(require_authenticated)):
 @router.get("/groups", response_model=list[GroupSummaryResponse])
 def list_groups(_: AccessProfile = Depends(require_authenticated)):
     with get_sync_session() as session:
-        groups = session.execute(select(AccessGroup).order_by(AccessGroup.id)).scalars().all()
+        groups = (
+            session.execute(select(AccessGroup).order_by(AccessGroup.sort_order, AccessGroup.id))
+            .scalars()
+            .all()
+        )
         out: list[GroupSummaryResponse] = []
         for g in groups:
             count = (
@@ -258,22 +262,70 @@ def group_detail(slug: str, _: AccessProfile = Depends(require_authenticated)):
 def list_users(_: AccessProfile = Depends(require_authenticated)):
     """Returns one row per known email — the union of every email that
     appears in any access table or the pod_assignments roster. Drives the
-    Users × Views matrix tab."""
+    Users × Views matrix tab.
+
+    Heavily optimized: this endpoint used to call `resolve_access()` per
+    email inside a loop, doing ~5 round-trips per user × ~120 users =
+    ~600 queries against Neon (15-25s page load). Now every table is
+    pulled ONCE up-front into Python dicts; the per-user composition is
+    pure in-memory work."""
     from app.services.access import seeded_admin_emails
 
     seeded_admins = seeded_admin_emails()
     with get_sync_session() as session:
-        # Gather distinct emails from the three sources.
-        member_emails = {
-            r[0] for r in session.execute(select(AccessGroupMember.email).distinct()).all()
-        }
-        override_emails = {
-            r[0] for r in session.execute(select(AccessUserOverride.email).distinct()).all()
-        }
-        pod_emails = {r[0] for r in session.execute(select(PodAssignment.email).distinct()).all()}
-        all_emails = sorted(member_emails | override_emails | pod_emails)
+        # 1) Every view (slug + sort order).
+        all_views = (
+            session.execute(select(AccessView).order_by(AccessView.sort_order)).scalars().all()
+        )
+        view_slugs = [v.slug for v in all_views]
+        view_id_to_slug = {v.id: v.slug for v in all_views}
 
-        # Display info per email (best-effort lookup from pod_assignments).
+        # 2) Every group + its slug.
+        all_groups = session.execute(select(AccessGroup)).scalars().all()
+        group_id_to_slug = {g.id: g.slug for g in all_groups}
+
+        # 3) Every group → which views it grants (slug set).
+        perm_rows = session.execute(
+            select(
+                AccessGroupViewPermission.group_id,
+                AccessGroupViewPermission.view_id,
+                AccessGroupViewPermission.can_view,
+            )
+        ).all()
+        group_views: dict[int, set[str]] = {}
+        for gid, vid, can_view in perm_rows:
+            if not can_view:
+                continue
+            slug = view_id_to_slug.get(vid)
+            if slug is None:
+                continue
+            group_views.setdefault(gid, set()).add(slug)
+
+        # 4) Email → list of group_id (and ordered group_slug list).
+        member_rows = session.execute(
+            select(AccessGroupMember.email, AccessGroupMember.group_id)
+        ).all()
+        email_to_group_ids: dict[str, list[int]] = {}
+        for email, gid in member_rows:
+            email_to_group_ids.setdefault(email, []).append(gid)
+
+        # 5) Email → {view_slug: can_view} overrides.
+        override_rows = session.execute(
+            select(
+                AccessUserOverride.email,
+                AccessUserOverride.view_id,
+                AccessUserOverride.can_view,
+            )
+        ).all()
+        email_overrides: dict[str, dict[str, bool]] = {}
+        for email, vid, can_view in override_rows:
+            slug = view_id_to_slug.get(vid)
+            if slug is None:
+                continue
+            email_overrides.setdefault(email, {})[slug] = bool(can_view)
+
+        # 6) Email → display info from pod_assignments (one row per email
+        #    after collapsing — prefer non-pod_member roles).
         pa_rows = session.execute(select(PodAssignment)).scalars().all()
         info: dict[str, dict] = {}
         for r in pa_rows:
@@ -286,43 +338,47 @@ def list_users(_: AccessProfile = Depends(require_authenticated)):
                     "role": r.role,
                 },
             )
-            # Prefer non-pod_member roles for the display "role" — they're
-            # more specific (senior_editor > pod_member).
             if slot["role"] == "pod_member" and r.role != "pod_member":
                 slot["role"] = r.role
 
+        # 7) Union of every email known to the matrix.
+        member_emails = set(email_to_group_ids.keys())
+        override_emails = set(email_overrides.keys())
+        pod_emails = {r.email for r in pa_rows}
+        all_emails = sorted(member_emails | override_emails | pod_emails)
+
+        # Compose each row in memory — zero queries from here on.
         out: list[UserMatrixRow] = []
         for email in all_emails:
-            profile = resolve_access(session, email)
-            overrides_rows = session.execute(
-                select(AccessView.slug, AccessUserOverride.can_view)
-                .join(AccessUserOverride, AccessUserOverride.view_id == AccessView.id)
-                .where(AccessUserOverride.email == email)
-            ).all()
-            override_map = {slug: bool(cv) for slug, cv in overrides_rows}
+            gids = email_to_group_ids.get(email, [])
+            group_slugs = [group_id_to_slug[gid] for gid in gids if gid in group_id_to_slug]
 
-            # Effective permissions = union of group defaults overridden by
-            # user overrides — same logic as resolver.
-            effective_views = profile.view_slugs
-            view_slugs = [
-                v.slug
-                for v in session.execute(select(AccessView).order_by(AccessView.sort_order))
-                .scalars()
-                .all()
-            ]
-            permissions = {slug: (slug in effective_views) for slug in view_slugs}
+            # Default view set = union of every group's grants.
+            view_set: set[str] = set()
+            for gid in gids:
+                view_set |= group_views.get(gid, set())
+
+            # Overrides flip the bit either way.
+            overrides = email_overrides.get(email, {})
+            for slug, can_view in overrides.items():
+                if can_view:
+                    view_set.add(slug)
+                else:
+                    view_set.discard(slug)
+
+            permissions = {slug: (slug in view_set) for slug in view_slugs}
 
             inf = info.get(email, {})
             out.append(
                 UserMatrixRow(
                     email=email,
                     display_name=inf.get("display_name") or email.split("@")[0],
-                    groups=profile.group_slugs,
+                    groups=group_slugs,
                     pod_kind=inf.get("pod_kind"),
                     pod_number=inf.get("pod_number"),
                     role=inf.get("role"),
                     permissions=permissions,
-                    overrides=override_map,
+                    overrides=overrides,
                     is_seeded_admin=email.lower() in seeded_admins,
                 )
             )
@@ -655,3 +711,68 @@ def clear_user_override(
         if r.email == email:
             return r
     raise HTTPException(status_code=500, detail="Override cleared but row not rebuilt")
+
+
+@router.delete("/users/{email}/overrides", response_model=UserMatrixRow)
+def reset_user_overrides(
+    email: str,
+    actor: AccessProfile = Depends(require_access_editor),
+):
+    """Bulk clear every per-user override for `email`. After this the user
+    falls back to whatever permissions their group(s) grant. Useful when
+    a user's matrix row has accumulated experimental flags and we want to
+    snap them back to the canonical group default."""
+    email_norm = email.strip().lower()
+    from app.services.access import seeded_admin_emails
+
+    # Seeded admins shouldn't carry overrides; the seed step wipes any
+    # that exist on startup. Block the API path to mirror the UI lock.
+    if email_norm in seeded_admin_emails():
+        raise HTTPException(
+            status_code=403,
+            detail=(f"{email_norm} is a seeded Admin; per-user overrides aren't allowed."),
+        )
+
+    with get_sync_session() as session:
+        # Inspect what we're about to delete — if any override touches a
+        # sensitive view (admin.access / admin.access.edit), require true
+        # Admin even if the actor holds `admin.access.edit`. Same
+        # escalation guard as the single-clear endpoint, just batched.
+        rows = session.execute(
+            select(AccessUserOverride, AccessView.slug)
+            .join(AccessView, AccessView.id == AccessUserOverride.view_id)
+            .where(AccessUserOverride.email == email_norm)
+        ).all()
+        if not rows:
+            # Nothing to do — return the user's current row.
+            users = list_users()
+            for r in users:
+                if r.email == email_norm:
+                    return r
+            raise HTTPException(status_code=404, detail=f"User '{email_norm}' not found")
+
+        touches_sensitive = any(slug in _ADMIN_ONLY_VIEW_SLUGS for _, slug in rows)
+        if touches_sensitive:
+            _ensure_admin(
+                actor,
+                "Only Admin-group members can clear Access Control view/edit overrides",
+            )
+
+        view_slugs_cleared = [slug for _, slug in rows]
+        for override, _slug in rows:
+            session.delete(override)
+
+        audit_access(
+            session,
+            actor_email=actor.email,
+            action="RESET_USER_OVERRIDES",
+            affected=email_norm,
+            detail={"views_cleared": view_slugs_cleared, "count": len(rows)},
+        )
+        session.commit()
+
+    users = list_users()
+    for r in users:
+        if r.email == email_norm:
+            return r
+    raise HTTPException(status_code=500, detail="Overrides reset but row not rebuilt")

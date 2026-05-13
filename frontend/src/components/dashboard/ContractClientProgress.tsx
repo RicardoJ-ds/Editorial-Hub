@@ -24,6 +24,7 @@ import {
   podBadge,
 } from "./shared-helpers";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { useCurrentEditorialMonth } from "@/lib/editorialWeeksClient";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "./DateRangeFilter";
 
@@ -33,6 +34,16 @@ interface Props {
    *  the range — matching the section's summary cards and month table.
    *  When omitted, pulls only the latest month from the sheet. */
   dateRange?: DateRange;
+  /** When true, the per-client breakdown grid for each pod renders inside
+   *  a `<details>` element that starts collapsed. Matches the same UX
+   *  Overview / Cumulative Pipeline / Client Delivery use to keep long
+   *  pages scannable. (PodGoalsRow only — ignored by ContractClientProgress.) */
+  defaultCollapsedByPod?: boolean;
+  /** When true, PodGoalsRow renders only the per-pod gauges row and skips
+   *  the "Per-client breakdown" subsection entirely. Used on Overview so
+   *  the executive view is a one-row snapshot — deep-link sends users to
+   *  D1 for the per-client drill-down. */
+  hidePerClientBreakdown?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -514,11 +525,11 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-sm text-xs leading-relaxed">
               <TooltipBody
-                title="Articles Δ — In Flight"
+                title="Articles in flight"
                 bullets={[
-                  "Articles delivered but not yet approved",
-                  <>Formula: <code>sent − approved</code> (Master Tracker · Diff)</>,
-                  <><span className="text-[#42CA80] font-semibold">+</span> normal pipeline · <span className="text-[#C4BCAA] font-semibold">0</span> caught up · <span className="text-[#ED6958] font-semibold">−</span> rare correction</>,
+                  "Articles sent to the client but not yet approved.",
+                  "Formula: sent − approved.",
+                  <><span className="text-[#42CA80] font-semibold">+</span> normal pipeline · <span className="text-[#C4BCAA] font-semibold">0</span> caught up · <span className="text-[#ED6958] font-semibold">−</span> rare correction.</>,
                 ]}
               />
             </TooltipContent>
@@ -538,10 +549,10 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
               <TooltipBody
-                title="Article Approval Rate"
+                title="Approval rate"
                 bullets={[
-                  "Articles approved ÷ articles sent",
-                  "Pod-wide cumulative figure",
+                  "Articles approved ÷ articles sent.",
+                  "Cumulative across all clients in the pod.",
                 ]}
               />
             </TooltipContent>
@@ -557,10 +568,19 @@ function PipelineCell({ data }: { data: PodPipelineAgg | null }) {
 // aggregate by the client's editorial_pod.
 // ---------------------------------------------------------------------------
 
-function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
+function usePodAggregates(
+  filteredClients: Client[],
+  dateRange?: DateRange,
+  // When true, scope `goalRows` to the current Editorial month only and
+  // ignore `dateRange`. Mirrors the rule in `GoalsVsDeliverySection`:
+  // gauge cards (per-pod + per-client) show "this month so far"
+  // regardless of the date filter; the detail table below stays scoped.
+  currentMonthOnly: boolean = false,
+) {
   const [goalRows, setGoalRows] = useState<GoalsVsDeliveryRow[]>([]);
   const [pipelineRows, setPipelineRows] = useState<CumulativeMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const editorialMonth = useCurrentEditorialMonth();
 
   useEffect(() => {
     let cancelled = false;
@@ -599,10 +619,25 @@ function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
     [filteredClients],
   );
 
-  // Apply the global client filter + date-range filter to the goal rows
-  // before handing them to the aggregator. Month "in range" = its first day
-  // is on or before range.to AND its last day is on or after range.from.
+  // Apply the global client filter to the goal rows. Month scoping
+  // depends on the caller:
+  //   • `currentMonthOnly` → only rows for the current Editorial month
+  //     (gauge mode — used by PodGoalsRow + per-client mini gauges).
+  //   • otherwise → respect the date-range filter the user picked above.
+  // Month "in range" = first day on or before range.to AND last day on
+  // or after range.from.
   const scopedGoalRows = useMemo(() => {
+    if (currentMonthOnly) {
+      return goalRows.filter((r) => {
+        if (!filterNames.has(r.client_name)) return false;
+        const d = parseMonthYearStr(r.month_year);
+        if (!d) return false;
+        return (
+          d.getFullYear() === editorialMonth.year &&
+          d.getMonth() + 1 === editorialMonth.month
+        );
+      });
+    }
     const [start, end] = resolveDateRange(dateRange);
     return goalRows.filter((r) => {
       if (!filterNames.has(r.client_name)) return false;
@@ -615,7 +650,14 @@ function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
       if (end && d > end) return false;
       return true;
     });
-  }, [goalRows, filterNames, dateRange]);
+  }, [
+    goalRows,
+    filterNames,
+    dateRange,
+    currentMonthOnly,
+    editorialMonth.year,
+    editorialMonth.month,
+  ]);
 
   const goalPods = useMemo(
     () => aggregateGoalsByPod(scopedGoalRows, clientToPod),
@@ -630,15 +672,28 @@ function usePodAggregates(filteredClients: Client[], dateRange?: DateRange) {
     [pipelineRows, filterNames, clientToPod],
   );
 
-  return { loading, goalPods, pipelinePods };
+  return { loading, goalPods, pipelinePods, editorialMonth };
 }
 
 // ---------------------------------------------------------------------------
 // Per-pod Month Goals row
 // ---------------------------------------------------------------------------
 
-export function PodGoalsRow({ filteredClients, dateRange }: Props) {
-  const { loading, goalPods } = usePodAggregates(filteredClients, dateRange);
+export function PodGoalsRow({
+  filteredClients,
+  dateRange,
+  defaultCollapsedByPod = false,
+  hidePerClientBreakdown = false,
+}: Props) {
+  // Pod gauges are part of the gauge-card family — scope is "this
+  // Editorial month so far," NOT the date filter. The Month-by-Month
+  // table below remains date-scoped. Matches the spec on Phase 5 +
+  // GoalsVsDeliverySection's top cards.
+  const { loading, goalPods, editorialMonth } = usePodAggregates(
+    filteredClients,
+    dateRange,
+    /* currentMonthOnly */ true,
+  );
   const { axis: podAxis } = useCurrentPodAxis();
 
   if (loading) return <Skeleton className="h-[180px]" />;
@@ -646,7 +701,7 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
     return (
       <div className="rounded-lg border border-dashed border-[#2a2a2a] bg-[#0c0c0c] px-4 py-6 text-center text-sm text-[#606060]">
         No {podAxis === "growth" ? "growth-pod" : "editorial-pod"} goal data
-        for the selected filters.
+        for {editorialMonth.label}.
       </div>
     );
   }
@@ -657,15 +712,21 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Aggregated by editorial pod
+            Aggregated by {podAxis === "growth" ? "growth" : "editorial"} pod
           </h3>
+          <span
+            className="inline-flex items-center gap-1 rounded-sm border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#F5BC4E]"
+            title="These gauges always show this Editorial month — they ignore the date filter."
+          >
+            {editorialMonth.label} · not date-filtered
+          </span>
           <DataSourceBadge
             type="live"
-            source="Sheet: '[Month Year] Goals vs Delivery' — Spreadsheet: Master Tracker. Goals and delivery summed per (client × month) across every month in the active date range, weighted by content type (article ×1, jumbo ×2, LP ×0.5), then rolled up by the client's editorial_pod."
+            source={`Goals vs Delivery for ${editorialMonth.label}. Always shows this month — ignores the date filter.`}
             shows={[
-              "Pod gauges (top row): each pod's combined CB / Article progress across the clients it owns.",
-              "Per-client gauges (subsections below): same chart, scoped to one client. Each pod groups its clients into its own subsection.",
-              "Numbers are content-type weighted so a jumbo counts as 2 and an LP as 0.5 — matches the source sheet's ratio column.",
+              "Top row: each pod's combined CB / Article progress.",
+              "Below: same chart per client, grouped by pod.",
+              "Numbers are weighted (jumbo = ×2, LP = ×0.5).",
             ]}
           />
         </div>
@@ -703,31 +764,57 @@ export function PodGoalsRow({ filteredClients, dateRange }: Props) {
       </motion.div>
 
       {/* Per-client subsections — one per pod. Same pod-header convention
-          as the per-client cards in Delivery Overview / Cumulative Pipeline:
-          pod badge + count, then the cards grid (always visible). */}
-      {goalPods.some((g) => g.clients.length > 0) && (
-        <div className="space-y-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#606060]">
+          as Delivery Overview / Cumulative Pipeline / Client Delivery.
+          When `defaultCollapsedByPod` is set, each pod is wrapped in a
+          <details> that starts collapsed to keep the page scannable. */}
+      {!hidePerClientBreakdown && goalPods.some((g) => g.clients.length > 0) && (
+        <div className="space-y-3 border-t border-[#1f1f1f] pt-4">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
             Per-client breakdown
-          </p>
-          {goalPods.map((g) => {
-            if (g.clients.length === 0) return null;
-            return (
-              <div key={`pcs-${g.pod}`} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  {podBadge(g.pod, podAxis)}
-                  <span className="font-mono text-[11px] text-[#606060]">
-                    {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
-                  </span>
-                </div>
+          </h3>
+          <div className="space-y-2">
+            {goalPods.map((g) => {
+              if (g.clients.length === 0) return null;
+              const grid = (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {g.clients.map((c) => (
                     <ClientMiniGauge key={`${g.pod}-${c.client}`} data={c} />
                   ))}
                 </div>
-              </div>
-            );
-          })}
+              );
+              return (
+                <div key={`pcs-${g.pod}`} className="space-y-2">
+                  {defaultCollapsedByPod ? (
+                    <details className="group/pod">
+                      <summary className="flex cursor-pointer list-none items-center gap-2 rounded border border-[#1f1f1f] bg-[#0d0d0d] px-3 py-1.5 transition-colors hover:border-[#2a2a2a]">
+                        {podBadge(g.pod, podAxis)}
+                        <span className="font-mono text-[11px] text-[#606060]">
+                          {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
+                        </span>
+                        <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-[#606060] group-open/pod:hidden">
+                          ▸ expand
+                        </span>
+                        <span className="ml-auto hidden font-mono text-[10px] uppercase tracking-wider text-[#606060] group-open/pod:inline">
+                          ▾ collapse
+                        </span>
+                      </summary>
+                      <div className="mt-2">{grid}</div>
+                    </details>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        {podBadge(g.pod, podAxis)}
+                        <span className="font-mono text-[11px] text-[#606060]">
+                          {g.clientCount} client{g.clientCount === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      {grid}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -802,36 +889,36 @@ export function PodPipelineRow({ filteredClients }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Aggregated by editorial pod
+            Aggregated by {podAxis === "growth" ? "growth" : "editorial"} pod
           </h3>
           <DataSourceBadge
             type="live"
-            source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time per-client pipeline totals, summed by the client's editorial_pod."
+            source="All-time pipeline totals per pod from Master Tracker."
             shows={[
-              "One card per editorial pod showing its all-time funnel: Topics → CBs → Articles → Published.",
-              "Each bar is approval rate at that stage, color-coded by %; raw approved/sent numbers on the right.",
-              "Δ footer = articles sent minus articles approved (how many are waiting on client sign-off). Overall % footer = articles approved ÷ articles sent.",
-              "Sums are pod-wide, not per-client — open a per-client card below to drill in.",
+              "One card per pod: Topics → CBs → Articles → Published.",
+              "Each bar shows approval rate at that stage.",
+              "Δ footer: articles awaiting client sign-off.",
+              "Overall %: articles approved ÷ articles sent.",
             ]}
           />
         </div>
         <p className="text-[11px] text-[#606060]">
           <InfoLabel
             text="Articles Δ"
-            title="Articles in Flight"
+            title="Articles in flight"
             bullets={[
-              "Articles sent − articles approved",
-              "Volume still waiting on client sign-off",
-              "Summed across the pod's clients",
+              "Articles sent but not yet approved.",
+              "How much is waiting on client sign-off.",
+              "Summed across the pod's clients.",
             ]}
           />
           {" · "}
           <InfoLabel
             text="Overall %"
-            title="Article Approval Rate"
+            title="Approval rate"
             bullets={[
-              "Articles approved ÷ articles sent",
-              "Pod-wide cumulative number",
+              "Articles approved ÷ articles sent.",
+              "Cumulative across the pod.",
             ]}
           />
         </p>

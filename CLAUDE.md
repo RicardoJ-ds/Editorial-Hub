@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.6`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.7`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
@@ -142,7 +142,7 @@ ID env-driven via `TEAM_PODS_ID`; currently a **temporary copy** at `1N6q1ZYC4W9
 | Editorial Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=editorial) | ✅ chip-based: emails come from people-chip metadata via `spreadsheets.get(includeGridData=true)` |
 | Growth Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=growth) | ✅ same chip-based path; tab has different headers + 2 pod-member columns |
 
-Powers RBAC group auto-population (Editorial Team / Growth Team / Leadership) and the per-pod client filter at `/api/clients/`.
+Powers RBAC group auto-population for the two pod-derived groups: **Editorial Team** (Senior Editors + Editors; Writers excluded) and **Growth Team** (Growth Leads / Directors / Account Directors / Managers; Content Specialists excluded). The **Leadership** group is seed-only (VPs + managers) and is no longer pod-derived. Also drives the per-pod client filter at `/api/clients/`.
 
 ### Notion Database (separate connector, not a sheet)
 Imported via `backend/app/services/notion_import.py` (paginated read + bulk upsert — fix shipped in `612c854`, Apr 16). Populates `notion_articles`, feeds 3 KPIs: Revision Rate, Turnaround Time, Second Reviews.

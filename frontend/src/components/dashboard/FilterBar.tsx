@@ -15,6 +15,7 @@ import type { Client } from "@/lib/types";
 import { Search, X } from "lucide-react";
 import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
 import { displayPod } from "./shared-helpers";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
 export type { DateRange } from "./DateRangeFilter";
 
 const STATUS_OPTIONS = ["All", "Active", "Inactive/Completed"] as const;
@@ -52,6 +53,11 @@ export function FilterBar({
 }: FilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Flip the pod-axis toggle whenever the user filters by a specific
+  // Editorial / Growth pod, so the chart groupings stay consistent with
+  // what's actually being filtered. No-ops for pod-locked users (their
+  // setter from `useCurrentPodAxis` is a no-op when `canToggle` is false).
+  const { setAxis: setPodAxis } = useCurrentPodAxis();
 
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [editorialPod, setEditorialPod] = useState(
@@ -314,14 +320,27 @@ export function FilterBar({
       {/* Separator */}
       <div className="h-4 w-px bg-[#1e1e1e]" />
 
-      {/* Pod */}
+      {/* Pod — Editorial and Growth Pod filters are mutually exclusive.
+          Picking one clears the other so the result set isn't an empty
+          intersection (clients almost never sit in both axes by design). */}
       <Select
         value={editorialPod}
         onValueChange={(val) => {
           const v = val ?? "All";
           setEditorialPod(v);
           updateParams("editorial_pod", v);
-          autoFitDateRange({ editorialPod: v });
+          if (v !== "All" && growthPod !== "All") {
+            setGrowthPod("All");
+            updateParams("growth_pod", "All");
+          }
+          // Lock the toggle to Editorial whenever an Editorial Pod is
+          // picked — viewing Editorial-pod-filtered clients through the
+          // Growth axis would group them under the wrong pod buckets.
+          if (v !== "All") setPodAxis("editorial");
+          autoFitDateRange({
+            editorialPod: v,
+            growthPod: v !== "All" ? "All" : undefined,
+          });
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs border-0 bg-transparent gap-1 px-2">
@@ -341,14 +360,25 @@ export function FilterBar({
         </SelectContent>
       </Select>
 
-      {/* Growth Pod */}
+      {/* Growth Pod — see note above the Editorial Pod select; the two
+          are mutually exclusive. */}
       <Select
         value={growthPod}
         onValueChange={(val) => {
           const v = val ?? "All";
           setGrowthPod(v);
           updateParams("growth_pod", v);
-          autoFitDateRange({ growthPod: v });
+          if (v !== "All" && editorialPod !== "All") {
+            setEditorialPod("All");
+            updateParams("editorial_pod", "All");
+          }
+          // Mirror of the Editorial branch above — picking a Growth Pod
+          // forces the axis to Growth so chart groupings line up.
+          if (v !== "All") setPodAxis("growth");
+          autoFitDateRange({
+            growthPod: v,
+            editorialPod: v !== "All" ? "All" : undefined,
+          });
         }}
       >
         <SelectTrigger className="h-7 w-auto min-w-[100px] text-xs border-0 bg-transparent gap-1 px-2">

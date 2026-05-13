@@ -35,8 +35,8 @@ This prevents documentation drift where code ships without updated docs.
 Discover all documentation files dynamically — don't rely on a fixed list:
 
 ```bash
-# Find all CLAUDE.md and README.md files in the project (skip hidden dirs, deps, and build artifacts)
-find . \( -path '*/.*' -o -path '*/node_modules' -o -path '*/.venv' -o -path '*/dist' -o -path '*/__pycache__' \) -prune -o \( -name 'CLAUDE.md' -o -name 'README.md' \) -print | sort
+# Find all CLAUDE.md, AGENTS.md, and README.md files in the project (skip hidden dirs, deps, and build artifacts)
+find . \( -path '*/.*' -o -path '*/node_modules' -o -path '*/.venv' -o -path '*/dist' -o -path '*/__pycache__' \) -prune -o \( -name 'CLAUDE.md' -o -name 'AGENTS.md' -o -name 'README.md' \) -print | sort
 ```
 
 This ensures:
@@ -56,10 +56,13 @@ This ensures:
 | New API router in `backend/app/api/` | `backend/CLAUDE.md` → API router count, `backend/README.md` if major feature |
 | New database model in `backend/app/database.py` | `backend/CLAUDE.md` → Key Database Models |
 | New env var in `backend/app/config.py` | `CLAUDE.md` (root) → Environment Variables |
-| New frontend component | `frontend/CLAUDE.md` → Key Files & Structure |
-| New frontend hook | `frontend/CLAUDE.md` → Key Files & Structure |
-| Changes to `frontend/lib/api.ts` types/functions | `frontend/CLAUDE.md` if significant new API surface |
+| New frontend component | `frontend/AGENTS.md` → Key Files & Structure |
+| New frontend hook | `frontend/AGENTS.md` → Key Files & Structure |
+| Changes to `frontend/lib/api.ts` types/functions | `frontend/AGENTS.md` if significant new API surface |
 | Changes to `backend/main.py` startup logic | `backend/CLAUDE.md` → Startup Logic |
+| Changes to RBAC group structure or pod-derivation logic | `frontend/AGENTS.md` (Access Control matrix gating) + root `CLAUDE.md` (Auth section) + `.docs/access-control-handoff.md` |
+| New importer or change to existing importer's source | `CLAUDE.md` (root) → Data Sources & Ingestion Reality |
+| New tooltip / `DataSourceBadge.shows` on a dashboard | Must follow the tooltip style rules in `frontend/AGENTS.md` House rules (≤ 3 bullets, ≤ 10 words each, no sheet/code refs) |
 | New major feature (new API module + service + frontend) | All relevant docs + `backend/README.md` dedicated section |
 | Removed functionality | Remove from all docs that mention it |
 

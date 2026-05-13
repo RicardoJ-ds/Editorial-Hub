@@ -306,18 +306,18 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards, dat
           </h3>
           <span
             className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#F5BC4E]"
-            title="Gauges show this Editorial month so far — they don't follow the date filter. Detail table below stays date-filtered."
+            title="These gauges always show this Editorial month — they ignore the date filter."
           >
             {editorialMonth.label} · not date-filtered
           </span>
           <DataSourceBadge
             type="live"
-            source={`Aggregated from the Goals vs Delivery sheet for the current Editorial month (${editorialMonth.label}). Independent of the date-range filter — the gauges read "this month so far" regardless of what's been scrolled into view below.`}
+            source={`Goals vs Delivery for ${editorialMonth.label}. Always this month — ignores the date filter.`}
             shows={[
-              "1 client → that client's CB / Article % + goal-status tier for the current Editorial month.",
-              "1 pod → pod CB / Article totals + clients on track this month.",
-              "Portfolio → triage signals: Goal Status mix, Most Behind, Avg Achievement, Clients On Track.",
-              "Numbers are content-type weighted (article ×1, jumbo ×2, LP ×0.5).",
+              "1 client: their CB / Article % + status this month.",
+              "1 pod: pod CB / Article totals + clients on track.",
+              "Portfolio: Goal Status, Most Behind, Avg Achievement, On Track.",
+              "Numbers are weighted (jumbo ×2, LP ×0.5).",
             ]}
           />
         </div>
@@ -348,12 +348,12 @@ export function GoalsVsDeliverySection({ filteredClients, beforeClientCards, dat
           </h3>
           <DataSourceBadge
             type="live"
-            source="Per-(client × month) view, with weekly drill-down. Same content-type-weighted aggregation as the cards above and the pod gauges, so totals always reconcile."
+            source="Per-client × per-month grid with weekly drill-down."
             shows={[
-              "One row per client; one column per month in the active range.",
-              "Click a month header to expand its weekly breakdown (one month at a time).",
-              "Toggle CBs / Articles to flip the whole table to the other metric.",
-              "Cells show delivered/goal — content-type weighted, rounded to whole units.",
+              "One row per client; one column per month.",
+              "Click a month header to expand its weekly detail.",
+              "Toggle CBs / Articles to flip the table.",
+              "Cells show delivered ÷ goal (weighted, rounded to whole units).",
             ]}
           />
         </div>

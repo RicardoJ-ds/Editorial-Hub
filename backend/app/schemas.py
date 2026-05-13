@@ -136,7 +136,7 @@ class OverviewCommentResponse(BaseModel):
 
     id: int
     section_id: str
-    client_name: str
+    client_name: str | None
     author_email: str
     author_name: str | None
     body: str

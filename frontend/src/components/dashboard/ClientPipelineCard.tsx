@@ -57,22 +57,47 @@ function PipelineBar({
   const pct = sow && sow > 0 ? (value / sow) * 100 : 0;
   const barPct = Math.min(pct, 100);
   const fill = PIPELINE_STAGE_COLORS[stage];
+  const sowLabel = sow && sow > 0 ? sow : "—";
+  // The right-side `value/sow` column already shows the raw numbers, but
+  // the bar is the dominant visual — users naturally hover the colored
+  // strip first. Repeat the count + denominator inside a tooltip so the
+  // bar is self-explanatory without forcing a scan to the right edge.
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] text-[#606060] w-14 shrink-0 font-mono">{label}</span>
-      <div className="flex-1 h-3 rounded-full bg-[#1f1f1f] overflow-hidden relative">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${barPct}%`, backgroundColor: fill, opacity: 0.85 }}
-        />
-      </div>
-      <span className="font-mono text-[11px] font-semibold w-9 text-right tabular-nums text-[#C4BCAA]">
-        {sow && sow > 0 ? `${Math.round(pct)}%` : "—"}
-      </span>
-      <span className="font-mono text-[11px] text-[#606060] w-14 text-right tabular-nums">
-        {value}/{sow ?? "—"}
-      </span>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <div className="flex items-center gap-2 cursor-help" />
+          }
+        >
+          <span className="text-[11px] text-[#606060] w-14 shrink-0 font-mono">{label}</span>
+          <div className="flex-1 h-3 rounded-full bg-[#1f1f1f] overflow-hidden relative">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${barPct}%`, backgroundColor: fill, opacity: 0.85 }}
+            />
+          </div>
+          <span className="font-mono text-[11px] font-semibold w-9 text-right tabular-nums text-[#C4BCAA]">
+            {sow && sow > 0 ? `${Math.round(pct)}%` : "—"}
+          </span>
+          <span className="font-mono text-[11px] text-[#606060] w-14 text-right tabular-nums">
+            {value}/{sow ?? "—"}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          <TooltipBody
+            title={`${label} ÷ SOW`}
+            bullets={[
+              `${label}: ${value.toLocaleString()}`,
+              `Contracted SOW: ${typeof sowLabel === "number" ? sowLabel.toLocaleString() : sowLabel}`,
+              sow && sow > 0
+                ? `Progress: ${Math.round(pct)}%`
+                : "No SOW on record — cannot compute %.",
+            ]}
+          />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -89,7 +114,6 @@ export function ClientPipelineCard({
   // billing tracks. Topics and CBs keep `approved` because those gates
   // require explicit client sign-off.
   const articlesValue = data.articles_sent ?? 0;
-  const overallPct = sow && sow > 0 ? ((articlesValue / sow) * 100) : 0;
   const visible = new Set(stages);
   return (
     <div
@@ -115,31 +139,6 @@ export function ClientPipelineCard({
         {visible.has("cbs")       && <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_approved      ?? 0} sow={sow} />}
         {visible.has("articles")  && <PipelineBar label="Articles"  stage="articles"  value={articlesValue}                 sow={sow} />}
         {visible.has("published") && <PipelineBar label="Published" stage="published" value={data.published_live    ?? 0} sow={sow} />}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-end mt-3 pt-2 border-t border-[#2a2a2a]">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span className="font-mono text-[11px] font-semibold cursor-help underline decoration-dotted underline-offset-2 text-[#C4BCAA]" />
-              }
-            >
-              Articles: {sow && sow > 0 ? `${Math.round(overallPct)}%` : "—"}
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              <TooltipBody
-                title="Articles ÷ SOW"
-                bullets={[
-                  "Articles ÷ contracted SOW.",
-                  "Same denominator as the pipeline bars above.",
-                  "Pace chip is in the card header.",
-                ]}
-              />
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
     </div>
   );

@@ -175,9 +175,9 @@ function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
           body={{
             title: "Delivery Progress",
             bullets: [
-              "Big number = total articles delivered ÷ total contracted (SOW), summed across the clients in the current filter.",
-              "Behind / Watch / Healthy buckets each client by its lifetime delivered − invoiced gap: Healthy = even or ahead; Watch = slipping; Behind = more than one month of SOW behind.",
-              "Clients without a SOW set are skipped (no denominator to compare against).",
+              "Total delivered ÷ total contracted across filtered clients.",
+              "Healthy: even or ahead · Watch: slipping · Behind: more than one month behind.",
+              "Clients without an SOW are skipped.",
             ],
           }}
         />

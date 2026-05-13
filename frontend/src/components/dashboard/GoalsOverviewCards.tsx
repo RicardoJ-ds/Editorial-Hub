@@ -42,6 +42,14 @@ interface Props {
   };
   /** "As of …" label for the section header — derived from latest (month, week). */
   asOfLabel: string | null;
+  /** When true, surface the triage-flavored cards (Goal Status / Most
+   *  Behind / Avg Achievement / Clients on Track). Default false — the
+   *  base view is purely informational (client / pod / portfolio
+   *  summary + Delivered ÷ Goal ratios), matching the spec that the
+   *  Editorial Clients dashboard is "informative, not risk-flagged."
+   *  Overview opts in via a lens switcher so execs who DO want the
+   *  triage view can flip it on without it living on D1. */
+  showTriage?: boolean;
 }
 
 type Tier = "on-track" | "behind" | "at-risk";
@@ -80,12 +88,13 @@ export function GoalsOverviewCards({
   perClient,
   totals,
   asOfLabel,
+  showTriage = false,
 }: Props) {
   const { axis } = useCurrentPodAxis();
   const scope = useMemo(() => detectScope(filteredClients, axis), [filteredClients, axis]);
   const cards = useMemo(
-    () => buildCards(scope, perClient, totals, asOfLabel, axis),
-    [scope, perClient, totals, asOfLabel, axis],
+    () => buildCards(scope, perClient, totals, asOfLabel, axis, showTriage),
+    [scope, perClient, totals, asOfLabel, axis, showTriage],
   );
 
   return (
@@ -148,6 +157,7 @@ function buildCards(
   totals: Props["totals"],
   asOfLabel: string | null,
   axis: "editorial" | "growth",
+  showTriage: boolean,
 ): { key: string; node: React.ReactNode }[] {
   if (scope.kind === "client") {
     const c = scope.client;
@@ -157,7 +167,7 @@ function buildCards(
     }
     const { cbPct, adPct } = clientPcts(datum);
     const tier = tierFor(cbPct, adPct);
-    return [
+    const baseCards = [
       { key: "client-status", node: <ClientStatusCard client={c} /> },
       {
         key: "client-cb",
@@ -181,11 +191,14 @@ function buildCards(
           />
         ),
       },
-      {
+    ];
+    if (showTriage) {
+      baseCards.push({
         key: "client-tier",
         node: <ClientStatusTierCard tier={tier} cbPct={cbPct} adPct={adPct} />,
-      },
-    ];
+      });
+    }
+    return baseCards;
   }
 
   if (scope.kind === "pod") {
@@ -200,13 +213,13 @@ function buildCards(
     const totGoalCb = podClients.reduce((a, c) => a + c.cbGoal, 0);
     const totDelAd = podClients.reduce((a, c) => a + c.adDel, 0);
     const totGoalAd = podClients.reduce((a, c) => a + c.adGoal, 0);
-    return [
+    const baseCards = [
       {
-        key: "pod-mix",
+        key: "pod-summary",
         node: (
-          <GoalStatusMixCard
-            clients={podClients}
-            subtitle={`${podLabel} · ${podClients.length} clients`}
+          <ScopeSummaryCard
+            title={podLabel}
+            clientCount={podClients.length}
             asOfLabel={asOfLabel}
           />
         ),
@@ -233,17 +246,64 @@ function buildCards(
           />
         ),
       },
-      {
+    ];
+    if (showTriage) {
+      baseCards.unshift({
+        key: "pod-mix",
+        node: (
+          <GoalStatusMixCard
+            clients={podClients}
+            subtitle={`${podLabel} · ${podClients.length} clients`}
+            asOfLabel={asOfLabel}
+          />
+        ),
+      });
+      baseCards.push({
         key: "pod-on-track",
         node: <ClientsOnTrackCard clients={podClients} subtitle={podLabel} />,
-      },
-    ];
+      });
+    }
+    return baseCards;
   }
 
   // portfolio
   const allClients = Array.from(perClient.values());
-  return [
+  const baseCards = [
     {
+      key: "port-summary",
+      node: (
+        <ScopeSummaryCard
+          title="Across portfolio"
+          clientCount={allClients.length}
+          asOfLabel={asOfLabel}
+        />
+      ),
+    },
+    {
+      key: "port-cb",
+      node: (
+        <RatioCard
+          title="CBs Delivered ÷ Goal"
+          current={totals.cbDel}
+          target={totals.cbGoal}
+          asOfLabel={asOfLabel}
+        />
+      ),
+    },
+    {
+      key: "port-ad",
+      node: (
+        <RatioCard
+          title="Articles Delivered ÷ Goal"
+          current={totals.adDel}
+          target={totals.adGoal}
+          asOfLabel={asOfLabel}
+        />
+      ),
+    },
+  ];
+  if (showTriage) {
+    baseCards.unshift({
       key: "port-mix",
       node: (
         <GoalStatusMixCard
@@ -252,25 +312,28 @@ function buildCards(
           asOfLabel={asOfLabel}
         />
       ),
-    },
-    {
-      key: "port-most-behind",
-      node: <MostBehindCard clients={allClients} />,
-    },
-    {
-      key: "port-pod-attn",
-      node: (
-        <PodAttentionCard
-          perClient={perClient}
-          filteredClients={[]} // filled later for pod lookup
-        />
-      ),
-    },
-    {
-      key: "port-on-track",
-      node: <ClientsOnTrackCard clients={allClients} subtitle="Across portfolio" />,
-    },
-  ];
+    });
+    baseCards.push(
+      {
+        key: "port-most-behind",
+        node: <MostBehindCard clients={allClients} />,
+      },
+      {
+        key: "port-pod-attn",
+        node: (
+          <PodAttentionCard
+            perClient={perClient}
+            filteredClients={[]} // filled later for pod lookup
+          />
+        ),
+      },
+      {
+        key: "port-on-track",
+        node: <ClientsOnTrackCard clients={allClients} subtitle="Across portfolio" />,
+      },
+    );
+  }
+  return baseCards;
   // Note: the portfolio Avg Achievement card lives inline as a 5th slot if/when
   // we decide to grow this row. With 4 columns and the layouts above, four
   // cards fits the visual rhythm of the rest of the dashboard.
@@ -281,11 +344,28 @@ function buildCards(
 // Card components
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Cream-to-green ramp — same palette `ProgressArc` uses. The Goals
+// dashboard is informational, not health-flagged, so no red/amber tiers.
+const RATIO_STOPS: Array<[number, [number, number, number]]> = [
+  [0, [0xdd, 0xcf, 0xac]], // WN1 cream
+  [33, [0x65, 0xff, 0xaa]], // P1 bright green
+  [66, [0x42, 0xca, 0x80]], // P2 standard green
+  [100, [0x2e, 0x8c, 0x59]], // P3 deep green
+];
 function ratioColor(pct: number | null): string {
   if (pct === null) return "#606060";
-  if (pct >= 75) return "#42CA80";
-  if (pct >= 50) return "#F5C542";
-  return "#ED6958";
+  const p = Math.max(0, Math.min(100, pct));
+  for (let i = 0; i < RATIO_STOPS.length - 1; i++) {
+    const [aPct, aRgb] = RATIO_STOPS[i];
+    const [bPct, bRgb] = RATIO_STOPS[i + 1];
+    if (p >= aPct && p <= bPct) {
+      const t = bPct === aPct ? 0 : (p - aPct) / (bPct - aPct);
+      const rgb = aRgb.map((v, j) => Math.round(v + (bRgb[j] - v) * t));
+      return `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+    }
+  }
+  const last = RATIO_STOPS[RATIO_STOPS.length - 1][1];
+  return `#${last.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function RatioCard({
@@ -338,6 +418,40 @@ function RatioCard({
   );
 }
 
+// Informational scope summary — used in place of the triage-flavored
+// "Goal Status" mix card when triage is off. Just shows what the cards
+// to its right are aggregating: which pod, how many clients, as-of.
+function ScopeSummaryCard({
+  title,
+  clientCount,
+  asOfLabel,
+}: {
+  title: string;
+  clientCount: number;
+  asOfLabel: string | null;
+}) {
+  return (
+    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
+      <CardContent className="pt-0">
+        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
+          Scope
+        </p>
+        {asOfLabel && (
+          <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
+            {asOfLabel}
+          </p>
+        )}
+        <p className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-white">
+          {title}
+        </p>
+        <p className="mt-0.5 font-mono text-[11px] text-[#909090]">
+          {clientCount} client{clientCount === 1 ? "" : "s"} in scope
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ClientStatusTierCard({
   tier,
   cbPct,
@@ -356,9 +470,9 @@ function ClientStatusTierCard({
           body={{
             title: "Goal Status",
             bullets: [
-              "How this client is doing against monthly Content Brief and Article goals (delivered ÷ goal, both tracked across the active range).",
-              "Status uses the worse of the two — if either CBs or Articles slips, the headline reflects it.",
-              "≥ 75% = On Track (green) · 50–74% = Behind (amber) · < 50% = At Risk (red).",
+              "Tracks delivered ÷ goal for CBs and Articles.",
+              "Headline uses the worse of the two.",
+              "≥ 75% on track · 50–74% behind · below 50% at risk.",
             ],
           }}
         />
@@ -435,9 +549,9 @@ function GoalStatusMixCard({
           body={{
             title: "Goal Status",
             bullets: [
-              "Big number = average of CB delivery % and Article delivery %, summed across the clients in the active filter (delivered ÷ goal over the active range).",
-              "On Track / Behind / At Risk counts each client by the worse of its two ratios: ≥ 75% = On Track · 50–74% = Behind · < 50% = At Risk.",
-              "Clients without monthly goals are skipped (no goal to grade against).",
+              "Big number: average CB + Article delivery % across all clients in scope.",
+              "Counts use the worse of each client's two ratios.",
+              "≥ 75% on track · 50–74% behind · below 50% at risk.",
             ],
           }}
         />
@@ -649,9 +763,9 @@ function ClientsOnTrackCard({
           body={{
             title: "Clients On Track",
             bullets: [
-              "Counts how many clients are hitting both their Content Brief AND their Article goals at ≥ 75% over the active range.",
-              "If either ratio drops below 75%, the client doesn't count — both have to clear the bar.",
-              "Clients without monthly goals are excluded from the denominator (no goal = nothing to hit).",
+              "Clients hitting BOTH their CB and Article goals at ≥ 75%.",
+              "If either ratio drops below 75%, the client doesn't count.",
+              "Clients without monthly goals are excluded.",
             ],
           }}
         />

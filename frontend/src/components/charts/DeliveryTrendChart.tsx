@@ -292,12 +292,12 @@ export function DeliveryTrendChart({ deliverables, clients }: DeliveryTrendChart
               Delivery vs Invoicing %{" "}
               <DataSourceBadge
                 type="live"
-                source="Sheet: 'Delivered vs Invoiced v2' — Spreadsheet: Editorial Capacity Planning. Each cell = articles_delivered ÷ articles_invoiced (mirrors the sheet's Variance = Delivered − Invoiced). Respects the Client + Time-period filters above."
+                source="Delivered ÷ invoiced per period · Editorial CP."
                 shows={[
-                  "Delivered ÷ Invoiced as a %, plotted over time. Close to 100% means deliveries and invoicing are in balance.",
-                  "In-period view = each bar is that period's ratio alone. Expect dips and spikes because pods deliver in bursts.",
-                  "Running Total view = cumulative ratio through each period. 80–100% is healthy; <60% under-delivery; >110% catching up.",
-                  "Toggle Monthly / Quarterly granularity on the right.",
+                  "Close to 100% means delivery and invoicing are in balance.",
+                  "In-period: each bar is that period alone (expect bursts).",
+                  "Running total: cumulative ratio. 80–100% healthy.",
+                  "Toggle Monthly / Quarterly on the right.",
                 ]}
               />
             </CardTitle>

@@ -38,10 +38,26 @@ import {
   X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useAccessProfile } from "@/lib/accessClient";
+import { useAccessProfile, type AccessProfile } from "@/lib/accessClient";
 import { useOverviewComments, type OverviewComment } from "@/lib/overviewCommentsClient";
 import type { Client } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+/** Mirrors the backend `require_admin_or_leadership` dependency. Admins
+ *  and members of the seeded `leadership` group can post / resolve /
+ *  delete comments; everyone else is read-only. Keep in lockstep with
+ *  `backend/app/auth_deps.py::require_admin_or_leadership` so the UI
+ *  doesn't show controls the server will 403 on. */
+function canManageComments(profile: AccessProfile | null): boolean {
+  if (!profile) return false;
+  if (profile.is_admin) return true;
+  return profile.group_slugs.includes("leadership");
+}
+
+/** Section_id used by the new client-level comments rail. Anything else
+ *  (e.g. "time-to-metrics") is a section-anchored comment rendered by
+ *  the inline SectionCommentIcon. */
+const GENERAL_SECTION_ID = "general";
 
 export interface OverviewSectionDefinition {
   id: string;
@@ -98,29 +114,22 @@ export function SectionCommentIcon({
   const { comments, loading, create, resolve, reopen, remove } =
     useOverviewComments();
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click + Esc. Per-section popover so multiple
-  // sections can never be open at once.
+  // Close on Esc. Outside-click closing is handled by a transparent
+  // backdrop rendered alongside the popover — that pattern is more
+  // robust than `document.addEventListener('mousedown')` + a `contains`
+  // check, which was failing when the composer's typeahead dropdown
+  // (positioned absolutely inside the popover) extended visually past
+  // the popover bounds. With the backdrop, every click outside the
+  // popover panel hits the backdrop and closes; every click inside
+  // the panel is naturally blocked by z-index stacking.
   useEffect(() => {
     if (!open) return;
-    function onClick(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
-    document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
   const filteredClients = ctx?.filteredClients ?? [];
@@ -130,24 +139,42 @@ export function SectionCommentIcon({
   );
 
   // Comments for THIS section, narrowed to the filter scope.
+  // Section-anchored comments always have a client_name (the inline
+  // composer requires it) — skip any client-less general notes so they
+  // don't surface in section popovers, only in the right-side rail.
   const sectionComments = useMemo(
     () =>
       comments.filter(
-        (c) => c.section_id === sectionId && filteredClientNames.has(c.client_name),
+        (c) =>
+          c.section_id === sectionId &&
+          c.client_name !== null &&
+          filteredClientNames.has(c.client_name),
       ),
     [comments, sectionId, filteredClientNames],
   );
+  // How many comments exist on this section across ALL clients, so we
+  // can tell the user when threads are hidden by their current filter
+  // (otherwise the "no comments" empty state looks like the section is
+  // empty when it actually has threads under other clients).
+  const allSectionCommentsCount = useMemo(
+    () => comments.filter((c) => c.section_id === sectionId).length,
+    [comments, sectionId],
+  );
+  const hiddenByFilter = allSectionCommentsCount - sectionComments.length;
 
   const totalThreads = sectionComments.length;
   const unresolved = sectionComments.filter((c) => c.resolved_at === null).length;
 
-  // Group by client for the panel display.
+  // Group by client for the panel display. Section comments are
+  // guaranteed to have a client_name (filtered above), so the non-null
+  // assertion here is safe.
   const threadsByClient = useMemo(() => {
     const m = new Map<string, OverviewComment[]>();
     for (const c of sectionComments) {
-      const arr = m.get(c.client_name) ?? [];
+      const name = c.client_name as string;
+      const arr = m.get(name) ?? [];
       arr.push(c);
-      m.set(c.client_name, arr);
+      m.set(name, arr);
     }
     return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [sectionComments]);
@@ -160,7 +187,12 @@ export function SectionCommentIcon({
   const hasComments = totalThreads > 0;
   const Icon = hasComments ? MessageSquare : MessageSquarePlus;
   return (
-    <div ref={wrapperRef} className="relative z-20">
+    // No z-index on the wrapper — that would create a stacking context
+    // that sits above other absolute-positioned dropdowns on the page
+    // (e.g. the FilterBar's Search clients typeahead, which bleeds
+    // through behind the icon otherwise). The popover panel below
+    // handles its own z-50 when open.
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -173,11 +205,11 @@ export function SectionCommentIcon({
         }
         className={cn(
           "inline-flex h-7 items-center justify-center gap-1 rounded-sm bg-transparent px-1 transition-all duration-150",
-          // Visibility rules: open or has-comments → always shown.
-          // Empty + closed → fade in on parent-section hover.
-          open || hasComments
-            ? "opacity-100"
-            : "opacity-0 group-hover/sec:opacity-100 focus-visible:opacity-100",
+          // Visibility: always at least faintly visible so the icon
+          // doesn't vanish when the user filters to a client with no
+          // comments on this section. Active states are full opacity,
+          // empty/idle is dimmed but still legible.
+          open || hasComments ? "opacity-100" : "opacity-60 hover:opacity-100",
           open ? "text-[#65FFAA]" : "text-[#909090] hover:text-[#C4BCAA]",
         )}
       >
@@ -195,8 +227,26 @@ export function SectionCommentIcon({
       </button>
 
       {open && (
+        // Transparent, full-viewport backdrop. Clicking anywhere
+        // outside the popover panel below lands on this and closes the
+        // popover. No `bg-black/50` or blur — the page stays visually
+        // untouched and remains interactive elsewhere only after close.
         <div
-          className="absolute left-0 top-full z-50 mt-2 w-[340px] max-h-[480px] overflow-y-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-2xl shadow-black/60"
+          className="fixed inset-0 z-40"
+          onMouseDown={() => setOpen(false)}
+          aria-hidden
+        />
+      )}
+      {open && (
+        <div
+          // No overflow-y-auto — the typeahead dropdown inside the
+          // composer uses absolute positioning and was being clipped
+          // when the popover scrolled. Let the popover grow naturally;
+          // the page scrolls if it gets tall.
+          // Clicks INSIDE this panel stop the backdrop's close handler
+          // via stopPropagation on mousedown.
+          className="absolute left-0 top-full z-50 mt-2 w-[360px] rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-2xl shadow-black/60"
+          onMouseDown={(e) => e.stopPropagation()}
           role="dialog"
           aria-label={`Comments for ${sectionLabel}`}
         >
@@ -232,7 +282,13 @@ export function SectionCommentIcon({
           <div className="px-3 py-2 space-y-3">
             {totalThreads === 0 ? (
               <p className="font-mono text-[10px] leading-relaxed text-[#606060]">
-                No comments on this section yet.
+                {hiddenByFilter > 0
+                  ? `No comments for the current filter. ${hiddenByFilter} thread${
+                      hiddenByFilter === 1 ? "" : "s"
+                    } on this section ${
+                      hiddenByFilter === 1 ? "is" : "are"
+                    } scoped to other clients — clear the filter above to see them.`
+                  : "No comments on this section yet."}
               </p>
             ) : (
               threadsByClient.map(([clientName, list]) => (
@@ -240,7 +296,7 @@ export function SectionCommentIcon({
                   key={clientName}
                   clientName={clientName}
                   comments={list}
-                  isAdmin={!!profile?.is_admin}
+                  isAdmin={canManageComments(profile)}
                   onResolve={resolve}
                   onReopen={reopen}
                   onDelete={remove}
@@ -248,7 +304,7 @@ export function SectionCommentIcon({
               ))
             )}
 
-            {profile?.is_admin && (
+            {canManageComments(profile) && (
               <SectionComposer
                 sectionId={sectionId}
                 clientOptions={filteredClients}
@@ -277,13 +333,25 @@ function SectionComposer({
   sectionId: _sectionId,
   clientOptions,
   onCreate,
+  optionalClient = false,
 }: {
   sectionId: string;
   clientOptions: Client[];
-  onCreate: (clientName: string, body: string) => Promise<void>;
+  /** Called with the chosen client name (or `null` when the composer is
+   *  in `optionalClient` mode and the user left the picker blank). */
+  onCreate: (clientName: string | null, body: string) => Promise<void>;
+  /** When true, the Client field is optional — the composer accepts a
+   *  body alone and posts the comment as a global note (no anchor).
+   *  Used by the right-side ClientCommentsRail; section-anchored icons
+   *  still require a client (default false). */
+  optionalClient?: boolean;
 }) {
-  // Pre-select the single filtered client when there is one.
-  const defaultClient = clientOptions.length === 1 ? clientOptions[0].name : "";
+  // Pre-select the single filtered client when there is one — but only
+  // outside `optionalClient` mode. The rail composer should default to
+  // "no client" so admins can write quick global notes without the
+  // picker hijacking what they typed.
+  const defaultClient =
+    !optionalClient && clientOptions.length === 1 ? clientOptions[0].name : "";
 
   const [client, setClient] = useState<string>(defaultClient);
   const [query, setQuery] = useState<string>(defaultClient);
@@ -294,12 +362,15 @@ function SectionComposer({
   const comboRef = useRef<HTMLDivElement>(null);
 
   // Re-sync when the parent filter scope changes (single-client preselect).
+  // Skipped in optionalClient mode so the rail composer doesn't snap to a
+  // client the moment the user narrows the filter.
   useEffect(() => {
+    if (optionalClient) return;
     if (clientOptions.length === 1) {
       setClient(clientOptions[0].name);
       setQuery(clientOptions[0].name);
     }
-  }, [clientOptions]);
+  }, [clientOptions, optionalClient]);
 
   // Close dropdown on outside click. Matches FilterBar's pattern exactly.
   useEffect(() => {
@@ -323,23 +394,24 @@ function SectionComposer({
   }, [clientOptions, query]);
 
   const submit = useCallback(async () => {
-    if (!client || !body.trim()) return;
+    if (!body.trim()) return;
+    if (!optionalClient && !client) return;
     setSubmitting(true);
     try {
-      await onCreate(client, body.trim());
+      await onCreate(client || null, body.trim());
       setBody("");
       setComposerOpen(false);
     } finally {
       setSubmitting(false);
     }
-  }, [client, body, onCreate]);
+  }, [client, body, onCreate, optionalClient]);
 
   if (!composerOpen) {
     return (
       <button
         type="button"
         onClick={() => setComposerOpen(true)}
-        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[#42CA80] hover:text-[#65FFAA]"
+        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[#2a2a2a] bg-[#161616] px-2.5 font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] transition-colors hover:border-[#42CA80]/40 hover:bg-[#42CA80]/10 hover:text-[#65FFAA]"
       >
         <Plus className="h-3 w-3" /> Add comment
       </button>
@@ -347,72 +419,88 @@ function SectionComposer({
   }
 
   return (
-    <div className="space-y-2 rounded border border-[#42CA80]/20 bg-[#0d1f15] p-2">
-      {/* Client picker — mirrors FilterBar.tsx "Search clients..." */}
-      <div className="relative" ref={comboRef}>
-        <Search className="absolute left-2.5 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-[#606060]" />
-        <Input
-          placeholder={
-            clientOptions.length === 0 ? "No clients in scope" : "Search clients..."
-          }
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            // Typing without picking clears the committed selection so
-            // submission can't post against a stale name.
-            if (e.target.value !== client) setClient("");
-            setDropdownOpen(true);
-          }}
-          onFocus={() => setDropdownOpen(true)}
-          disabled={clientOptions.length === 0}
-          className="h-7 w-full rounded-md border-[#1e1e1e] bg-transparent pl-8 pr-7 text-xs focus:border-[#42CA80]/50"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setClient("");
+    <div className="space-y-2.5 border-t border-[#2a2a2a] pt-2.5">
+      {/* Field label */}
+      <div className="space-y-1">
+        <label className="block font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+          Client {optionalClient && <span className="text-[#606060]">(optional)</span>}
+        </label>
+        {/* Client picker — mirrors FilterBar.tsx "Search clients..."
+            with a brighter, more legible style (no green tint). */}
+        <div className="relative" ref={comboRef}>
+          <Search className="pointer-events-none absolute left-2 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-[#909090]" />
+          <input
+            type="text"
+            placeholder={
+              clientOptions.length === 0
+                ? "No clients in scope"
+                : "Search clients..."
+            }
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (e.target.value !== client) setClient("");
               setDropdownOpen(true);
             }}
-            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 text-[#606060] hover:text-white"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-        {dropdownOpen && filteredOptions.length > 0 && (
-          <div className="absolute left-0 top-full z-50 mt-1 max-h-[220px] w-full overflow-y-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl">
-            {filteredOptions.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setQuery(c.name);
-                  setClient(c.name);
-                  setDropdownOpen(false);
-                }}
-                className={cn(
-                  "block w-full px-3 py-1.5 text-left text-xs transition-colors",
-                  client === c.name
-                    ? "bg-[#42CA80]/15 text-[#42CA80]"
-                    : "text-[#C4BCAA] hover:bg-[#1F1F1F] hover:text-white",
-                )}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        )}
+            onFocus={() => setDropdownOpen(true)}
+            disabled={clientOptions.length === 0}
+            className="h-8 w-full rounded-md border border-[#2a2a2a] bg-[#161616] pl-8 pr-7 font-mono text-[12px] text-white placeholder:text-[#606060] focus:border-[#42CA80] focus:outline-none focus:ring-1 focus:ring-[#42CA80]/30 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setClient("");
+                setDropdownOpen(true);
+              }}
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 text-[#909090] transition-colors hover:text-white"
+              aria-label="Clear"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+          {dropdownOpen && filteredOptions.length > 0 && (
+            <div className="absolute left-0 top-full z-50 mt-1 max-h-[220px] w-full overflow-y-auto rounded-md border border-[#2a2a2a] bg-[#161616] shadow-2xl shadow-black/60">
+              {filteredOptions.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setQuery(c.name);
+                    setClient(c.name);
+                    setDropdownOpen(false);
+                  }}
+                  className={cn(
+                    "block w-full px-3 py-1.5 text-left font-mono text-[11px] transition-colors",
+                    client === c.name
+                      ? "bg-[#42CA80]/15 text-[#65FFAA]"
+                      : "text-[#C4BCAA] hover:bg-[#1F1F1F] hover:text-white",
+                  )}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <textarea
-        rows={3}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Add comment…"
-        className="w-full rounded border border-[#1e1e1e] bg-[#0d0d0d] px-2 py-1 font-mono text-[11px] text-white placeholder:text-[#606060] focus:border-[#42CA80]/50 focus:outline-none"
-      />
+      <div className="space-y-1">
+        <label className="block font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+          Comment
+        </label>
+        <textarea
+          rows={3}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write a comment…"
+          className="w-full resize-none rounded-md border border-[#2a2a2a] bg-[#161616] px-2.5 py-1.5 font-mono text-[12px] text-white placeholder:text-[#606060] focus:border-[#42CA80] focus:outline-none focus:ring-1 focus:ring-[#42CA80]/30"
+        />
+      </div>
+
       <div className="flex items-center justify-end gap-1.5">
         <button
           type="button"
@@ -421,15 +509,15 @@ function SectionComposer({
             setBody("");
           }}
           disabled={submitting}
-          className="inline-flex items-center gap-1 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#606060] hover:bg-[#1f1f1f] hover:text-white"
+          className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:bg-[#1f1f1f] hover:text-white"
         >
-          <X className="h-3 w-3" /> Cancel
+          Cancel
         </button>
         <button
           type="button"
           onClick={submit}
-          disabled={submitting || !body.trim() || !client}
-          className="inline-flex items-center gap-1 rounded bg-[#42CA80] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-black disabled:opacity-50"
+          disabled={submitting || !body.trim() || (!optionalClient && !client)}
+          className="inline-flex h-7 items-center gap-1 rounded-md bg-[#42CA80] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-black transition-colors hover:bg-[#65FFAA] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? (
             <>
@@ -626,9 +714,285 @@ function formatRelative(iso: string): string {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Comments Sidebar — right-edge rail that mirrors the left navigation
+// sidebar's UX: thin always-visible strip with the chat icon + unread
+// count; expands on hover to show every thread (general + section-
+// anchored), narrowed to the current filter. Single source of truth so
+// posting from a section icon refreshes here automatically (and vice
+// versa — both surfaces subscribe to the shared comments store).
+//
+// Spec:
+//   • Pinned to the viewport's right edge (fixed), starts below the
+//     global header (top-12). Sits above page content via z-40 — same
+//     layer as the left sidebar.
+//   • Hover the strip → panel slides open (w-12 → w-[420px]). Mouse
+//     leaving collapses it. Esc closes. Click-pin keeps it open while
+//     the user composes (so moving the mouse to the textarea doesn't
+//     auto-close the panel mid-write).
+//   • Composer's client picker is OPTIONAL — admins/leadership can
+//     post quick global notes (no client anchor) here. Section-anchored
+//     icons still require a client.
+// ──────────────────────────────────────────────────────────────────────
+
+export function ClientCommentsRail() {
+  const ctx = useContext(OverviewCommentsContext);
+  const profile = useAccessProfile();
+  const { comments, loading, create, resolve, reopen, remove } =
+    useOverviewComments();
+  const [hovered, setHovered] = useState(false);
+  // Click-to-pin so the panel stays open while the user types. Hover
+  // alone would collapse the panel the moment the mouse moves to the
+  // textarea inside an absolutely-positioned dropdown.
+  const [pinned, setPinned] = useState(false);
+  const open = hovered || pinned;
+
+  // Esc closes (releases the pin too).
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setPinned(false);
+        setHovered(false);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const filteredClients = ctx?.filteredClients ?? [];
+  const sectionLookup = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of ctx?.sections ?? []) m.set(s.id, s.label);
+    return m;
+  }, [ctx?.sections]);
+  const filteredClientNames = useMemo(
+    () => new Set(filteredClients.map((c) => c.name)),
+    [filteredClients],
+  );
+
+  // Scope rule:
+  //   • client_name === null  → global note, ALWAYS visible regardless
+  //     of the active client filter (it's not anchored to anyone).
+  //   • client_name !== null  → only when that client is in scope.
+  // Covers both general ("general") and section-anchored threads so the
+  // rail is the unified view across all comments.
+  const scoped = useMemo(
+    () =>
+      comments.filter(
+        (c) => c.client_name === null || filteredClientNames.has(c.client_name),
+      ),
+    [comments, filteredClientNames],
+  );
+  const totalAll = comments.length;
+  const hiddenByFilter = totalAll - scoped.length;
+  const unresolved = scoped.filter((c) => c.resolved_at === null).length;
+  const totalScoped = scoped.length;
+
+  // Group: client (or "global") → section_id → comments. Global block
+  // sorts first, then clients alphabetically. Within a block, general
+  // section sorts first too.
+  const groupedByClient = useMemo(() => {
+    const GLOBAL_KEY = "__global__";
+    const byClient = new Map<string, Map<string, OverviewComment[]>>();
+    for (const c of scoped) {
+      const key = c.client_name ?? GLOBAL_KEY;
+      let sectionMap = byClient.get(key);
+      if (!sectionMap) {
+        sectionMap = new Map();
+        byClient.set(key, sectionMap);
+      }
+      const list = sectionMap.get(c.section_id) ?? [];
+      list.push(c);
+      sectionMap.set(c.section_id, list);
+    }
+    return Array.from(byClient.entries())
+      .sort(([a], [b]) => {
+        if (a === GLOBAL_KEY) return -1;
+        if (b === GLOBAL_KEY) return 1;
+        return a.localeCompare(b);
+      })
+      .map(([client, sectionMap]) => {
+        const sections = Array.from(sectionMap.entries()).sort(([a], [b]) => {
+          if (a === GENERAL_SECTION_ID) return -1;
+          if (b === GENERAL_SECTION_ID) return 1;
+          return (sectionLookup.get(a) ?? a).localeCompare(
+            sectionLookup.get(b) ?? b,
+          );
+        });
+        return [client, sections] as const;
+      });
+  }, [scoped, sectionLookup]);
+
+  const canWrite = canManageComments(profile);
+
+  return (
+    // Real sidebar — `fixed` so it floats above the page chrome and
+    // expands in-place on hover (no separate popover). Discreet: starts
+    // below the sticky filter band, caps its height so it doesn't run
+    // to the bottom of the viewport, and sits 12px in from the right
+    // edge so it never overlaps the browser's vertical scrollbar.
+    <aside
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={cn(
+        "fixed right-3 top-[140px] z-40 flex flex-col rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]",
+        "transition-[width,max-height] duration-200 ease-in-out overflow-hidden",
+        open
+          ? "w-[380px] max-h-[calc(100vh-180px)] shadow-2xl shadow-black/60"
+          : "w-10 max-h-10 hover:border-[#2a2a2a]",
+      )}
+      aria-label="Comments"
+    >
+      {/* Collapsed strip — single icon button. Click to pin the panel
+          open so the cursor can leave the strip without auto-collapsing
+          (matches the standard sidebar pattern). */}
+      <button
+        type="button"
+        onClick={() => setPinned((v) => !v)}
+        title={
+          pinned
+            ? "Click to unpin"
+            : open
+              ? "Click to pin while composing"
+              : unresolved > 0
+                ? `${unresolved} open comment${unresolved === 1 ? "" : "s"} · hover to view`
+                : totalScoped > 0
+                  ? `${totalScoped} comment${totalScoped === 1 ? "" : "s"} (all resolved) · hover to view`
+                  : "Hover to view comments"
+        }
+        className={cn(
+          "flex h-10 shrink-0 items-center gap-2 px-3 transition-colors",
+          pinned
+            ? "bg-[#42CA80]/10 text-[#65FFAA]"
+            : "text-[#909090] hover:text-white",
+        )}
+      >
+        <div className="relative shrink-0">
+          <MessageSquare className="h-4 w-4" />
+          {unresolved > 0 && (
+            <span
+              className="absolute -top-1.5 -right-1.5 rounded-full bg-[#F5BC4E] px-1 font-mono text-[9px] font-semibold text-black leading-[14px] min-w-[14px] text-center"
+              aria-label={`${unresolved} unresolved`}
+            >
+              {unresolved}
+            </span>
+          )}
+        </div>
+        {open && (
+          <span className="font-mono text-[11px] uppercase tracking-wider truncate">
+            Comments
+            {!loading && totalScoped > 0 && (
+              <span
+                className="ml-2 font-mono text-[9px] tabular-nums"
+                style={{ color: unresolved > 0 ? "#F5BC4E" : "#606060" }}
+              >
+                {unresolved > 0
+                  ? `${unresolved} open · ${totalScoped} total`
+                  : `${totalScoped} resolved`}
+              </span>
+            )}
+          </span>
+        )}
+        {pinned && (
+          <span className="ml-auto rounded-sm border border-[#42CA80]/30 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-[#65FFAA]">
+            Pinned
+          </span>
+        )}
+      </button>
+
+      {/* Expanded body — only mounted when open so the collapsed state
+          doesn't keep mounting the composer + thread list off-screen. */}
+      {open && (
+        <div className="flex flex-1 flex-col overflow-hidden border-t border-[#1f1f1f]">
+          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
+            {groupedByClient.length === 0 ? (
+              <p className="font-mono text-[10px] leading-relaxed text-[#606060]">
+                {hiddenByFilter > 0
+                  ? `No comments for the current filter. ${hiddenByFilter} thread${
+                      hiddenByFilter === 1 ? "" : "s"
+                    } scoped to other clients — clear the filter above to see them.`
+                  : "No comments yet."}
+              </p>
+            ) : (
+              groupedByClient.map(([clientKey, sections]) => {
+                const isGlobal = clientKey === "__global__";
+                return (
+                  <div
+                    key={clientKey}
+                    className={cn(
+                      "rounded border p-2",
+                      isGlobal
+                        ? "border-[#42CA80]/30 bg-[#42CA80]/[0.04]"
+                        : "border-[#1a1a1a] bg-[#161616]",
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "truncate font-mono text-[10px] uppercase tracking-wider",
+                        isGlobal ? "text-[#65FFAA]" : "text-[#909090]",
+                      )}
+                      title={
+                        isGlobal ? "Global notes — no client anchor" : clientKey
+                      }
+                    >
+                      {isGlobal ? "Global" : clientKey}
+                    </p>
+                    {sections.map(([sectionId, list]) => {
+                      const label =
+                        sectionId === GENERAL_SECTION_ID
+                          ? "Note"
+                          : (sectionLookup.get(sectionId) ?? sectionId);
+                      return (
+                        <div key={sectionId} className="mt-2">
+                          {!(isGlobal && sectionId === GENERAL_SECTION_ID) && (
+                            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#606060]">
+                              {label}
+                            </p>
+                          )}
+                          <ul className="mt-1 space-y-2">
+                            {list.map((c) => (
+                              <CommentItem
+                                key={c.id}
+                                comment={c}
+                                isAdmin={canWrite}
+                                onResolve={resolve}
+                                onReopen={reopen}
+                                onDelete={remove}
+                              />
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })
+            )}
+
+            {canWrite && (
+              <SectionComposer
+                sectionId={GENERAL_SECTION_ID}
+                clientOptions={filteredClients}
+                optionalClient
+                onCreate={async (clientName, body) => {
+                  await create({
+                    section_id: GENERAL_SECTION_ID,
+                    client_name: clientName,
+                    body,
+                  });
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Legacy export retained so callers importing the old rail name still
-// build — they should migrate to <OverviewCommentsProvider> +
-// <SectionCommentIcon>.
+// build — they should migrate to <ClientCommentsRail>.
 // ──────────────────────────────────────────────────────────────────────
 
 export function OverviewCommentsRail() {

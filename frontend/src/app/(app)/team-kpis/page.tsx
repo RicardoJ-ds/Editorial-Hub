@@ -59,73 +59,70 @@ const KPI_HEATMAP_TOOLTIPS: Record<
   internal_quality: {
     title: "Internal Quality",
     bullets: [
-      "Source: [Mock] Monthly KPI Scores sheet — refreshed every SYNC.",
       "Score 0–100, higher is better. Target ≥ 85.",
-      "Senior Editors grade article quality + style adherence on each piece.",
+      "Senior Editors grade article quality + style on each piece.",
     ],
   },
   external_quality: {
     title: "External Quality",
     bullets: [
-      "Source: [Mock] Monthly KPI Scores sheet — refreshed every SYNC.",
       "Score 0–100, higher is better. Target ≥ 85.",
-      "Client satisfaction collected from feedback rounds during the month.",
+      "Client satisfaction from feedback rounds during the month.",
     ],
   },
   mentorship: {
     title: "Mentorship",
     bullets: [
-      "Source: [Mock] Monthly KPI Scores sheet — Senior Editors only.",
+      "Senior Editors only.",
       "Score 0–100, higher is better. Target ≥ 80.",
-      "Editors below an SE record their growth; their SE inherits the score.",
+      "Editors' growth scores roll up to their Senior Editor.",
     ],
   },
   feedback_adoption: {
     title: "Feedback Adoption",
     bullets: [
-      "Source: [Mock] Monthly KPI Scores sheet — Editors only.",
+      "Editors only.",
       "Score 0–100, higher is better. Target ≥ 80.",
-      "How well edits from Senior Editors get applied on the next round.",
+      "How well Senior Editor feedback gets applied on the next round.",
     ],
   },
   revision_rate: {
     title: "Revision Rate",
     bullets: [
-      "Computed from notion_articles — articles where article_status falls in the revision set ÷ total articles edited (or sr-edited) by this person.",
+      "Share of articles that needed a revision.",
       "Lower is better. Target ≤ 15%.",
-      "If the Notion workflow renames a status, the constant in notion_kpi_service.py needs updating.",
+      "Counts the editor's own articles plus any they sr-edited.",
     ],
   },
   turnaround_time: {
     title: "Turnaround Time",
     bullets: [
-      "Computed from notion_articles — mean of (article_delivered_date − cb_delivered_date), in days, across this person's articles.",
-      "Lower is better. Target ≤ 14 days. Deltas outside (0, 365) are dropped as outliers.",
-      "Empty cell = the editor has no articles with both dates filled in for the active range.",
+      "Average days from content brief to article delivery.",
+      "Lower is better. Target ≤ 14 days.",
+      "Outliers above 365 days are dropped.",
     ],
   },
   second_reviews: {
     title: "Second Reviews",
     bullets: [
-      "Senior Editors only. Counts articles where this person is sr_editor and created_date falls in the active month.",
+      "Senior Editors only.",
       "Higher is better. Target ≥ 5 per month.",
-      "Fallback when no rows match: total sr-articles ÷ 6 — rough monthly avg, not a real count.",
+      "Counts articles where this person was the senior reviewer.",
     ],
   },
   capacity_utilization: {
     title: "Capacity Utilization",
     bullets: [
-      "Pod-level number from capacity_projections: (used ÷ total_capacity) × 100.",
+      "Pod-level: used ÷ total capacity.",
       "Higher is better. Target ≥ 82.5%.",
-      "Replicated to every member of the pod — two SEs in Pod 3 will always show the same value here.",
+      "Same value for everyone in the same pod.",
     ],
   },
   ai_compliance: {
     title: "AI Compliance",
     bullets: [
-      "Source: ai_monitoring_records (Writer AI Monitoring 2.0).",
-      "New scans paused upstream — column will stay empty until that resumes.",
-      "Once active, it'll grade article AI usage against the team's compliance rubric.",
+      "Grades each article's AI usage against the team rubric.",
+      "Currently paused upstream — values will populate once scans resume.",
     ],
   },
 };
@@ -558,7 +555,7 @@ function AIComplianceTab() {
       {/* Summary Cards */}
       <div className="mb-1 flex items-center gap-2">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">AI Compliance Summary</span>
-        <DataSourceBadge type="live" source="Sheet: 'Data' — Spreadsheet: Writer AI Monitoring 2.0. Surfer AI detector v1/v2 scores across 1,168 scanned articles." />
+        <DataSourceBadge type="live" source="Writer AI Monitoring · Surfer AI detector results." />
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <SummaryCard
@@ -606,7 +603,7 @@ function AIComplianceTab() {
       {/* Recommendation Charts 2x2 */}
       <div className="mb-1 flex items-center gap-2">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Recommendation Breakdown</span>
-        <DataSourceBadge type="live" source="Sheet: 'Data' — Spreadsheet: Writer AI Monitoring 2.0. Recommendation breakdown by pod, client, writer, and monthly trend." />
+        <DataSourceBadge type="live" source="Writer AI Monitoring · breakdown by pod, client, writer, month." />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RecommendationChart data={byPod} title="Recommendation by Pod" />
@@ -618,7 +615,7 @@ function AIComplianceTab() {
       {/* Flagged Articles Table */}
       <section id="ai-flagged" className="space-y-3 scroll-mt-[140px]">
         <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
-          Flagged Articles <DataSourceBadge type="live" source="Sheet: 'Yellow/Red Flags_v2' — Spreadsheet: Writer AI Monitoring 2.0. Articles flagged for AI content review requiring editorial action." />
+          Flagged Articles <DataSourceBadge type="live" source="Articles flagged for AI review · Writer AI Monitoring." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
           <Table>
@@ -676,7 +673,7 @@ function AIComplianceTab() {
       {/* Rewrites Table */}
       <section id="ai-rewrites" className="space-y-3 scroll-mt-[140px]">
         <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
-          Rewrites <DataSourceBadge type="live" source="Sheet: 'Rewrites' — Spreadsheet: Writer AI Monitoring 2.0. Articles requiring full rewrite due to AI compliance failure." />
+          Rewrites <DataSourceBadge type="live" source="Articles needing full rewrite (AI compliance fail)." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
           <Table>
@@ -734,7 +731,7 @@ function AIComplianceTab() {
       {/* Surfer API Usage Table */}
       <section id="ai-surfer" className="space-y-3 scroll-mt-[140px]">
         <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
-          Surfer API Usage <DataSourceBadge type="live" source="Sheet: 'Surfer&#39;s API usage' — Spreadsheet: Writer AI Monitoring 2.0. Monthly Surfer API call counts by editorial pod." />
+          Surfer API Usage <DataSourceBadge type="live" source="Monthly Surfer API call counts by pod." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
           <Table>
@@ -998,7 +995,7 @@ function KpiPerformanceTab({
       {/* KPI Overview Heatmap */}
       <section className="space-y-3">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          KPI Overview <DataSourceBadge type="live" source="Sheet: 'Notion' — Spreadsheet: Notion Database Export. Revision Rate, Turnaround Time, and Second Reviews computed from 13K+ article records. Other KPIs (Internal/External Quality, Mentorship, Feedback) use simulated data pending scoring rubric." />
+          KPI Overview <DataSourceBadge type="live" source="Revision Rate / Turnaround / Second Reviews from Notion. Quality + Mentorship use scored sheets." />
         </h3>
         <p className="text-[10px] font-mono text-[#606060] -mt-1">
           One row per team member with one cell per KPI. Green ≥ target, amber within 10% of target, red below. Click any cell to scroll to that member&apos;s detailed card.
@@ -1235,7 +1232,7 @@ function CapacityProjectionsTab({
       <div className="mb-1">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Capacity Summary</span>
-          <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections, utilization, and available bandwidth." />
+          <DataSourceBadge type="live" source="Pod-level monthly capacity projections + utilization." />
         </div>
         <p className="text-[10px] font-mono text-[#606060] mt-0.5">
           Roll-ups across all pods: avg utilization, pods in the 80–85% optimal band, pods over 100%, and total available bandwidth for the current month.
@@ -1292,7 +1289,7 @@ function CapacityProjectionsTab({
 
       {/* Capacity Table */}
       <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-        Capacity Detail <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Per-pod monthly capacity, projected usage, actual usage, and variance." />
+        Capacity Detail <DataSourceBadge type="live" source="Per-pod monthly capacity, projected vs. actual usage." />
       </h3>
       <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
         <Table>

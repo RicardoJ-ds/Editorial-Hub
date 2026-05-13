@@ -11,12 +11,14 @@ import {
   Plus,
   RefreshCw,
   ShieldCheck,
+  Undo2,
   X,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import {
   firstAccessibleRoute,
   refreshAccessProfile,
@@ -24,6 +26,10 @@ import {
   useAccessProfile,
   type AccessProfile,
 } from "@/lib/accessClient";
+import {
+  confirmDiscardIfUnsaved,
+  setUnsavedChanges,
+} from "@/lib/unsavedChangesClient";
 
 // ────────────────────────────────────────────────────────────────────────
 // Types — mirror backend `app/routers/access.py` schemas.
@@ -196,24 +202,48 @@ export default function AccessControlPage() {
 
       {profile.is_admin && !profile.is_preview && <PreviewAsControl />}
 
-      <Tabs defaultValue="groups">
-        <TabsList variant="line">
-          <TabsTrigger value="groups">Groups</TabsTrigger>
-          <TabsTrigger value="users">Users × Views</TabsTrigger>
-          <TabsTrigger value="audit">Audit Log</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="groups">
-          <GroupsTab profile={profile} />
-        </TabsContent>
-        <TabsContent value="users">
-          <UsersViewsTab profile={profile} />
-        </TabsContent>
-        <TabsContent value="audit">
-          <AuditTab />
-        </TabsContent>
-      </Tabs>
+      <AccessTabs profile={profile} />
     </div>
+  );
+}
+
+/** Controlled Tabs wrapper. Two responsibilities:
+ *   1. Force-mount every panel so switching between Groups / Users ×
+ *      Views / Audit Log keeps each tab's local React state alive —
+ *      otherwise a draft staged in Groups would be wiped the moment
+ *      the user clicked Users × Views and back.
+ *   2. Gate tab swaps on `confirmDiscardIfUnsaved()` so the actor
+ *      can't silently drop a draft by clicking another tab. (The
+ *      forceMount on point 1 makes this mostly cosmetic — state is
+ *      preserved either way — but the confirm is the same one fired
+ *      by sidebar navigation, so the UX stays consistent.) */
+function AccessTabs({ profile }: { profile: AccessProfile }) {
+  const [tab, setTab] = useState("groups");
+  return (
+    <Tabs
+      value={tab}
+      onValueChange={(next) => {
+        if (next === tab) return;
+        if (!confirmDiscardIfUnsaved()) return;
+        setTab(next);
+      }}
+    >
+      <TabsList variant="line">
+        <TabsTrigger value="groups">Groups</TabsTrigger>
+        <TabsTrigger value="users">Users × Views</TabsTrigger>
+        <TabsTrigger value="audit">Audit Log</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="groups" keepMounted className="data-[state=inactive]:hidden">
+        <GroupsTab profile={profile} />
+      </TabsContent>
+      <TabsContent value="users" keepMounted className="data-[state=inactive]:hidden">
+        <UsersViewsTab profile={profile} />
+      </TabsContent>
+      <TabsContent value="audit" keepMounted className="data-[state=inactive]:hidden">
+        <AuditTab />
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -252,9 +282,9 @@ function PreviewAsControl() {
         </p>
         {!open && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="ml-auto h-auto py-1 text-[11px]"
+            className="h-7 border-[#42CA80]/40 bg-[#42CA80]/10 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#42CA80] hover:border-[#42CA80] hover:bg-[#42CA80]/20 hover:text-[#65FFAA]"
             onClick={() => setOpen(true)}
           >
             Start preview
@@ -476,9 +506,11 @@ function dividerClass(kind: "section" | "dashboard" | ""): string {
 // sync with backend `_DEFAULT_PERMISSIONS` + the resolver's `client_scope`
 // and `pod_kind_lock`/`can_toggle_axis` outputs in `app/services/access.py`.
 // Surfaces the spec from `feedback/project_access_control_v1_original_prompt`
-// (Admin: all sections + toggle; VPs/Managers + BI Team: toggle, all clients;
-// Leadership: Dashboards only, assigned clients across both pods; Editorial /
-// Growth Team: locked to their pod kind + their pod's clients).
+// (Admin: all sections + toggle; Leadership + BI Team: toggle, all clients;
+// Editorial / Growth Team: locked to their pod kind + their pod's clients).
+// The old pod-derived `leadership` group was retired — its members (Senior
+// Editors / Growth Leads / Directors) get access via `editorial_team` /
+// `growth_team` instead.
 // ────────────────────────────────────────────────────────────────────────
 
 interface GroupBehavior {
@@ -489,20 +521,17 @@ interface GroupBehavior {
 
 const GROUP_BEHAVIOR: Record<string, GroupBehavior> = {
   admin: { sections: "Dashboards · Data · Admin", podAxis: "toggle", clientScope: "all" },
-  vps_managers: {
-    sections: "Dashboards · Admin (Access Control)",
+  leadership: {
+    // Seeded VPs / managers of the Editorial + Growth orgs. Only
+    // non-admin group with Capacity Planning v2 access.
+    sections: "Dashboards · Capacity Planning v2 · Admin (Access Control)",
     podAxis: "toggle",
     clientScope: "all",
   },
   bi_team: {
-    sections: "Dashboards · Data · Admin (Access Control + Data Quality)",
+    sections: "Dashboards · Import Data · Admin (Access Control + Data Quality)",
     podAxis: "toggle",
     clientScope: "all",
-  },
-  leadership: {
-    sections: "Dashboards only",
-    podAxis: "none",
-    clientScope: "assigned",
   },
   editorial_team: {
     sections: "Dashboards (no Overview)",
@@ -510,7 +539,7 @@ const GROUP_BEHAVIOR: Record<string, GroupBehavior> = {
     clientScope: "own_pod",
   },
   growth_team: {
-    sections: "Dashboards (no Overview)",
+    sections: "Dashboards (no Overview, no Team KPIs)",
     podAxis: "growth",
     clientScope: "own_pod",
   },
@@ -521,7 +550,7 @@ function PodAxisChip({ kind }: { kind: GroupBehavior["podAxis"] }) {
     return (
       <span
         className="inline-flex items-center gap-1 rounded-sm border border-[#65FFAA]/30 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#65FFAA]"
-        title="Can flip the Editorial / Growth toggle in the top bar to switch the pod axis of every chart."
+        title="Can flip the Editorial / Growth toggle in the header."
       >
         Toggle · Editorial ↔ Growth
       </span>
@@ -572,7 +601,7 @@ function ClientScopeChip({ kind }: { kind: GroupBehavior["clientScope"] }) {
     return (
       <span
         className="inline-flex items-center gap-1 rounded-sm border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#F5BC4E]"
-        title="Only clients the user is assigned to in the Team Pods sheet — can span both Editorial and Growth pods."
+        title="Only clients this user is assigned to."
       >
         Assigned clients (both pods)
       </span>
@@ -581,7 +610,7 @@ function ClientScopeChip({ kind }: { kind: GroupBehavior["clientScope"] }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-sm border border-[#F5BC4E]/30 bg-[#F5BC4E]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#F5BC4E]"
-      title="Only the clients of this user's own pod kind. Other pods aren't visible at all."
+      title="Only their own pod's clients. Other pods are hidden."
     >
       Own pod only
     </span>
@@ -640,7 +669,7 @@ function HowGroupsWorkLegend() {
       <div className="border-t border-[#1f1f1f] px-3 py-2.5 font-mono text-[11px] text-[#C4BCAA]">
         <p className="mb-2 text-[#909090]">
           Each group&apos;s row below carries a small "What this group can do"
-          card. As a quick reference, here&apos;s the spec all six seeded
+          card. As a quick reference, here&apos;s the spec all five seeded
           groups follow:
         </p>
         <div className="overflow-x-auto">
@@ -656,9 +685,8 @@ function HowGroupsWorkLegend() {
             <tbody>
               {[
                 ["admin", "Admin"],
-                ["vps_managers", "VPs and Managers"],
-                ["bi_team", "BI Team"],
                 ["leadership", "Leadership"],
+                ["bi_team", "BI Team"],
                 ["editorial_team", "Editorial Team"],
                 ["growth_team", "Growth Team"],
               ].map(([slug, name]) => {
@@ -686,9 +714,28 @@ function HowGroupsWorkLegend() {
   );
 }
 
+
 // ────────────────────────────────────────────────────────────────────────
 // Groups tab
 // ────────────────────────────────────────────────────────────────────────
+
+interface GroupsConflict {
+  key: string;
+  groupSlug: string;
+  viewSlug: string;
+  staged: boolean;
+  serverWas: boolean;
+  serverNow: boolean;
+}
+
+interface UsersConflict {
+  key: string;
+  email: string;
+  viewSlug: string;
+  staged: { type: "set"; canView: boolean } | { type: "clear" };
+  serverWas: boolean | undefined;
+  serverNow: boolean | undefined;
+}
 
 function GroupsTab({ profile }: { profile: AccessProfile }) {
   const [groups, setGroups] = useState<ApiGroupSummary[] | null>(null);
@@ -696,6 +743,44 @@ function GroupsTab({ profile }: { profile: AccessProfile }) {
   const [details, setDetails] = useState<Map<string, ApiGroupDetail>>(new Map());
   const [filter, setFilter] = useState("");
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
+  // Draft mode — cell clicks accumulate here instead of hitting the API
+  // immediately. Save flushes them in a batch; Discard rolls them back.
+  // Map key = `${groupSlug}::${viewSlug}`; value = desired `can_view`.
+  // A key is removed from the map when the user toggles back to the
+  // server value (so "edit, then undo" leaves the map clean).
+  const [pendingPerms, setPendingPerms] = useState<Map<string, boolean>>(
+    new Map(),
+  );
+  // Server value captured the first time each key was staged. Used by
+  // the stale-data guard at Save time: refetch, compare snapshot to
+  // current server, surface conflicts if another admin moved the cell
+  // out from under us.
+  const [permsSnapshot, setPermsSnapshot] = useState<Map<string, boolean>>(
+    new Map(),
+  );
+  const [conflicts, setConflicts] = useState<GroupsConflict[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Browser-level "unsaved changes" warning. Active whenever there's
+  // at least one staged edit; tab close / refresh / nav-away triggers
+  // the native confirm dialog. Next.js client-side navigation does NOT
+  // fire `beforeunload`, so we also publish to the shared
+  // `unsavedChangesClient` store — the sidebar reads from it before
+  // every Link click and gates with `confirmDiscardIfUnsaved()`.
+  useEffect(() => {
+    setUnsavedChanges("access.groups", pendingPerms.size > 0);
+    return () => setUnsavedChanges("access.groups", false);
+  }, [pendingPerms.size]);
+  useEffect(() => {
+    if (pendingPerms.size === 0) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [pendingPerms.size]);
 
   const loadAll = useCallback(async () => {
     const [gs, vs] = await Promise.all([
@@ -749,12 +834,124 @@ function GroupsTab({ profile }: { profile: AccessProfile }) {
       })
     : groups;
 
-  const setGroupPerm = async (slug: string, viewSlug: string, canView: boolean) => {
-    await apiPut(`/api/access/groups/${slug}/permissions/${viewSlug}`, {
-      can_view: canView,
+  // Cell-click in draft mode: stage the desired value in `pendingPerms`.
+  // If the staged value matches the server's value, drop the key so the
+  // cell renders clean. This means toggling and toggling back leaves no
+  // pending edit (and no spurious API call on Save).
+  const togglePending = (slug: string, viewSlug: string, nextCanView: boolean) => {
+    const key = `${slug}::${viewSlug}`;
+    const server = !!details.get(slug)?.permissions[viewSlug];
+    setSaveError(null);
+    // Snapshot the server value the first time this cell is touched —
+    // we'll compare against it on Save to detect concurrent edits.
+    setPermsSnapshot((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Map(prev);
+      next.set(key, server);
+      return next;
     });
-    await refreshAccessProfile();
-    await refreshOneGroup(slug);
+    setPendingPerms((prev) => {
+      const next = new Map(prev);
+      if (nextCanView === server) next.delete(key);
+      else next.set(key, nextCanView);
+      return next;
+    });
+  };
+
+  const discardPending = () => {
+    setPendingPerms(new Map());
+    setPermsSnapshot(new Map());
+    setConflicts([]);
+    setSaveError(null);
+  };
+
+  // Save flow:
+  //   1. Refetch the matrix to see if anything moved server-side since
+  //      we started drafting.
+  //   2. For each pending key, compare the snapshot (server value at
+  //      stage time) to the freshly-fetched value. Any mismatch → a
+  //      concurrent edit conflict. Halt the save and surface a modal.
+  //   3. If clean, fire one PUT per pending key sequentially so audit
+  //      log entries stay in order, then refresh access profile +
+  //      every touched group's detail.
+  const commitPending = async (overrideConflicts = false) => {
+    if (pendingPerms.size === 0) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Stale-data guard: re-pull every group's detail. Cheap enough
+      // (≤ a handful of groups) and the source of truth right before
+      // we mutate.
+      const gs = await apiGet<ApiGroupSummary[]>("/api/access/groups");
+      const ds = await Promise.all(
+        gs.map((g) => apiGet<ApiGroupDetail>(`/api/access/groups/${g.slug}`)),
+      );
+      const fresh = new Map(ds.map((d) => [d.slug, d]));
+
+      if (!overrideConflicts) {
+        const detected: GroupsConflict[] = [];
+        for (const [key] of pendingPerms) {
+          const [slug, viewSlug] = key.split("::");
+          const serverWas = permsSnapshot.get(key) ?? false;
+          const serverNow = !!fresh.get(slug)?.permissions[viewSlug];
+          if (serverWas !== serverNow) {
+            detected.push({
+              key,
+              groupSlug: slug,
+              viewSlug,
+              staged: pendingPerms.get(key)!,
+              serverWas,
+              serverNow,
+            });
+          }
+        }
+        if (detected.length > 0) {
+          // Push fresh data into local state so the user sees current
+          // truth when the modal closes.
+          setGroups(gs);
+          setDetails(fresh);
+          setConflicts(detected);
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Clean to save (or user explicitly chose to overwrite).
+      const touchedGroups = new Set<string>();
+      for (const [key, canView] of pendingPerms) {
+        const [slug, viewSlug] = key.split("::");
+        await apiPut(`/api/access/groups/${slug}/permissions/${viewSlug}`, {
+          can_view: canView,
+        });
+        touchedGroups.add(slug);
+      }
+      await refreshAccessProfile();
+      await Promise.all(Array.from(touchedGroups).map((s) => refreshOneGroup(s)));
+      setPendingPerms(new Map());
+      setPermsSnapshot(new Map());
+      setConflicts([]);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Drop the conflicted keys from the draft and re-snapshot any that
+   *  remain. The user can re-stage the conflicts if they still want
+   *  them. */
+  const discardConflicts = () => {
+    setPendingPerms((prev) => {
+      const next = new Map(prev);
+      for (const c of conflicts) next.delete(c.key);
+      return next;
+    });
+    setPermsSnapshot((prev) => {
+      const next = new Map(prev);
+      for (const c of conflicts) next.delete(c.key);
+      return next;
+    });
+    setConflicts([]);
   };
 
   return (
@@ -788,12 +985,13 @@ function GroupsTab({ profile }: { profile: AccessProfile }) {
                   views={displayViews}
                   editView={editView}
                   profile={profile}
+                  pendingPerms={pendingPerms}
                   isExpanded={isExpanded}
                   onToggleExpand={() =>
                     setExpandedSlug(isExpanded ? null : g.slug)
                   }
                   onSetPerm={(viewSlug, canView) =>
-                    setGroupPerm(g.slug, viewSlug, canView)
+                    togglePending(g.slug, viewSlug, canView)
                   }
                   onMembersChanged={() => refreshOneGroup(g.slug)}
                 />
@@ -803,9 +1001,198 @@ function GroupsTab({ profile }: { profile: AccessProfile }) {
         </table>
       </div>
       <p className="font-mono text-[10px] text-[#606060]">
-        Click any cell to grant or revoke a group&apos;s view access. Click the
-        chevron to expand a group&apos;s members inline.
+        Click any cell to stage a grant / revoke. Edits don&apos;t hit the
+        backend until you click <b>Save changes</b> in the banner above.
+        Click the chevron to expand a group&apos;s members inline.
       </p>
+
+      {/* Pending-edits banner — only shown when there's at least one
+          staged change. Sticks to the bottom of the viewport so the
+          actor can save / discard from anywhere on the page without
+          scrolling. Same idea as the unsaved-changes bar on Notion /
+          Google Docs forms. */}
+      <PendingChangesBanner
+        count={pendingPerms.size}
+        saving={saving}
+        error={saveError}
+        onSave={() => void commitPending()}
+        onDiscard={discardPending}
+      />
+
+      {conflicts.length > 0 && (
+        <ConflictModal
+          title="Group permissions changed on the server"
+          lines={conflicts.map((c) => {
+            const groupName =
+              groups.find((g) => g.slug === c.groupSlug)?.name ?? c.groupSlug;
+            const viewLabel =
+              views.find((v) => v.slug === c.viewSlug)?.label ?? c.viewSlug;
+            return {
+              key: c.key,
+              label: `${groupName} · ${viewLabel}`,
+              detail: `Was ${c.serverWas ? "granted" : "revoked"} when you started; another admin set it to ${c.serverNow ? "granted" : "revoked"}. You staged ${c.staged ? "granted" : "revoked"}.`,
+            };
+          })}
+          onOverwrite={() => void commitPending(true)}
+          onDiscardConflicts={discardConflicts}
+          onClose={() => setConflicts([])}
+        />
+      )}
+    </div>
+  );
+}
+
+function PendingChangesBanner({
+  count,
+  saving,
+  error,
+  onSave,
+  onDiscard,
+}: {
+  count: number;
+  saving: boolean;
+  error: string | null;
+  onSave: () => void;
+  onDiscard: () => void;
+}) {
+  if (count === 0 && !error) return null;
+  return (
+    <div className="sticky bottom-4 z-30 mx-auto flex max-w-2xl items-center gap-3 rounded-lg border border-[#F5BC4E]/50 bg-[#1a1408] px-3 py-2 shadow-2xl shadow-black/60 backdrop-blur-md">
+      <span className="relative inline-flex h-2 w-2 shrink-0">
+        <span className="absolute inset-0 animate-ping rounded-full bg-[#F5BC4E] opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#F5BC4E]" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#F5BC4E]">
+          {count} unsaved {count === 1 ? "edit" : "edits"}
+        </p>
+        {error ? (
+          <p className="mt-0.5 truncate font-mono text-[10px] text-[#ED6958]">
+            {error}
+          </p>
+        ) : (
+          <p className="mt-0.5 truncate font-mono text-[10px] text-[#C4BCAA]">
+            Click cells to stage changes; nothing is sent to the backend
+            until you save.
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onDiscard}
+        disabled={saving}
+        className="h-7 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA] transition-colors hover:border-[#3a3a3a] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Discard
+      </button>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving || count === 0}
+        className="h-7 rounded-md bg-[#42CA80] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-black transition-colors hover:bg-[#65FFAA] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {saving ? "Saving…" : `Save ${count > 0 ? `(${count})` : ""}`}
+      </button>
+    </div>
+  );
+}
+
+interface ConflictLine {
+  key: string;
+  label: string;
+  detail: string;
+}
+
+/** Modal shown after a Save when at least one staged cell has been
+ *  modified server-side since the user started drafting. Three exits:
+ *    • Overwrite — re-runs the save bypassing the conflict check
+ *      (user's staged values win).
+ *    • Discard conflicts — drops the conflicted keys from the draft,
+ *      keeping the rest of the staged edits.
+ *    • Close — keeps the draft + the latest server values visible so
+ *      the user can review each conflicted cell individually before
+ *      saving again. */
+function ConflictModal({
+  title,
+  lines,
+  onOverwrite,
+  onDiscardConflicts,
+  onClose,
+}: {
+  title: string;
+  lines: ConflictLine[];
+  onOverwrite: () => void;
+  onDiscardConflicts: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-label={title}
+        className="w-[520px] max-w-[90vw] max-h-[80vh] overflow-y-auto rounded-lg border border-[#F5BC4E]/40 bg-[#0d0d0d] shadow-2xl shadow-black/80"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-[#1f1f1f] px-4 py-3">
+          <p className="font-mono text-[12px] font-bold uppercase tracking-wider text-[#F5BC4E]">
+            {title}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-6 w-6 items-center justify-center rounded text-[#606060] transition-colors hover:bg-[#1f1f1f] hover:text-white"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-4 py-3 space-y-3">
+          <p className="font-mono text-[11px] leading-relaxed text-[#C4BCAA]">
+            {lines.length === 1
+              ? "1 cell"
+              : `${lines.length} cells`}{" "}
+            you staged moved on the server while you were editing. Pick
+            how to resolve before saving.
+          </p>
+          <ul className="space-y-2 rounded-md border border-[#1f1f1f] bg-[#0a0a0a] p-2">
+            {lines.map((l) => (
+              <li
+                key={l.key}
+                className="rounded border border-[#1f1f1f] bg-[#161616] px-2 py-1.5"
+              >
+                <p className="font-mono text-[11px] font-semibold text-white">
+                  {l.label}
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] leading-snug text-[#909090]">
+                  {l.detail}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#1f1f1f] px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-7 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA] transition-colors hover:border-[#3a3a3a] hover:text-white"
+          >
+            Review manually
+          </button>
+          <button
+            type="button"
+            onClick={onDiscardConflicts}
+            className="h-7 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#F5BC4E] transition-colors hover:border-[#F5BC4E]/50 hover:bg-[#F5BC4E]/10"
+          >
+            Discard conflicts
+          </button>
+          <button
+            type="button"
+            onClick={onOverwrite}
+            className="h-7 rounded-md bg-[#ED6958] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-black transition-colors hover:bg-[#FF8773]"
+          >
+            Overwrite & save
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -816,6 +1203,7 @@ function FragmentRow({
   views,
   editView,
   profile,
+  pendingPerms,
   isExpanded,
   onToggleExpand,
   onSetPerm,
@@ -829,11 +1217,22 @@ function FragmentRow({
   // it yet (e.g. older deploy) — render the row gracefully without it.
   editView: ApiView | undefined;
   profile: AccessProfile;
+  /** Staged edits keyed by `${groupSlug}::${viewSlug}`. A cell is dirty
+   *  when its key is in this Map; effective value = the map value;
+   *  otherwise effective = server value from `detail.permissions`. */
+  pendingPerms: Map<string, boolean>;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onSetPerm: (viewSlug: string, canView: boolean) => Promise<void>;
+  onSetPerm: (viewSlug: string, canView: boolean) => void;
   onMembersChanged: () => Promise<void>;
 }) {
+  const effective = (viewSlug: string): { canView: boolean; dirty: boolean } => {
+    const key = `${group.slug}::${viewSlug}`;
+    if (pendingPerms.has(key)) {
+      return { canView: pendingPerms.get(key)!, dirty: true };
+    }
+    return { canView: !!detail?.permissions[viewSlug], dirty: false };
+  };
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   return (
     <>
@@ -864,7 +1263,7 @@ function FragmentRow({
           </button>
         </td>
         {views.map((v, idx) => {
-          const canView = !!detail?.permissions[v.slug];
+          const { canView, dirty } = effective(v.slug);
           const dividerCls = dividerClass(cellDividerKind(views, idx));
           const editable = canEditCell(group.slug, v.slug, profile) && !!detail;
 
@@ -873,7 +1272,7 @@ function FragmentRow({
           // `admin.access.edit` view; toggling it grants/revokes the
           // matrix-edit privilege for this group.
           if (v.slug === ACCESS_VIEW && editView) {
-            const canEdit = !!detail?.permissions[editView.slug];
+            const editEff = effective(editView.slug);
             const editableEditPill =
               canEditCell(group.slug, editView.slug, profile) && !!detail && canView;
             return (
@@ -882,25 +1281,27 @@ function FragmentRow({
                   <PermPill
                     canView={canView}
                     editable={editable}
+                    dirty={dirty}
                     onClick={() => {
                       if (!editable) return;
-                      void onSetPerm(v.slug, !canView);
+                      onSetPerm(v.slug, !canView);
                     }}
                     label="View"
                   />
                   <PermPill
-                    canView={canEdit}
+                    canView={editEff.canView}
                     editable={editableEditPill}
+                    dirty={editEff.dirty}
                     onClick={() => {
                       if (!editableEditPill) return;
-                      void onSetPerm(editView.slug, !canEdit);
+                      onSetPerm(editView.slug, !editEff.canView);
                     }}
                     label="Edit"
                     tone="blue"
                     title={
                       !canView
                         ? "Grant View first — Edit requires View access"
-                        : canEdit
+                        : editEff.canView
                           ? "Revoke matrix-edit privilege"
                           : "Grant matrix-edit privilege"
                     }
@@ -915,9 +1316,10 @@ function FragmentRow({
               <PermPill
                 canView={canView}
                 editable={editable}
+                dirty={dirty}
                 onClick={() => {
                   if (!editable) return;
-                  void onSetPerm(v.slug, !canView);
+                  onSetPerm(v.slug, !canView);
                 }}
               />
             </td>
@@ -964,6 +1366,7 @@ function PermPill({
   editable,
   onClick,
   override,
+  dirty,
   label,
   title,
   tone = "green",
@@ -975,6 +1378,10 @@ function PermPill({
   // "revoke" → user has LESS access than their group(s) provide
   // undefined → effective state matches the group default (no override active)
   override?: "grant" | "revoke";
+  /** Draft-mode flag: cell carries a staged edit that hasn't been
+   *  committed to the backend yet. Renders an amber ring + dashed
+   *  border so the user can see at a glance what they'd save. */
+  dirty?: boolean;
   // Custom on-pill text. Defaults to "View" / "—". The Access Control cell
   // uses two pills with labels "View" + "Edit" rendered side-by-side.
   label?: string;
@@ -1007,13 +1414,21 @@ function PermPill({
   const interactive = editable
     ? "cursor-pointer hover:brightness-125 transition"
     : "cursor-default";
+  // Draft-mode visual: amber outline ring + dashed border so a staged
+  // edit is impossible to miss in a long matrix. The base `cls` (color
+  // tied to the staged value) still applies — the ring is additive.
+  const dirtyCls = dirty
+    ? " border-dashed border-[#F5BC4E] ring-1 ring-[#F5BC4E]/40"
+    : "";
   const tooltip =
     title ??
-    (override === "grant"
-      ? "Per-user override grants this user MORE access than their group(s) provide. Click to clear."
-      : override === "revoke"
-        ? "Per-user override REVOKES access this user's group(s) would otherwise grant. Click to clear."
-        : undefined);
+    (dirty
+      ? "Unsaved edit — click Save in the banner to commit."
+      : override === "grant"
+        ? "Per-user override grants this user MORE access than their group(s) provide. Click to clear."
+        : override === "revoke"
+          ? "Per-user override REVOKES access this user's group(s) would otherwise grant. Click to clear."
+          : undefined);
   const onLabel = label ?? "View";
   const offLabel = label ?? "—";
   return (
@@ -1025,6 +1440,7 @@ function PermPill({
       className={
         "inline-flex h-6 min-w-[44px] items-center justify-center gap-1 rounded border font-mono text-[10px] uppercase tracking-wider " +
         cls +
+        dirtyCls +
         " " +
         interactive
       }
@@ -1172,8 +1588,45 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
   // override (grant beyond group, or revoke below group). We fetch them
   // once on mount; the matrix rebuilds whenever permissions change.
   const [groupPerms, setGroupPerms] = useState<Record<string, Record<string, boolean>>>({});
+  // Slug → display name lookup so each user row can render proper
+  // group labels ("Growth Team") instead of the raw API slugs
+  // ("growth_team").
+  const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
   const [onlyOverrides, setOnlyOverrides] = useState(false);
+  // Draft mode for per-user overrides. Keyed by `${email}::${viewSlug}`.
+  // A `{ type: "set" }` pending will fire a PUT on Save; a `{ type:
+  // "clear" }` pending will fire a DELETE. Auto-cleanup: if the staged
+  // value matches the server's override state, the key is dropped so
+  // toggle-and-undo leaves the map clean.
+  const [pendingOverrides, setPendingOverrides] = useState<
+    Map<string, { type: "set"; canView: boolean } | { type: "clear" }>
+  >(new Map());
+  // Server's override value at stage time, indexed the same way as
+  // `pendingOverrides`. `undefined` is a valid snapshot (means: no
+  // override existed when the user touched this cell). Used by the
+  // stale-data guard at Save to detect concurrent edits.
+  const [overridesSnapshot, setOverridesSnapshot] = useState<
+    Map<string, boolean | undefined>
+  >(new Map());
+  const [conflicts, setConflicts] = useState<UsersConflict[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Browser-level "unsaved changes" warning. Same pattern as Groups tab.
+  useEffect(() => {
+    setUnsavedChanges("access.users", pendingOverrides.size > 0);
+    return () => setUnsavedChanges("access.users", false);
+  }, [pendingOverrides.size]);
+  useEffect(() => {
+    if (pendingOverrides.size === 0) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [pendingOverrides.size]);
 
   const load = useCallback(async () => {
     const [us, vs, gs] = await Promise.all([
@@ -1187,6 +1640,7 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
     setUsers(us);
     setViews(normalizeViews(vs));
     setGroupPerms(Object.fromEntries(ds.map((d) => [d.slug, d.permissions])));
+    setGroupNames(Object.fromEntries(gs.map((g) => [g.slug, g.name])));
   }, []);
 
   useEffect(() => {
@@ -1237,6 +1691,13 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
   const usersWithOverrides = new Set(
     overrideCounts.filter((c) => c.grants + c.revokes > 0).map((c) => c.email),
   );
+  // Pending-aware: users with any staged override (set or clear) are
+  // also surfaced by the "Show only overrides" filter so the actor can
+  // narrow the matrix down to just what they're editing before saving.
+  for (const key of pendingOverrides.keys()) {
+    const email = key.split("::")[0];
+    usersWithOverrides.add(email);
+  }
 
   const q = filter.trim().toLowerCase();
   const filtered = users.filter((u) => {
@@ -1249,21 +1710,180 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
     );
   });
 
-  const setOverride = async (email: string, viewSlug: string, canView: boolean) => {
-    await apiPut(`/api/access/users/${encodeURIComponent(email)}/overrides/${viewSlug}`, {
-      can_view: canView,
-    });
-    await refreshAccessProfile();
-    await load();
-  };
-  const clearOverride = async (email: string, viewSlug: string) => {
-    try {
-      await apiDelete(
-        `/api/access/users/${encodeURIComponent(email)}/overrides/${viewSlug}`,
-      );
-    } catch {
-      // No-op when there's no override to clear.
+  /** Cell-click handler in draft mode. Replicates the two-state cycle
+   *  used previously (no-override ↔ override-flip) but writes to local
+   *  state instead of firing an API call. */
+  const cycleOverridePending = (
+    u: ApiUserMatrixRow,
+    viewSlug: string,
+  ) => {
+    const key = `${u.email}::${viewSlug}`;
+    const serverOverride: boolean | undefined = Object.prototype.hasOwnProperty.call(
+      u.overrides,
+      viewSlug,
+    )
+      ? u.overrides[viewSlug]
+      : undefined;
+    const serverHasOverride = serverOverride !== undefined;
+
+    // Effective override = pending if staged, else server.
+    const currentPending = pendingOverrides.get(key);
+    let effectiveOv: boolean | undefined;
+    if (currentPending?.type === "set") effectiveOv = currentPending.canView;
+    else if (currentPending?.type === "clear") effectiveOv = undefined;
+    else effectiveOv = serverOverride;
+
+    const groupDefault = getGroupDefault(u, viewSlug);
+    const currentEffective = effectiveOv !== undefined ? effectiveOv : groupDefault;
+
+    // Same cycle the old `cycleOverride` used: if an override is in
+    // play, clear it; otherwise add an override flipping the effective.
+    let next: { type: "set"; canView: boolean } | { type: "clear" };
+    if (effectiveOv !== undefined) {
+      next = { type: "clear" };
+    } else {
+      next = { type: "set", canView: !currentEffective };
     }
+
+    setSaveError(null);
+    setOverridesSnapshot((prev) => {
+      if (prev.has(key)) return prev;
+      const nextMap = new Map(prev);
+      nextMap.set(key, serverOverride);
+      return nextMap;
+    });
+    setPendingOverrides((prev) => {
+      const nextMap = new Map(prev);
+      // Auto-cleanup: drop the key if `next` brings us back to the
+      // server state so toggle-and-undo doesn't leave a phantom edit.
+      if (next.type === "clear" && !serverHasOverride) {
+        nextMap.delete(key);
+      } else if (
+        next.type === "set" &&
+        serverHasOverride &&
+        serverOverride === next.canView
+      ) {
+        nextMap.delete(key);
+      } else {
+        nextMap.set(key, next);
+      }
+      return nextMap;
+    });
+  };
+
+  const discardPending = () => {
+    setPendingOverrides(new Map());
+    setOverridesSnapshot(new Map());
+    setConflicts([]);
+    setSaveError(null);
+  };
+
+  const commitPending = async (overrideConflicts = false) => {
+    if (pendingOverrides.size === 0) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Stale-data guard: refresh the user matrix before mutating so
+      // we can compare server values at stage time vs right now.
+      const fresh = await apiGet<ApiUserMatrixRow[]>("/api/access/users");
+
+      if (!overrideConflicts) {
+        const detected: UsersConflict[] = [];
+        for (const [key, change] of pendingOverrides) {
+          const [email, viewSlug] = key.split("::");
+          const serverWas = overridesSnapshot.get(key);
+          const row = fresh.find((u) => u.email === email);
+          const serverNow =
+            row && Object.prototype.hasOwnProperty.call(row.overrides, viewSlug)
+              ? row.overrides[viewSlug]
+              : undefined;
+          if (serverWas !== serverNow) {
+            detected.push({
+              key,
+              email,
+              viewSlug,
+              staged: change,
+              serverWas,
+              serverNow,
+            });
+          }
+        }
+        if (detected.length > 0) {
+          setUsers(fresh);
+          setConflicts(detected);
+          setSaving(false);
+          return;
+        }
+      }
+
+      for (const [key, change] of pendingOverrides) {
+        const [email, viewSlug] = key.split("::");
+        if (change.type === "set") {
+          await apiPut(
+            `/api/access/users/${encodeURIComponent(email)}/overrides/${viewSlug}`,
+            { can_view: change.canView },
+          );
+        } else {
+          try {
+            await apiDelete(
+              `/api/access/users/${encodeURIComponent(email)}/overrides/${viewSlug}`,
+            );
+          } catch {
+            // 404 when there was nothing to clear is harmless.
+          }
+        }
+      }
+      await refreshAccessProfile();
+      await load();
+      setPendingOverrides(new Map());
+      setOverridesSnapshot(new Map());
+      setConflicts([]);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const discardConflicts = () => {
+    setPendingOverrides((prev) => {
+      const next = new Map(prev);
+      for (const c of conflicts) next.delete(c.key);
+      return next;
+    });
+    setOverridesSnapshot((prev) => {
+      const next = new Map(prev);
+      for (const c of conflicts) next.delete(c.key);
+      return next;
+    });
+    setConflicts([]);
+  };
+  const resetOverrides = async (email: string) => {
+    if (
+      !confirm(
+        `Reset ${email} to their group default? This clears every per-user override on their row.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await apiDelete(`/api/access/users/${encodeURIComponent(email)}/overrides`);
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : "Failed to reset user's overrides",
+      );
+      return;
+    }
+    // Drop any pending edits that touched this user — server is now
+    // the source of truth for them again.
+    setPendingOverrides((prev) => {
+      const next = new Map(prev);
+      const prefix = `${email}::`;
+      for (const k of Array.from(next.keys())) {
+        if (k.startsWith(prefix)) next.delete(k);
+      }
+      return next;
+    });
     await refreshAccessProfile();
     await load();
   };
@@ -1280,27 +1900,55 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
         <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
           {filtered.length} {filtered.length === 1 ? "user" : "users"}
         </span>
-        {usersWithOverrides.size > 0 && (
-          <button
-            type="button"
-            onClick={() => setOnlyOverrides((v) => !v)}
-            className={
-              "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-wider transition " +
-              (onlyOverrides
-                ? "border-[#F5BC4E]/50 bg-[#F5BC4E]/10 text-[#F5BC4E]"
-                : "border-[#2a2a2a] bg-[#0d0d0d] text-[#909090] hover:border-[#3a3a3a]")
-            }
-            title={
-              onlyOverrides
-                ? "Showing only users with at least one override; click to show everyone again."
-                : "Show only users whose effective access differs from their group default."
-            }
-          >
-            {onlyOverrides ? "Showing overrides" : "Show only overrides"}
-            <span className="rounded-sm bg-[#F5BC4E]/15 px-1 font-mono text-[10px] text-[#F5BC4E]">
-              {usersWithOverrides.size}
-            </span>
-          </button>
+        {/* Render the toggle whenever:
+              • there's at least one user with an override / pending edit, OR
+              • the filter is currently ON.
+            The second clause is the bugfix — without it, a user could
+            enable "Showing overrides", revert the only override that
+            qualified, and then have no UI to turn the filter back off
+            (since the button vanished with usersWithOverrides.size = 0).
+            The clear-X is always available when the filter is active. */}
+        {(usersWithOverrides.size > 0 || onlyOverrides) && (
+          <div className="inline-flex h-7 items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-0.5">
+            <button
+              type="button"
+              onClick={() => setOnlyOverrides((v) => !v)}
+              className={
+                "inline-flex h-6 items-center gap-1.5 rounded px-2 font-mono text-[10px] uppercase tracking-wider transition " +
+                (onlyOverrides
+                  ? "bg-[#F5BC4E]/10 text-[#F5BC4E]"
+                  : "text-[#909090] hover:text-white")
+              }
+              title={
+                onlyOverrides
+                  ? "Showing only users with at least one override; click to show everyone again."
+                  : "Show only users whose effective access differs from their group default."
+              }
+            >
+              {onlyOverrides ? "Showing overrides" : "Show only overrides"}
+              <span
+                className={cn(
+                  "rounded-sm px-1 font-mono text-[10px]",
+                  usersWithOverrides.size > 0
+                    ? "bg-[#F5BC4E]/15 text-[#F5BC4E]"
+                    : "bg-[#1f1f1f] text-[#606060]",
+                )}
+              >
+                {usersWithOverrides.size}
+              </span>
+            </button>
+            {onlyOverrides && (
+              <button
+                type="button"
+                onClick={() => setOnlyOverrides(false)}
+                title="Clear filter — show every user again"
+                aria-label="Clear filter"
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-[#606060] transition-colors hover:bg-[#1f1f1f] hover:text-white"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -1335,45 +1983,83 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
                           {counts.revokes}
                         </span>
                       )}
+                      {/* Reset-to-group-default button — only shown when
+                          the user has at least one override that actually
+                          differs from their group default. Hidden for
+                          seeded admins (they can't carry overrides) and
+                          for view-only viewers (no edit access). */}
+                      {counts &&
+                        (counts.grants > 0 || counts.revokes > 0) &&
+                        !u.is_seeded_admin &&
+                        hasEditAccess(profile) && (
+                          <button
+                            type="button"
+                            onClick={() => void resetOverrides(u.email)}
+                            title="Reset this user to their group default."
+                            className="ml-1 inline-flex h-5 items-center gap-1 rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 font-mono text-[9px] uppercase tracking-wider text-[#909090] transition-colors hover:border-[#F5BC4E]/40 hover:bg-[#F5BC4E]/10 hover:text-[#F5BC4E]"
+                          >
+                            <Undo2 className="h-2.5 w-2.5" strokeWidth={2.5} />
+                            Reset
+                          </button>
+                        )}
                     </div>
                     <div className="font-mono text-[10px] text-[#606060]">
                       {u.email}
                       {u.groups.length > 0 && (
                         <span className="ml-1 text-[#404040]">
-                          · {u.groups.join(", ")}
+                          ·{" "}
+                          {u.groups
+                            .map((slug) => groupNames[slug] ?? slug)
+                            .join(", ")}
                         </span>
                       )}
                     </div>
                   </td>
                   {displayViews.map((v, idx) => {
-                    const can = !!u.permissions[v.slug];
-                    const direction = getOverrideDirection(u, v.slug);
+                    // Effective state with pending edits applied. We
+                    // need (1) the displayed cell value, (2) the
+                    // override direction (grant / revoke / none) so
+                    // the chip colors match, and (3) a dirty flag for
+                    // the amber draft outline.
+                    const effective = (vSlug: string) => {
+                      const key = `${u.email}::${vSlug}`;
+                      const pending = pendingOverrides.get(key);
+                      const groupDefault = getGroupDefault(u, vSlug);
+                      const serverOv: boolean | undefined =
+                        Object.prototype.hasOwnProperty.call(
+                          u.overrides,
+                          vSlug,
+                        )
+                          ? u.overrides[vSlug]
+                          : undefined;
+                      let effOv: boolean | undefined;
+                      if (pending?.type === "set") effOv = pending.canView;
+                      else if (pending?.type === "clear") effOv = undefined;
+                      else effOv = serverOv;
+                      const canView =
+                        effOv !== undefined ? effOv : groupDefault;
+                      let direction: "grant" | "revoke" | undefined;
+                      if (effOv === undefined || effOv === groupDefault) {
+                        direction = undefined;
+                      } else {
+                        direction = effOv ? "grant" : "revoke";
+                      }
+                      return { canView, direction, dirty: pending !== undefined };
+                    };
+
+                    const main = effective(v.slug);
                     const dividerCls = dividerClass(
                       cellDividerKind(displayViews, idx),
                     );
                     const isSeededAdmin = !!u.is_seeded_admin;
                     const editable = canEditOverride(v.slug, profile, isSeededAdmin);
-                    const cycleOverride = (
-                      vSlug: string,
-                      currentEffective: boolean,
-                    ) => {
-                      const hasOverride = Object.prototype.hasOwnProperty.call(
-                        u.overrides,
-                        vSlug,
-                      );
-                      if (!hasOverride) {
-                        void setOverride(u.email, vSlug, !currentEffective);
-                      } else {
-                        void clearOverride(u.email, vSlug);
-                      }
-                    };
 
                     // Two-pill rendering for the Access Control cell.
                     if (v.slug === ACCESS_VIEW && editView) {
-                      const canEdit = !!u.permissions[editView.slug];
-                      const editDirection = getOverrideDirection(u, editView.slug);
+                      const editEff = effective(editView.slug);
                       const editPillEditable =
-                        canEditOverride(editView.slug, profile, isSeededAdmin) && can;
+                        canEditOverride(editView.slug, profile, isSeededAdmin) &&
+                        main.canView;
                       return (
                         <td
                           key={v.slug}
@@ -1381,12 +2067,13 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
                         >
                           <div className="inline-flex items-center gap-1">
                             <PermPill
-                              canView={can}
+                              canView={main.canView}
                               editable={editable}
-                              override={direction}
+                              override={main.direction}
+                              dirty={main.dirty}
                               onClick={() => {
                                 if (!editable) return;
-                                cycleOverride(v.slug, can);
+                                cycleOverridePending(u, v.slug);
                               }}
                               label="View"
                               title={
@@ -1396,19 +2083,20 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
                               }
                             />
                             <PermPill
-                              canView={canEdit}
+                              canView={editEff.canView}
                               editable={editPillEditable}
-                              override={editDirection}
+                              override={editEff.direction}
+                              dirty={editEff.dirty}
                               onClick={() => {
                                 if (!editPillEditable) return;
-                                cycleOverride(editView.slug, canEdit);
+                                cycleOverridePending(u, editView.slug);
                               }}
                               label="Edit"
                               tone="blue"
                               title={
                                 isSeededAdmin
                                   ? "Seeded Admin — locked across the whole matrix. The original admin baseline can't be overridden."
-                                  : !can
+                                  : !main.canView
                                     ? "Grant View first — Edit requires View access"
                                     : undefined
                               }
@@ -1421,12 +2109,13 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
                     return (
                       <td key={v.slug} className={`px-2 py-2 text-center ${dividerCls}`}>
                         <PermPill
-                          canView={can}
+                          canView={main.canView}
                           editable={editable}
-                          override={direction}
+                          override={main.direction}
+                          dirty={main.dirty}
                           onClick={() => {
                             if (!editable) return;
-                            cycleOverride(v.slug, can);
+                            cycleOverridePending(u, v.slug);
                           }}
                           title={
                             isSeededAdmin
@@ -1469,9 +2158,48 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
           Revoked — user has LESS access than their group(s)
         </span>
         <span className="text-[#606060]">
-          · Click any cell to set or clear an override.
+          · Click any cell to stage an override; nothing is sent until
+          you click <b>Save changes</b> in the banner.
         </span>
       </div>
+
+      <PendingChangesBanner
+        count={pendingOverrides.size}
+        saving={saving}
+        error={saveError}
+        onSave={() => void commitPending()}
+        onDiscard={discardPending}
+      />
+
+      {conflicts.length > 0 && (
+        <ConflictModal
+          title="User overrides changed on the server"
+          lines={conflicts.map((c) => {
+            const viewLabel =
+              viewsSorted.find((v) => v.slug === c.viewSlug)?.label ?? c.viewSlug;
+            const fmt = (v: boolean | undefined) =>
+              v === undefined
+                ? "no override (inherits group)"
+                : v
+                  ? "granted"
+                  : "revoked";
+            const stagedStr =
+              c.staged.type === "clear"
+                ? "no override"
+                : c.staged.canView
+                  ? "granted"
+                  : "revoked";
+            return {
+              key: c.key,
+              label: `${c.email} · ${viewLabel}`,
+              detail: `Was ${fmt(c.serverWas)} when you started; another admin set it to ${fmt(c.serverNow)}. You staged ${stagedStr}.`,
+            };
+          })}
+          onOverwrite={() => void commitPending(true)}
+          onDiscardConflicts={discardConflicts}
+          onClose={() => setConflicts([])}
+        />
+      )}
     </div>
   );
 }

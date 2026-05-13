@@ -93,6 +93,49 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("access_views dashboard_label migration failed (continuing)")
 
+    # 3. access_groups: add `sort_order` so left-rail + matrix-row order is
+    #    decoupled from auto-increment ID. Seed step writes values from
+    #    the canonical `_GROUPS` list index on every restart.
+    try:
+        await conn.execute(
+            text(
+                "ALTER TABLE access_groups "
+                "ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+    except Exception:
+        logger.exception("access_groups sort_order migration failed (continuing)")
+
+    # 5. overview_comments.client_name: make nullable so the right-rail
+    #    "general" composer can post comments that aren't tied to a
+    #    specific client (per the new comments-rail spec). Existing rows
+    #    keep their non-null client_name; no data backfill required.
+    #    Idempotent — DROP NOT NULL is a no-op after the first run.
+    try:
+        await conn.execute(
+            text("ALTER TABLE overview_comments ALTER COLUMN client_name DROP NOT NULL")
+        )
+    except Exception:
+        logger.exception("overview_comments.client_name nullability migration failed (continuing)")
+
+    # 4. access_groups: collapse the old pod-derived `leadership` group into
+    #    the renamed `vps_managers` (now also called `leadership`). Old
+    #    leadership members were Senior Editors / Growth Leads / Directors
+    #    — all of whom are also members of `editorial_team` / `growth_team`
+    #    via their pod role, so deleting the row doesn't strand anyone.
+    #    Members + permissions cascade via FK ON DELETE CASCADE.
+    #    Idempotent: after first run, the old slug is gone, and the
+    #    rename is a no-op.
+    try:
+        await conn.execute(
+            text("DELETE FROM access_groups WHERE slug = 'leadership' AND is_pod_derived = true")
+        )
+        await conn.execute(
+            text("UPDATE access_groups SET slug = 'leadership' WHERE slug = 'vps_managers'")
+        )
+    except Exception:
+        logger.exception("access_groups leadership/vps_managers consolidation failed (continuing)")
+
 
 def _seed_access(_conn) -> None:
     """Run the RBAC seed inside a sync session bound to the same connection

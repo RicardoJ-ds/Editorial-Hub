@@ -401,6 +401,81 @@ function lastQHealth(row: SummaryRow): Health | null {
   return "behind";
 }
 
+/** Signed variance bucket used by the Overview Triage cards. Over-
+ *  delivery is healthy by definition — only *under*-delivery counts
+ *  against a client for triage purposes.
+ *    v ≥ 0          → healthy ("on target or ahead")
+ *    -5 ≤ v < 0     → watch   ("within limit" — small under-delivery)
+ *    v < -5         → behind  ("significant under-delivery")
+ *  Magnitude-based bucketing (D1's per-period chip color) is a
+ *  different concept and intentionally not used here. */
+function signedVarianceHealth(v: number): Health {
+  if (v >= 0) return "healthy";
+  if (v >= -5) return "watch";
+  return "behind";
+}
+
+/** Per-card variance color, signed. Over-delivery reads as the same
+ *  green as on-target — the triage cards reward catch-up. */
+function signedVarianceColor(v: number): string {
+  if (v >= 0) return "#42CA80";
+  if (v >= -5) return "#F5BC4E";
+  return "#ED6958";
+}
+
+/** True when the client's current contract Q is their FIRST (index 0).
+ *  Brand-new clients always read "behind" against contracted invoicing
+ *  because they haven't had time to ramp — surfacing them as a separate
+ *  "New (1st Q)" tier keeps the Behind list honest. */
+function isFirstContractQ(row: SummaryRow): boolean {
+  if (!row.start_date) return false;
+  const start = parseISODateLocal(row.start_date);
+  if (!start) return false;
+  const today = new Date();
+  const currentMi =
+    (today.getFullYear() - start.getFullYear()) * 12 +
+    (today.getMonth() + 1 - (start.getMonth() + 1)) +
+    1;
+  if (currentMi < 1) return false;
+  return Math.floor((currentMi - 1) / 3) === 0;
+}
+
+/** Four-way tier for Overview Triage classification. `new` is the
+ *  1st-contract-Q escape hatch — those clients sit outside the
+ *  healthy / watch / behind buckets and surface in a dedicated row. */
+type CurrentQTier = "healthy" | "watch" | "behind" | "new";
+
+const CURRENT_Q_TIER_ORDER: CurrentQTier[] = [
+  "behind",
+  "watch",
+  "healthy",
+  "new",
+];
+
+const CURRENT_Q_TIER_LABEL: Record<CurrentQTier, string> = {
+  healthy: "Healthy",
+  watch: "Within limit",
+  behind: "Behind",
+  new: "New (1st Q)",
+};
+
+const CURRENT_Q_TIER_COLOR: Record<CurrentQTier, string> = {
+  healthy: "#42CA80",
+  watch: "#F5BC4E",
+  behind: "#ED6958",
+  new: "#8FB5D9", // S8 from Graphite DS — distinct from triage greens/ambers/reds.
+};
+
+/** Classify a client by current-Q projected close, with the 1st-Q
+ *  escape hatch applied. Returns null when the client doesn't have an
+ *  in-progress Q yet (no current Q at all). */
+function clientCurrentQTier(row: SummaryRow): CurrentQTier | null {
+  const q = computeCurrentQ(row);
+  if (!q || q.invoiced <= 0) return null;
+  if (isFirstContractQ(row)) return "new";
+  return signedVarianceHealth(q.projectedVariance);
+}
+
 export function DeliveryMixCard({
   rows,
   subtitle,
@@ -408,34 +483,47 @@ export function DeliveryMixCard({
   rows: SummaryRow[];
   subtitle: string;
 }) {
-  const counts: Record<Health, number> = { behind: 0, watch: 0, healthy: 0 };
+  // Tier counts use the **current Q's projected end variance**
+  // (delivered actuals + projected for future months − contracted
+  // invoicing for the Q). Signed bucketing so over-delivery doesn't
+  // get punished:
+  //   variance ≥ 0      → Healthy
+  //   -5 ≤ variance < 0 → Within limit
+  //   variance < -5     → Behind
+  // Clients in their first contract Q are pulled out into a 4th tier
+  // (New) because they always look behind against contracted
+  // invoicing — they haven't had time to ramp.
+  const counts: Record<CurrentQTier, number> = {
+    behind: 0,
+    watch: 0,
+    healthy: 0,
+    new: 0,
+  };
   let withQ = 0;
   let noQ = 0;
-  let qDelivered = 0;
-  let qInvoiced = 0;
+  // Headline totals exclude "new" clients (1st Q) so their natural
+  // ramp-up under-delivery doesn't drag the portfolio number negative.
+  let totalProjectedEnd = 0;
+  let totalInvoiced = 0;
   for (const r of rows) {
-    const q = computeLastFullQ(r);
-    if (!q || q.invoiced <= 0) {
+    const tier = clientCurrentQTier(r);
+    if (tier === null) {
       noQ += 1;
       continue;
     }
     withQ += 1;
-    qDelivered += q.delivered;
-    qInvoiced += q.invoiced;
-    const tier = lastQHealth(r);
-    if (tier) counts[tier] += 1;
+    counts[tier] += 1;
+    if (tier !== "new") {
+      const q = computeCurrentQ(r)!;
+      totalProjectedEnd += q.projectedEnd;
+      totalInvoiced += q.invoiced;
+    }
   }
-  const totalPct = qInvoiced > 0 ? Math.round((qDelivered / qInvoiced) * 100) : 0;
+  const totalVariance = totalProjectedEnd - totalInvoiced;
   const headlineColor =
-    qInvoiced === 0
+    totalInvoiced === 0
       ? "#909090"
-      : totalPct >= 100
-      ? "#42CA80"
-      : totalPct >= 75
-      ? "#42CA80"
-      : totalPct >= 50
-      ? "#F5C542"
-      : "#ED6958";
+      : signedVarianceColor(totalVariance);
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="flex h-full flex-col pt-0">
@@ -444,25 +532,36 @@ export function DeliveryMixCard({
           body={{
             title: "Delivery Progress",
             bullets: [
-              "% = Σ delivered ÷ Σ invoiced for each client's last closed Q.",
-              "Healthy ≥ 100% · Watch 75–99% · Behind < 75%.",
-              "No closed Q = too new to score (excluded).",
+              "Where each client will land vs. invoicing by end of this quarter.",
+              "Healthy: on target or ahead · Within limit: behind by ≤ 5 · Behind: below −5.",
+              "Over-delivery this quarter cancels earlier deficits.",
+              "New (1st Q): ramping clients, kept out of triage.",
             ],
           }}
         />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          {subtitle}{withQ > 0 ? ` · ${withQ} with closed Q` : ""}
+          {subtitle}
+          {withQ > 0
+            ? ` · ${withQ - counts.new} scored${counts.new > 0 ? ` · ${counts.new} new (1st Q)` : ""}`
+            : ""}
         </p>
         <p
           className="mt-1.5 font-mono text-2xl font-bold tabular-nums"
           style={{ color: headlineColor }}
         >
-          {qInvoiced === 0 ? "—" : `${totalPct}%`}
-          <span className="ml-1 text-xs text-[#606060] font-normal">last full Q</span>
+          {totalInvoiced === 0
+            ? "—"
+            : totalVariance > 0
+              ? `+${totalVariance}`
+              : totalVariance.toLocaleString()}
+          <span className="ml-1 text-xs text-[#606060] font-normal">
+            projected current Q
+          </span>
         </p>
         <div className="mt-2 space-y-0.5">
-          {HEALTH_TIERS.map((tier) => {
-            const style = HEALTH_STYLE[tier];
+          {CURRENT_Q_TIER_ORDER.map((tier) => {
+            const color = CURRENT_Q_TIER_COLOR[tier];
+            const label = CURRENT_Q_TIER_LABEL[tier];
             return (
               <div
                 key={tier}
@@ -471,15 +570,15 @@ export function DeliveryMixCard({
                 <span className="flex items-center gap-1.5">
                   <span
                     className="inline-block h-2 w-2 rounded-full"
-                    style={{ backgroundColor: style.color }}
+                    style={{ backgroundColor: color }}
                   />
                   <span className="uppercase tracking-wider text-[#C4BCAA]">
-                    {style.label}
+                    {label}
                   </span>
                 </span>
                 <span
                   className="tabular-nums font-semibold"
-                  style={{ color: style.color }}
+                  style={{ color }}
                 >
                   {counts[tier]}
                 </span>
@@ -488,15 +587,17 @@ export function DeliveryMixCard({
           })}
         </div>
         <div className="mt-auto pt-2 font-mono text-[10px] text-[#606060]">
-          <span className="text-[#909090]">{qDelivered.toLocaleString()}</span>
+          <span className="text-[#909090]">
+            {totalProjectedEnd.toLocaleString()}
+          </span>
           <span> / </span>
-          <span>{qInvoiced.toLocaleString()}</span>
+          <span>{totalInvoiced.toLocaleString()}</span>
           <span className="ml-1 uppercase tracking-wider">
-            delivered · invoiced (last Q)
+            projected · invoiced (current Q, excl. new)
           </span>
           {noQ > 0 && (
             <span className="ml-2 uppercase tracking-wider">
-              · {noQ} no closed Q
+              · {noQ} no current Q
             </span>
           )}
         </div>
@@ -655,9 +756,9 @@ function LastFullQCard({ row }: { row: SummaryRow }) {
             body={{
               title: "Last Full Q",
               bullets: [
-                "% = delivered ÷ invoiced for the last closed contract Q.",
-                "Per-client contract Q (anchored to start_date).",
-                "Shown when the client has at least one closed Q.",
+                "Delivered ÷ invoiced for the last closed quarter.",
+                "Each client's own quarter, anchored to their start date.",
+                "Hidden until at least one quarter has closed.",
               ],
             }}
           />
@@ -691,9 +792,9 @@ function LastFullQCard({ row }: { row: SummaryRow }) {
           body={{
             title: "Last Full Q",
             bullets: [
-              "% = delivered ÷ invoiced for the last closed contract Q.",
-              "Per-client contract Q (anchored to start_date).",
-              "Δ vs prior Q shown when there's a previous closed Q.",
+              "Delivered ÷ invoiced for the last closed quarter.",
+              "Each client's own quarter, anchored to their start date.",
+              "Shows Δ vs. the prior quarter when available.",
             ],
           }}
         />
@@ -733,6 +834,97 @@ function LastFullQCard({ row }: { row: SummaryRow }) {
     </Card>
   );
 }
+
+/** Current in-progress contract Q for a client. The variance is computed
+ *  **cumulatively through end of the current Q** to match the spreadsheet's
+ *  Variance row: catch-up over-delivery inside the current Q is netted
+ *  against earlier-Q misses, so a client who shipped −14 in Q1 then +14
+ *  in Q2 reads as 0 (cumulative on target), not +14 (per-Q in isolation).
+ *
+ *  Fields returned:
+ *    delivered           = actuals shipped from contract start through
+ *                          the last completed month inside the current Q.
+ *    projectedRemaining  = projected articles for the future months
+ *                          INSIDE the current Q (excludes future Qs).
+ *    invoiced            = cumulative contracted invoicing from contract
+ *                          start through end of the current Q.
+ *    projectedEnd        = delivered + projectedRemaining
+ *    projectedVariance   = projectedEnd − invoiced
+ *
+ *  Display fields (`label`, `monthsLabel`, the projectedEnd/invoiced
+ *  shown on each row) describe the current Q itself, but the numbers
+ *  they hold are cumulative. The "X/Y" chip on each row reads as
+ *  "where you'll be cumulatively when this Q closes vs. what you've
+ *  contracted to have delivered cumulatively by then". */
+function computeCurrentQ(row: SummaryRow): {
+  label: string;
+  monthsLabel: string;
+  delivered: number;
+  projectedRemaining: number;
+  projectedEnd: number;
+  invoiced: number;
+  projectedVariance: number;
+} | null {
+  const monthly = row.monthly_breakdown;
+  if (!monthly?.length) return null;
+  const start = parseISODateLocal(row.start_date);
+  if (!start) return null;
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth() + 1;
+  const today = new Date();
+  // "Current" Q is the one containing today's in-progress month.
+  const currentMi =
+    (today.getFullYear() - startYear) * 12 +
+    (today.getMonth() + 1 - startMonth) +
+    1;
+  if (currentMi < 1) return null;
+  const currentQIdx = Math.floor((currentMi - 1) / 3);
+
+  let delivered = 0;
+  let projectedRemaining = 0;
+  let invoiced = 0;
+  for (const r of monthly) {
+    const mi = (r.year - startYear) * 12 + (r.month - startMonth) + 1;
+    if (mi < 1) continue;
+    const qIdx = Math.floor((mi - 1) / 3);
+    // Only include months up to and including the current Q. Future Qs
+    // are out of scope for the "projected close of the current Q".
+    if (qIdx > currentQIdx) continue;
+    invoiced += r.invoiced;
+    if (r.is_future) {
+      // Projections only matter when they're INSIDE the current Q —
+      // we're predicting how this Q will close, not future Qs.
+      if (qIdx === currentQIdx) {
+        projectedRemaining += r.delivered;
+      }
+    } else {
+      delivered += r.delivered;
+    }
+  }
+  const projectedEnd = delivered + projectedRemaining;
+  const yearIdx = Math.floor(currentQIdx / 4);
+  const qInYear = (currentQIdx % 4) + 1;
+  const firstAbs = startYear * 12 + (startMonth - 1) + currentQIdx * 3;
+  const firstY = Math.floor(firstAbs / 12);
+  const label =
+    yearIdx === 0
+      ? `Q${qInYear} ${String(firstY).slice(-2)}`
+      : `Q${qInYear} Y${yearIdx + 1}`;
+  const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const firstMonth = (firstAbs % 12) + 1;
+  const lastMonth = ((firstAbs + 2) % 12) + 1;
+  const monthsLabel = `${MONTH_SHORT[firstMonth]}–${MONTH_SHORT[lastMonth]}`;
+  return {
+    label,
+    monthsLabel,
+    delivered,
+    projectedRemaining,
+    projectedEnd,
+    invoiced,
+    projectedVariance: projectedEnd - invoiced,
+  };
+}
+
 
 function computeLastFullQ(row: SummaryRow): {
   label: string;
@@ -860,7 +1052,12 @@ function ContractTimingCard({ client }: { client: Client }) {
   );
 }
 
-// Top 3 clients with the most negative cumulative variance, listed inline.
+/** Top clients flagged for attention based on current-Q PROJECTED variance.
+ *  A client is "behind" when its current Q is projected to close > 5 articles
+ *  off-target (magnitude — matches D1). Each row shows both:
+ *    • Last Q's actual close (delivered/invoiced + variance)
+ *    • Current Q's projected close (projectedEnd/invoiced + variance)
+ *  so the operator can see whether catch-up plans are already in flight. */
 export function MostBehindCard({
   rows,
   clients,
@@ -868,27 +1065,41 @@ export function MostBehindCard({
   rows: SummaryRow[];
   clients: Client[];
 }) {
-  // Full sorted list of behind clients (negative last-Q variance).
-  // The card body shows the top 3; the overflow lives in a popover
-  // triggered by the "View all" footer link.
-  const allBehind = useMemo(() => {
+  // Two buckets:
+  //   • allBehind — current Q projected variance < −5 (signed) AND
+  //                 NOT a 1st-Q client. Worst-first.
+  //   • newClients — clients in their first contract Q (separate tier
+  //                  per spec; surfaced in the popover so the operator
+  //                  can drill in but they don't pollute the headline).
+  const { allBehind, newClients } = useMemo(() => {
     const byId = new Map(clients.map((c) => [c.id, c]));
-    return rows
-      .map((r) => {
-        const lastQ = computeLastFullQ(r);
-        if (!lastQ) return null;
-        const v = lastQ.delivered - lastQ.invoiced;
-        return { row: r, v, lastQ, client: byId.get(r.id) };
-      })
-      .filter((x): x is NonNullable<typeof x> & { client: Client } =>
-        x !== null && x.v < 0 && !!x.client,
-      )
-      .sort((a, b) => a.v - b.v);
+    const behind: BehindRowItem[] = [];
+    const ramping: BehindRowItem[] = [];
+    for (const r of rows) {
+      const currentQ = computeCurrentQ(r);
+      if (!currentQ || currentQ.invoiced <= 0) continue;
+      const tier = clientCurrentQTier(r);
+      if (tier !== "behind" && tier !== "new") continue;
+      const lastQ = computeLastFullQ(r);
+      const client = byId.get(r.id);
+      if (!client) continue;
+      const item: BehindRowItem = { row: r, lastQ, currentQ, client };
+      if (tier === "new") ramping.push(item);
+      else behind.push(item);
+    }
+    behind.sort(
+      (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+    );
+    ramping.sort((a, b) => a.client.name.localeCompare(b.client.name));
+    return { allBehind: behind, newClients: ramping };
   }, [rows, clients]);
 
   const list = allBehind.slice(0, 3);
   const overflow = allBehind.length - list.length;
-  const totalGap = allBehind.reduce((acc, x) => acc + x.v, 0);
+  const projectedGap = allBehind.reduce(
+    (acc, x) => acc + x.currentQ.projectedVariance,
+    0,
+  );
 
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
@@ -898,20 +1109,21 @@ export function MostBehindCard({
           body={{
             title: "Most Behind",
             bullets: [
-              "Last Q gap = delivered − invoiced. Negative = below target.",
-              "Range is each client's own contract Q (per start_date).",
-              "Click row → jump to client.",
+              "Clients projected to close > 5 articles behind this quarter.",
+              "Each row shows last quarter's close and this quarter's plan.",
+              "Over-delivery this quarter cancels earlier deficits.",
+              "Click a row to jump to the client.",
             ],
           }}
         />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          Last full Q gap (delivered − invoiced) · per-client contract Q
+          Current Q projected close · per-client contract Q
         </p>
         {list.length === 0 ? (
           <>
             <p className="mt-1.5 font-mono text-2xl font-bold text-[#42CA80]">All clear</p>
             <p className="mt-1 font-mono text-[11px] text-[#606060]">
-              Every client closed the last Q at or above target
+              Every client&apos;s current Q is projected to close ≥ −5
             </p>
           </>
         ) : (
@@ -921,12 +1133,63 @@ export function MostBehindCard({
                 <BehindRow key={item.row.id} item={item} />
               ))}
             </ul>
-            <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-                <span className="text-[#ED6958]">{totalGap.toLocaleString()}</span>
-                {" "}total gap · {allBehind.length} behind
+          </>
+        )}
+        <div
+          className={
+            "flex flex-wrap items-center justify-between gap-x-3 gap-y-1 " +
+            (list.length === 0 ? "mt-auto pt-2" : "mt-auto pt-2")
+          }
+        >
+          {list.length > 0 ? (
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+              <span className="text-[#ED6958]">
+                {projectedGap > 0
+                  ? `+${projectedGap}`
+                  : projectedGap.toLocaleString()}
               </span>
-              {overflow > 0 && (
+              {" "}projected · {allBehind.length} flagged
+            </span>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-3">
+            {newClients.length > 0 && (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-sm border border-[#8FB5D9]/40 bg-[#8FB5D9]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#8FB5D9] hover:bg-[#8FB5D9]/15"
+                      title="Clients in their first contract Q — excluded from the Behind list."
+                    />
+                  }
+                >
+                  {newClients.length} new (1st Q)
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  className="w-[420px] max-w-[90vw] border border-[#2a2a2a] bg-[#0d0d0d] p-0"
+                >
+                  <div className="border-b border-[#2a2a2a] px-3 py-2">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8FB5D9]">
+                      New clients · 1st contract Q
+                    </p>
+                    <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
+                      Excluded from Behind triage — ramping in their first
+                      Q, contracted invoicing not yet meaningful.
+                    </p>
+                  </div>
+                  <ul className="max-h-[360px] overflow-y-auto p-1">
+                    {newClients.map((item) => (
+                      <BehindRow key={item.row.id} item={item} dense tone="new" />
+                    ))}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            )}
+            {overflow > 0 && (
               <Popover>
                 <PopoverTrigger
                   render={
@@ -940,29 +1203,28 @@ export function MostBehindCard({
                   <ChevronRight className="h-3 w-3" />
                 </PopoverTrigger>
                 <PopoverContent
-                  align="start"
+                  align="end"
                   side="bottom"
-                  className="w-[360px] max-w-[90vw] border border-[#2a2a2a] bg-[#0d0d0d] p-0"
+                  className="w-[420px] max-w-[90vw] border border-[#2a2a2a] bg-[#0d0d0d] p-0"
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      Most behind · last full Q
+                      Most behind · current Q projected close
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
-                      {allBehind.length} clients · click a row to jump to its card
+                      {allBehind.length} clients · click a row to jump
                     </p>
                   </div>
-                  <ul className="max-h-[320px] overflow-y-auto p-1">
+                  <ul className="max-h-[360px] overflow-y-auto p-1">
                     {allBehind.map((item) => (
                       <BehindRow key={item.row.id} item={item} dense />
                     ))}
                   </ul>
                 </PopoverContent>
               </Popover>
-              )}
-            </div>
-          </>
-        )}
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -970,13 +1232,37 @@ export function MostBehindCard({
 
 interface BehindRowItem {
   row: SummaryRow;
-  v: number;
-  lastQ: { label: string; monthsLabel: string; delivered: number; invoiced: number };
+  lastQ: { label: string; monthsLabel: string; delivered: number; invoiced: number } | null;
+  currentQ: {
+    label: string;
+    monthsLabel: string;
+    delivered: number;
+    projectedRemaining: number;
+    projectedEnd: number;
+    invoiced: number;
+    projectedVariance: number;
+  };
   client: Client;
 }
 
-function BehindRow({ item, dense = false }: { item: BehindRowItem; dense?: boolean }) {
-  const { row, v, lastQ, client } = item;
+function BehindRow({
+  item,
+  dense = false,
+  tone = "default",
+}: {
+  item: BehindRowItem;
+  dense?: boolean;
+  /** "new" tints the current-Q variance chip blue so 1st-Q rows in the
+   *  New popover read as a separate category rather than triage. */
+  tone?: "default" | "new";
+}) {
+  const { row, lastQ, currentQ, client } = item;
+  const lastQVar = lastQ ? lastQ.delivered - lastQ.invoiced : null;
+  const fmtVar = (v: number) => (v > 0 ? `+${v}` : v.toLocaleString());
+  const currentChipColor =
+    tone === "new"
+      ? CURRENT_Q_TIER_COLOR.new
+      : signedVarianceColor(currentQ.projectedVariance);
   return (
     <li>
       <button
@@ -986,22 +1272,68 @@ function BehindRow({ item, dense = false }: { item: BehindRowItem; dense?: boole
         className={
           // Hover bg is lighter than both the card surface (#161616) and the
           // popover surface (#0d0d0d) so the hover state reads on either.
-          "flex w-full items-baseline justify-between gap-2 rounded font-mono text-[12px] transition-colors hover:bg-[#242424] " +
-          (dense ? "px-2 py-1" : "px-1.5 py-0.5 -mx-1.5")
+          "flex w-full flex-col gap-0.5 rounded font-mono transition-colors hover:bg-[#242424] " +
+          (dense ? "px-2 py-1.5" : "px-1.5 py-1 -mx-1.5")
         }
       >
-        <span className="min-w-0 flex-1 truncate text-left text-white" title={client.name}>
-          {client.name}
-          <span className="ml-1.5 text-[10px] text-[#606060]">
-            {lastQ.label} · {lastQ.monthsLabel}
+        <div className="flex w-full items-baseline justify-between gap-2 text-[12px]">
+          <span className="min-w-0 flex-1 truncate text-left text-white" title={client.name}>
+            {client.name}
+            {tone === "new" && (
+              <span
+                className="ml-1.5 rounded-sm border border-[#8FB5D9]/40 bg-[#8FB5D9]/10 px-1 py-px font-mono text-[9px] uppercase tracking-wider"
+                style={{ color: CURRENT_Q_TIER_COLOR.new }}
+                title="1st contract Q — excluded from Behind triage."
+              >
+                1st Q
+              </span>
+            )}
           </span>
-        </span>
-        <span className="shrink-0 tabular-nums">
-          <span className="text-[#606060]">
-            {lastQ.delivered}/{lastQ.invoiced}
+          <span
+            className="shrink-0 font-semibold tabular-nums"
+            style={{ color: currentChipColor }}
+            title={`Current Q projected variance (cumulative through end of Q): ${fmtVar(currentQ.projectedVariance)}`}
+          >
+            {fmtVar(currentQ.projectedVariance)}
           </span>
-          <span className="ml-2 font-semibold text-[#ED6958]">{v.toLocaleString()}</span>
-        </span>
+        </div>
+        <div className="flex w-full items-baseline justify-between gap-2 text-[10px] text-[#606060]">
+          <span className="truncate">
+            {lastQ ? (
+              <>
+                <span className="text-[#909090]">Last Q</span>{" "}
+                <span className="text-[#909090]">
+                  {lastQ.label} · {lastQ.monthsLabel}
+                </span>{" "}
+                <span className="tabular-nums">
+                  {lastQ.delivered}/{lastQ.invoiced}
+                </span>{" "}
+                {lastQVar !== null && (
+                  <span
+                    className="tabular-nums"
+                    style={{
+                      color:
+                        lastQVar >= 0 ? "#909090" : signedVarianceColor(lastQVar),
+                    }}
+                  >
+                    ({fmtVar(lastQVar)})
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-[#606060]">No closed Q yet</span>
+            )}
+          </span>
+          <span className="shrink-0 tabular-nums">
+            <span className="text-[#909090]">Current Q</span>{" "}
+            <span>
+              {currentQ.label} · {currentQ.monthsLabel}
+            </span>{" "}
+            <span>
+              {currentQ.projectedEnd}/{currentQ.invoiced}
+            </span>
+          </span>
+        </div>
       </button>
     </li>
   );
@@ -1044,8 +1376,9 @@ export function ClosingSoonCard({ clients }: { clients: Client[] }) {
             body={{
               title: "Closing in 90d",
               bullets: [
-                "Source: last month with projected production in the Operating Model.",
-                "Cross-checks against SOW Overview live at /admin/data-quality.",
+                "Contracts ending within the next 90 days.",
+                "End date taken from each client's projected last month.",
+                "Cross-check vs. SOW lives at Admin · Data Quality.",
               ],
             }}
           />
@@ -1264,9 +1597,9 @@ function RecentQClosesCard({
           body={{
             title: "Last Q Closes",
             bullets: [
-              "Avg of delivered ÷ invoiced for each client's last closed Q.",
-              "Outliers capped at 200% so one extreme doesn't skew the avg.",
-              "Best / Worst are clickable → jump to client.",
+              "Average closing % across each client's last closed quarter.",
+              "Extreme values capped at 200% so one outlier doesn't skew the average.",
+              "Click Best / Worst to jump to that client.",
             ],
           }}
         />
@@ -1335,15 +1668,21 @@ export function PodAttentionCard({
   rows: SummaryRow[];
   clients: Client[];
 }) {
-  // Same lens as Delivery Progress + Most Behind: classify each client by
-  // its last full Q closure (under 75% = behind), then surface the pod
-  // carrying the most behind clients PLUS the actual behind clients in
-  // that pod (Most Behind row format) so the user can drill straight in.
+  // Same lens as Delivery Progress + Most Behind: classify each client
+  // by current-Q projected variance (|v| > 5 = behind), then surface
+  // the pod carrying the most behind clients PLUS those clients (Most
+  // Behind row format) so the user can drill straight in. Catch-up
+  // baked into projections is honored — a pod with last-Q misses that
+  // are projected to recover this Q reads "all clear".
   const { axis: podAxis } = useCurrentPodAxis();
-  const { sorted, behindByPod } = useMemo(() => {
+  const { sorted, behindByPod, newByPod } = useMemo(() => {
     const byId = new Map(clients.map((c) => [c.id, c]));
-    const byPod: Record<string, { behind: number; withQ: number; total: number }> = {};
+    const byPod: Record<
+      string,
+      { behind: number; withQ: number; total: number; newCount: number }
+    > = {};
     const behindByPod: Record<string, BehindRowItem[]> = {};
+    const newByPod: Record<string, BehindRowItem[]> = {};
     for (const r of rows) {
       // Prefer the axis-relevant pod from the live `clients` list. Falls
       // back to the row's hardcoded `editorial_pod` for rows whose client
@@ -1353,35 +1692,53 @@ export function PodAttentionCard({
         ? (podAxis === "growth" ? client.growth_pod : client.editorial_pod)
         : r.editorial_pod;
       const pod = normalizePod(rawPod) || "Unassigned";
-      const slot = byPod[pod] ?? { behind: 0, withQ: 0, total: 0 };
+      const slot =
+        byPod[pod] ?? { behind: 0, withQ: 0, total: 0, newCount: 0 };
       slot.total += 1;
-      const tier = lastQHealth(r);
-      if (tier) {
+      const tier = clientCurrentQTier(r);
+      if (tier !== null) {
         slot.withQ += 1;
-        if (tier === "behind") {
+        const currentQ = computeCurrentQ(r);
+        const lastQ = computeLastFullQ(r);
+        if (tier === "behind" && currentQ && client) {
           slot.behind += 1;
-          const lastQ = computeLastFullQ(r);
-          const client = byId.get(r.id);
-          if (lastQ && client) {
-            const v = lastQ.delivered - lastQ.invoiced;
-            (behindByPod[pod] ??= []).push({ row: r, v, lastQ, client });
-          }
+          (behindByPod[pod] ??= []).push({
+            row: r,
+            lastQ,
+            currentQ,
+            client,
+          });
+        } else if (tier === "new" && currentQ && client) {
+          slot.newCount += 1;
+          (newByPod[pod] ??= []).push({
+            row: r,
+            lastQ,
+            currentQ,
+            client,
+          });
         }
       }
       byPod[pod] = slot;
     }
-    // Sort each pod's behind list worst-first (largest negative gap).
+    // Sort each pod's behind list worst-first (most negative projected
+    // variance).
     for (const pod of Object.keys(behindByPod)) {
-      behindByPod[pod].sort((a, b) => a.v - b.v);
+      behindByPod[pod].sort(
+        (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+      );
+    }
+    for (const pod of Object.keys(newByPod)) {
+      newByPod[pod].sort((a, b) => a.client.name.localeCompare(b.client.name));
     }
     const sorted = Object.entries(byPod).sort(
       (a, b) => b[1].behind - a[1].behind,
     );
-    return { sorted, behindByPod };
+    return { sorted, behindByPod, newByPod };
   }, [rows, clients, podAxis]);
 
   const totalBehind = sorted.reduce((a, [, { behind }]) => a + behind, 0);
   const totalWithQ = sorted.reduce((a, [, { withQ }]) => a + withQ, 0);
+  const totalNew = sorted.reduce((a, [, { newCount }]) => a + newCount, 0);
 
   const top = sorted[0];
   if (!top || top[1].behind === 0) {
@@ -1393,23 +1750,26 @@ export function PodAttentionCard({
             body={{
               title: "Pod Attention",
               bullets: [
-                "Behind = client closed last Q under 75%.",
-                "Ratio: behind ÷ clients with a closed Q (new ones excluded).",
-                "Click pod or row → jump.",
+                "Pods ranked by how many clients will close > 5 behind this quarter.",
+                "Brand-new clients (1st quarter) are kept out — they ramp slowly.",
+                "Click a pod or row to jump.",
               ],
             }}
           />
           <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-            Distribution of behind clients · last full Q
+            Pods ranked by current-Q projected close
           </p>
           <p className="mt-1.5 font-mono text-2xl font-bold text-[#42CA80]">
             All clear
           </p>
           <p className="mt-1 font-mono text-[11px] text-[#606060]">
-            No pod has clients that closed last Q under 75%
+            Every pod&apos;s clients are projected to close current Q at ≥ −5
           </p>
           <p className="mt-auto pt-2 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-            {sorted.length} {sorted.length === 1 ? "pod" : "pods"} · {totalWithQ} with closed Q
+            {sorted.length} {sorted.length === 1 ? "pod" : "pods"} · {totalWithQ} with current Q
+            {totalNew > 0 && (
+              <span className="ml-2 text-[#8FB5D9]">· {totalNew} new (1st Q)</span>
+            )}
           </p>
         </CardContent>
       </Card>
@@ -1423,11 +1783,19 @@ export function PodAttentionCard({
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="flex h-full flex-col pt-0">
-        <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
-          Pod Attention
-        </p>
+        <CardTitleWithTooltip
+          label="Pod Attention"
+          body={{
+            title: "Pod Attention",
+            bullets: [
+              "Pods ranked by how many clients will close > 5 behind this quarter.",
+              "Brand-new clients (1st quarter) are kept out — they ramp slowly.",
+              "Click a pod or row to jump.",
+            ],
+          }}
+        />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          Pod with most BEHIND clients · last full Q
+          Pod with most BEHIND clients · cumulative through current Q
         </p>
         {/* Top pod headline — clickable scrolls to that pod's group */}
         <button
@@ -1461,6 +1829,50 @@ export function PodAttentionCard({
             buttons in Most Behind. */}
         <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {totalNew > 0 && (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-sm border border-[#8FB5D9]/40 bg-[#8FB5D9]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#8FB5D9] hover:bg-[#8FB5D9]/15"
+                      title="Clients in their 1st contract Q across all pods — excluded from Behind triage."
+                    />
+                  }
+                >
+                  {totalNew} new (1st Q)
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  side="bottom"
+                  className="w-[420px] max-w-[90vw] border border-[#2a2a2a] bg-[#0d0d0d] p-0"
+                >
+                  <div className="border-b border-[#2a2a2a] px-3 py-2">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8FB5D9]">
+                      New clients · 1st contract Q
+                    </p>
+                    <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
+                      Grouped by {podAxis === "growth" ? "growth" : "editorial"} pod.
+                      Excluded from Behind triage.
+                    </p>
+                  </div>
+                  <ul className="max-h-[360px] overflow-y-auto p-1">
+                    {Object.entries(newByPod)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .flatMap(([pod, items]) =>
+                        items.map((item) => (
+                          <BehindRow
+                            key={`${pod}-${item.row.id}`}
+                            item={item}
+                            dense
+                            tone="new"
+                          />
+                        )),
+                      )}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            )}
             {overflowBehind > 0 && (
               <Popover>
                 <PopoverTrigger

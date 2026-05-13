@@ -223,7 +223,10 @@ class OverviewComment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     section_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    client_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    # Optional: `general` comments posted in the right-side rail can be
+    # global (no client anchor). Section-anchored threads still pass a
+    # client. Old rows that pre-date this change all have a client_name.
+    client_name: Mapped[str | None] = mapped_column(String(255), index=True)
     author_email: Mapped[str] = mapped_column(String(255), nullable=False)
     author_name: Mapped[str | None] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text, nullable=False)
@@ -258,7 +261,10 @@ class AccessGroup(Base):
     """RBAC group. Seeded groups (Admin / VPs / Leadership / BI Team /
     Editorial Team / Growth Team) get `is_seeded=True` so the seed-member
     rows tied to them are protected. `is_pod_derived` flags groups whose
-    membership is recomputed on every Team Pods import."""
+    membership is recomputed on every Team Pods import. `sort_order`
+    controls left-rail + matrix-row ordering — assigned from the
+    canonical `_GROUPS` list in `app/services/access.py` on every seed
+    run so reordering only requires a code change + restart."""
 
     __tablename__ = "access_groups"
 
@@ -268,6 +274,7 @@ class AccessGroup(Base):
     description: Mapped[str | None] = mapped_column(Text)
     is_seeded: Mapped[bool] = mapped_column(Boolean, default=True)
     is_pod_derived: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

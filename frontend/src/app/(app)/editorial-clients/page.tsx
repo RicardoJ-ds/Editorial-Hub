@@ -415,18 +415,21 @@ export default function EditorialClientsPage() {
               <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
                 Cumulative Pipeline <DataSourceBadge
                   type="live"
-                  source="Sheet: 'Cumulative' — Spreadsheet: Master Tracker. All-time pipeline counts per client. Every stage is expressed as a share of the client's contract SOW."
+                  source="All-time pipeline per client · Master Tracker."
                   shows={[
-                    "All-time funnel: Topics → Content Briefs → Articles → Published.",
-                    "Every stage is divided by contract SOW, so the four stages are directly comparable.",
-                    "Layout: portfolio totals + approval-progress mix on top, editorial-pod matrix in the middle, per-client detail grouped by editorial pod below.",
+                    "Funnel: Topics → Content Briefs → Articles → Published.",
+                    "Each stage shown as a share of the contract.",
+                    "Top: portfolio totals · Middle: by pod · Bottom: per client.",
                   ]}
                 />
               </h2>
               <AsOfBadge label={d1AsOf.label} fallback={d1AsOf.isFallback} />
               <span className="h-px flex-1 bg-[#2a2a2a]" />
             </div>
-            <CumulativePipelineSection filteredClients={filteredClients} />
+            <CumulativePipelineSection
+              filteredClients={filteredClients}
+              defaultCollapsedByPod
+            />
           </section>
 
               {/* Monthly Goals vs Delivery — summary cards + pod aggregate +
@@ -436,12 +439,12 @@ export default function EditorialClientsPage() {
                   <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
                     Monthly Goals vs Delivery <DataSourceBadge
                       type="live"
-                      source="Sheet: '[Month Year] Goals vs Delivery' (x9 sheets) — Spreadsheet: Master Tracker. Goals and delivery tracked per client per week across every month of the active date range."
+                      source="Monthly CB / Article goals vs. delivery · Master Tracker."
                       shows={[
-                        "Progress toward each client's monthly CB and Article goals, aggregated over the active date range.",
-                        "Summary cards roll up the whole range; toggle CBs / Articles on the table to flip metrics.",
-                        "Each month column shows delivered/goal. Click a month header to expand its weekly breakdown (one month at a time).",
-                        "Respects the page filters above: Editorial Pod, Growth Pod, Status, Date Range.",
+                        "Progress vs. monthly CB + Article goals over the date range.",
+                        "Toggle CBs / Articles to flip the table.",
+                        "Click a month header to expand weekly detail.",
+                        "Respects the filters at the top of the page.",
                       ]}
                     />
                   </h2>
@@ -451,7 +454,11 @@ export default function EditorialClientsPage() {
                   filteredClients={filteredClients}
                   dateRange={dateRange}
                   beforeClientCards={
-                    <PodGoalsRow filteredClients={filteredClients} dateRange={dateRange} />
+                    <PodGoalsRow
+                      filteredClients={filteredClients}
+                      dateRange={dateRange}
+                      defaultCollapsedByPod
+                    />
                   }
                 />
               </section>
@@ -744,12 +751,12 @@ function ClientEngagementTimeline({
           <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
             Client Engagement Timeline <DataSourceBadge
               type="live"
-              source="Sheet: 'Editorial Operating Model' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Per-month actual and projected article production per client; solid bar = actual, lighter shade = projected. Totals sidebar joins SOW with ProductionHistory (operating model)."
+              source="Per-month article production per client · Editorial CP."
               shows={[
-                "One row per client, month-by-month article output.",
-                "Solid bars = actually shipped. Lighter shade = still projected.",
-                "Highlighted column = the latest month with actual data in the Operating Model; totals on the right reflect everything through that month.",
-                "Right sidebar: per-client Projected / Delivered / SOW totals plus % of SOW shipped so far.",
+                "One row per client, month by month.",
+                "Solid bar = shipped · lighter shade = projected.",
+                "Highlighted column = latest month with actual data.",
+                "Right sidebar: Projected / Delivered / SOW + % shipped.",
               ]}
             />
           </h3>
@@ -844,35 +851,24 @@ function ClientEngagementTimeline({
             <TotalsHeader
               label="Projected"
               title="Projected"
-              bullets={[
-                "Planned output still in front of us",
-                "Source: Editorial Operating Model · articles_projected",
-              ]}
+              bullets={["Planned output still ahead."]}
             />
             <TotalsHeader
               label="Delivered"
               title="Delivered"
-              bullets={[
-                "Articles already shipped to the client",
-                "Source: Editorial Operating Model · articles_actual",
-                "Falls back to Client.articles_delivered if no rows",
-              ]}
+              bullets={["Articles already shipped to the client."]}
             />
             <TotalsHeader
               label="SOW"
               title="SOW"
-              bullets={[
-                "Contracted article total for this engagement",
-                "Source: Client.articles_sow",
-              ]}
+              bullets={["Total articles contracted for the engagement."]}
             />
             <TotalsHeader
               label="% SOW"
               title="% SOW"
               bullets={[
-                "Contract completion so far",
-                "Delivered ÷ SOW",
-                "Color: green ≥75%, yellow ≥50%, red below",
+                "Contract completion so far (Delivered ÷ SOW).",
+                "Green ≥ 75% · yellow ≥ 50% · red below.",
               ]}
             />
           </div>
@@ -1122,11 +1118,11 @@ function ContractTimelineTab({
               <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
                 Contract &amp; Timeline Detail <DataSourceBadge
                   type="live"
-                  source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Milestone dates are visualized in the Time-to Metrics cards above."
+                  source="Per-client contract + milestones · Editorial CP."
                   shows={[
-                    "Flat table of every filtered client — contract dates, pod, status, SOW, milestone dates.",
-                    "Same raw values that feed the Time-to Metrics cards above.",
-                    "Use it to look up a specific client or spot-check a sheet value.",
+                    "One row per filtered client.",
+                    "Contract dates, pod, status, SOW, milestone dates.",
+                    "Same values feeding the Time-to Metrics cards above.",
                   ]}
                 />
               </h3>
@@ -1134,7 +1130,7 @@ function ContractTimelineTab({
                 href="https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY/edit#gid=1646003860"
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open the 'v2 Editorial SOW & Engagement info' tab of the Master Tracker in Google Sheets"
+                title="Open the source sheet in Google Sheets"
                 className="group inline-flex items-center gap-2 rounded-md border border-[#42CA80]/30 bg-[#42CA80]/10 px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#42CA80] hover:bg-[#42CA80]/20 hover:border-[#42CA80]/50 hover:text-[#65FFAA] transition-colors"
               >
                 Open source sheet
@@ -1690,12 +1686,11 @@ function DeliverablesSOWTab({
         <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
           Delivery Overview <DataSourceBadge
             type="live"
-            source="Sheet: 'Delivered vs Invoiced v2' + 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Cards adapt to the active filter so cumulative numbers only appear when they're meaningful (single client / single pod)."
+            source="Delivery vs. invoicing per client · Editorial CP."
             shows={[
-              "Cards switch by filter scope: single client → client drill-down; single pod → pod totals; portfolio → triage signals.",
-              "Portfolio mode replaces meaningless sums (total invoiced across every pod) with actionable cards: Most Behind, Closing in 90d, Last Q Closes, Pod Attention.",
-              "Pod mode shows pod-scoped totals + the most-behind client in that pod.",
-              "Single-client mode shows lifetime ratios + last full Q closure + days remaining.",
+              "Single client → drill-down. Single pod → pod totals.",
+              "Portfolio → triage cards (Most Behind, Pod Attention, Closing 90d).",
+              "Cumulative numbers only appear when meaningful for the scope.",
             ]}
           />
         </h2>
@@ -1728,11 +1723,15 @@ function DeliverablesSOWTab({
           dateRange={dateRange}
         />
       )}
-      {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete */}
+      {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete.
+          `defaultCollapsedByPod` matches the Overview behavior: each pod
+          header collapses on first load and expands on click, keeping the
+          page scannable when there are 70+ clients. */}
       <ClientDeliveryCards
         rows={rows}
         scopeLabel={cardsScopeLabel}
         filterRange={popoverFilterRange}
+        defaultCollapsedByPod
       />
     </div>
   );

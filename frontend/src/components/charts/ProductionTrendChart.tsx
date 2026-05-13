@@ -297,12 +297,11 @@ export function ProductionTrendChart({
         <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Production History <DataSourceBadge
             type="live"
-            source="Sheet: 'Editorial Operating Model' — Spreadsheet: Editorial Capacity Planning. Monthly article output, actual vs projected. Honors the Client + Time-period filters above."
+            source="Monthly article output (actual vs. projected)."
             shows={[
-              "Monthly article output over time.",
-              "Solid line = what actually shipped. Dashed extension = what's still projected.",
-              "The vertical 'Now' marker separates history from forecast.",
-              "Watch pace — dips below trend are early misses.",
+              "Solid line: actually shipped.",
+              "Dashed extension: still projected.",
+              "Vertical 'Now' marker separates history from forecast.",
             ]}
           />
         </h3>

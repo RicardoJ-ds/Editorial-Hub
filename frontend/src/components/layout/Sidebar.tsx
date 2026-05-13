@@ -17,6 +17,8 @@ import {
 import { cn } from "@/lib/utils";
 import { VERSION } from "@/lib/version";
 import { useAccessProfile } from "@/lib/accessClient";
+import { setSidebarExpanded } from "@/lib/sidebarState";
+import { confirmDiscardIfUnsaved } from "@/lib/unsavedChangesClient";
 import type { HeaderUser } from "@/components/layout/Header";
 
 function getInitials(name: string): string {
@@ -102,6 +104,13 @@ function NavSection({
               <Link
                 href={item.href}
                 title={item.label}
+                onClick={(e) => {
+                  // Gate client-side navigation on the shared unsaved
+                  // changes store. Next.js router.push doesn't fire
+                  // `beforeunload`, so without this an admin could
+                  // silently drop a draft by clicking a sidebar item.
+                  if (!confirmDiscardIfUnsaved()) e.preventDefault();
+                }}
                 className={cn(
                   "group/item relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
                   "transition-all duration-[var(--transition-base)]",
@@ -145,6 +154,8 @@ export function Sidebar({ user }: { user: HeaderUser }) {
 
   return (
     <aside
+      onMouseEnter={() => setSidebarExpanded(true)}
+      onMouseLeave={() => setSidebarExpanded(false)}
       className={cn(
         "group/sidebar fixed inset-y-0 left-0 z-40 flex flex-col",
         "w-[64px] overflow-hidden border-r border-[#1e1e1e] bg-[#0a0a0a]",
@@ -154,7 +165,14 @@ export function Sidebar({ user }: { user: HeaderUser }) {
     >
       {/* Logo + title */}
       <div className="px-3 pt-5 pb-4">
-        <Link href="/" className="flex items-center gap-2.5 px-1" title="Editorial Hub">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 px-1"
+          title="Editorial Hub"
+          onClick={(e) => {
+            if (!confirmDiscardIfUnsaved()) e.preventDefault();
+          }}
+        >
           <Image
             src="/graphite-logo.png"
             alt="Graphite"

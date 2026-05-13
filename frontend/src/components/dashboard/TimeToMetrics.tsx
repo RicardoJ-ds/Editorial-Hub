@@ -246,12 +246,12 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
             Time-to Metrics
             <DataSourceBadge
               type="live"
-              source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from milestone date fields: Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published."
+              source="Average days between milestones · Editorial CP."
               shows={[
-                "Each card = one milestone handoff (e.g. Consulting KO → First Article).",
-                "Big number is the average across filtered clients, in days.",
-                "Min/Max shows the fastest and slowest client in the filter.",
-                "Lower is better — smaller numbers mean smoother onboardings.",
+                "Each card: one milestone handoff (e.g. KO → First CB).",
+                "Big number: average across filtered clients, in days.",
+                "Min/Max: fastest and slowest client in the filter.",
+                "Lower is better.",
               ]}
             />
           </h2>
@@ -504,10 +504,10 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
           Per-Client Breakdown
           <DataSourceBadge
             type="live"
-            source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. Calculated from Consulting KO, Editorial KO, First CB, First Article, First Feedback, First Published date columns."
+            source="Per-client milestone days · Editorial CP."
             shows={[
-              `Each bar is one client's ${metric.label.toLowerCase()}.`,
-              "Sorted slowest → fastest so outliers float to the top.",
+              `Each bar: one client's ${metric.label.toLowerCase()}.`,
+              "Sorted slowest → fastest.",
               "Lower is better.",
               ...(actualMax > scaleMax
                 ? [`Bars clipped at ${scaleMax}d are marked ↑.`]
@@ -816,11 +816,11 @@ function MilestoneWaterfall({
           Client Milestone Journey
           <DataSourceBadge
             type="live"
-            source="Sheet: 'Editorial SOW overview' — Spreadsheet: Editorial Capacity Planning. One dot per milestone date per active client. Distance from Day 0 = elapsed days from Consulting KO."
+            source="Milestone timeline per client · Editorial CP."
             shows={[
-              "One row per client; the horizontal axis is days from Consulting KO (day 0).",
-              "Each dot marks a milestone date — the further right, the longer it took.",
-              "Grouped by editorial pod, clients listed alphabetically within each pod.",
+              "One row per client. Horizontal axis: days since KO.",
+              "Each dot is a milestone. The further right, the longer it took.",
+              "Grouped by pod, sorted alphabetically.",
             ]}
           />
         </p>

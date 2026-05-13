@@ -82,22 +82,15 @@ _GROUPS: list[dict] = [
         "is_pod_derived": False,
     },
     {
-        "slug": "vps_managers",
-        "name": "VPs and Managers",
-        "description": "Dashboards + view-only Access Control. Toggle between Editorial / Growth axes.",
-        "is_seeded": True,
-        "is_pod_derived": False,
-    },
-    {
         "slug": "leadership",
         "name": "Leadership",
         "description": (
-            "Dashboards only, restricted to clients they're assigned to. Auto-includes "
-            "Senior Editors (from Editorial Team sheet) + Growth Lead / SR Growth Director "
-            "(from Growth Team sheet)."
+            "Dashboards + Capacity Planning v2 + view-only Access Control. Toggle between "
+            "Editorial / Growth axes, sees all clients. Seeded — VPs and managers of the "
+            "Editorial / Growth orgs."
         ),
         "is_seeded": True,
-        "is_pod_derived": True,  # leadership pulls from pod_assignments
+        "is_pod_derived": False,
     },
     {
         "slug": "bi_team",
@@ -109,14 +102,23 @@ _GROUPS: list[dict] = [
     {
         "slug": "editorial_team",
         "name": "Editorial Team",
-        "description": "Auto-populated from the Editorial Team sheet. Locked to Editorial axis, only own pod's clients.",
+        "description": (
+            "Auto-populated from the Team Pods sheet — Editorial Team tab. Includes Senior "
+            "Editors and Editors (writers excluded — they don't use the dashboards). Locked "
+            "to Editorial axis, only their pod's clients."
+        ),
         "is_seeded": True,
         "is_pod_derived": True,
     },
     {
         "slug": "growth_team",
         "name": "Growth Team",
-        "description": "Auto-populated from the Growth Team sheet. Locked to Growth axis, only own pod's clients.",
+        "description": (
+            "Auto-populated from the Team Pods sheet — Growth Team tab. Includes everyone "
+            "in that tab: Growth Leads, Growth Directors, Sr Growth Directors, Managing "
+            "Directors, Account Directors / Managers / Jr AMs, Content Specialists, etc. "
+            "Locked to Growth axis, only their pod's clients."
+        ),
         "is_seeded": True,
         "is_pod_derived": True,
     },
@@ -131,21 +133,23 @@ _SEED_MEMBERS: dict[str, list[str]] = {
         "daniela.quiroga@graphitehq.com",
         "ricardo.jaramillo@graphitehq.com",
     ],
-    "vps_managers": [
+    "leadership": [
         "rafa@graphitehq.com",
         "marcos@graphitehq.com",
         "juan.cardoso@graphitehq.com",
         "ethan@graphitehq.com",
         "caitlin@graphitehq.com",
         "ainoa@graphitehq.com",
+        "christine.woods@graphitehq.com",
+        "bryan@graphitehq.com",
+        "paula.landinez@graphitehq.com",
+        "juan.mantilla@graphitehq.com",
     ],
     "bi_team": [
         "ricardo.jaramillo@graphitehq.com",
         "simon.betancur@graphitehq.com",
         "paolo.cavalli@graphitehq.com",
     ],
-    # Leadership is derived — no seed list.
-    "leadership": [],
     "editorial_team": [],
     "growth_team": [],
 }
@@ -175,7 +179,11 @@ def seeded_admin_emails() -> set[str]:
 
 _DEFAULT_PERMISSIONS: dict[str, set[str]] = {
     "admin": {v[0] for v in _VIEWS},  # admin sees everything
-    "vps_managers": {
+    "leadership": {
+        # Leadership (formerly VPs and Managers) is the only non-admin
+        # group with Capacity Planning v2 access by default — CP2 is
+        # still a prototype + the canonical maintainer audience is
+        # leadership-track managers.
         "overview",
         "d1.contract",
         "d1.deliverables",
@@ -184,15 +192,6 @@ _DEFAULT_PERMISSIONS: dict[str, set[str]] = {
         "d2.ai",
         "cp2",
         "admin.access",
-    },
-    "leadership": {
-        "overview",
-        "d1.contract",
-        "d1.deliverables",
-        "d2.kpi",
-        "d2.capacity",
-        "d2.ai",
-        "cp2",
     },
     "bi_team": {
         "overview",
@@ -201,27 +200,26 @@ _DEFAULT_PERMISSIONS: dict[str, set[str]] = {
         "d2.kpi",
         "d2.capacity",
         "d2.ai",
-        "cp2",
         "data.import",
         "admin.access",
         "admin.data_quality",
     },
     "editorial_team": {
-        # Dashboards minus Overview per spec.
+        # Dashboards minus Overview per spec; no CP2.
         "d1.contract",
         "d1.deliverables",
         "d2.kpi",
         "d2.capacity",
         "d2.ai",
-        "cp2",
     },
     "growth_team": {
+        # Growth Team does NOT get the Team KPIs dashboard by default —
+        # KPI Performance / Capacity Projections / AI Compliance are
+        # Editorial-team metrics. Admins can grant Team KPIs to
+        # individual growth users via the Users × Views override if
+        # they need it. CP2 is also excluded.
         "d1.contract",
         "d1.deliverables",
-        "d2.kpi",
-        "d2.capacity",
-        "d2.ai",
-        "cp2",
     },
 }
 
@@ -259,18 +257,21 @@ def seed_access_baseline(session: Session) -> None:
             v.sort_order = order
 
     # 2) Groups — insert missing, update mutable metadata (description /
-    #    flags) on existing rows.
+    #    flags / sort_order) on existing rows. `sort_order` comes from
+    #    each group's index in the `_GROUPS` list — so reordering only
+    #    requires reordering the list above and restarting the backend.
     existing_groups = {g.slug: g for g in session.execute(select(AccessGroup)).scalars().all()}
-    for spec in _GROUPS:
+    for i, spec in enumerate(_GROUPS):
         g = existing_groups.get(spec["slug"])
         if g is None:
-            g = AccessGroup(**spec)
+            g = AccessGroup(**spec, sort_order=i)
             session.add(g)
         else:
             g.name = spec["name"]
             g.description = spec["description"]
             g.is_seeded = spec["is_seeded"]
             g.is_pod_derived = spec["is_pod_derived"]
+            g.sort_order = i
 
     session.flush()  # surface the inserted IDs
 
@@ -331,6 +332,56 @@ def seed_access_baseline(session: Session) -> None:
                 )
             )
 
+    # 4b) Forced policy revokes — explicit (group, view) pairs whose
+    #     default permission must be applied even to existing rows.
+    #     Step 4 above is insert-only so admin edits survive; this list
+    #     is the narrow escape hatch for policy changes that need to
+    #     overwrite a stale True. Each entry should also reflect the
+    #     current `_DEFAULT_PERMISSIONS` so the two stay in sync.
+    _FORCED_REVOKES: list[tuple[str, str]] = [
+        # Growth Team should NOT see Team KPIs — those are editorial
+        # metrics. (See `_DEFAULT_PERMISSIONS["growth_team"]`.)
+        ("growth_team", "d2.kpi"),
+        ("growth_team", "d2.capacity"),
+        ("growth_team", "d2.ai"),
+        # CP2 is limited to Admin + Leadership (see forced-grants below).
+        # Prototype audience is the leadership-track maintainer crowd;
+        # BI Team / Editorial / Growth teams don't need it.
+        ("bi_team", "cp2"),
+        ("editorial_team", "cp2"),
+        ("growth_team", "cp2"),
+    ]
+    _FORCED_GRANTS: list[tuple[str, str]] = [
+        # Leadership — only non-admin group with CP2 access.
+        ("leadership", "cp2"),
+    ]
+    for group_slug, view_slug in _FORCED_REVOKES:
+        group = groups_by_slug.get(group_slug)
+        view = views_by_slug.get(view_slug)
+        if group is None or view is None:
+            continue
+        row = session.execute(
+            select(AccessGroupViewPermission).where(
+                AccessGroupViewPermission.group_id == group.id,
+                AccessGroupViewPermission.view_id == view.id,
+            )
+        ).scalar_one_or_none()
+        if row is not None and row.can_view:
+            row.can_view = False
+    for group_slug, view_slug in _FORCED_GRANTS:
+        group = groups_by_slug.get(group_slug)
+        view = views_by_slug.get(view_slug)
+        if group is None or view is None:
+            continue
+        row = session.execute(
+            select(AccessGroupViewPermission).where(
+                AccessGroupViewPermission.group_id == group.id,
+                AccessGroupViewPermission.view_id == view.id,
+            )
+        ).scalar_one_or_none()
+        if row is not None and not row.can_view:
+            row.can_view = True
+
     # 5) Wipe any per-user overrides on seeded admins (Daniela / Ricardo).
     #    The rule is "seeded admins are immutable across the matrix" so
     #    stale overrides are an inconsistent state. Idempotent — empty on
@@ -355,24 +406,28 @@ def seed_access_baseline(session: Session) -> None:
 # ───────────────────────────────────────────────────────────────────────
 
 
-# Roles that qualify a person for the Leadership group. Mirrors the spec:
-# "all growth leadership members in the Growth pod table, and Senior
-# Editors in the Editorial Team sheet". Sr Growth Lead / Growth Director
-# are included since they're functional leadership in the Growth org.
-_LEADERSHIP_ROLES = {
-    "senior_editor",
-    "growth_lead",
-    "sr_growth_lead",
-    "growth_director",
-    "sr_growth_director",
-    "managing_director",
-    "sr_growth_director_or_managing_director",
-}
+# Roles that should NOT be added to the auto-populated pod groups.
+#
+#   editorial_team excludes  writer            — they work in Notion /
+#                                                Master Tracker, not in
+#                                                the Hub dashboards.
+#   growth_team    excludes  content_specialist — CS executes deliverables
+#                                                inside the source tools
+#                                                (Notion, Surfer, etc.)
+#                                                and doesn't need the
+#                                                growth-team dashboards.
+#
+# Role tag canonical forms come from `_ROLE_TAG_CANONICAL` in
+# migration_service.py — keep these sets in sync with the values that
+# importer emits (`writer` from `W`, `content_specialist` from `CS`).
+_EDITORIAL_TEAM_EXCLUDED_ROLES = {"writer"}
+_GROWTH_TEAM_EXCLUDED_ROLES = {"content_specialist"}
 
 
 def refresh_pod_derived_members(session: Session) -> dict[str, int]:
-    """Rebuild the `derived`-source membership of the three pod-derived
-    groups. Manual + seed members are untouched.
+    """Rebuild the `derived`-source membership of the two pod-derived
+    groups (Editorial Team / Growth Team). Manual + seed members are
+    untouched.
 
     Called at the end of `import_team_pods`. Returns a count summary
     `{group_slug: derived_count}` for logging."""
@@ -382,22 +437,23 @@ def refresh_pod_derived_members(session: Session) -> dict[str, int]:
     # Distinct emails per pod_kind.
     editorial_emails: set[str] = set()
     growth_emails: set[str] = set()
-    leadership_emails: set[str] = set()
     for row in session.execute(select(PodAssignment)).scalars().all():
         e = (row.email or "").strip().lower()
         if not e:
             continue
         if row.pod_kind == "editorial":
-            editorial_emails.add(e)
+            # Writers are excluded — they don't need dashboard access.
+            if row.role not in _EDITORIAL_TEAM_EXCLUDED_ROLES:
+                editorial_emails.add(e)
         elif row.pod_kind == "growth":
-            growth_emails.add(e)
-        if row.role in _LEADERSHIP_ROLES:
-            leadership_emails.add(e)
+            # Content Specialists are excluded — they execute in Notion /
+            # Surfer / etc., not the growth-team dashboards.
+            if row.role not in _GROWTH_TEAM_EXCLUDED_ROLES:
+                growth_emails.add(e)
 
     plan: dict[str, set[str]] = {
         "editorial_team": editorial_emails,
         "growth_team": growth_emails,
-        "leadership": leadership_emails,
     }
 
     summary: dict[str, int] = {}
@@ -529,13 +585,9 @@ def resolve_access(session: Session, email: str | None) -> AccessProfile:
 
     # Pod-axis math. Order matters — admin & friends override pod-team
     # locks even if the user is in both groups.
-    if "admin" in group_slugs or "vps_managers" in group_slugs or "bi_team" in group_slugs:
+    if "admin" in group_slugs or "leadership" in group_slugs or "bi_team" in group_slugs:
         profile.can_toggle_axis = True
         profile.client_scope = "all"
-        profile.pod_kind_lock = None
-    elif "leadership" in group_slugs:
-        profile.can_toggle_axis = False
-        profile.client_scope = "assigned"
         profile.pod_kind_lock = None
     elif "editorial_team" in group_slugs:
         profile.can_toggle_axis = False

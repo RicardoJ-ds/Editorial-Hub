@@ -255,3 +255,10 @@ Show the user this table:
 - This project uses `AGENTS.md` (not `CLAUDE.md`) for the frontend
   directory. The backend uses `CLAUDE.md`. Don't accidentally rename
   one to the other.
+- **Dev-server gotcha after version bump:** Turbopack can keep an old
+  `VERSION` value cached in an in-memory chunk after `version.ts` is
+  edited, which manifests as a hydration error in the Sidebar
+  ("server says v0.3.5 / client says v0.3.6"). Fix is to restart the
+  frontend container: `docker compose exec frontend rm -rf .next/cache
+  && docker compose restart frontend`. This affects dev only; prod
+  builds are fine.
