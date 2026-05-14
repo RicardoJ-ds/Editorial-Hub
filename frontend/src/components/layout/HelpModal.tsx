@@ -60,7 +60,7 @@ export function HelpModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl border-[#2a2a2a] bg-[#0a0a0a] p-0 sm:rounded-lg overflow-hidden">
+      <DialogContent className="max-w-[90vw] sm:max-w-[780px] border-[#2a2a2a] bg-[#0a0a0a] p-0 sm:rounded-lg overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-[#1f1f1f] bg-[#0d0d0d] px-4 py-2.5">
           <DialogTitle className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[#C4BCAA]">
             <BookOpen className="h-3.5 w-3.5 text-[#42CA80]" />
