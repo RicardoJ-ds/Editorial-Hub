@@ -626,3 +626,28 @@ class NotionArticle(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class PodImportIssue(Base):
+    """Unmatched client names found during Growth Pod imports.
+
+    Written by import_growth_pods() when a BQ client name cannot be resolved
+    to a DB client (even after fuzzy matching). Surfaced in the Data Quality
+    page so maintainers can add an explicit override or rename the client.
+    `resolved_at` is set when the same name successfully matches on a later
+    import run.
+    """
+
+    __tablename__ = "pod_import_issues"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    raw_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    pod_kind: Mapped[str] = mapped_column(String(50), nullable=False)
+    pod_label: Mapped[str | None] = mapped_column(String(100))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (UniqueConstraint("raw_name", "pod_kind", name="uq_pod_import_issue"),)

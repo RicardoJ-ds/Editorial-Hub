@@ -83,11 +83,11 @@ _GROUPS: list[dict] = [
     },
     {
         "slug": "leadership",
-        "name": "Leadership",
+        "name": "Leadership + Ops",
         "description": (
             "Dashboards + Capacity Planning v2 + view-only Access Control. Toggle between "
-            "Editorial / Growth axes, sees all clients. Seeded — VPs and managers of the "
-            "Editorial / Growth orgs."
+            "Editorial / Growth axes, sees all clients. Seeded — VPs, managers, and ops "
+            "leads of the Editorial / Growth orgs."
         ),
         "is_seeded": True,
         "is_pod_derived": False,
@@ -144,6 +144,7 @@ _SEED_MEMBERS: dict[str, list[str]] = {
         "bryan@graphitehq.com",
         "paula.landinez@graphitehq.com",
         "juan.mantilla@graphitehq.com",
+        "diego.rubio@graphitehq.com",
     ],
     "bi_team": [
         "ricardo.jaramillo@graphitehq.com",
@@ -443,22 +444,34 @@ def refresh_pod_derived_members(session: Session) -> dict[str, int]:
 
     groups_by_slug = {g.slug: g for g in session.execute(select(AccessGroup)).scalars().all()}
 
-    # Distinct emails per pod_kind.
-    editorial_emails: set[str] = set()
-    growth_emails: set[str] = set()
-    for row in session.execute(select(PodAssignment)).scalars().all():
+    # Two-pass exclusion: first collect every email that carries an excluded
+    # role, then only add emails that are never associated with one. A single
+    # pass misses the case where the same person has both a `pod_member` row
+    # (added first) and a `content_specialist` row (skipped, but too late —
+    # the email is already in the set).
+    all_rows = session.execute(select(PodAssignment)).scalars().all()
+
+    editorial_excluded: set[str] = set()
+    growth_excluded: set[str] = set()
+    for row in all_rows:
         e = (row.email or "").strip().lower()
         if not e:
             continue
-        if row.pod_kind == "editorial":
-            # Writers are excluded — they don't need dashboard access.
-            if row.role not in _EDITORIAL_TEAM_EXCLUDED_ROLES:
-                editorial_emails.add(e)
-        elif row.pod_kind == "growth":
-            # Content Specialists are excluded — they execute in Notion /
-            # Surfer / etc., not the growth-team dashboards.
-            if row.role not in _GROWTH_TEAM_EXCLUDED_ROLES:
-                growth_emails.add(e)
+        if row.pod_kind == "editorial" and row.role in _EDITORIAL_TEAM_EXCLUDED_ROLES:
+            editorial_excluded.add(e)
+        elif row.pod_kind == "growth" and row.role in _GROWTH_TEAM_EXCLUDED_ROLES:
+            growth_excluded.add(e)
+
+    editorial_emails: set[str] = set()
+    growth_emails: set[str] = set()
+    for row in all_rows:
+        e = (row.email or "").strip().lower()
+        if not e:
+            continue
+        if row.pod_kind == "editorial" and e not in editorial_excluded:
+            editorial_emails.add(e)
+        elif row.pod_kind == "growth" and e not in growth_excluded:
+            growth_emails.add(e)
 
     plan: dict[str, set[str]] = {
         "editorial_team": editorial_emails,

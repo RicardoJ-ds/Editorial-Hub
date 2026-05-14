@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpRight } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { fetchAllDeliverables } from "@/lib/deliverablesClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@/components/dashboard/shared-helpers";
 import {
   normalizePod,
-  PodGoalsRow,
   sortPodKey,
 } from "@/components/dashboard/ContractClientProgress";
 import { buildLifetimeSummaries } from "@/lib/overviewSummary";
@@ -63,7 +63,6 @@ const SECTIONS = [
   { id: "production-history", label: "Production History" },
   { id: "cumulative-pipeline", label: "Cumulative Pipeline" },
   { id: "client-delivery", label: "Client Delivery" },
-  { id: "monthly-goals", label: "Monthly Goals" },
 ];
 
 type Lens = "composition" | "triage";
@@ -88,7 +87,7 @@ export default function OverviewPage() {
     try {
       const [cs, ds] = await Promise.all([
         apiGet<Client[]>("/api/clients/?limit=200"),
-        apiGet<DeliverableMonthly[]>("/api/deliverables/?limit=1000"),
+        fetchAllDeliverables(),
       ]);
       setClients(cs);
       setFilteredClients(cs);
@@ -328,34 +327,6 @@ export default function OverviewPage() {
               />
             </Section>
 
-            <Section
-              id="monthly-goals"
-              title="Monthly Goals"
-              subtitle="Per-pod CB / Article achievement, scoped to this Editorial month so far"
-              deepLinkHref="/editorial-clients?tab=deliverables-sow#monthly-goals"
-              titleChip={
-                <AsOfBadge
-                  label={overviewAsOf.label}
-                  fallback={overviewAsOf.isFallback}
-                />
-              }
-              trailingSlot={
-                <SectionCommentIcon
-                  sectionId="monthly-goals"
-                  sectionLabel="Monthly Goals"
-                />
-              }
-            >
-              {/* Reuses D1's `PodGoalsRow` — same pod gauges row, but
-                  `hidePerClientBreakdown` keeps the Overview snapshot to
-                  a single row. The deep-link sends users to D1 for the
-                  per-client drill-down. */}
-              <PodGoalsRow
-                filteredClients={filteredClients}
-                hidePerClientBreakdown
-              />
-            </Section>
-
           </div>
         </div>
       </OverviewCommentsProvider>
@@ -533,6 +504,7 @@ function TriageView({
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <DeliveryMixCard
         rows={summaries}
+        clients={clients}
         subtitle={`${summaries.length} client${summaries.length === 1 ? "" : "s"}`}
       />
       <MostBehindCard rows={summaries} clients={clients} />
@@ -1288,4 +1260,3 @@ function ForwardRow({
     </li>
   );
 }
-

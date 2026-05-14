@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import AuditLog, Client, DeliverableMonthly, ProductionHistory
+from app.models import AuditLog, Client, DeliverableMonthly, PodImportIssue, ProductionHistory
 from app.services.bigquery_sync import sync_all
 
 router = APIRouter()
@@ -110,9 +110,23 @@ class DeliveredDriftDiscrepancy(BaseModel):
     delta: int  # monthly − sow
 
 
+class PodImportIssueItem(BaseModel):
+    """BQ client name that could not be matched to any DB client during a
+    Growth Pod import. Cleared automatically when the same name matches on a
+    subsequent run (fuzzy self-heal or manual override)."""
+
+    id: int
+    raw_name: str
+    pod_kind: str
+    pod_label: str | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+
+
 class DiscrepanciesResponse(BaseModel):
     end_date_mismatches: list[EndDateDiscrepancy]
     delivered_drift: list[DeliveredDriftDiscrepancy]
+    pod_import_issues: list[PodImportIssueItem]
     generated_at: datetime
 
 
@@ -200,9 +214,28 @@ async def list_discrepancies(
         )
     drift.sort(key=lambda d: (d.status != "ACTIVE", -abs(d.delta)))
 
+    # ── Pod import issues (unmatched BQ client names) ────────────────────
+    pod_issues_result = await db.execute(
+        select(PodImportIssue)
+        .where(PodImportIssue.resolved_at.is_(None))
+        .order_by(PodImportIssue.last_seen_at.desc())
+    )
+    pod_issues = [
+        PodImportIssueItem(
+            id=row.id,
+            raw_name=row.raw_name,
+            pod_kind=row.pod_kind,
+            pod_label=row.pod_label,
+            first_seen_at=row.first_seen_at,
+            last_seen_at=row.last_seen_at,
+        )
+        for row in pod_issues_result.scalars()
+    ]
+
     return DiscrepanciesResponse(
         end_date_mismatches=end_mismatches,
         delivered_drift=drift,
+        pod_import_issues=pod_issues,
         generated_at=datetime.utcnow(),
     )
 

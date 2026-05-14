@@ -685,7 +685,7 @@ function HowGroupsWorkLegend() {
             <tbody>
               {[
                 ["admin", "Admin"],
-                ["leadership", "Leadership"],
+                ["leadership", "Leadership + Ops"],
                 ["bi_team", "BI Team"],
                 ["editorial_team", "Editorial Team"],
                 ["growth_team", "Growth Team"],

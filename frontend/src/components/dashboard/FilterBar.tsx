@@ -18,7 +18,7 @@ import { displayPod } from "./shared-helpers";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 export type { DateRange } from "./DateRangeFilter";
 
-const STATUS_OPTIONS = ["All", "Active", "Inactive/Completed"] as const;
+const STATUS_OPTIONS = ["All", "Active", "Soon to be active", "Inactive/Completed"] as const;
 
 /** Collapse pod variants ("1", "pod 1", "Pod 1") into canonical "Pod N". */
 function normalizePod(raw: string | null | undefined): string {
@@ -147,6 +147,8 @@ export function FilterBar({
       }
       if (st === "Active") {
         pool = pool.filter((c) => c.status === "ACTIVE");
+      } else if (st === "Soon to be active") {
+        pool = pool.filter((c) => c.status === "SOON_TO_BE_ACTIVE");
       } else if (st === "Inactive/Completed") {
         pool = pool.filter(
           (c) =>
@@ -203,6 +205,8 @@ export function FilterBar({
 
     if (status === "Active") {
       filtered = filtered.filter((c) => c.status === "ACTIVE");
+    } else if (status === "Soon to be active") {
+      filtered = filtered.filter((c) => c.status === "SOON_TO_BE_ACTIVE");
     } else if (status === "Inactive/Completed") {
       filtered = filtered.filter(
         (c) =>

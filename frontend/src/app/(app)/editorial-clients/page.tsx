@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiGet } from "@/lib/api";
+import { fetchAllDeliverables } from "@/lib/deliverablesClient";
 import type {
   Client,
   DeliverableMonthly,
@@ -124,10 +125,18 @@ function statusBadge(status: string) {
 }
 
 const POD_COLORS: Record<string, string> = {
-  "Pod 1": "bg-[#5B9BF5]/15 text-[#5B9BF5] border-[#5B9BF5]/30",
-  "Pod 2": "bg-[#42CA80]/15 text-[#42CA80] border-[#42CA80]/30",
-  "Pod 3": "bg-[#F5C542]/15 text-[#F5C542] border-[#F5C542]/30",
-  "Pod 5": "bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30",
+  "Pod 1":  "bg-[#5B9BF5]/15 text-[#5B9BF5] border-[#5B9BF5]/30",
+  "Pod 2":  "bg-[#42CA80]/15 text-[#42CA80] border-[#42CA80]/30",
+  "Pod 3":  "bg-[#F5C542]/15 text-[#F5C542] border-[#F5C542]/30",
+  "Pod 4":  "bg-[#F28D59]/15 text-[#F28D59] border-[#F28D59]/30",
+  "Pod 5":  "bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30",
+  "Pod 6":  "bg-[#C084FC]/15 text-[#C084FC] border-[#C084FC]/30",
+  "Pod 7":  "bg-[#34D1BF]/15 text-[#34D1BF] border-[#34D1BF]/30",
+  "Pod 8":  "bg-[#F472B6]/15 text-[#F472B6] border-[#F472B6]/30",
+  "Pod 9":  "bg-[#A78BFA]/15 text-[#A78BFA] border-[#A78BFA]/30",
+  "Pod 10": "bg-[#FDBA74]/15 text-[#FDBA74] border-[#FDBA74]/30",
+  "Pod 11": "bg-[#6EE7B7]/15 text-[#6EE7B7] border-[#6EE7B7]/30",
+  "Pod 12": "bg-[#93C5FD]/15 text-[#93C5FD] border-[#93C5FD]/30",
 };
 
 function podBadge(pod: string | null, kind: "editorial" | "growth" = "editorial") {
@@ -242,7 +251,7 @@ export default function EditorialClientsPage() {
     try {
       const [clientsData, deliverablesData] = await Promise.all([
         apiGet<Client[]>("/api/clients/?limit=200"),
-        apiGet<DeliverableMonthly[]>("/api/deliverables/?limit=1000"),
+        fetchAllDeliverables(),
       ]);
       setClients(clientsData);
       setFilteredClients(clientsData);
@@ -486,10 +495,18 @@ const TAB_2_SECTIONS = [
 // ---------------------------------------------------------------------------
 
 const TIMELINE_POD_COLORS: Record<string, string> = {
-  "Pod 1": "#8FB5D9",
-  "Pod 2": "#42CA80",
-  "Pod 3": "#F5BC4E",
-  "Pod 5": "#ED6958",
+  "Pod 1":  "#8FB5D9",
+  "Pod 2":  "#42CA80",
+  "Pod 3":  "#F5BC4E",
+  "Pod 4":  "#F28D59",
+  "Pod 5":  "#ED6958",
+  "Pod 6":  "#C084FC",
+  "Pod 7":  "#34D1BF",
+  "Pod 8":  "#F472B6",
+  "Pod 9":  "#A78BFA",
+  "Pod 10": "#FDBA74",
+  "Pod 11": "#6EE7B7",
+  "Pod 12": "#93C5FD",
 };
 
 // --- Totals sidebar bits for the Client Engagement Timeline -----------------
@@ -1044,19 +1061,31 @@ function ClientEngagementTimeline({
           })}
         </div>
 
-        {/* Pod color legend */}
+        {/* Pod color legend — only pods present in filtered clients */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-[#2a2a2a]">
-          {Object.entries(TIMELINE_POD_COLORS).map(([pod, color]) => (
-            <div key={pod} className="flex items-center gap-1.5">
-              <div
-                className="h-2.5 w-2.5 rounded-sm"
-                style={{ backgroundColor: color, opacity: 0.85 }}
-              />
-              <span className="text-[11px] font-mono text-[#606060]">
-                {displayPod(pod, podAxis)}
-              </span>
-            </div>
-          ))}
+          {Array.from(
+            new Set(
+              clients
+                .map((c) => (podAxis === "growth" ? c.growth_pod : c.editorial_pod))
+                .filter((p): p is string => !!p && p in TIMELINE_POD_COLORS)
+            )
+          )
+            .sort((a, b) => {
+              const na = parseInt(a.replace(/\D/g, ""), 10);
+              const nb = parseInt(b.replace(/\D/g, ""), 10);
+              return isNaN(na) || isNaN(nb) ? a.localeCompare(b) : na - nb;
+            })
+            .map((pod) => (
+              <div key={pod} className="flex items-center gap-1.5">
+                <div
+                  className="h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: TIMELINE_POD_COLORS[pod], opacity: 0.85 }}
+                />
+                <span className="text-[11px] font-mono text-[#606060]">
+                  {displayPod(pod, podAxis)}
+                </span>
+              </div>
+            ))}
         </div>
       </div>
 

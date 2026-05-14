@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DataSourceBadge } from "./DataSourceBadge";
 import {
@@ -18,6 +18,7 @@ import { cn, parseISODateLocal } from "@/lib/utils";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { revealCurrentHashTarget } from "@/lib/detailTargets";
 import {
   AsOfBadge,
   TooltipBody,
@@ -898,6 +899,11 @@ function MonthlyBreakdownPopover({
   lastFullQIdx: number | null;
   filterRange?: FilterRange | null;
 }) {
+  const lastFullRowRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    lastFullRowRef.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
+  }, []);
+
   if (periods.length === 0) return null;
 
   // Highlight the **last completed month** (today's month minus one), not
@@ -1110,9 +1116,11 @@ function MonthlyBreakdownPopover({
               {display.map((p) =>
                 p.rows.map((m, i) => {
                   const isFirst = i === 0;
+                  const isLastFullFirstRow = isFirst && p.qIdx === lastFullQIdx;
                   return (
                     <tr
                       key={`${p.qIdx}-${m.year}-${m.month}`}
+                      ref={isLastFullFirstRow ? lastFullRowRef : undefined}
                       className={cn(
                         "border-t border-[#1a1a1a]",
                         isFirst && "border-t-2 border-[#2a2a2a]",
@@ -1258,6 +1266,17 @@ export function ClientDeliveryCards({
     () => [...rows].sort((a, b) => a.name.localeCompare(b.name)),
     [rows],
   );
+
+  useEffect(() => {
+    const reveal = () =>
+      revealCurrentHashTarget(["client-delivery-", "client-delivery-pod-"]);
+    const frame = window.requestAnimationFrame(reveal);
+    window.addEventListener("hashchange", reveal);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", reveal);
+    };
+  }, [defaultCollapsedByPod, sorted]);
 
   return (
     <div className="space-y-4">

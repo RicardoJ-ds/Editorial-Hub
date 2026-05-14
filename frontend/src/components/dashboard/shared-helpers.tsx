@@ -17,11 +17,18 @@ import { cn, parseISODateLocal } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 export const POD_COLORS: Record<string, string> = {
-  "Pod 1": "bg-[#5B9BF5]/15 text-[#5B9BF5] border-[#5B9BF5]/30",
-  "Pod 2": "bg-[#42CA80]/15 text-[#42CA80] border-[#42CA80]/30",
-  "Pod 3": "bg-[#F5C542]/15 text-[#F5C542] border-[#F5C542]/30",
-  "Pod 4": "bg-[#F28D59]/15 text-[#F28D59] border-[#F28D59]/30",
-  "Pod 5": "bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30",
+  "Pod 1":  "bg-[#5B9BF5]/15 text-[#5B9BF5] border-[#5B9BF5]/30",
+  "Pod 2":  "bg-[#42CA80]/15 text-[#42CA80] border-[#42CA80]/30",
+  "Pod 3":  "bg-[#F5C542]/15 text-[#F5C542] border-[#F5C542]/30",
+  "Pod 4":  "bg-[#F28D59]/15 text-[#F28D59] border-[#F28D59]/30",
+  "Pod 5":  "bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30",
+  "Pod 6":  "bg-[#C084FC]/15 text-[#C084FC] border-[#C084FC]/30",
+  "Pod 7":  "bg-[#34D1BF]/15 text-[#34D1BF] border-[#34D1BF]/30",
+  "Pod 8":  "bg-[#F472B6]/15 text-[#F472B6] border-[#F472B6]/30",
+  "Pod 9":  "bg-[#A78BFA]/15 text-[#A78BFA] border-[#A78BFA]/30",
+  "Pod 10": "bg-[#FDBA74]/15 text-[#FDBA74] border-[#FDBA74]/30",
+  "Pod 11": "bg-[#6EE7B7]/15 text-[#6EE7B7] border-[#6EE7B7]/30",
+  "Pod 12": "bg-[#93C5FD]/15 text-[#93C5FD] border-[#93C5FD]/30",
 };
 
 // ---------------------------------------------------------------------------

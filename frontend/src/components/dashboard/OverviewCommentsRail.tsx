@@ -760,6 +760,11 @@ export function ClientCommentsRail() {
   }, [open]);
 
   const filteredClients = ctx?.filteredClients ?? [];
+  const allowedSectionIds = useMemo(() => {
+    const ids = new Set<string>([GENERAL_SECTION_ID]);
+    for (const s of ctx?.sections ?? []) ids.add(s.id);
+    return ids;
+  }, [ctx?.sections]);
   const sectionLookup = useMemo(() => {
     const m = new Map<string, string>();
     for (const s of ctx?.sections ?? []) m.set(s.id, s.label);
@@ -779,9 +784,11 @@ export function ClientCommentsRail() {
   const scoped = useMemo(
     () =>
       comments.filter(
-        (c) => c.client_name === null || filteredClientNames.has(c.client_name),
+        (c) =>
+          allowedSectionIds.has(c.section_id) &&
+          (c.client_name === null || filteredClientNames.has(c.client_name)),
       ),
-    [comments, filteredClientNames],
+    [allowedSectionIds, comments, filteredClientNames],
   );
   const totalAll = comments.length;
   const hiddenByFilter = totalAll - scoped.length;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Database, Info, RefreshCcw } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Database, Info, RefreshCcw, Unlink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiGet } from "@/lib/api";
 
@@ -40,9 +40,19 @@ interface DeliveredDriftDiscrepancy {
   delta: number;
 }
 
+interface PodImportIssueItem {
+  id: number;
+  raw_name: string;
+  pod_kind: string;
+  pod_label: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
 interface DiscrepanciesResponse {
   end_date_mismatches: EndDateDiscrepancy[];
   delivered_drift: DeliveredDriftDiscrepancy[];
+  pod_import_issues: PodImportIssueItem[];
   generated_at: string;
 }
 
@@ -278,6 +288,57 @@ function DeliveredDriftTab({ rows }: { rows: DeliveredDriftDiscrepancy[] }) {
   );
 }
 
+function PodImportIssuesTab({ rows }: { rows: PodImportIssueItem[] }) {
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    });
+  }
+
+  return (
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
+      <div className="border-b border-[#2a2a2a] px-3 py-2">
+        <p className="font-mono text-[11px] text-[#909090]">
+          Client names returned by BigQuery that could not be matched to any client in the app.
+          They are missing their Growth Pod assignment until resolved. The importer tries fuzzy
+          matching automatically — if a name is close enough (e.g. "Acme" ↔ "Acme Corp") it
+          self-heals on the next SYNC and the row disappears. If not, add an explicit entry to{" "}
+          <span className="text-[#C4BCAA]">_GROWTH_POD_NAME_OVERRIDES</span> in{" "}
+          <span className="text-[#C4BCAA]">migration_service.py</span>.
+        </p>
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-3 py-6 text-center font-mono text-[12px] text-[#42CA80]">
+          No unmatched pod assignments.
+        </div>
+      ) : (
+        <table className="w-full border-collapse font-mono text-[11px]">
+          <thead className="bg-[#111111] text-[#606060]">
+            <tr>
+              <th className="px-3 py-1.5 text-left font-medium">BQ name (raw)</th>
+              <th className="px-3 py-1.5 text-left font-medium">Pod</th>
+              <th className="px-3 py-1.5 text-left font-medium">Type</th>
+              <th className="px-3 py-1.5 text-left font-medium">First seen</th>
+              <th className="px-3 py-1.5 text-left font-medium">Last seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-[#1a1a1a] hover:bg-[#111111]">
+                <td className="px-3 py-1.5 text-[#ED6958]">{r.raw_name}</td>
+                <td className="px-3 py-1.5 text-[#C4BCAA]">{r.pod_label ?? "—"}</td>
+                <td className="px-3 py-1.5 text-[#909090] capitalize">{r.pod_kind}</td>
+                <td className="px-3 py-1.5 text-[#606060]">{formatDate(r.first_seen_at)}</td>
+                <td className="px-3 py-1.5 text-[#606060]">{formatDate(r.last_seen_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function FilterChip({
   label,
   active,
@@ -332,7 +393,8 @@ export default function DataQualityPage() {
     if (!data) return 0;
     return (
       data.end_date_mismatches.filter((d) => d.status === "ACTIVE").length +
-      data.delivered_drift.filter((d) => d.status === "ACTIVE").length
+      data.delivered_drift.filter((d) => d.status === "ACTIVE").length +
+      data.pod_import_issues.length
     );
   }, [data]);
 
@@ -399,6 +461,7 @@ export default function DataQualityPage() {
           <SummaryRow
             endDateCount={data.end_date_mismatches.length}
             driftCount={data.delivered_drift.length}
+            podIssueCount={data.pod_import_issues.length}
             activeCount={totalActive}
           />
 
@@ -418,6 +481,13 @@ export default function DataQualityPage() {
                 <Database className="mr-2 inline-block h-3.5 w-3.5" />
                 Delivered drift ({data.delivered_drift.length})
               </TabsTrigger>
+              <TabsTrigger
+                value="pod_issues"
+                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+              >
+                <Unlink className="mr-2 inline-block h-3.5 w-3.5" />
+                Pod assignment issues ({data.pod_import_issues.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="end_date" className="mt-4">
@@ -425,6 +495,9 @@ export default function DataQualityPage() {
             </TabsContent>
             <TabsContent value="delivered" className="mt-4">
               <DeliveredDriftTab rows={data.delivered_drift} />
+            </TabsContent>
+            <TabsContent value="pod_issues" className="mt-4">
+              <PodImportIssuesTab rows={data.pod_import_issues} />
             </TabsContent>
           </Tabs>
         </>
@@ -534,13 +607,15 @@ function KnownField({ label, body }: { label: string; body: string }) {
 function SummaryRow({
   endDateCount,
   driftCount,
+  podIssueCount,
   activeCount,
 }: {
   endDateCount: number;
   driftCount: number;
+  podIssueCount: number;
   activeCount: number;
 }) {
-  const total = endDateCount + driftCount;
+  const total = endDateCount + driftCount + podIssueCount;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <SummaryCard
@@ -550,16 +625,16 @@ function SummaryRow({
         color={total > 0 ? "#F5BC4E" : "#42CA80"}
       />
       <SummaryCard
-        label="On active clients"
+        label="Needs attention"
         value={activeCount}
         icon={<AlertTriangle className="h-3.5 w-3.5" />}
         color={activeCount > 0 ? "#ED6958" : "#42CA80"}
-        helper="Reconcile these first"
+        helper="Active client drift + unmatched pods"
       />
       <SummaryCard
         label="By type"
         value=""
-        helper={`${endDateCount} end-date · ${driftCount} delivered`}
+        helper={`${endDateCount} end-date · ${driftCount} delivered · ${podIssueCount} pod`}
       />
     </div>
   );

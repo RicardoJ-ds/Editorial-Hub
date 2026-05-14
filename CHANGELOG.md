@@ -18,6 +18,34 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.10 — May 14
+
+**Bug fixes across data sync, dashboard filters, and pod color-coding; plus a new Data Quality tab for pod assignment issues.**
+
+### Bug fixes
+
+- **Monthly detail (Client Delivery cards)** — The detail popover now opens scrolled to the most recent closed billing period instead of the oldest row. Long-history clients (like Webflow) no longer appear to show incomplete data.
+- **Webflow + multi-year contract history** — The "Delivered vs Invoiced" importer previously had a 36-month cap that silently dropped Sep 2025–Feb 2026 data for Webflow. The cap is now removed entirely; the importer reads however many months the sheet carries.
+- **Goals vs Delivery (SYNC button)** — The SYNC button was never actually importing Goals vs Delivery data because individual month tabs (e.g. `[May 2026] Goals vs Delivery`) didn't match the expected sheet name. Fixed with a synthetic aggregate entry so SYNC now correctly imports the current month's data.
+- **Pylon May 2026** — Was showing 7 CBs / 0 ADs. After the Goals vs Delivery fix, now correctly shows 0 CBs / 1 AD, matching the Master Tracker.
+- **Pod colors in Client Engagement Timeline** — Extended from 5 to 12 pods; clients on pods 6–12 no longer appear grey. Timeline legend is now dynamic, showing only pods that exist in the current filtered view.
+- **Growth Pod — Workleap** — "Workleap" in BigQuery didn't match "Workleap + Sharegate" in the app. Added to the name-override dictionary.
+- **Growth Pod importer — fuzzy self-heal** — Before flagging a BigQuery client as unmatched, the importer now tries substring matching automatically. Cases like "Workleap" ↔ "Workleap + Sharegate" resolve without a code deploy.
+- **Deliverables pagination** — Editorial Clients and Overview pages now page through all deliverables in 1 000-row batches rather than capping at the first page.
+
+### New features
+
+- **Filter bar: "Soon to be active"** — New status option added alongside Active / Inactive.
+- **Data Quality → Pod assignment issues tab** — Unmatched BigQuery client names (those that couldn't be mapped to a DB client during Growth Pod import) now persist in a `pod_import_issues` table and surface in a dedicated tab in `/admin/data-quality`. Shows BQ name, intended pod, and first/last seen dates. Rows auto-clear on the next SYNC when fuzzy matching resolves them.
+- **Overview → deep-link scroll** — Clicking a client or pod in the Delivery Overview cards now opens and scrolls to the right card on Editorial Clients, with a brief highlight ring. Falls back to a URL redirect if the page isn't already loaded.
+
+### Under the hood
+
+- Leadership group renamed to **Leadership + Ops**; Diego Rubio added as a seeded member.
+- Growth Team exclusion logic fixed: a member with two pod rows (one Content Specialist, one pod member) is now correctly excluded from the Growth Team access group.
+
+---
+
 ## 0.3.9 — May 13
 
 **In-app Help & Changelog modal, surfaced from the sidebar.**
@@ -49,7 +77,7 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 - **Overview · Triage cards** — Rewritten so they tell one consistent story:
   - **Delivery Progress** counts each client by **end-of-current-quarter projected variance** (cumulative through end of Q, not last Q in isolation). Healthy: on target or ahead · Within limit: behind by ≤ 5 · Behind: below −5 · **New (1st Q)**: ramping clients in their first contract quarter — kept out of triage entirely.
   - **Most Behind** + **Pod Attention** use the same lens. Each row shows BOTH last quarter's actual close AND this quarter's projected close, so catch-up plans in flight are visible. Brand-new clients surface in a separate blue "N new (1st Q)" pill.
-  - Over-delivery (e.g. shipping +14 in Q2 to catch up a −14 deficit in Q1) reads as **0 / Healthy**, not Behind. Matches the spreadsheet's Variance row math.
+  - Over-delivery (e.g. shipping +6 in Q2 to catch up a −6 deficit in Q1) reads as **0 / Healthy**, not Behind. Matches the spreadsheet's Variance row math.
 - **Overview · 2 × 2 layout** — The Triage cards are now arranged 2 × 2 (Delivery Progress · Most Behind · Pod Attention · Closing in 90d), replacing the old 3-on-top + 1-below grid. "Last Q Closes" was removed — its signal is folded into the per-row last-quarter values on Most Behind / Pod Attention.
 - **Overview · Monthly Goals section** — Restored as a pod-aggregation snapshot (no per-client breakdown — Open in Editorial Clients for that). Shows AsOf badge and Open-in-D1 deep link.
 - **Overview · As Of badges** — Now appear on the Cumulative Pipeline and Production History section headers so the period the data covers is unambiguous.
@@ -62,7 +90,7 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 - **Editorial Clients + Overview · per-client cards** —
   - Cumulative pipeline bars: hover any horizontal bar (Topics / CBs / Articles / Published) to see the raw count, contracted SOW, and progress %.
   - Quarter Performance bars (Last Full Q / Current Q): re-coloured as a calm beige → deep green ramp (matching the Topics colour in Cumulative Pipeline) instead of red/amber/green alarm tiers. The actionable signal lives in the new "Projected end of Q" line.
-  - **Projected end of Q** — A new informational row below the Current Q bar shows where the quarter is projected to close (e.g. `+0 On track` / `−3 Slight drift` / `−14 Behind plan`). Catch-up in this quarter cancels earlier deficits.
+  - **Projected end of Q** — A new informational row below the Current Q bar shows where the quarter is projected to close (e.g. `+0 On track` / `−5 Slight drift` / `−6 Behind plan`). Catch-up in this quarter cancels earlier deficits.
   - The "Articles: %" footer was removed from cumulative pipeline cards (info now lives in the bar tooltips).
 - **Editorial Clients + Overview · Monthly detail popover** — The Variance column is now cumulative (matches the spreadsheet's Variance row exactly). Column header tooltips, top-of-popover legend, and per-period chip colors all align.
 - **Capacity Planning · Editorial pod from the sheet** — The hardcoded list of "which clients are in which pod" is gone. Pod assignment is now read directly from the article-breakdown section of the latest `ET CP 2026 [V## <Month YYYY>]` sheet, using the rightmost non-empty Pod column per client. SYNC picks up pod moves automatically. The sheet-version detector also numerically sorts the `V##` portion so `V13` beats `V9`.

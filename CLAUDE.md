@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.9`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.10`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
@@ -94,7 +94,7 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 | `/capacity-planning` | **Capacity Maintenance** (CP v2 prototype, localStorage-backed) | Proposal — see `CAPACITY_PLANNING_V2.md`. Sidebar entry was renamed from "Capacity Planning v2" |
 | `/data-management/import` | Import Wizard + Re-sync past months | The other CRUD pages (Clients, Deliverables, Capacity, KPI Entry) are still routable but hidden from the sidebar — they'll be replaced by the CP v2 maintain screens |
 | `/admin/access` | **Access Control** | Live RBAC matrix. Both Groups and Users × Views tabs render as a single matrix table with a 3-level column header (Section → Dashboard → Tab) and per-section dividers. Groups: row-per-group with click-to-expand member lists in a 3-col grid. Users × Views: row-per-user with override-direction arrows (↑ extra grant / ↓ revoke) + "Show only overrides" filter. Editing privilege split: the Access Control column renders **two pills** per row — `View` (green, gated on `admin.access`) and `Edit` (blue, gated on `admin.access.edit`). True admins gate the Admin row, the seeded admin baseline (Daniela / Ricardo), and grants of `admin.access.edit` itself — preventing privilege escalation. Audit Log tab + Preview-As (sticky global banner via `PreviewBanner`, redirects to first accessible page). Backend tables: `access_views`, `access_groups`, `access_group_members`, `access_group_view_permissions`, `access_user_overrides`. |
-| `/admin/data-quality` | **Data Quality** | End-date drift (SOW Overview vs Operating Model) + delivered drift (`clients` cumulative vs `deliverables_monthly`). Read-only — sourced from `GET /api/admin/discrepancies`. |
+| `/admin/data-quality` | **Data Quality** | Three tabs: end-date drift (SOW Overview vs Operating Model) + delivered drift (`clients` cumulative vs `deliverables_monthly`) + pod assignment issues (BQ client names that couldn't be matched to a DB client during Growth Pod import). Sourced from `GET /api/admin/discrepancies`. Pod issues persist in `pod_import_issues` table; cleared automatically when fuzzy self-heal resolves the match on a later SYNC. |
 | `/(auth)/login` | Google OAuth handshake | Redirects back to `/` |
 
 ## Data Sources & Ingestion Reality
@@ -109,7 +109,7 @@ ID: `1I6fNQMjs2y4l6IyOxd9QL-QBjB2zGi0mcoV840JDmkI`
 | Sheet | Destination | Ingested? |
 |---|---|---|
 | Editorial SOW overview | `clients` | ✅ one-time seed |
-| Delivered vs Invoiced v2 | `deliverables_monthly` | ✅ one-time seed |
+| Delivered vs Invoiced v2 | `deliverables_monthly` | ✅ live sync — no month cap (reads all populated columns; the previous 36-month hard limit was removed to support multi-year/renewal contracts like Webflow) |
 | ET CP 2026 [V11 Mar 2026] | `team_members` + `capacity_projections` | ✅ one-time seed (pod roster hardcoded in `seed_data.py`) |
 | Model Assumptions | `model_assumptions` | ✅ one-time seed |
 | Editorial Operating Model | `production_history` | ✅ seeded; drives Production History chart |
@@ -142,7 +142,7 @@ ID env-driven via `TEAM_PODS_ID`; currently a **temporary copy** at `1N6q1ZYC4W9
 | Editorial Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=editorial) | ✅ chip-based: emails come from people-chip metadata via `spreadsheets.get(includeGridData=true)` |
 | Growth Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=growth) | ✅ same chip-based path; tab has different headers + 2 pod-member columns |
 
-Powers RBAC group auto-population for the two pod-derived groups: **Editorial Team** (Senior Editors + Editors; Writers excluded) and **Growth Team** (Growth Leads / Directors / Account Directors / Managers; Content Specialists excluded). The **Leadership** group is seed-only (VPs + managers) and is no longer pod-derived. Also drives the per-pod client filter at `/api/clients/`.
+Powers RBAC group auto-population for the two pod-derived groups: **Editorial Team** (Senior Editors + Editors; Writers excluded) and **Growth Team** (Growth Leads / Directors / Account Directors / Managers; Content Specialists excluded). The **Leadership + Ops** group is seed-only (VPs, managers, and ops leads) and is no longer pod-derived. Also drives the per-pod client filter at `/api/clients/`.
 
 ### Notion Database (separate connector, not a sheet)
 Imported via `backend/app/services/notion_import.py` (paginated read + bulk upsert — fix shipped in `612c854`, Apr 16). Populates `notion_articles`, feeds 3 KPIs: Revision Rate, Turnaround Time, Second Reviews.

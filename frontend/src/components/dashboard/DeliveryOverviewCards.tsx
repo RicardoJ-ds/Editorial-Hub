@@ -19,6 +19,7 @@ import { ClientStatusCard } from "./FilterContextCard";
 import { parseISODateLocal } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { revealDetailTarget, slugifyPodLabel } from "@/lib/detailTargets";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scope-aware Delivery Overview cards.
@@ -102,60 +103,42 @@ function buildD1QueryString(overrides: Record<string, string | undefined>): stri
 // params so the section scrolls into view after the page renders, with the
 // Overview's filters preserved (and the clicked client pre-applied to the
 // search box when `clientName` is provided).
-function scrollToClient(clientId: number, clientName?: string) {
-  if (typeof document === "undefined") return;
-  const targetId = `client-delivery-${clientId}`;
-  const el = document.getElementById(targetId);
-  if (!el) {
-    if (typeof window !== "undefined") {
-      const q = buildD1QueryString({ search: clientName });
-      window.location.assign(`/editorial-clients?${q}#${targetId}`);
-    }
-    return;
+type DetailSection = "client-delivery" | "cumulative-pipeline";
+
+function scrollToClientDetail(
+  section: DetailSection,
+  clientId: number,
+  clientName?: string,
+) {
+  const targetId = `${section}-${clientId}`;
+  if (revealDetailTarget(targetId, "ring")) return;
+  if (typeof window !== "undefined") {
+    const q = buildD1QueryString({ search: clientName });
+    window.location.assign(`/editorial-clients?${q}#${targetId}`);
   }
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
-  // Brief highlight so the user's eye lands on the right card after scroll.
-  el.classList.add("ring-2", "ring-[#42CA80]/60", "ring-offset-2", "ring-offset-black", "transition-shadow");
-  window.setTimeout(() => {
-    el.classList.remove("ring-2", "ring-[#42CA80]/60", "ring-offset-2", "ring-offset-black");
-  }, 1600);
 }
 
-function scrollToPod(pod: string) {
-  if (typeof document === "undefined") return;
-  const slug = pod.replace(/\s+/g, "-").toLowerCase();
-  const targetId = `client-delivery-pod-${slug}`;
-  const el = document.getElementById(targetId);
-  if (!el) {
-    if (typeof window !== "undefined") {
-      // Preserve the Overview filters AND set editorial_pod to the clicked
-      // pod — `pod` is the canonical "Pod N" label used elsewhere in the
-      // app and is what FilterBar's editorial_pod URL key expects.
-      const q = buildD1QueryString({ editorial_pod: pod });
-      window.location.assign(`/editorial-clients?${q}#${targetId}`);
-    }
-    return;
+function scrollToPodDetail(
+  section: DetailSection,
+  pod: string,
+  podAxis: "editorial" | "growth",
+) {
+  const slug = slugifyPodLabel(pod);
+  const targetId = `${section}-pod-${slug}`;
+  if (revealDetailTarget(targetId, "outline")) return;
+  if (typeof window !== "undefined") {
+    const podFilterKey = podAxis === "growth" ? "growth_pod" : "editorial_pod";
+    const q = buildD1QueryString({ [podFilterKey]: pod });
+    window.location.assign(`/editorial-clients?${q}#${targetId}`);
   }
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
-  // Outline the whole pod group briefly so the user sees they landed on
-  // the right pod, not a single client card.
-  el.classList.add(
-    "outline",
-    "outline-2",
-    "outline-[#42CA80]/50",
-    "outline-offset-4",
-    "rounded",
-    "transition-all",
-  );
-  window.setTimeout(() => {
-    el.classList.remove(
-      "outline",
-      "outline-2",
-      "outline-[#42CA80]/50",
-      "outline-offset-4",
-      "rounded",
-    );
-  }, 1600);
+}
+
+function scrollToClient(clientId: number, clientName?: string) {
+  scrollToClientDetail("client-delivery", clientId, clientName);
+}
+
+function scrollToPod(pod: string, podAxis: "editorial" | "growth") {
+  scrollToPodDetail("client-delivery", pod, podAxis);
 }
 
 function normalizePod(raw: string | null | undefined): string {
@@ -423,21 +406,103 @@ function signedVarianceColor(v: number): string {
   return "#ED6958";
 }
 
-/** True when the client's current contract Q is their FIRST (index 0).
+// ─────────────────────────────────────────────────────────────────────────────
+// Variable billing-period detection for triage cards. Same data-driven
+// grouping as ClientDeliveryCards.tsx: a new period opens when invoiced > 0;
+// subsequent zero-invoiced months join it. Supports 1-, 2-, 3- and 5-month
+// spans so the triage cards and the Monthly Detail popover agree on what
+// "current Q" means even for variable-cadence clients like Webflow.
+// ─────────────────────────────────────────────────────────────────────────────
+interface SummaryBillingPeriod {
+  qIdx: number;
+  label: string;
+  monthsLabel: string;
+  startYear: number;
+  startMonth: number;
+  endYear: number;
+  endMonth: number;
+  months: Array<{ year: number; month: number; delivered: number; invoiced: number; is_future?: boolean }>;
+  invoicedQ: number;
+  isPrelude: boolean;
+}
+
+const TRIAGE_MS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function detectSummaryBillingPeriods(row: SummaryRow): SummaryBillingPeriod[] {
+  const monthly = row.monthly_breakdown ?? [];
+  if (monthly.length === 0) return [];
+  const sorted = [...monthly].sort((a, b) =>
+    a.year !== b.year ? a.year - b.year : a.month - b.month,
+  );
+  const start = parseISODateLocal(row.start_date);
+  const startYear = start ? start.getFullYear() : null;
+  const startMonth = start ? start.getMonth() + 1 : null;
+
+  type Raw = Omit<SummaryBillingPeriod, "qIdx" | "label" | "monthsLabel">;
+  const raw: Raw[] = [];
+  let cur: Raw | null = null;
+  let prelude: Raw | null = null;
+  for (const r of sorted) {
+    if (r.invoiced > 0) {
+      if (prelude) { raw.push(prelude); prelude = null; }
+      if (cur) raw.push(cur);
+      cur = { startYear: r.year, startMonth: r.month, endYear: r.year, endMonth: r.month, months: [r], invoicedQ: r.invoiced, isPrelude: false };
+    } else if (cur) {
+      cur.endYear = r.year; cur.endMonth = r.month; cur.months.push(r);
+    } else if (prelude) {
+      prelude.endYear = r.year; prelude.endMonth = r.month; prelude.months.push(r);
+    } else {
+      prelude = { startYear: r.year, startMonth: r.month, endYear: r.year, endMonth: r.month, months: [r], invoicedQ: 0, isPrelude: true };
+    }
+  }
+  if (cur) raw.push(cur);
+  if (prelude) raw.push(prelude);
+
+  let prevYearIdx = -1;
+  let qInYear = 0;
+  return raw.map((p, idx) => {
+    let label = "";
+    if (!p.isPrelude) {
+      if (startYear != null && startMonth != null) {
+        const mi = (p.startYear - startYear) * 12 + (p.startMonth - startMonth) + 1;
+        const yearIdx = mi >= 1 ? Math.floor((mi - 1) / 12) : 0;
+        if (yearIdx !== prevYearIdx) { qInYear = 0; prevYearIdx = yearIdx; }
+        qInYear += 1;
+        label = yearIdx === 0 ? `Q${qInYear}` : `Q${qInYear} Y${yearIdx + 1}`;
+      } else {
+        qInYear += 1;
+        label = `Q${qInYear}`;
+      }
+    }
+    const sStr = `${TRIAGE_MS[p.startMonth]} ${String(p.startYear).slice(-2)}`;
+    const eStr = `${TRIAGE_MS[p.endMonth]} ${String(p.endYear).slice(-2)}`;
+    let monthsLabel: string;
+    if (p.startYear === p.endYear && p.startMonth === p.endMonth) {
+      monthsLabel = sStr;
+    } else if (p.startYear === p.endYear) {
+      monthsLabel = `${TRIAGE_MS[p.startMonth]}–${TRIAGE_MS[p.endMonth]} ${String(p.endYear).slice(-2)}`;
+    } else {
+      monthsLabel = `${sStr}–${eStr}`;
+    }
+    return { ...p, qIdx: idx, label, monthsLabel };
+  });
+}
+
+/** True when the client's current contract Q is their FIRST (Q1).
  *  Brand-new clients always read "behind" against contracted invoicing
  *  because they haven't had time to ramp — surfacing them as a separate
  *  "New (1st Q)" tier keeps the Behind list honest. */
 function isFirstContractQ(row: SummaryRow): boolean {
-  if (!row.start_date) return false;
-  const start = parseISODateLocal(row.start_date);
-  if (!start) return false;
+  const periods = detectSummaryBillingPeriods(row);
   const today = new Date();
-  const currentMi =
-    (today.getFullYear() - start.getFullYear()) * 12 +
-    (today.getMonth() + 1 - (start.getMonth() + 1)) +
-    1;
-  if (currentMi < 1) return false;
-  return Math.floor((currentMi - 1) / 3) === 0;
+  const todayCell = today.getFullYear() * 12 + today.getMonth();
+  for (const p of periods) {
+    if (p.isPrelude) continue;
+    const startCell = p.startYear * 12 + (p.startMonth - 1);
+    const endCell = p.endYear * 12 + (p.endMonth - 1);
+    if (startCell <= todayCell && todayCell <= endCell) return p.label === "Q1";
+  }
+  return false;
 }
 
 /** Four-way tier for Overview Triage classification. `new` is the
@@ -478,52 +543,74 @@ function clientCurrentQTier(row: SummaryRow): CurrentQTier | null {
 
 export function DeliveryMixCard({
   rows,
+  clients,
   subtitle,
 }: {
   rows: SummaryRow[];
+  clients: Client[];
   subtitle: string;
 }) {
-  // Tier counts use the **current Q's projected end variance**
-  // (delivered actuals + projected for future months − contracted
-  // invoicing for the Q). Signed bucketing so over-delivery doesn't
-  // get punished:
-  //   variance ≥ 0      → Healthy
-  //   -5 ≤ variance < 0 → Within limit
-  //   variance < -5     → Behind
-  // Clients in their first contract Q are pulled out into a 4th tier
-  // (New) because they always look behind against contracted
-  // invoicing — they haven't had time to ramp.
   const counts: Record<CurrentQTier, number> = {
     behind: 0,
     watch: 0,
     healthy: 0,
     new: 0,
   };
+  const byId = new Map(clients.map((c) => [c.id, c]));
+  const tierItems: Record<CurrentQTier, BehindRowItem[]> = {
+    behind: [],
+    watch: [],
+    healthy: [],
+    new: [],
+  };
   let withQ = 0;
   let noQ = 0;
-  // Headline totals exclude "new" clients (1st Q) so their natural
-  // ramp-up under-delivery doesn't drag the portfolio number negative.
   let totalProjectedEnd = 0;
   let totalInvoiced = 0;
   for (const r of rows) {
+    const currentQ = computeCurrentQ(r);
+    if (!currentQ || currentQ.invoiced <= 0) {
+      noQ += 1;
+      continue;
+    }
     const tier = clientCurrentQTier(r);
     if (tier === null) {
       noQ += 1;
       continue;
     }
+    const client = byId.get(r.id);
+    if (!client) continue;
     withQ += 1;
     counts[tier] += 1;
+    const lastQ = computeLastFullQ(r);
+    tierItems[tier].push({ row: r, lastQ, currentQ, client });
     if (tier !== "new") {
-      const q = computeCurrentQ(r)!;
-      totalProjectedEnd += q.projectedEnd;
-      totalInvoiced += q.invoiced;
+      totalProjectedEnd += currentQ.projectedEnd;
+      totalInvoiced += currentQ.invoiced;
     }
   }
+  tierItems.behind.sort(
+    (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+  );
+  tierItems.watch.sort(
+    (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+  );
+  tierItems.healthy.sort(
+    (a, b) => b.currentQ.projectedVariance - a.currentQ.projectedVariance,
+  );
+  tierItems.new.sort((a, b) => a.client.name.localeCompare(b.client.name));
   const totalVariance = totalProjectedEnd - totalInvoiced;
   const headlineColor =
     totalInvoiced === 0
       ? "#909090"
       : signedVarianceColor(totalVariance);
+  const scoredCount = withQ - counts.new;
+  const featured = [
+    ...tierItems.behind,
+    ...tierItems.watch,
+    ...tierItems.new,
+    ...tierItems.healthy,
+  ].slice(0, 3);
   return (
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="flex h-full flex-col pt-0">
@@ -535,14 +622,14 @@ export function DeliveryMixCard({
               "Where each client will land vs. invoicing by end of this quarter.",
               "Healthy: on target or ahead · Within limit: behind by ≤ 5 · Behind: below −5.",
               "Over-delivery this quarter cancels earlier deficits.",
-              "New (1st Q): ramping clients, kept out of triage.",
+              "Click a client row to jump to Client Delivery At a Glance.",
             ],
           }}
         />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
           {subtitle}
           {withQ > 0
-            ? ` · ${withQ - counts.new} scored${counts.new > 0 ? ` · ${counts.new} new (1st Q)` : ""}`
+            ? ` · ${scoredCount} scored${counts.new > 0 ? ` · ${counts.new} new (1st Q)` : ""}`
             : ""}
         </p>
         <p
@@ -558,51 +645,115 @@ export function DeliveryMixCard({
             projected current Q
           </span>
         </p>
-        <div className="mt-2 space-y-0.5">
-          {CURRENT_Q_TIER_ORDER.map((tier) => {
-            const color = CURRENT_Q_TIER_COLOR[tier];
-            const label = CURRENT_Q_TIER_LABEL[tier];
-            return (
-              <div
-                key={tier}
-                className="flex items-center justify-between gap-2 font-mono text-[11px]"
-              >
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block h-2 w-2 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="uppercase tracking-wider text-[#C4BCAA]">
-                    {label}
-                  </span>
-                </span>
-                <span
-                  className="tabular-nums font-semibold"
-                  style={{ color }}
-                >
-                  {counts[tier]}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-auto pt-2 font-mono text-[10px] text-[#606060]">
-          <span className="text-[#909090]">
-            {totalProjectedEnd.toLocaleString()}
-          </span>
-          <span> / </span>
-          <span>{totalInvoiced.toLocaleString()}</span>
-          <span className="ml-1 uppercase tracking-wider">
-            projected · invoiced (current Q, excl. new)
-          </span>
-          {noQ > 0 && (
-            <span className="ml-2 uppercase tracking-wider">
-              · {noQ} no current Q
+
+        {featured.length === 0 ? (
+          <>
+            <p className="mt-1.5 font-mono text-2xl font-bold text-[#42CA80]">
+              All clear
+            </p>
+            <p className="mt-1 font-mono text-[11px] text-[#606060]">
+              Every scored client is projected to close current Q at ≥ −5
+            </p>
+          </>
+        ) : (
+          <ul className="mt-2 space-y-1">
+            {featured.map((item) => (
+              <BehindRow
+                key={`mix-${item.row.id}`}
+                item={item}
+                tone={clientCurrentQTier(item.row) === "new" ? "new" : "default"}
+              />
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-2">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            <span className="text-[#909090]">
+              {totalProjectedEnd.toLocaleString()}
             </span>
-          )}
+            <span> / </span>
+            <span>{totalInvoiced.toLocaleString()}</span>
+            <span className="ml-1 uppercase tracking-wider">
+              projected · invoiced
+            </span>
+            {noQ > 0 && (
+              <span className="ml-2 uppercase tracking-wider">
+                · {noQ} no current Q
+              </span>
+            )}
+          </span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {CURRENT_Q_TIER_ORDER.filter((tier) => counts[tier] > 0).map((tier) => (
+              <DeliveryMixTierPopover
+                key={`mix-popover-${tier}`}
+                tier={tier}
+                items={tierItems[tier]}
+                count={counts[tier]}
+              />
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DeliveryMixTierPopover({
+  tier,
+  items,
+  count,
+}: {
+  tier: CurrentQTier;
+  items: BehindRowItem[];
+  count: number;
+}) {
+  const color = CURRENT_Q_TIER_COLOR[tier];
+  const label = CURRENT_Q_TIER_LABEL[tier];
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider transition-colors hover:text-[#C4BCAA]"
+            style={{ color }}
+            title={`${label} · ${count} client${count === 1 ? "" : "s"}`}
+          />
+        }
+      >
+        {label} {count}
+        <ChevronRight className="h-3 w-3" />
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="bottom"
+        className="w-[440px] max-w-[92vw] border border-[#2a2a2a] bg-[#0d0d0d] p-0"
+      >
+        <div className="border-b border-[#2a2a2a] px-3 py-2">
+          <p
+            className="font-mono text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color }}
+          >
+            {label}
+          </p>
+          <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
+            {items.length} client{items.length === 1 ? "" : "s"} · click a row to jump to Client Delivery
+          </p>
+        </div>
+        <ul className="max-h-[360px] overflow-y-auto p-2 space-y-2">
+          {items.map((item) => (
+            <BehindRow
+              key={`${tier}-${item.row.id}`}
+              item={item}
+              dense
+              tone={tier === "new" ? "new" : "default"}
+            />
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -703,47 +854,31 @@ function LastFullQCard({ row }: { row: SummaryRow }) {
   const stats = useMemo(() => {
     const last = computeLastFullQ(row);
     if (!last) return null;
-    if (!row.start_date || !row.monthly_breakdown?.length) {
-      return { last, prior: null as null | { pct: number; label: string } };
-    }
-    const start = parseISODateLocal(row.start_date);
-    if (!start) return { last, prior: null };
-    const startYear = start.getFullYear();
-    const startMonth = start.getMonth() + 1;
+    const periods = detectSummaryBillingPeriods(row);
     const today = new Date();
     const lastCompleted = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const lastCompletedMi =
-      (lastCompleted.getFullYear() - startYear) * 12 +
-      (lastCompleted.getMonth() + 1 - startMonth) +
-      1;
-    const lastFullQIdx =
-      lastCompletedMi >= 3 ? Math.floor(lastCompletedMi / 3) - 1 : -1;
-    const priorQIdx = lastFullQIdx - 1;
-    if (priorQIdx < 0) return { last, prior: null };
-
-    let pDelivered = 0;
-    let pInvoiced = 0;
-    for (const r of row.monthly_breakdown) {
-      const mi = (r.year - startYear) * 12 + (r.month - startMonth) + 1;
-      if (mi < 1) continue;
-      const qIdx = Math.floor((mi - 1) / 3);
-      if (qIdx === priorQIdx) {
-        pDelivered += r.delivered;
-        pInvoiced += r.invoiced;
-      }
+    const lastCell = lastCompleted.getFullYear() * 12 + lastCompleted.getMonth();
+    // Find the period BEFORE the last full Q.
+    let lastFullIdx = -1;
+    for (let i = 0; i < periods.length; i++) {
+      const p = periods[i];
+      if (p.isPrelude) continue;
+      if (p.endYear * 12 + (p.endMonth - 1) <= lastCell) lastFullIdx = i;
     }
-    if (pInvoiced <= 0) return { last, prior: null };
-    const yearIdx = Math.floor(priorQIdx / 4);
-    const qInYear = (priorQIdx % 4) + 1;
-    const firstAbs = startYear * 12 + (startMonth - 1) + priorQIdx * 3;
-    const firstY = Math.floor(firstAbs / 12);
-    const label =
-      yearIdx === 0
-        ? `Q${qInYear} ${String(firstY).slice(-2)}`
-        : `Q${qInYear} Y${yearIdx + 1}`;
+    if (lastFullIdx < 1) return { last, prior: null as null | { pct: number; label: string } };
+    // Find the prior non-prelude period.
+    let priorP: SummaryBillingPeriod | null = null;
+    for (let i = lastFullIdx - 1; i >= 0; i--) {
+      if (!periods[i].isPrelude) { priorP = periods[i]; break; }
+    }
+    if (!priorP || priorP.invoicedQ <= 0) return { last, prior: null };
+    let pDelivered = 0;
+    for (const m of priorP.months) {
+      if (!(m.is_future ?? false)) pDelivered += m.delivered;
+    }
     return {
       last,
-      prior: { pct: Math.round((pDelivered / pInvoiced) * 100), label },
+      prior: { pct: Math.round((pDelivered / priorP.invoicedQ) * 100), label: priorP.label },
     };
   }, [row]);
 
@@ -835,27 +970,11 @@ function LastFullQCard({ row }: { row: SummaryRow }) {
   );
 }
 
-/** Current in-progress contract Q for a client. The variance is computed
- *  **cumulatively through end of the current Q** to match the spreadsheet's
- *  Variance row: catch-up over-delivery inside the current Q is netted
- *  against earlier-Q misses, so a client who shipped −14 in Q1 then +14
- *  in Q2 reads as 0 (cumulative on target), not +14 (per-Q in isolation).
- *
- *  Fields returned:
- *    delivered           = actuals shipped from contract start through
- *                          the last completed month inside the current Q.
- *    projectedRemaining  = projected articles for the future months
- *                          INSIDE the current Q (excludes future Qs).
- *    invoiced            = cumulative contracted invoicing from contract
- *                          start through end of the current Q.
- *    projectedEnd        = delivered + projectedRemaining
- *    projectedVariance   = projectedEnd − invoiced
- *
- *  Display fields (`label`, `monthsLabel`, the projectedEnd/invoiced
- *  shown on each row) describe the current Q itself, but the numbers
- *  they hold are cumulative. The "X/Y" chip on each row reads as
- *  "where you'll be cumulatively when this Q closes vs. what you've
- *  contracted to have delivered cumulatively by then". */
+/** Current in-progress contract Q for a client. Numbers are cumulative
+ *  through end of the current Q so catch-up over-delivery nets against
+ *  earlier-Q misses — matches the spreadsheet's Variance row. Uses
+ *  data-driven billing period detection (same as Monthly Detail popover)
+ *  instead of fixed 3-month calendar quarters. */
 function computeCurrentQ(row: SummaryRow): {
   label: string;
   monthsLabel: string;
@@ -865,64 +984,39 @@ function computeCurrentQ(row: SummaryRow): {
   invoiced: number;
   projectedVariance: number;
 } | null {
-  const monthly = row.monthly_breakdown;
-  if (!monthly?.length) return null;
-  const start = parseISODateLocal(row.start_date);
-  if (!start) return null;
-  const startYear = start.getFullYear();
-  const startMonth = start.getMonth() + 1;
+  const periods = detectSummaryBillingPeriods(row);
+  if (periods.length === 0) return null;
   const today = new Date();
-  // "Current" Q is the one containing today's in-progress month.
-  const currentMi =
-    (today.getFullYear() - startYear) * 12 +
-    (today.getMonth() + 1 - startMonth) +
-    1;
-  if (currentMi < 1) return null;
-  const currentQIdx = Math.floor((currentMi - 1) / 3);
+  const todayCell = today.getFullYear() * 12 + today.getMonth();
 
-  let delivered = 0;
-  let projectedRemaining = 0;
-  let invoiced = 0;
-  for (const r of monthly) {
-    const mi = (r.year - startYear) * 12 + (r.month - startMonth) + 1;
-    if (mi < 1) continue;
-    const qIdx = Math.floor((mi - 1) / 3);
-    // Only include months up to and including the current Q. Future Qs
-    // are out of scope for the "projected close of the current Q".
-    if (qIdx > currentQIdx) continue;
-    invoiced += r.invoiced;
-    if (r.is_future) {
-      // Projections only matter when they're INSIDE the current Q —
-      // we're predicting how this Q will close, not future Qs.
-      if (qIdx === currentQIdx) {
-        projectedRemaining += r.delivered;
+  let cumDelivered = 0;
+  let cumInvoiced = 0;
+  for (const p of periods) {
+    cumInvoiced += p.invoicedQ;
+    for (const m of p.months) {
+      if (!(m.is_future ?? false)) cumDelivered += m.delivered;
+    }
+    if (p.isPrelude) continue;
+    const startCell = p.startYear * 12 + (p.startMonth - 1);
+    const endCell = p.endYear * 12 + (p.endMonth - 1);
+    if (startCell <= todayCell && todayCell <= endCell) {
+      let projectedRemaining = 0;
+      for (const m of p.months) {
+        if (m.is_future ?? false) projectedRemaining += m.delivered;
       }
-    } else {
-      delivered += r.delivered;
+      const projectedEnd = cumDelivered + projectedRemaining;
+      return {
+        label: p.label,
+        monthsLabel: p.monthsLabel,
+        delivered: cumDelivered,
+        projectedRemaining,
+        projectedEnd,
+        invoiced: cumInvoiced,
+        projectedVariance: projectedEnd - cumInvoiced,
+      };
     }
   }
-  const projectedEnd = delivered + projectedRemaining;
-  const yearIdx = Math.floor(currentQIdx / 4);
-  const qInYear = (currentQIdx % 4) + 1;
-  const firstAbs = startYear * 12 + (startMonth - 1) + currentQIdx * 3;
-  const firstY = Math.floor(firstAbs / 12);
-  const label =
-    yearIdx === 0
-      ? `Q${qInYear} ${String(firstY).slice(-2)}`
-      : `Q${qInYear} Y${yearIdx + 1}`;
-  const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const firstMonth = (firstAbs % 12) + 1;
-  const lastMonth = ((firstAbs + 2) % 12) + 1;
-  const monthsLabel = `${MONTH_SHORT[firstMonth]}–${MONTH_SHORT[lastMonth]}`;
-  return {
-    label,
-    monthsLabel,
-    delivered,
-    projectedRemaining,
-    projectedEnd,
-    invoiced,
-    projectedVariance: projectedEnd - invoiced,
-  };
+  return null;
 }
 
 
@@ -932,46 +1026,24 @@ function computeLastFullQ(row: SummaryRow): {
   delivered: number;
   invoiced: number;
 } | null {
-  const monthly = row.monthly_breakdown;
-  if (!monthly?.length) return null;
-  const start = parseISODateLocal(row.start_date);
-  if (!start) return null;
-  const startYear = start.getFullYear();
-  const startMonth = start.getMonth() + 1;
+  const periods = detectSummaryBillingPeriods(row);
+  if (periods.length === 0) return null;
   const today = new Date();
   const lastCompleted = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastCompletedMi =
-    (lastCompleted.getFullYear() - startYear) * 12 +
-    (lastCompleted.getMonth() + 1 - startMonth) +
-    1;
-  if (lastCompletedMi < 3) return null;
-  const lastFullQIdx = Math.floor(lastCompletedMi / 3) - 1;
-  if (lastFullQIdx < 0) return null;
+  const lastCell = lastCompleted.getFullYear() * 12 + lastCompleted.getMonth();
+
+  let lastFullP: SummaryBillingPeriod | null = null;
+  for (const p of periods) {
+    if (p.isPrelude) continue;
+    if (p.endYear * 12 + (p.endMonth - 1) <= lastCell) lastFullP = p;
+  }
+  if (!lastFullP) return null;
 
   let delivered = 0;
-  let invoiced = 0;
-  for (const r of monthly) {
-    const mi = (r.year - startYear) * 12 + (r.month - startMonth) + 1;
-    if (mi < 1) continue;
-    const qIdx = Math.floor((mi - 1) / 3);
-    if (qIdx === lastFullQIdx) {
-      delivered += r.delivered;
-      invoiced += r.invoiced;
-    }
+  for (const m of lastFullP.months) {
+    if (!(m.is_future ?? false)) delivered += m.delivered;
   }
-  const yearIdx = Math.floor(lastFullQIdx / 4);
-  const qInYear = (lastFullQIdx % 4) + 1;
-  const firstAbs = startYear * 12 + (startMonth - 1) + lastFullQIdx * 3;
-  const firstY = Math.floor(firstAbs / 12);
-  const label =
-    yearIdx === 0
-      ? `Q${qInYear} ${String(firstY).slice(-2)}`
-      : `Q${qInYear} Y${yearIdx + 1}`;
-  const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const firstMonth = (firstAbs % 12) + 1;
-  const lastMonth = ((firstAbs + 2) % 12) + 1;
-  const monthsLabel = `${MONTH_SHORT[firstMonth]}–${MONTH_SHORT[lastMonth]}`;
-  return { label, monthsLabel, delivered, invoiced };
+  return { label: lastFullP.label, monthsLabel: lastFullP.monthsLabel, delivered, invoiced: lastFullP.invoicedQ };
 }
 
 // "Days remaining" + elapsed share of the contract.
@@ -1800,7 +1872,7 @@ export function PodAttentionCard({
         {/* Top pod headline — clickable scrolls to that pod's group */}
         <button
           type="button"
-          onClick={() => scrollToPod(topPod)}
+          onClick={() => scrollToPod(topPod, podAxis)}
           title={`Jump to ${displayPod(topPod, podAxis)} group`}
           className="mt-1.5 -mx-1.5 flex w-[calc(100%+0.75rem)] flex-col items-start gap-0.5 rounded px-1.5 py-0.5 text-left transition-colors hover:bg-[#242424]"
         >
@@ -1938,7 +2010,7 @@ export function PodAttentionCard({
                       <li key={pod}>
                         <button
                           type="button"
-                          onClick={() => scrollToPod(pod)}
+                          onClick={() => scrollToPod(pod, podAxis)}
                           title={`Jump to ${displayPod(pod, podAxis)} group`}
                           className="flex w-full items-baseline justify-between gap-2 rounded px-2 py-1 text-left font-mono text-[11px] transition-colors hover:bg-[#161616]"
                         >

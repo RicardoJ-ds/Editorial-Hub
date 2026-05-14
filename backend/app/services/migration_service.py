@@ -29,6 +29,7 @@ from app.models import (
     ModelAssumption,
     NotionArticle,
     PodAssignment,
+    PodImportIssue,
     ProductionHistory,
     SheetSyncHistory,
     SurferAPIUsage,
@@ -440,6 +441,7 @@ def list_available_sheets() -> list[dict]:
                 .get(spreadsheetId=extra_id, fields="sheets.properties")
                 .execute()
             )
+            has_gvd_tabs = False
             for s in extra_meta.get("sheets", []):
                 props = s.get("properties", {})
                 if props.get("hidden"):
@@ -452,6 +454,24 @@ def list_available_sheets() -> list[dict]:
                         "row_count": row_count,
                         "description": SHEET_DESCRIPTIONS.get(
                             f"{prefix} - {name}", f"From {prefix} spreadsheet"
+                        ),
+                        "source": prefix,
+                    }
+                )
+                if "] Goals vs Delivery" in name and "[Template]" not in name:
+                    has_gvd_tabs = True
+            # Inject a synthetic aggregate entry so the SYNC button can discover
+            # and trigger import_goals_vs_delivery (which handles all month tabs
+            # internally). The individual "[Month YYYY] Goals vs Delivery" tabs
+            # don't match IMPORTABLE_EXACT on the frontend, but this key does.
+            if has_gvd_tabs and prefix == "Master Tracker":
+                sheets_info.append(
+                    {
+                        "name": "Master Tracker - Goals vs Delivery",
+                        "row_count": 0,
+                        "description": SHEET_DESCRIPTIONS.get(
+                            "Master Tracker - Goals vs Delivery",
+                            "Monthly Goals vs Delivery tabs — current month always re-imported",
                         ),
                         "source": prefix,
                     }
@@ -818,12 +838,9 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
 
         # Data starts at row index 3, groups of 6 rows per client.
         # Columns: 0..6 are metadata; month data starts at col 7 and extends
-        # as far as the sheet is filled — Y2 contracts (renewals, multi-year
-        # engagements like Gainbridge) use M13+ in additional columns. Hard
-        # cap of 36 months is a safety limit that far exceeds today's
-        # longest contracts.
+        # as far as the sheet is filled. No hard cap — we read every populated
+        # column and rely on the null-check below to skip empty trailing cells.
         row_idx = 3
-        MAX_MONTH_LIMIT = 36
 
         while row_idx + 5 < len(all_rows):
             header_row = all_rows[row_idx]
@@ -869,13 +886,10 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
             deliveries_row = all_rows[row_idx + 3] if row_idx + 3 < len(all_rows) else []
             variance_row = all_rows[row_idx + 4] if row_idx + 4 < len(all_rows) else []
 
-            # Iterate months until we exhaust the populated columns. Y2+
-            # contracts extend past M12 so a fixed cap silently dropped those
-            # rows before; now we read as many months as the sheet carries.
             widest_row = max(
                 len(sow_row), len(invoicing_row), len(deliveries_row), len(variance_row)
             )
-            months_available = max(0, min(widest_row - 7, MAX_MONTH_LIMIT))
+            months_available = max(0, widest_row - 7)
 
             for m_offset in range(months_available):
                 col_idx = 7 + m_offset
@@ -3594,6 +3608,8 @@ _GROWTH_PODS_SQL_PATH = _Path(__file__).resolve().parent.parent / "sql" / "growt
 #   BQ client_name  →  app clients.name
 _GROWTH_POD_NAME_OVERRIDES: dict[str, str] = {
     "Genstore": "GenstoreAI",
+    "Workleap": "Workleap + Sharegate",
+    "Workleap+Sharegate": "Workleap + Sharegate",
 }
 
 
@@ -3768,15 +3784,76 @@ def import_growth_pods(session: Session) -> ImportResult:
         for bq_name, pod in pairs.items():
             canonical = _GROWTH_POD_NAME_OVERRIDES.get(bq_name, bq_name)
             c = by_lower.get(canonical.lower()) or by_norm.get(_name_key(canonical))
+
+            # Self-heal: try substring containment before giving up. Catches
+            # cases like "Workleap" ↔ "Workleap + Sharegate" automatically
+            # without needing a manual override entry.
+            if c is None:
+                bq_lower = canonical.lower()
+                bq_norm = _name_key(canonical)
+                for db_name, client in by_lower.items():
+                    if bq_lower in db_name or db_name in bq_lower:
+                        c = client
+                        logger.info("Growth Pods: fuzzy-matched '%s' → '%s'", bq_name, client.name)
+                        break
+                if c is None:
+                    for db_norm_key, client in by_norm.items():
+                        if bq_norm in db_norm_key or db_norm_key in bq_norm:
+                            c = client
+                            logger.info(
+                                "Growth Pods: fuzzy-matched (norm) '%s' → '%s'",
+                                bq_name,
+                                client.name,
+                            )
+                            break
+
             if c is None:
                 unmatched.append(f"{bq_name} ({pod})")
+                # Persist the issue so the Data Quality page can surface it.
+                existing_issue = (
+                    session.execute(
+                        select(PodImportIssue).where(
+                            PodImportIssue.raw_name == bq_name,
+                            PodImportIssue.pod_kind == "growth",
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+                if existing_issue:
+                    existing_issue.pod_label = pod
+                    existing_issue.last_seen_at = datetime.utcnow()
+                    existing_issue.resolved_at = None
+                else:
+                    session.add(
+                        PodImportIssue(
+                            raw_name=bq_name,
+                            pod_kind="growth",
+                            pod_label=pod,
+                        )
+                    )
                 continue
+
+            # Successfully matched — clear any prior unresolved issue.
+            existing_issue = (
+                session.execute(
+                    select(PodImportIssue).where(
+                        PodImportIssue.raw_name == bq_name,
+                        PodImportIssue.pod_kind == "growth",
+                        PodImportIssue.resolved_at.is_(None),
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if existing_issue:
+                existing_issue.resolved_at = datetime.utcnow()
+
             if c.growth_pod != pod:
                 c.growth_pod = pod
             result.rows_imported += 1
 
         if unmatched:
-            # Not a failure — surface the diff so the user can eyeball it.
             msg = "Unmatched BQ clients (no entry in clients table): " + ", ".join(unmatched)
             logger.warning(msg)
             result.errors.append(msg)

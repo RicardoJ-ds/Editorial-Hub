@@ -9,6 +9,7 @@ import { CumulativePipelineHeader } from "./CumulativePipelineHeader";
 import { normalizePod, sortPodKey } from "./ContractClientProgress";
 import { podBadge } from "./shared-helpers";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { revealCurrentHashTarget } from "@/lib/detailTargets";
 
 type PipelineStage = "topics" | "cbs" | "articles" | "published";
 
@@ -108,6 +109,20 @@ export function CumulativePipelineSection({
     return map;
   }, [filteredClients]);
 
+  useEffect(() => {
+    const reveal = () =>
+      revealCurrentHashTarget([
+        "cumulative-pipeline-",
+        "cumulative-pipeline-pod-",
+      ]);
+    const frame = window.requestAnimationFrame(reveal);
+    window.addEventListener("hashchange", reveal);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", reveal);
+    };
+  }, [defaultCollapsedByPod, rowsByPod]);
+
 
   if (loading) {
     return (
@@ -199,4 +214,3 @@ export function CumulativePipelineSection({
     </div>
   );
 }
-
