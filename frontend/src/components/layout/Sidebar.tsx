@@ -337,6 +337,7 @@ export function Sidebar({ user }: { user: HeaderUser }) {
         open={helpTab !== null}
         onOpenChange={(next) => setHelpTab(next ? helpTab ?? "help" : null)}
         initialTab={helpTab ?? "help"}
+        profile={access}
       />
     </aside>
   );
