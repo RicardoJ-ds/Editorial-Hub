@@ -15,7 +15,7 @@ A single place for Editorial Ops to track clients, deliverables, capacity, and t
 |---|---|
 | How is the team doing right now? | **Overview** |
 | Is a specific client on track? | **Editorial Clients** |
-| How are individual editors performing? | **Team KPIs** |
+| How are individual editors performing? | **Team KPIs** _(proposal stage)_ |
 | Plan capacity for next quarter? | **Capacity Maintenance** _(proposal stage)_ |
 | Audit who can see what? | **Admin → Access Control** |
 | Spot data drift between sources? | **Admin → Data Quality** |
@@ -56,7 +56,7 @@ Each client has one of each.
 Use the date-range picker at the top of any dashboard.
 
 #### Find a specific client fast
-Use **Search clients…** in the top filter row.
+Use **Search clients…** in the top filter row. The **Status** filter lets you narrow to Active, **Soon to be active**, or Inactive/Completed clients.
 
 #### Drill from a triage signal into the client
 Click any row inside **Most Behind** or **Pod Attention** — it scrolls straight to the per-client card.
@@ -68,10 +68,7 @@ Click **Editorial / Growth** at the top-right (if available to you).
 Hover the dotted-underlined title — every metric carries a 2–3 bullet explanation.
 
 #### Comment on a section
-Hover the chat-bubble next to the section title on the Overview dashboard. Admins + Leadership can post.
-
-#### Add a global note about a client
-Use the right-edge comments rail on the Overview dashboard. The client field is optional — leave it blank for an org-wide note.
+Hover the chat-bubble next to each section title on the Overview dashboard. Click to open a popover, pick a client, and post. Admins + Leadership can post; everyone can read.
 
 ---
 
