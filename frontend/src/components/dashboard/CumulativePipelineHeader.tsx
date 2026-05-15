@@ -286,7 +286,7 @@ function daysFromNow(iso: string | null | undefined): number | null {
   return Math.round((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function ClientHeader({ client }: { client: Client }) {
+export function ClientHeader({ client }: { client: Client }) {
   const style = statusStyle(client.status);
   const daysToEnd = daysFromNow(client.end_date);
   const daysSinceStart = client.start_date ? -1 * (daysFromNow(client.start_date) ?? 0) : null;

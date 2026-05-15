@@ -20,7 +20,9 @@ from app.schemas import EditorialWeekResponse
 from app.services.migration_service import (
     CAPACITY_PLAN_PREFIX,
     IMPORT_DISPATCH,
+    backfill_editorial_pod_from_history,
     import_all,
+    import_et_cp_pod_history,
     import_goals_vs_delivery,
     import_team_pods,
     import_week_distribution,
@@ -299,6 +301,14 @@ async def resync_historical_goals():
         badge across the dashboards reads from this.
       • Team Pods (Editorial + Growth) so RBAC group auto-membership stays
         in sync with the latest sheet.
+      • ET CP Pod History — walks every historical ET CP version tab and
+        writes the confirmed pod assignment per client per month into
+        `client_pod_history`. Surfaces unmatched names as IncompleteClient
+        rows for ops to add to the SOW Overview.
+      • Backfill Editorial Pod from history — fills `clients.editorial_pod`
+        for any client where the current ET CP tab has no entry but
+        historical tabs do, so inactive / paused clients keep their last
+        confirmed pod visible across the dashboards.
 
     Each importer runs in its own session and is wrapped in a guard so one
     failure doesn't abort the others — failed steps come back as
@@ -313,6 +323,8 @@ async def resync_historical_goals():
         ("Goals vs Delivery (all months)", lambda s: import_goals_vs_delivery(s, mode="all")),
         ("Master Tracker - Week Distribution", import_week_distribution),
         ("Team Pods - Editorial + Growth", import_team_pods),
+        ("ET CP Pod History (all months)", import_et_cp_pod_history),
+        ("Backfill Editorial Pod from history", backfill_editorial_pod_from_history),
     ]
 
     def _run():

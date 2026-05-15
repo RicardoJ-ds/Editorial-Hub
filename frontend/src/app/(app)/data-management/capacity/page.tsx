@@ -176,10 +176,13 @@ export default function CapacityPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            Admin · Data Management
+          </p>
+          <h1 className="mt-0.5 font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
             Capacity Planning
-          </h2>
-          <p className="mt-1 text-muted-foreground">
+          </h1>
+          <p className="mt-1 text-sm text-[#C4BCAA]">
             Manage pod capacity projections and utilization.
           </p>
         </div>

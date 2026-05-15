@@ -651,3 +651,85 @@ class PodImportIssue(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (UniqueConstraint("raw_name", "pod_kind", name="uq_pod_import_issue"),)
+
+
+class PodNameOverride(Base):
+    """User-defined BQ-name → DB-client mappings, editable from the Data Quality UI.
+
+    Checked by import_growth_pods() before the static _GROWTH_POD_NAME_OVERRIDES
+    dict so operators can fix name mismatches without a code deploy. When a row
+    here resolves an import, the corresponding PodImportIssue is cleared.
+    """
+
+    __tablename__ = "pod_name_overrides"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    raw_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    pod_kind: Mapped[str] = mapped_column(String(50), nullable=False)
+    client_id: Mapped[int] = mapped_column(Integer, ForeignKey("clients.id"), nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    client: Mapped["Client"] = relationship("Client")
+
+    __table_args__ = (UniqueConstraint("raw_name", "pod_kind", name="uq_pod_name_override"),)
+
+
+class ClientPodHistory(Base):
+    """One authoritative editorial-pod assignment per client per month.
+
+    Built by import_et_cp_pod_history() by reading the column that matches
+    the tab's own month from every ET CP version tab — that column is the
+    confirmed historical assignment for that month; columns after it are
+    projections and are intentionally ignored.
+
+    client_id is NULL for clients not yet in the clients table (stubs
+    tracked by IncompleteClient). It is back-filled when the client is
+    added to SOW Overview and a subsequent sync resolves the raw name.
+    """
+
+    __tablename__ = "client_pod_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("clients.id"), nullable=True, index=True
+    )
+    client_name_raw: Mapped[str] = mapped_column(String(255), nullable=False)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    editorial_pod: Mapped[str | None] = mapped_column(String(100))
+    source_tab: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    client: Mapped["Client | None"] = relationship("Client")
+
+    __table_args__ = (
+        UniqueConstraint("client_name_raw", "year", "month", name="uq_client_pod_history"),
+    )
+
+
+class IncompleteClient(Base):
+    """Client name found in ET CP tabs but absent from the clients table.
+
+    Created when import_et_cp_pod_history() encounters a name that
+    _resolve_client() cannot match. Gives the Ops team a list of names
+    to backfill into the SOW Overview sheet. When a subsequent sync
+    resolves the name, resolved_at is set and the row is no longer shown
+    in the Data Quality dashboard.
+    """
+
+    __tablename__ = "incomplete_clients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name_raw: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    first_seen_tab: Mapped[str] = mapped_column(String(255), nullable=False)
+    last_seen_tab: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_seen_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_seen_month: Mapped[int] = mapped_column(Integer, nullable=False)
+    last_seen_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    last_seen_month: Mapped[int] = mapped_column(Integer, nullable=False)
+    known_pods: Mapped[str | None] = mapped_column(String(500))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

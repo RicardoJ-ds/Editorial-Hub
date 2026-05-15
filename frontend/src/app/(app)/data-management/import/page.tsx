@@ -99,6 +99,7 @@ const IMPORTABLE_EXACT = [
   "Master Tracker - Goals vs Delivery",
   "Notion Database",
   "Growth Pods",
+  "ET CP Pod History",
 ];
 
 /** Prefix-match importable sheet names (capacity plan versions, KPI scores variants) */
@@ -964,9 +965,12 @@ function HistoricalResyncTab() {
               when next year&apos;s Editorial week distribution has been added.
             </p>
             <p className="mt-2 font-mono text-[11px] text-[#606060]">
-              Runs across every <span className="text-[#C4BCAA]">[Month Year] Goals vs Delivery</span> tab and every
-              <span className="text-[#C4BCAA]"> &lt;YYYY&gt; Week Distribution</span> tab in the Master Tracker.
-              The week distribution drives the &quot;As of&quot; badge — re-sync after the team locks in a new year.
+              Runs across every <span className="text-[#C4BCAA]">[Month Year] Goals vs Delivery</span> tab,
+              every <span className="text-[#C4BCAA]">&lt;YYYY&gt; Week Distribution</span> tab,
+              the <span className="text-[#C4BCAA]">Team Pods</span> sheet,
+              every historical <span className="text-[#C4BCAA]">ET CP version</span> tab (writes confirmed pod history),
+              and finally <span className="text-[#C4BCAA]">backfills Editorial Pod from history</span> for any client
+              that fell off the current ET CP tab.
             </p>
           </div>
           <Button
@@ -1087,7 +1091,12 @@ export default function ImportWizardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-white">Import Data</h2>
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+          Admin · Data Management
+        </p>
+        <h1 className="mt-0.5 font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
+          Import Data
+        </h1>
         <p className="mt-1 text-sm text-[#C4BCAA]">
           Import data from Google Sheets into the Editorial Hub.
         </p>

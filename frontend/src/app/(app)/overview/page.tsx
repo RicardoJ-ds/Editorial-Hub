@@ -25,6 +25,7 @@ import {
   SectionCommentIcon,
 } from "@/components/dashboard/OverviewCommentsRail";
 import { SyncControls } from "@/components/layout/SyncControls";
+import { ClientHeader } from "@/components/dashboard/CumulativePipelineHeader";
 import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
 import { useRequireView } from "@/lib/accessClient";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
@@ -202,6 +203,9 @@ export default function OverviewPage() {
         <div className="flex gap-6">
           <SectionIndex sections={SECTIONS} />
           <div className="flex-1 min-w-0 space-y-12">
+            {filteredClients.length === 1 && (
+              <ClientHeader client={filteredClients[0]} />
+            )}
             <Section
               id="time-to-metrics"
               title="Time-to Metrics"

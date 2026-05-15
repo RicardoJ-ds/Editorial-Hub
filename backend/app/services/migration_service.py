@@ -30,6 +30,7 @@ from app.models import (
     NotionArticle,
     PodAssignment,
     PodImportIssue,
+    PodNameOverride,
     ProductionHistory,
     SheetSyncHistory,
     SurferAPIUsage,
@@ -84,6 +85,7 @@ IMPORT_DISPATCH: dict[str, str] = {
     "Notion Database": "import_notion_database",
     "Monthly KPI Scores": "import_monthly_kpi_scores",
     "Growth Pods": "import_growth_pods",
+    "ET CP Pod History": "import_et_cp_pod_history",
 }
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
@@ -523,6 +525,14 @@ def list_available_sheets() -> list[dict]:
         }
     )
 
+    sheets_info.append(
+        {
+            "name": "ET CP Pod History",
+            "row_count": _last_imported_row_count("ET CP Pod History") or 0,
+            "description": "Historical editorial-pod assignments from all ET CP version tabs — one confirmed data point per tab per client",
+        }
+    )
+
     return sheets_info
 
 
@@ -609,6 +619,8 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
     """Read the first max_rows rows from a sheet and return headers + data."""
     if sheet_name == "Growth Pods":
         return _preview_growth_pods(max_rows)
+    if sheet_name == "ET CP Pod History":
+        return _preview_et_cp_pod_history(max_rows)
 
     service = get_sheets_client()
     ssid, tab_name = _resolve_sheet_source(sheet_name)
@@ -1469,6 +1481,8 @@ def import_operating_model(session: Session) -> ImportResult:
     result = ImportResult(sheet=sheet_name)
 
     try:
+        from app.models import IncompleteClient
+
         service = get_sheets_client()
         resp = (
             service.spreadsheets()
@@ -1551,6 +1565,27 @@ def import_operating_model(session: Session) -> ImportResult:
 
             if client_id is None:
                 result.errors.append(f"Client '{client_name}' not found in DB, skipping")
+                # Track in incomplete_clients so Data Quality surfaces it.
+                existing_ic = (
+                    session.execute(
+                        select(IncompleteClient).where(IncompleteClient.name_raw == client_name)
+                    )
+                    .scalars()
+                    .first()
+                )
+                if existing_ic is None:
+                    session.add(
+                        IncompleteClient(
+                            name_raw=client_name,
+                            first_seen_tab=sheet_name,
+                            last_seen_tab=sheet_name,
+                            first_seen_year=0,
+                            first_seen_month=0,
+                            last_seen_year=0,
+                            last_seen_month=0,
+                            known_pods=None,
+                        )
+                    )
                 continue
 
             for col_idx, (year, month) in month_map.items():
@@ -3692,6 +3727,47 @@ def _fetch_growth_pod_pairs() -> list[dict]:
     return [dict(r) for r in bq.query(sql).result()]
 
 
+def _preview_et_cp_pod_history(max_rows: int = 20) -> dict:
+    """Preview for ET CP Pod History — shows the most recent version tab."""
+    service = get_sheets_client()
+    meta = (
+        service.spreadsheets()
+        .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+        .execute()
+    )
+    # Find the highest-versioned ET CP tab.
+    latest_tab: str | None = None
+    latest_version = -1
+    for s in meta.get("sheets", []):
+        title = s.get("properties", {}).get("title", "")
+        m = _ET_CP_TAB_RE.match(title)
+        if m and int(m.group(1)) > latest_version:
+            latest_version = int(m.group(1))
+            latest_tab = title
+
+    if not latest_tab:
+        return {"sheet_name": "ET CP Pod History", "headers": [], "rows": [], "total_rows": 0}
+
+    resp = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=SPREADSHEET_ID, range=f"'{latest_tab}'!1:{max_rows + 1}")
+        .execute()
+    )
+    values = resp.get("values", [])
+    if not values:
+        return {"sheet_name": "ET CP Pod History", "headers": [], "rows": [], "total_rows": 0}
+
+    headers = [str(h) for h in values[0]]
+    rows = values[1:]
+    return {
+        "sheet_name": f"ET CP Pod History (latest: {latest_tab})",
+        "headers": headers,
+        "rows": rows,
+        "total_rows": len(rows),
+    }
+
+
 def _preview_growth_pods(max_rows: int = 20) -> dict:
     """Return a preview row-set for the Growth Pods source (BigQuery)."""
     rows = _fetch_growth_pod_pairs()
@@ -3780,10 +3856,23 @@ def import_growth_pods(session: Session) -> ImportResult:
         by_lower = {c.name.lower(): c for c in all_clients}
         by_norm = {_name_key(c.name): c for c in all_clients}
 
+        # Load user-defined DB overrides once for the whole batch.
+        db_overrides: dict[str, int] = {
+            row.raw_name: row.client_id
+            for row in session.execute(
+                select(PodNameOverride).where(PodNameOverride.pod_kind == "growth")
+            ).scalars()
+        }
+        by_id: dict[int, Client] = {c.id: c for c in all_clients}
+
         unmatched: list[str] = []
         for bq_name, pod in pairs.items():
+            # DB override takes precedence over the static code dict.
             canonical = _GROWTH_POD_NAME_OVERRIDES.get(bq_name, bq_name)
-            c = by_lower.get(canonical.lower()) or by_norm.get(_name_key(canonical))
+            if bq_name in db_overrides:
+                c = by_id.get(db_overrides[bq_name])
+            else:
+                c = by_lower.get(canonical.lower()) or by_norm.get(_name_key(canonical))
 
             # Self-heal: try substring containment before giving up. Catches
             # cases like "Workleap" ↔ "Workleap + Sharegate" automatically
@@ -3869,6 +3958,365 @@ def import_growth_pods(session: Session) -> ImportResult:
 
     except Exception as exc:
         logger.exception("Error importing Growth Pods from BigQuery")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# import_et_cp_pod_history
+# ---------------------------------------------------------------------------
+
+_MONTH_ABBR_TO_NUM: dict[str, int] = {
+    "Jan": 1,
+    "Feb": 2,
+    "Mar": 3,
+    "Apr": 4,
+    "May": 5,
+    "Jun": 6,
+    "Jul": 7,
+    "Aug": 8,
+    "Sep": 9,
+    "Oct": 10,
+    "Nov": 11,
+    "Dec": 12,
+}
+
+
+_ET_CP_TAB_RE = re.compile(
+    r"ET CP (\d{4}) \[V(\d+) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})\]"
+)
+
+
+def _et_cp_sheet_months(sheet_year: int) -> list[tuple[int, int]]:
+    """Return the standard 13-month column layout for an ET CP sheet.
+
+    Every year's sheet covers Dec(year-1) through Dec(year) — 13 months.
+    The N-th 'Pod' column always maps to _et_cp_sheet_months(sheet_year)[N].
+    """
+    return [(sheet_year - 1, 12)] + [(sheet_year, m) for m in range(1, 13)]
+
+
+def import_et_cp_pod_history(session: Session) -> ImportResult:
+    """Build client_pod_history from all historical ET CP version tabs.
+
+    For each tab "ET CP 2026 [VN Month Year]", reads ONLY the Pod column
+    that corresponds to the tab's own month — that is the confirmed
+    historical assignment. Columns after that month are projections and
+    are intentionally ignored.
+
+    Clients not in the clients table are recorded in incomplete_clients
+    so the Ops team can backfill the SOW Overview. Their pod history rows
+    are written with client_id=NULL and back-filled on a later sync when
+    _resolve_client() starts matching.
+    """
+    from app.models import ClientPodHistory, IncompleteClient
+
+    service = get_sheets_client()
+    result = ImportResult(sheet="ET CP Pod History")
+
+    try:
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+            .execute()
+        )
+
+        # Collect all matching version tabs with parsed metadata.
+        # Tuple: (name, version, sheet_year, tab_year, tab_month)
+        tabs: list[tuple[str, int, int, int, int]] = []
+        for s in meta.get("sheets", []):
+            title = s.get("properties", {}).get("title", "")
+            m = _ET_CP_TAB_RE.match(title)
+            if m:
+                tabs.append(
+                    (
+                        title,
+                        int(m.group(2)),  # version number
+                        int(m.group(1)),  # sheet year (ET CP YYYY)
+                        int(m.group(4)),  # tab year (month year in bracket)
+                        _MONTH_ABBR_TO_NUM[m.group(3)],  # tab month
+                    )
+                )
+
+        if not tabs:
+            result.success = False
+            result.errors.append("No ET CP version tabs found in spreadsheet")
+            return result
+
+        # Process in chronological order (sheet_year, version) so later tabs
+        # overwrite earlier projections for the same month.
+        tabs.sort(key=lambda x: (x[2], x[1]))
+
+        all_clients = session.execute(select(Client)).scalars().all()
+        client_lookup = _build_client_name_lookup(all_clients)
+
+        skip_keywords = ("total", "median", "average", "production")
+
+        for tab_name, _version, sheet_year, year, month in tabs:
+            # Every ET CP sheet covers Dec(sheet_year-1) through Dec(sheet_year).
+            # The N-th "Pod" column in the header row maps to that N-th month.
+            sheet_months = _et_cp_sheet_months(sheet_year)
+            try:
+                month_idx = sheet_months.index((year, month))
+            except ValueError:
+                logger.warning(
+                    "ET CP pod history: tab '%s' month (%d, %d) not in sheet_year=%d layout — skipping",
+                    tab_name,
+                    year,
+                    month,
+                    sheet_year,
+                )
+                continue
+
+            resp = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=SPREADSHEET_ID, range=f"'{tab_name}'")
+                .execute()
+            )
+            all_rows = resp.get("values", [])
+            if len(all_rows) < 10:
+                continue
+
+            # Locate header row (has both "Client" and "Pod" labels).
+            header_row_idx: int | None = None
+            pod_col_indices: list[int] = []
+            client_col = 2
+
+            for idx, row in enumerate(all_rows):
+                has_client = any(
+                    _cell(row, c).strip().lower() == "client" for c in range(min(8, len(row)))
+                )
+                if not has_client:
+                    continue
+                pod_cols = [c for c in range(len(row)) if _cell(row, c).strip().lower() == "pod"]
+                if pod_cols:
+                    header_row_idx = idx
+                    pod_col_indices = pod_cols
+                    client_col = next(
+                        (
+                            c
+                            for c in range(min(8, len(row)))
+                            if _cell(row, c).strip().lower() == "client"
+                        ),
+                        2,
+                    )
+                    break
+
+            if header_row_idx is None:
+                logger.warning("ET CP pod history: no header row in '%s' — skipping", tab_name)
+                continue
+            if month_idx >= len(pod_col_indices):
+                logger.warning(
+                    "ET CP pod history: tab '%s' has %d pod cols but need index %d — skipping",
+                    tab_name,
+                    len(pod_col_indices),
+                    month_idx,
+                )
+                continue
+
+            target_pod_col = pod_col_indices[month_idx]
+
+            for row in all_rows[header_row_idx + 1 :]:
+                if not row:
+                    continue
+                client_name = _cell(row, client_col).strip()
+                if not client_name:
+                    continue
+                if any(kw in client_name.lower() for kw in skip_keywords):
+                    continue
+
+                pod_raw = _cell(row, target_pod_col).strip()
+                if not pod_raw:
+                    continue
+                normalized_pod = _normalize_editorial_pod(pod_raw)
+                if not normalized_pod:
+                    continue
+
+                result.rows_parsed += 1
+                c = _resolve_client(client_lookup, client_name)
+
+                if c is not None:
+                    existing = (
+                        session.execute(
+                            select(ClientPodHistory).where(
+                                ClientPodHistory.client_name_raw == client_name,
+                                ClientPodHistory.year == year,
+                                ClientPodHistory.month == month,
+                            )
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if existing:
+                        existing.client_id = c.id
+                        existing.editorial_pod = normalized_pod
+                        existing.source_tab = tab_name
+                    else:
+                        session.add(
+                            ClientPodHistory(
+                                client_id=c.id,
+                                client_name_raw=client_name,
+                                year=year,
+                                month=month,
+                                editorial_pod=normalized_pod,
+                                source_tab=tab_name,
+                            )
+                        )
+                    # Resolve any IncompleteClient stub for this name.
+                    stub = (
+                        session.execute(
+                            select(IncompleteClient).where(
+                                IncompleteClient.name_raw == client_name,
+                                IncompleteClient.resolved_at.is_(None),
+                            )
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if stub:
+                        stub.resolved_at = datetime.utcnow()
+
+                else:
+                    # Upsert IncompleteClient stub.
+                    stub = (
+                        session.execute(
+                            select(IncompleteClient).where(IncompleteClient.name_raw == client_name)
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if stub:
+                        stub.last_seen_tab = tab_name
+                        stub.last_seen_year = year
+                        stub.last_seen_month = month
+                        stub.resolved_at = None
+                        pods = set(stub.known_pods.split(",")) if stub.known_pods else set()
+                        pods.add(normalized_pod)
+                        stub.known_pods = ",".join(sorted(pods))
+                    else:
+                        session.add(
+                            IncompleteClient(
+                                name_raw=client_name,
+                                first_seen_tab=tab_name,
+                                last_seen_tab=tab_name,
+                                first_seen_year=year,
+                                first_seen_month=month,
+                                last_seen_year=year,
+                                last_seen_month=month,
+                                known_pods=normalized_pod,
+                            )
+                        )
+
+                    # Write history row with null client_id as a stub.
+                    existing = (
+                        session.execute(
+                            select(ClientPodHistory).where(
+                                ClientPodHistory.client_name_raw == client_name,
+                                ClientPodHistory.year == year,
+                                ClientPodHistory.month == month,
+                            )
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if existing:
+                        existing.editorial_pod = normalized_pod
+                        existing.source_tab = tab_name
+                    else:
+                        session.add(
+                            ClientPodHistory(
+                                client_id=None,
+                                client_name_raw=client_name,
+                                year=year,
+                                month=month,
+                                editorial_pod=normalized_pod,
+                                source_tab=tab_name,
+                            )
+                        )
+
+                result.rows_imported += 1
+
+            session.flush()
+
+        session.commit()
+        result.success = True
+        logger.info(
+            "ET CP pod history: parsed=%d imported=%d tabs=%d",
+            result.rows_parsed,
+            result.rows_imported,
+            len(tabs),
+        )
+
+    except Exception as exc:
+        logger.exception("Error importing ET CP pod history")
+        session.rollback()
+        result.success = False
+        result.errors.append(str(exc))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# backfill_editorial_pod_from_history
+# ---------------------------------------------------------------------------
+
+
+def backfill_editorial_pod_from_history(session: Session) -> ImportResult:
+    """For every Hub client where `clients.editorial_pod` is null, look up the
+    most recent confirmed pod from `client_pod_history` (by year DESC, month
+    DESC) and write it back to `clients.editorial_pod`. Idempotent: clients
+    already pod-assigned are skipped.
+
+    Run as the final step of the past-months resync so every client that ever
+    appeared in an ET CP capacity-plan tab carries the latest historical pod
+    forward — fixes inactive / paused clients that fall off the current ET CP
+    tab but still have prior month data.
+    """
+    from app.models import Client, ClientPodHistory
+
+    result = ImportResult(sheet="Backfill Editorial Pod from history")
+
+    try:
+        candidates = (
+            session.execute(select(Client).where(Client.editorial_pod.is_(None))).scalars().all()
+        )
+        result.rows_parsed = len(candidates)
+
+        for client in candidates:
+            latest = (
+                session.execute(
+                    select(ClientPodHistory)
+                    .where(
+                        ClientPodHistory.client_id == client.id,
+                        ClientPodHistory.editorial_pod.is_not(None),
+                    )
+                    .order_by(
+                        ClientPodHistory.year.desc(),
+                        ClientPodHistory.month.desc(),
+                    )
+                    .limit(1)
+                )
+                .scalars()
+                .first()
+            )
+            if latest and latest.editorial_pod:
+                client.editorial_pod = latest.editorial_pod
+                result.rows_imported += 1
+
+        session.commit()
+        result.success = True
+        logger.info(
+            "Backfill Editorial Pod: parsed=%d backfilled=%d",
+            result.rows_parsed,
+            result.rows_imported,
+        )
+
+    except Exception as exc:
+        logger.exception("Error backfilling editorial pod from history")
         session.rollback()
         result.success = False
         result.errors.append(str(exc))
