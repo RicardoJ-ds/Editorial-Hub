@@ -86,12 +86,13 @@ Five seeded groups. Click **Admin → Access Control** to see the full matrix.
 
 Each per-client card shows:
 
+- **Tier badge** (next to the name) — at-a-glance status: _Healthy_ (green), _Within limit_ (amber), _Behind_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as the Overview Delivery Progress card.
 - **Last Full Q** — what they actually closed last quarter (% of invoicing target).
 - **Current Q** — partial progress this quarter (settled months only).
-- **Projected end of Q** — where the quarter will land cumulatively. The friendly label tells you the state at a glance: _On track_, _Slight drift_, or _Behind plan_. Over-delivery counts as on-track.
+- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. The friendly label tells you the state at a glance: _On track_ (variance ≥ 0), _Slight drift_ (−5 to 0), or _Behind plan_ (below −5). Over-delivery counts as on-track. New 1st-Q contracts get a calm _New 1st Q_ hint instead of an alarm — they haven't had time to ramp.
 - **Lifetime · SOW** — Delivered / Invoiced / SOW for the full relationship.
 
-The bar colors run beige (low) → deep green (full). They are intentionally **not** alarming — the actionable signal lives in the **Projected end of Q** row.
+The bar colors run beige (low) → deep green (full). They are intentionally **not** alarming — the actionable signal lives in the **tier badge** and the **End-of-Q variance** row.
 
 ---
 

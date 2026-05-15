@@ -85,7 +85,7 @@ export function ClientStatusCard({ client }: { client: Client }) {
     : null;
 
   return (
-    <Card className="border-[#2a2a2a] bg-[#161616]">
+    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
         <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#C4BCAA]">
           Client Status
@@ -168,7 +168,7 @@ function DeliveryProgressMixCard({ rows }: { rows: ProgressRow[] }) {
     totalPct >= 75 ? "#42CA80" : totalPct >= 50 ? "#F5C542" : "#ED6958";
 
   return (
-    <Card className="border-[#2a2a2a] bg-[#161616]">
+    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="pt-0">
         <CardTitleWithTooltip
           label="Delivery Progress"

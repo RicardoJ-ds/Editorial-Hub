@@ -499,6 +499,67 @@ function DeliveryBar({
 // hides nuance for clients with mixed cadences). Add the helpers back once
 // the new model is decided.
 
+/** Per-client triage tier — matches the Overview Delivery Progress card so
+ *  both surfaces classify identically.
+ *    healthy:  v ≥  0   (on target or ahead)
+ *    watch:   -5 ≤ v < 0 (slipping but within limit)
+ *    behind:        v < -5
+ *    new:     1st contract Q (excluded from Behind triage)
+ *  Returns null when there's no current Q to score. */
+type ClientTier = "healthy" | "watch" | "behind" | "new";
+
+function computeClientTier(
+  currentQ: CurrentQuarter | null,
+  isFirstQ: boolean,
+): ClientTier | null {
+  if (!currentQ || currentQ.invoiced <= 0) return null;
+  if (isFirstQ) return "new";
+  const v = currentQ.projectedEndCumVariance;
+  if (v >= 0) return "healthy";
+  if (v >= -5) return "watch";
+  return "behind";
+}
+
+const TIER_STYLE: Record<ClientTier, { label: string; color: string; title: string }> = {
+  healthy: {
+    label: "Healthy",
+    color: "#42CA80",
+    title: "Projected to close current Q at or above target.",
+  },
+  watch: {
+    label: "Within limit",
+    color: "#F5BC4E",
+    title: "Slipping — projected up to 5 articles behind by end of Q.",
+  },
+  behind: {
+    label: "Behind",
+    color: "#ED6958",
+    title: "Projected more than 5 articles behind by end of current Q.",
+  },
+  new: {
+    label: "1st Q",
+    color: "#8FB5D9",
+    title: "1st contract Q — excluded from Behind triage.",
+  },
+};
+
+function TierBadge({ tier }: { tier: ClientTier }) {
+  const style = TIER_STYLE[tier];
+  return (
+    <span
+      className="shrink-0 rounded-sm border px-1 py-px font-mono text-[9px] uppercase tracking-wider"
+      style={{
+        color: style.color,
+        backgroundColor: `${style.color}1A`,
+        borderColor: `${style.color}66`,
+      }}
+      title={style.title}
+    >
+      {style.label}
+    </span>
+  );
+}
+
 function ClientDeliveryCard({
   row,
   filterRange,
@@ -512,16 +573,29 @@ function ClientDeliveryCard({
   const hasQContext = !!(qMeta.lastFullQ || qMeta.currentQ);
   const statusLabel =
     row.status === "ACTIVE" ? "Active" : row.status.toLowerCase();
+  // 1st contract Q: client is in their first billing Q since the contract
+  // started. Mirrors the Overview Triage "new (1st Q)" escape hatch so a
+  // brand-new client doesn't read as "behind plan" on the projected note —
+  // they just haven't had time to ramp.
+  const isFirstQ = qMeta.currentQ?.label === "Q1";
+  // Per-card triage tier — same thresholds as the Overview Delivery Progress
+  // card so both surfaces classify identically. Surfaces as a small badge
+  // next to the client name; "new (1st Q)" replaces the tier badge when the
+  // client is in their first contract Q (false-alarm protection).
+  const tier = computeClientTier(qMeta.currentQ, isFirstQ);
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 animate-fade-slide hover:border-[#333] transition-colors">
-      {/* Header — name + month chip */}
+      {/* Header — name + tier badge + month chip */}
       <div className="flex items-start justify-between gap-2">
-        <p
-          className="min-w-0 flex-1 truncate font-semibold text-white text-sm"
-          title={row.name}
-        >
-          {row.name}
-        </p>
+        <div className="min-w-0 flex-1 flex items-center gap-1.5">
+          <p
+            className="min-w-0 truncate font-semibold text-white text-sm"
+            title={row.name}
+          >
+            {row.name}
+          </p>
+          {tier && <TierBadge tier={tier} />}
+        </div>
         {monthChip && (
           <TooltipProvider>
             <Tooltip>
@@ -594,7 +668,7 @@ function ClientDeliveryCard({
                     "% is partial progress vs. the quarter's invoicing target.",
                   ]}
                 />
-                <ProjectedEndOfQNote currentQ={qMeta.currentQ} />
+                <ProjectedEndOfQNote currentQ={qMeta.currentQ} isFirstQ={isFirstQ} />
               </>
             )}
           </div>
@@ -674,50 +748,74 @@ function ClientDeliveryCard({
  *  +X / 0 / -X in a cream font with a one-line context hint. */
 function ProjectedEndOfQNote({
   currentQ,
+  isFirstQ = false,
 }: {
   currentQ: CurrentQuarter;
+  /** When true, the client is in their 1st contract Q. Brand-new clients
+   *  always read "behind" against contracted invoicing because they haven't
+   *  had time to ramp — so we neutralize the alarm copy and render the
+   *  variance in the "new" blue tone, mirroring the Overview Triage rule. */
+  isFirstQ?: boolean;
 }) {
   const v = currentQ.projectedEndCumVariance;
   const fmt = v > 0 ? `+${v}` : v.toLocaleString();
-  // Three short copy variants. Signed semantics — over-delivery is
-  // healthy. The number itself carries the signed-variance color
-  // (green ≥0 · amber -5 to 0 · red < -5) so the tier is unambiguous
-  // at a glance without the line dominating the card.
-  const hint = v >= 0 ? "On track" : v >= -5 ? "Slight drift" : "Behind plan";
-  const numColor = signedVarianceColor(v);
+  // 1st Q clients get a calm blue treatment + "New 1st Q" hint regardless of
+  // variance — false alarms suppressed. Everyone else gets the signed-variance
+  // copy + color: on track ≥ 0 · slight drift −5 to 0 · behind plan < −5.
+  const hint = isFirstQ
+    ? "New 1st Q"
+    : v >= 0
+      ? "On track"
+      : v >= -5
+        ? "Slight drift"
+        : "Behind plan";
+  const numColor = isFirstQ ? "#8FB5D9" : signedVarianceColor(v);
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger
           render={
-            <div className="flex cursor-help items-center gap-2 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1" />
+            <div className="flex cursor-help flex-wrap items-center gap-x-2 gap-y-0.5 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1" />
           }
         >
           <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-[#8FB5D9]">
-            Projected end of Q
+            End-of-Q variance
           </span>
           <span
             className="font-mono text-[11px] font-semibold tabular-nums"
             style={{ color: numColor }}
+            title="Projected (delivered − invoiced) cumulative through end of current quarter"
           >
             {fmt}
+          </span>
+          <span className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+            articles
           </span>
           <span
             className="font-mono text-[10px] uppercase tracking-wider"
             style={{ color: numColor }}
           >
-            {hint}
+            · {hint}
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
           <TooltipBody
-            title="Projected end of Q"
-            bullets={[
-              "Where this client lands by end of the quarter vs. invoicing.",
-              "Over-delivery this quarter cancels earlier deficits.",
-              "0 on track · ±1–5 slight drift · below −5 behind plan.",
-              `${currentQ.projectedEndCumDelivered.toLocaleString()} delivered · ${currentQ.endOfQCumInvoiced.toLocaleString()} invoiced.`,
-            ]}
+            title="End-of-Q variance"
+            bullets={
+              isFirstQ
+                ? [
+                    "Projected delivered − invoiced by end of current quarter.",
+                    "1st contract Q — excluded from Behind triage.",
+                    "Brand-new contracts look behind on invoicing until they ramp.",
+                    `${currentQ.projectedEndCumDelivered.toLocaleString()} delivered · ${currentQ.endOfQCumInvoiced.toLocaleString()} invoiced.`,
+                  ]
+                : [
+                    "Projected delivered − invoiced by end of current quarter.",
+                    "Drives the Healthy / Within limit / Behind tier badge.",
+                    "≥ 0 healthy · −5 to 0 within limit · below −5 behind.",
+                    `${currentQ.projectedEndCumDelivered.toLocaleString()} delivered · ${currentQ.endOfQCumInvoiced.toLocaleString()} invoiced.`,
+                  ]
+            }
           />
         </TooltipContent>
       </Tooltip>

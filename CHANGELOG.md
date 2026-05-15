@@ -18,6 +18,36 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.11 — May 15
+
+**Delivery Progress card now drives every Deliverables view; per-card tier badges + explicit "variance" wording across Overview Triage; Help modal made wider and gated to Admin/Leadership/BI Team.**
+
+### Editorial Clients — Delivery Overview
+
+- **Cards row reshuffled** — Replaced "Last Q closes" with the same **Delivery Progress** card used on Overview, repositioned to the first slot. Portfolio: Delivery Progress → Closing in 90d. Single pod: same two cards (Variance card removed — current-Q variance per client already lives on the cards below). Single client: lineup now leads with Client Status → Delivery Progress (scoped to that client) → Delivered ÷ Invoiced → Invoiced ÷ SOW → Time Remaining (Last Full Q card removed; its signal already appears inside Delivery Progress).
+- **Section tooltip refreshed** to describe the new per-scope card sets.
+
+### Client Delivery at a Glance — both dashboards
+
+- **Per-card tier badge** — Each client card now carries a small pill next to the name: `HEALTHY` (green) · `WITHIN LIMIT` (amber) · `BEHIND` (red) · `1ST Q` (blue). Same thresholds as the Overview Delivery Progress card so the two surfaces classify identically.
+- **1st Q escape hatch applied per card** — Clients in their first contract Q (e.g. Photoroom) no longer read as red "Behind plan". The card surfaces a calm blue `1st Q` badge + a "New 1st Q" hint in place of the alarm copy, mirroring how the Triage cards already treated them.
+- **"End-of-Q variance" labeling** — The line under the Current Q progress bar was relabeled from "Projected end of Q" to **End-of-Q variance** (with an `articles` unit chip on the number). The tooltip now states the formula explicitly: *projected delivered − invoiced cumulative through end of current quarter*.
+
+### Overview — Triage
+
+- **Variance wording is now canonical** across Delivery Progress, Most Behind, and Pod Attention. Every headline, subtitle, tooltip, and popover refers to *projected end-of-current-Q variance* explicitly. The formula `delivered − invoiced` appears in at least one bullet per card so anyone hovering knows what the −5 / −15 numbers mean.
+- **Card alignment** — All cards in the Delivery Overview row stretch to a uniform height (no more shorter Client Status card next to taller cards).
+- **Narrow layout** — Inside the single-client lineup, each Delivery Progress row gracefully wraps its Last Q / Current Q halves to two lines instead of overflowing.
+
+### Help & Glossary
+
+- **Modal width** — The Help / Changelog modal is now noticeably wider (780px) so long bullets read cleanly without horizontal cramping.
+- **Changelog tab gating** — Only Admin · Leadership · BI Team see the Changelog tab. Everyone else lands on Help & Glossary. A small inline note next to the tab confirms the access rule for authorized viewers.
+- **Glossary content** — Team KPIs row now carries the `(proposal stage)` label (the dashboard still has gaps, will be filled in 0.4.x). The "Add a global note about a client" tip was removed (the comments rail was already replaced by per-section bubbles).
+- **Status filter mention** — The "Find a specific client" tip now references the **Soon to be active** option in the Status filter.
+
+---
+
 ## 0.3.10 — May 14
 
 **Bug fixes across data sync, dashboard filters, and pod color-coding; plus a new Data Quality tab for pod assignment issues.**

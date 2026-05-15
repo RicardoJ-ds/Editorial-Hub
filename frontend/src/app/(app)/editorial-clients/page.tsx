@@ -1717,9 +1717,9 @@ function DeliverablesSOWTab({
             type="live"
             source="Delivery vs. invoicing per client · Editorial CP."
             shows={[
-              "Single client → drill-down. Single pod → pod totals.",
-              "Portfolio → triage cards (Most Behind, Pod Attention, Closing 90d).",
-              "Cumulative numbers only appear when meaningful for the scope.",
+              "Single client → status + delivery progress + ratios.",
+              "Single pod → delivery progress + closing in 90d.",
+              "Portfolio → delivery progress + closing in 90d.",
             ]}
           />
         </h2>

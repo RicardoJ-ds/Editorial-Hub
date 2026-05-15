@@ -228,8 +228,8 @@ export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Pro
 
   // Column count tracks card count so a row never has empty slots:
   //   • 5 in single-client scope (status + 4 ratios)
-  //   • 3 in pod scope (after Delivery Progress + Most Behind moved to /overview)
-  //   • 2 in portfolio scope (after Delivery Progress + Most Behind + Pod Attention moved)
+  //   • 2 in pod scope (Delivery Progress + Closing in 90d)
+  //   • 2 in portfolio scope (Delivery Progress + Closing in 90d)
   const lgCols =
     cards.length >= 5
       ? "lg:grid-cols-5"
@@ -254,6 +254,7 @@ export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Pro
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={cardTransition}
+            className="h-full"
           >
             {node}
           </motion.div>
@@ -278,8 +279,26 @@ function buildCardsForScope(
       endDate: c.end_date,
       termMonths: c.term_months,
     });
+    // Single-client lineup, left → right:
+    //   1. Client Status        — pod, contract window, days remaining
+    //   2. Delivery Progress    — current-Q variance triage for this one client
+    //   3. Delivered ÷ Invoiced — lifetime ratio
+    //   4. Invoiced ÷ SOW       — lifetime ratio
+    //   5. Time Remaining       — contract elapsed
+    // Last Full Q was removed — the Delivery Progress card already surfaces
+    // last Q's close in the same row, so it was redundant.
     return [
       { key: "client-status", node: <ClientStatusCard client={c} /> },
+      {
+        key: "client-progress",
+        node: r ? (
+          <DeliveryMixCard
+            rows={[r]}
+            clients={[c]}
+            subtitle={c.name}
+          />
+        ) : null,
+      },
       {
         key: "client-deliv",
         node: r ? (
@@ -305,10 +324,6 @@ function buildCardsForScope(
         ) : null,
       },
       {
-        key: "client-q",
-        node: r ? <LastFullQCard row={r} /> : null,
-      },
-      {
         key: "client-time",
         node: <ContractTimingCard client={c} />,
       },
@@ -318,45 +333,45 @@ function buildCardsForScope(
   if (scope.kind === "pod") {
     const podRows = scope.rows;
     const podClients = scope.clients;
-    const totDel = podRows.reduce((a, r) => a + r.articles_delivered, 0);
-    const totInv = podRows.reduce((a, r) => a + r.articles_invoiced, 0);
-    const variance = totDel - totInv;
-    // Pod scope cards mirror the last-Q lens used across the dashboard.
-    // Delivery Progress lives on /overview's Triage lens, not here — D1 still
-    // surfaces the same per-pod last-Q signal via Last Q Closes + the
-    // per-client cards below. Variance is the lifetime delivery vs invoicing
-    // balance for the pod.
+    // Pod scope mirrors portfolio: Delivery Progress leads with the current-Q
+    // triage signal, Closing in 90d covers contract-end timing. The lifetime
+    // Variance card was removed — current-Q variance per client already lives
+    // on the per-client cards below.
     return [
       {
-        key: "pod-recent-q",
-        node: <RecentQClosesCard rows={podRows} clients={podClients} />,
+        key: "pod-delivery-progress",
+        node: (
+          <DeliveryMixCard
+            rows={podRows}
+            clients={podClients}
+            subtitle={`${podRows.length} client${podRows.length === 1 ? "" : "s"} in this pod`}
+          />
+        ),
       },
       {
         key: "pod-closing",
         node: <ClosingSoonCard clients={podClients} />,
       },
-      {
-        key: "pod-var",
-        node: (
-          <VarianceCard
-            value={variance}
-            subtitle={`Pod balance · delivered − invoiced (lifetime)`}
-          />
-        ),
-      },
     ];
   }
 
-  // portfolio (all or multi-pod). "Delivery Progress", "Most Behind" and
-  // "Pod Attention" are intentionally absent here — all three live on the
-  // Overview dashboard's Triage lens, where exec viewers get the triage
-  // signals first. D1 still surfaces the same data via Last Q Closes,
-  // Closing in 90d, and the per-client cards below.
+  // portfolio (all or multi-pod). Delivery Progress leads — same card as
+  // /overview's Triage lens — followed by the timing signal (Closing in 90d).
+  // Most Behind / Pod Attention still live exclusively on /overview.
   const r = scope.rows;
   const c = scope.clients;
   return [
+    {
+      key: "port-delivery-progress",
+      node: (
+        <DeliveryMixCard
+          rows={r}
+          clients={c}
+          subtitle={`${r.length} client${r.length === 1 ? "" : "s"} in scope`}
+        />
+      ),
+    },
     { key: "port-closing", node: <ClosingSoonCard clients={c} /> },
-    { key: "port-recent-q", node: <RecentQClosesCard rows={r} clients={c} /> },
   ];
 }
 
@@ -619,8 +634,8 @@ export function DeliveryMixCard({
           body={{
             title: "Delivery Progress",
             bullets: [
-              "Where each client will land vs. invoicing by end of this quarter.",
-              "Healthy: on target or ahead · Within limit: behind by ≤ 5 · Behind: below −5.",
+              "Headline = sum of (delivered − invoiced) projected through end of current Q across all scored clients.",
+              "Healthy: variance ≥ 0 · Within limit: −5 ≤ variance < 0 · Behind: variance < −5.",
               "Over-delivery this quarter cancels earlier deficits.",
               "Click a client row to jump to Client Delivery At a Glance.",
             ],
@@ -635,6 +650,7 @@ export function DeliveryMixCard({
         <p
           className="mt-1.5 font-mono text-2xl font-bold tabular-nums"
           style={{ color: headlineColor }}
+          title="Projected end-of-current-Q variance (delivered − invoiced), summed across scored clients."
         >
           {totalInvoiced === 0
             ? "—"
@@ -642,7 +658,7 @@ export function DeliveryMixCard({
               ? `+${totalVariance}`
               : totalVariance.toLocaleString()}
           <span className="ml-1 text-xs text-[#606060] font-normal">
-            projected current Q
+            projected variance · end of current Q
           </span>
         </p>
 
@@ -652,7 +668,7 @@ export function DeliveryMixCard({
               All clear
             </p>
             <p className="mt-1 font-mono text-[11px] text-[#606060]">
-              Every scored client is projected to close current Q at ≥ −5
+              Every scored client&apos;s projected end-of-Q variance is ≥ −5
             </p>
           </>
         ) : (
@@ -1181,7 +1197,7 @@ export function MostBehindCard({
           body={{
             title: "Most Behind",
             bullets: [
-              "Clients projected to close > 5 articles behind this quarter.",
+              "Clients whose projected end-of-current-Q variance (delivered − invoiced) is below −5.",
               "Each row shows last quarter's close and this quarter's plan.",
               "Over-delivery this quarter cancels earlier deficits.",
               "Click a row to jump to the client.",
@@ -1189,13 +1205,13 @@ export function MostBehindCard({
           }}
         />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          Current Q projected close · per-client contract Q
+          Projected end-of-current-Q variance · per-client contract Q
         </p>
         {list.length === 0 ? (
           <>
             <p className="mt-1.5 font-mono text-2xl font-bold text-[#42CA80]">All clear</p>
             <p className="mt-1 font-mono text-[11px] text-[#606060]">
-              Every client&apos;s current Q is projected to close ≥ −5
+              Every client&apos;s projected end-of-Q variance is ≥ −5
             </p>
           </>
         ) : (
@@ -1220,7 +1236,7 @@ export function MostBehindCard({
                   ? `+${projectedGap}`
                   : projectedGap.toLocaleString()}
               </span>
-              {" "}projected · {allBehind.length} flagged
+              {" "}projected variance · {allBehind.length} flagged
             </span>
           ) : (
             <span />
@@ -1281,7 +1297,7 @@ export function MostBehindCard({
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      Most behind · current Q projected close
+                      Most behind · projected end-of-current-Q variance
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       {allBehind.length} clients · click a row to jump
@@ -1369,8 +1385,12 @@ function BehindRow({
             {fmtVar(currentQ.projectedVariance)}
           </span>
         </div>
-        <div className="flex w-full items-baseline justify-between gap-2 text-[10px] text-[#606060]">
-          <span className="truncate">
+        {/* Second line — auto-wraps when the card is narrow (e.g. inside the
+            single-client 5-column lineup). At full width: Last Q on the left,
+            Current Q on the right, one line. When the row can't fit both, the
+            two halves stack onto their own lines (each justified to start). */}
+        <div className="flex w-full flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-[10px] text-[#606060]">
+          <span className="min-w-0">
             {lastQ ? (
               <>
                 <span className="text-[#909090]">Last Q</span>{" "}
@@ -1396,7 +1416,7 @@ function BehindRow({
               <span className="text-[#606060]">No closed Q yet</span>
             )}
           </span>
-          <span className="shrink-0 tabular-nums">
+          <span className="tabular-nums">
             <span className="text-[#909090]">Current Q</span>{" "}
             <span>
               {currentQ.label} · {currentQ.monthsLabel}
@@ -1822,20 +1842,21 @@ export function PodAttentionCard({
             body={{
               title: "Pod Attention",
               bullets: [
-                "Pods ranked by how many clients will close > 5 behind this quarter.",
+                "Pods ranked by how many clients have projected end-of-current-Q variance below −5.",
+                "Variance = delivered − invoiced through end of current Q.",
                 "Brand-new clients (1st quarter) are kept out — they ramp slowly.",
                 "Click a pod or row to jump.",
               ],
             }}
           />
           <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-            Pods ranked by current-Q projected close
+            Pods ranked by projected end-of-current-Q variance
           </p>
           <p className="mt-1.5 font-mono text-2xl font-bold text-[#42CA80]">
             All clear
           </p>
           <p className="mt-1 font-mono text-[11px] text-[#606060]">
-            Every pod&apos;s clients are projected to close current Q at ≥ −5
+            Every pod&apos;s clients have projected end-of-Q variance ≥ −5
           </p>
           <p className="mt-auto pt-2 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
             {sorted.length} {sorted.length === 1 ? "pod" : "pods"} · {totalWithQ} with current Q
@@ -1867,7 +1888,7 @@ export function PodAttentionCard({
           }}
         />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          Pod with most BEHIND clients · cumulative through current Q
+          Pod with most behind clients · projected end-of-current-Q variance
         </p>
         {/* Top pod headline — clickable scrolls to that pod's group */}
         <button
