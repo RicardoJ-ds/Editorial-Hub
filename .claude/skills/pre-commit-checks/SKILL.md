@@ -63,8 +63,10 @@ This ensures:
 | Changes to RBAC group structure or pod-derivation logic | `frontend/AGENTS.md` (Access Control matrix gating) + root `CLAUDE.md` (Auth section) + `.docs/access-control-handoff.md` |
 | New importer or change to existing importer's source | `CLAUDE.md` (root) → Data Sources & Ingestion Reality |
 | New tooltip / `DataSourceBadge.shows` on a dashboard | Must follow the tooltip style rules in `frontend/AGENTS.md` House rules (≤ 3 bullets, ≤ 10 words each, no sheet/code refs) |
+| **User-facing UX change** (new badge, renamed concept, new filter / toggle / tab / drill-down, removed UI affordance, new dashboard or page) | **`frontend/src/content/help.ts`** — the in-app Help & Glossary modal. Audit: "Which dashboard for which question?" table, Glossary terms, "How to…" tips, Permissions one-liner, "Reading the cards" section, SYNC notes. The Help & Changelog modal is the in-app stakeholder doc — keep it current. **Note:** `help.ts` is a JS template literal — do NOT use raw backticks inside the string; use `*italic*` or quotes for inline emphasis. |
+| **Changelog entry needs to ship in-app** | After editing `CHANGELOG.md`, regenerate **`frontend/src/content/changelog.ts`** from the repo root: `node -e "const fs=require('fs');const c=fs.readFileSync('CHANGELOG.md','utf8');fs.writeFileSync('frontend/src/content/changelog.ts','// AUTO-GENERATED from CHANGELOG.md by the /release skill. Do not edit by hand.\n// Source of truth: /CHANGELOG.md at the repo root.\nexport const CHANGELOG_MARKDOWN = '+JSON.stringify(c)+';\n');"` |
 | New major feature (new API module + service + frontend) | All relevant docs + `backend/README.md` dedicated section |
-| Removed functionality | Remove from all docs that mention it |
+| Removed functionality | Remove from all docs that mention it (including `help.ts` — drop tips referencing removed UI) |
 
 4. **If docs are up to date**: Report "Documentation: Up to date" and proceed to Step 3
 5. **If docs need updates**: Make the updates directly (these are non-protected files), then show the user what was updated before proceeding

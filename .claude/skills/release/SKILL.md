@@ -79,7 +79,32 @@ Update **all of these in the same commit**:
    ```
    The file's header comment says "DO NOT EDIT" so reviewers know the
    canonical version lives at the repo root.
-5. Sidebar version chip reads from `version.ts` automatically — no edit.
+5. **`frontend/src/content/help.ts`** — in-app Help & Glossary (rendered
+   by `HelpModal`). **MUST be kept in sync with any user-facing UX change
+   that ships in this round.** Read the diff, then audit every section
+   of `help.ts` for stale wording / missing capabilities. Specifically
+   check:
+   - **Which dashboard for which question?** table — add new pages,
+     mark removed/proposal-stage pages, update the question framing.
+   - **Glossary** — every renamed concept (e.g. "Projected end of Q" →
+     "End-of-Q variance"), new badge/tier introduced, new acronym.
+   - **How to…** — every new UI affordance the user can trigger
+     (filters, toggles, tabs, drill-downs, comments). Remove tips that
+     reference removed UI.
+   - **Permissions** — re-check the one-line group summary if RBAC
+     scope changed.
+   - **Reading the cards / dashboards** — any added column, badge, or
+     section per-card needs a one-liner here.
+   - **SYNC** — flag new sync steps (e.g. past-months resync additions).
+   - `help.ts` is a JS template literal — do NOT introduce raw backticks
+     inside the string; use `*italic*` or quotes for inline emphasis.
+6. Sidebar version chip reads from `version.ts` automatically — no edit.
+
+**Two UI surfaces stay in lockstep with stakeholder docs:** when you
+update `CHANGELOG.md` you MUST regenerate `changelog.ts`; when shipping
+UX changes you MUST audit `help.ts`. The Help & Changelog modal IS the
+in-app stakeholder doc — leaving it stale ships a worse experience than
+not updating Notion.
 
 Generating the changelog body:
 - Run `git log --oneline <previous-tag>..HEAD` and
