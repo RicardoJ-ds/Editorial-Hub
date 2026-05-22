@@ -862,13 +862,17 @@ function QuarterRow({
   tooltipTitle: string;
   tooltipBullets: React.ReactNode[];
 }) {
+  // Last Q is reference context — render in mid-grey so the eye lands
+  // on Current Q (the actionable row). Tier label stays accurate for
+  // tooltip / accessibility readers; only the colour drops to grey.
+  const dim = kind === "lastFull";
   const tier = isFirstQ
     ? { color: "#8FB5D9", label: "1st Q" }
     : variance >= 0
-    ? { color: "#42CA80", label: "Healthy" }
+    ? { color: dim ? "#909090" : "#42CA80", label: "Healthy" }
     : variance >= -5
-    ? { color: "#F5C542", label: "Within limit" }
-    : { color: "#ED6958", label: "Behind" };
+    ? { color: dim ? "#909090" : "#F5C542", label: "Within limit" }
+    : { color: dim ? "#909090" : "#ED6958", label: "Behind" };
 
   const sign = variance > 0 ? "+" : "";
   const showBreakdown = actualDelivered !== undefined;
@@ -880,10 +884,12 @@ function QuarterRow({
   const projectedPct = Math.max(0, Math.min(100, (delivered / safeTarget) * 100));
   const fadedWidth = Math.max(0, projectedPct - actualPct);
 
-  const badge =
-    kind === "lastFull"
-      ? { text: "Last Full Q", fg: "#42CA80", bg: "rgba(66,202,128,0.14)" }
-      : { text: "Current Q", fg: "#F5BC4E", bg: "rgba(245,188,78,0.14)" };
+  // Last Q chip drops to the same neutral grey as the numbers — its
+  // outcome is already in the past, so the colour cue isn't needed.
+  const badge = dim
+    ? { text: "Last Full Q", fg: "#909090", bg: "rgba(144,144,144,0.10)" }
+    : { text: "Current Q", fg: "#F5BC4E", bg: "rgba(245,188,78,0.14)" };
+  const labelColor = dim ? "text-[#909090]" : "text-[#C4BCAA]";
 
   return (
     <div>
@@ -907,7 +913,7 @@ function QuarterRow({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span className="font-mono text-[11px] text-[#C4BCAA] tabular-nums">
+          <span className={`font-mono text-[11px] tabular-nums ${labelColor}`}>
             {label}
           </span>
           <span className="font-mono text-[10px] text-[#606060] tabular-nums">
@@ -956,8 +962,9 @@ function QuarterRow({
             </span>
           </span>
         ) : (
+          // Last Q numbers — muted; Current Q above is the focal point.
           <>
-            <span className="font-semibold text-white">{Math.round(delivered)}</span>
+            <span className="font-semibold text-[#909090]">{Math.round(delivered)}</span>
             <span className="text-[#606060]"> / {Math.round(target)}</span>
           </>
         )}

@@ -391,12 +391,14 @@ function PodDeliveryProgressCard({
             title="Last Q · Variance"
             sub="Cumulative Delivered ÷ Invoiced at close"
             align="center"
+            muted
             help={{
               title: "Last Q",
               bullets: [
                 "# = variance = delivered − invoiced (cumulative).",
                 "Numbers = delivered / invoiced.",
                 "≥ 0 Healthy · −5–0 Within · < −5 Behind.",
+                "Dimmed because Current Q is the focal point.",
               ],
             }}
           />
@@ -492,6 +494,7 @@ function ColumnHeader({
   help,
   align = "left",
   badge,
+  muted = false,
 }: {
   title: React.ReactNode;
   sub: string;
@@ -501,6 +504,11 @@ function ColumnHeader({
    *  Current Q). Uses a muted blue palette so it reads as informational
    *  without competing with the tier colors below. */
   badge?: string;
+  /** Dim the header (title in mid-grey instead of cream). Used on
+   *  Last Q so the visual weight shifts to Current Q as the focal
+   *  point. Tooltip + alignment are unchanged — Last Q is still
+   *  hover-able and stays the same width. */
+  muted?: boolean;
 }) {
   const alignCls = align === "right"
     ? "text-right"
@@ -512,6 +520,7 @@ function ColumnHeader({
     : align === "right"
     ? "justify-end"
     : "";
+  const titleColor = muted ? "text-[#606060]" : "text-[#C4BCAA]";
   return (
     <TooltipProvider>
       <Tooltip>
@@ -519,7 +528,7 @@ function ColumnHeader({
           render={<div className={"cursor-help " + alignCls} />}
         >
           <div className={"inline-flex items-center gap-1.5 " + justifyCls}>
-            <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] underline decoration-dotted underline-offset-2 decoration-[#404040]">
+            <p className={`font-mono text-[10px] uppercase tracking-wider ${titleColor} underline decoration-dotted underline-offset-2 decoration-[#404040]`}>
               {title}
             </p>
             {badge && (
@@ -1034,14 +1043,24 @@ function QTile({
       </div>
     );
   }
-  const tier = variance >= 0
-    ? { color: "#42CA80", label: "Healthy" }
-    : variance >= -5
-    ? { color: "#F5C542", label: "Within limit" }
-    : { color: "#ED6958", label: "Behind" };
   const sign = variance > 0 ? "+" : "";
   const italicCls = projected ? "italic" : "";
   const showBreakdown = actualDelivered !== undefined;
+  // Last Q (no breakdown) is reference context — render in muted greys so
+  // the eye lands on Current Q. Tier colours stay on Current Q where they
+  // still drive triage decisions.
+  const tier = showBreakdown
+    ? variance >= 0
+      ? { color: "#42CA80", label: "Healthy" }
+      : variance >= -5
+      ? { color: "#F5C542", label: "Within limit" }
+      : { color: "#ED6958", label: "Behind" }
+    : variance >= 0
+      ? { color: "#909090", label: "Healthy" }
+      : variance >= -5
+      ? { color: "#909090", label: "Within limit" }
+      : { color: "#909090", label: "Behind" };
+  const labelColor = showBreakdown ? tier.color : "#606060";
   return (
     <div className="text-center">
       <p
@@ -1052,7 +1071,7 @@ function QTile({
       </p>
       <p
         className="mt-0.5 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: tier.color }}
+        style={{ color: labelColor }}
       >
         {tier.label}
       </p>
@@ -1119,8 +1138,9 @@ function QTile({
           })()}
         </div>
       ) : (
-        <p className={`mt-1 font-mono text-[10px] tabular-nums text-[#C4BCAA] ${italicCls}`}>
-          <span className="font-semibold text-white">{Math.round(delivered)}</span>
+        // Last Q numbers — muted so the eye lands on Current Q.
+        <p className={`mt-1 font-mono text-[10px] tabular-nums text-[#909090] ${italicCls}`}>
+          <span className="font-semibold">{Math.round(delivered)}</span>
           <span className="text-[#606060]"> / {Math.round(invoiced)}</span>
         </p>
       )}
@@ -1449,13 +1469,19 @@ function ClientQCell({
       </div>
     );
   }
-  const color = isNew
-    ? "#8FB5D9"
-    : q.variance >= 0 ? "#42CA80"
-    : q.variance >= -5 ? "#F5C542"
-    : "#ED6958";
   const sign = q.variance > 0 ? "+" : "";
   const showBreakdown = q.actualDelivered !== undefined;
+  // Last Q (no breakdown) renders in mid-grey so the eye lands on the
+  // Current Q column. Current Q keeps the full tier palette since it's
+  // the actionable signal. 1st-Q new clients are an exception — they
+  // still get the blue chip so brand-new clients don't read as alarming.
+  const color = isNew
+    ? "#8FB5D9"
+    : showBreakdown
+      ? q.variance >= 0 ? "#42CA80"
+      : q.variance >= -5 ? "#F5C542"
+      : "#ED6958"
+      : "#909090";
   return (
     <div className="text-center font-mono text-[10px] tabular-nums">
       <p className="text-[#606060]">
@@ -1515,8 +1541,9 @@ function ClientQCell({
           })()}
         </>
       ) : (
+        // Last Q numbers — mid-grey so Current Q reads as the focal point.
         <p className="text-[#606060]">
-          <span className="text-[#C4BCAA]">{Math.round(q.delivered)}</span>
+          <span className="text-[#909090]">{Math.round(q.delivered)}</span>
           <span> / {Math.round(q.invoiced)}</span>
         </p>
       )}

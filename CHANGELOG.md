@@ -18,7 +18,22 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
-## 0.3.13 — May 22
+## 0.3.14 — May 22
+
+**Last Q is now rendered in a muted grey across Pod Snapshot, Client Delivery cards, and the detail popover — Current Q reads as the focal point.**
+
+### Pod Snapshot · Editorial Clients
+
+- **Last Q column dimmed.** The "Last Q · Variance" column header, the per-pod summary tile, and every per-client Last Q cell now render in mid-grey instead of the green/amber/red tier colours. Current Q keeps the full palette so the eye lands on the actionable column.
+- **Tier label still accurate.** The text ("Healthy" / "Within limit" / "Behind") is unchanged — only the colour drops to grey, so screen-readers and tooltip readers still see the same outcome chip.
+
+### Client Delivery cards (Editorial Clients + Overview legacy)
+
+- **Last Full Q row muted.** The Last Full Q chip, label, variance number, tier text, numbers, and progress bar all drop to grey. Current Q above keeps its colour so the row carries the actionable signal.
+
+### Detail popover
+
+- **Last Q variant dimmed** to match — variance number and tier label render in grey. 1st-Q new-client clients still get their blue chip since "1st Q" is a separate (and useful) context, not an outcome.
 
 **Current Q reads in plain English now (delivered · proj Q · invoiced); pace bar drops red and gets clearer labels (Push needed / On track / Ahead of pace); Re-sync Past Months gets the same step-by-step progress UI as the Import Wizard; SYNC button no longer re-pulls one-time-seed sheets on every click.**
 

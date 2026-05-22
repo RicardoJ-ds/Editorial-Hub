@@ -997,7 +997,14 @@ function QSummaryInner({
   isNew: boolean;
   verbiage: string;
 }) {
-  const tier = tierFor(variance, isNew);
+  // QSummaryInner is used only for Last Q (closed snapshot). Render in
+  // muted greys so the popover keeps Current Q as the focal point when
+  // the user is comparing the two side-by-side. 1st-Q new clients keep
+  // their blue chip via tierFor() — that's still useful context.
+  const baseTier = tierFor(variance, isNew);
+  const tier = isNew
+    ? baseTier
+    : { color: "#909090", label: baseTier.label };
   const sign = variance > 0 ? "+" : "";
   const italicCls = italic ? "italic" : "";
   return (
@@ -1019,8 +1026,8 @@ function QSummaryInner({
           {tier.label}
         </span>
       </p>
-      <p className={`font-mono text-[11px] tabular-nums text-[#C4BCAA] ${italicCls}`}>
-        <span className="font-semibold text-white">{Math.round(delivered)}</span>
+      <p className={`font-mono text-[11px] tabular-nums text-[#909090] ${italicCls}`}>
+        <span className="font-semibold">{Math.round(delivered)}</span>
         <span className="text-[#606060]"> / {Math.round(invoiced)}</span>
         <span className="ml-1.5 text-[9px] uppercase tracking-wider text-[#606060]">
           articles {verbiage}
