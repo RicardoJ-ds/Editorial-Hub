@@ -8,6 +8,7 @@ import { apiGet } from "@/lib/api";
 import { fetchAllDeliverables } from "@/lib/deliverablesClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
+import { PeriodSnapshotSection } from "@/components/dashboard/PeriodSnapshotSection";
 import {
   DeliveryMixCard,
   DeliveryOverviewCards,
@@ -43,6 +44,7 @@ import type {
   ClientProductionRow,
   CumulativeMetric,
   DeliverableMonthly,
+  GoalsVsDeliveryRow,
   ProductionTrendPoint,
 } from "@/lib/types";
 
@@ -58,9 +60,9 @@ import type {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SECTIONS = [
-  { id: "time-to-metrics", label: "Time-to Metrics" },
-  { id: "delivery-overview", label: "Delivery Overview" },
+  { id: "period-snapshot", label: "Pod Snapshot" },
   { id: "production-history", label: "Production History" },
+  { id: "delivery-overview", label: "Delivery Overview" },
   { id: "cumulative-pipeline", label: "Cumulative Pipeline" },
   { id: "client-delivery", label: "Client Delivery" },
 ];
@@ -78,6 +80,7 @@ export default function OverviewPage() {
   const [cumulative, setCumulative] = useState<CumulativeMetric[]>([]);
   const [productionTrend, setProductionTrend] = useState<ProductionTrendPoint[]>([]);
   const [clientProduction, setClientProduction] = useState<ClientProductionRow[]>([]);
+  const [goals, setGoals] = useState<GoalsVsDeliveryRow[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
   const [lens, setLens] = useState<Lens>("composition");
   const [loading, setLoading] = useState(true);
@@ -105,6 +108,9 @@ export default function OverviewPage() {
       .catch(() => {});
     apiGet<ClientProductionRow[]>("/api/dashboard/client-production")
       .then(setClientProduction)
+      .catch(() => {});
+    apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/all")
+      .then(setGoals)
       .catch(() => {});
   }, []);
 
@@ -203,19 +209,68 @@ export default function OverviewPage() {
           <SectionIndex sections={SECTIONS} />
           <div className="flex-1 min-w-0 space-y-12">
             <Section
-              id="time-to-metrics"
-              title="Time-to Metrics"
-              subtitle="Average milestone handoffs across the filtered clients"
-              deepLinkHref="/editorial-clients?tab=contract-timeline#time-to-metrics"
+              id="period-snapshot"
+              title="Pod Snapshot"
+              subtitle="Per-pod delivery + milestone pace · Goals scope is section-local"
+              deepLinkHref="/editorial-clients?tab=deliverables-sow"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
               trailingSlot={
                 <SectionCommentIcon
-                  sectionId="time-to-metrics"
-                  sectionLabel="Time-to Metrics"
+                  sectionId="period-snapshot"
+                  sectionLabel="Pod Snapshot"
                 />
               }
             >
-              <TimeToMetrics clients={filteredClients} hideHeader />
+              <PeriodSnapshotSection
+                clients={clients}
+                filteredClients={filteredClients}
+                summaries={summaries}
+                goals={goals}
+                clientProduction={clientProduction}
+              />
             </Section>
+
+            <Section
+              id="production-history"
+              title="Production History"
+              subtitle="Monthly actuals + projection trajectory across the filtered clients"
+              deepLinkHref="/editorial-clients?tab=contract-timeline#production-history"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="production-history"
+                  sectionLabel="Production History"
+                />
+              }
+            >
+              <ProductionTrendChart
+                data={productionTrend}
+                clientProduction={clientProduction}
+                filteredClients={filteredClients}
+                dateRange={dateRange}
+              />
+            </Section>
+
+            {/* Time-to Metrics — superseded by Period Snapshot above. Kept
+                mounted (collapsed) for side-by-side comparison; will be
+                removed in a follow-up once the new section is validated. */}
+            <CollapsibleLegacySection
+              id="time-to-metrics-legacy"
+              title="Time-to Metrics (legacy)"
+              subtitle="Original aggregate cards — now covered by Period Snapshot"
+            >
+              <TimeToMetrics clients={filteredClients} hideHeader />
+            </CollapsibleLegacySection>
 
             <Section
               id="delivery-overview"
@@ -247,31 +302,6 @@ export default function OverviewPage() {
               {lens === "triage" && (
                 <TriageView clients={filteredClients} summaries={summaries} />
               )}
-            </Section>
-
-            <Section
-              id="production-history"
-              title="Production History"
-              subtitle="Monthly actuals + projection trajectory across the filtered clients"
-              deepLinkHref="/editorial-clients?tab=contract-timeline#production-history"
-              titleChip={
-                <AsOfBadge
-                  label={overviewAsOf.label}
-                  fallback={overviewAsOf.isFallback}
-                />
-              }
-              trailingSlot={
-                <SectionCommentIcon
-                  sectionId="production-history"
-                  sectionLabel="Production History"
-                />
-              }
-            >
-              <ProductionTrendChart
-                data={productionTrend}
-                clientProduction={clientProduction}
-                filteredClients={filteredClients}
-              />
             </Section>
 
             <Section
@@ -463,6 +493,45 @@ function LensSwitcher({
         );
       })}
     </div>
+  );
+}
+
+// Wrapper for sections that are superseded by Period Snapshot — rendered
+// collapsed by default with a toggle so the Director can A/B against the
+// new view. Removed entirely in a follow-up cleanup.
+function CollapsibleLegacySection({
+  id,
+  title,
+  subtitle,
+  children,
+}: {
+  id: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section id={id} className="scroll-mt-[140px] space-y-3">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#606060]">
+              {title}
+            </h2>
+          </div>
+          <p className="mt-0.5 text-[11px] text-[#606060]">{subtitle}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:border-[#42CA80]/40 hover:text-[#42CA80]"
+        >
+          {open ? "Hide" : "Show"}
+        </button>
+      </div>
+      {open && children}
+    </section>
   );
 }
 

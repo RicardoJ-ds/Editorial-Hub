@@ -1,6 +1,34 @@
 # Editorial Hub — Task Tracker
 
-> **Last reviewed:** 2026-04-28
+> **Last reviewed:** 2026-05-21
+
+## 🚧 In progress
+
+### Overview redesign — Part 1 (Period Snapshot section)
+
+Source: Director of Business Operations feedback (2026-05-21). Build top-of-page
+"how's the period going, per pod, at a glance" view, period-scoped, with inline
+pod expand. Keep existing 5 sections below for side-by-side comparison; hide
+`time-to-metrics` from the SectionIndex.
+
+**Decisions locked:**
+- Period control: Section-local toggle (1m / 3m / 6m / Custom). Custom reads
+  FilterBar's date range. Defaults to last completed editorial month.
+- Pod metric: Hybrid — period goals-vs-delivery (CBs + Articles vs goal across
+  selected months) + projected end-of-Q variance chip.
+- Detail UX: Inline expand below pod row; one pod open per card.
+- Coexistence: Add new section at top; drop `time-to-metrics` from the rail.
+
+**Tasks:**
+- [ ] Scaffold new section + wire shell into `overview/page.tsx`
+- [ ] Period toggle + reference badge
+- [ ] Pod Delivery Progress card (left) — fetch goals data + per-pod aggregate
+- [ ] Pod Time-to-Metrics card (right) — per-pod averages + per-client expand
+- [ ] Type-check + browser verify
+
+---
+
+> **Earlier reviewed:** 2026-04-28
 > **Related docs:**
 > - [`/CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) — CP v2 schema + phase status
 > - [`/.docs/dashboard-data-flow.md`](../.docs/dashboard-data-flow.md) — migration plan

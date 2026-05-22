@@ -323,6 +323,9 @@ interface CurrentQuarter {
   /** Companion field: actual cumulative delivered (actuals + projections)
    *  through end of this Q, used in the informational tooltip. */
   projectedEndCumDelivered: number;
+  /** Cumulative ACTUALS only (no projections) through last completed
+   *  month. Used as the NOW value in the QuarterRow's progress bar. */
+  actualCumDelivered: number;
   /** Cumulative invoicing target through end of this Q. */
   endOfQCumInvoiced: number;
 }
@@ -330,8 +333,19 @@ interface LastFullQuarter {
   qIdx: number;
   label: string;
   monthsLabel: string;
+  /** Per-Q numbers (deliveries in this Q / invoicing for this Q). Kept on
+   *  the interface so any caller that wants just-this-Q math still has
+   *  it, but the card UI shows cumulative values now (see below). */
   delivered: number;
   invoiced: number;
+  /** Cumulative actuals from contract start through end of this Q —
+   *  matches the spreadsheet's per-Q Variance row and aligns with how
+   *  the current Q's cumulative numbers work. */
+  cumDelivered: number;
+  /** Cumulative invoicing target through end of this Q. */
+  cumInvoiced: number;
+  /** Cumulative variance = cumDelivered − cumInvoiced. */
+  cumVariance: number;
 }
 interface QuarterMeta {
   currentQ: CurrentQuarter | null;
@@ -355,12 +369,17 @@ function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
   let lastFullQ: LastFullQuarter | null = null;
   // Running totals so we can attach the cumulative-end-of-Q numbers
   // (matching the spreadsheet's Variance row math) to the current Q.
+  // cumDelivered includes future-month projections; cumDeliveredActual
+  // only counts months that have actually closed — used as the NOW
+  // value in the QuarterRow's bar.
   let cumDelivered = 0;
+  let cumDeliveredActual = 0;
   let cumInvoiced = 0;
   for (const p of periods) {
     cumInvoiced += p.invoicedQ;
     for (const m of p.months) {
       cumDelivered += m.delivered;
+      if (!(m.is_future ?? false)) cumDeliveredActual += m.delivered;
     }
     if (p.isPrelude || p.isPostContract) continue;
     const startCell = cellOf(p.startYear, p.startMonth);
@@ -383,6 +402,7 @@ function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
         monthInQ,
         qLength: p.months.length,
         projectedEndCumDelivered: cumDelivered,
+        actualCumDelivered: cumDeliveredActual,
         endOfQCumInvoiced: cumInvoiced,
         projectedEndCumVariance: cumDelivered - cumInvoiced,
       };
@@ -391,12 +411,18 @@ function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
     if (endCell <= lastCell) {
       let delivered = 0;
       for (const m of p.months) delivered += m.delivered;
+      // cumDelivered / cumInvoiced at this point in the walk are the
+      // running totals through end of this period (they were already
+      // accumulated above the if-blocks). Freeze them onto lastFullQ.
       lastFullQ = {
         qIdx: p.qIdx,
         label: p.label,
         monthsLabel: p.monthsLabel,
         delivered,
         invoiced: p.invoicedQ,
+        cumDelivered,
+        cumInvoiced,
+        cumVariance: cumDelivered - cumInvoiced,
       };
     }
   }
@@ -640,36 +666,39 @@ function ClientDeliveryCard({
                 kind="lastFull"
                 label={qMeta.lastFullQ.label}
                 monthsLabel={qMeta.lastFullQ.monthsLabel}
-                delivered={qMeta.lastFullQ.delivered}
-                target={qMeta.lastFullQ.invoiced}
+                delivered={qMeta.lastFullQ.cumDelivered}
+                target={qMeta.lastFullQ.cumInvoiced}
+                variance={qMeta.lastFullQ.cumVariance}
                 monthInQ={null}
-                tooltipTitle="Last full quarter"
+                tooltipTitle="Last full Q"
                 tooltipBullets={[
-                  "Most recent quarter that has fully closed.",
-                  "Delivered ÷ invoicing target for the period.",
-                  "Below 100% means the quarter closed behind.",
+                  "# = variance = delivered − invoiced (cumulative).",
+                  "Numbers = delivered / invoiced.",
+                  "≥ 0 Healthy · −5–0 Within · < −5 Behind.",
                 ]}
               />
             )}
             {qMeta.currentQ && (
-              <>
-                <QuarterRow
-                  kind="current"
-                  label={qMeta.currentQ.label}
-                  monthsLabel={qMeta.currentQ.monthsLabel}
-                  delivered={qMeta.currentQ.deliveredActual}
-                  target={qMeta.currentQ.invoiced}
-                  monthInQ={qMeta.currentQ.monthInQ}
-                  qLength={qMeta.currentQ.qLength}
-                  tooltipTitle="Current quarter"
-                  tooltipBullets={[
-                    "The quarter today's month falls in.",
-                    "Counts only delivered actuals — no projections.",
-                    "% is partial progress vs. the quarter's invoicing target.",
-                  ]}
-                />
-                <ProjectedEndOfQNote currentQ={qMeta.currentQ} isFirstQ={isFirstQ} />
-              </>
+              <QuarterRow
+                kind="current"
+                label={qMeta.currentQ.label}
+                monthsLabel={qMeta.currentQ.monthsLabel}
+                delivered={qMeta.currentQ.projectedEndCumDelivered}
+                target={qMeta.currentQ.endOfQCumInvoiced}
+                actualDelivered={qMeta.currentQ.actualCumDelivered}
+                variance={qMeta.currentQ.projectedEndCumVariance}
+                isFirstQ={isFirstQ}
+                monthInQ={qMeta.currentQ.monthInQ}
+                qLength={qMeta.currentQ.qLength}
+                tooltipTitle="Current Q"
+                tooltipBullets={[
+                  "# = projected variance = END − Invoiced.",
+                  "NOW → END / Invoiced (cumulative).",
+                  "% = NOW ÷ END (trajectory).",
+                  "Bar = pace = (NOW÷END) ÷ (monthInQ÷qLength).",
+                  "≥ 1.10 ahead · 0.85–1.10 on · 0.70–0.85 slipping · < 0.70 behind.",
+                ]}
+              />
             )}
           </div>
         </div>
@@ -742,85 +771,27 @@ function ClientDeliveryCard({
  *  cards, so the three surfaces tell one coherent story.
  *
  *  Intentionally neutral: a current-Q progress bar that looks "behind"
- *  early in the period (e.g. M1/3 at 0%) is often perfectly fine — the
- *  projections cover it. This note answers "is the plan good?" so the
- *  visible bar doesn't trigger false alarms. No red/amber here; only
- *  +X / 0 / -X in a cream font with a one-line context hint. */
-function ProjectedEndOfQNote({
-  currentQ,
-  isFirstQ = false,
-}: {
-  currentQ: CurrentQuarter;
-  /** When true, the client is in their 1st contract Q. Brand-new clients
-   *  always read "behind" against contracted invoicing because they haven't
-   *  had time to ramp — so we neutralize the alarm copy and render the
-   *  variance in the "new" blue tone, mirroring the Overview Triage rule. */
-  isFirstQ?: boolean;
-}) {
-  const v = currentQ.projectedEndCumVariance;
-  const fmt = v > 0 ? `+${v}` : v.toLocaleString();
-  // 1st Q clients get a calm blue treatment + "New 1st Q" hint regardless of
-  // variance — false alarms suppressed. Everyone else gets the signed-variance
-  // copy + color: on track ≥ 0 · slight drift −5 to 0 · behind plan < −5.
-  const hint = isFirstQ
-    ? "New 1st Q"
-    : v >= 0
-      ? "On track"
-      : v >= -5
-        ? "Slight drift"
-        : "Behind plan";
-  const numColor = isFirstQ ? "#8FB5D9" : signedVarianceColor(v);
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <div className="flex cursor-help flex-wrap items-center gap-x-2 gap-y-0.5 rounded border border-[#1f1f1f] bg-[#0a0a0a] px-2 py-1" />
-          }
-        >
-          <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-[#8FB5D9]">
-            End-of-Q variance
-          </span>
-          <span
-            className="font-mono text-[11px] font-semibold tabular-nums"
-            style={{ color: numColor }}
-            title="Projected (delivered − invoiced) cumulative through end of current quarter"
-          >
-            {fmt}
-          </span>
-          <span className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
-            articles
-          </span>
-          <span
-            className="font-mono text-[10px] uppercase tracking-wider"
-            style={{ color: numColor }}
-          >
-            · {hint}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-          <TooltipBody
-            title="End-of-Q variance"
-            bullets={
-              isFirstQ
-                ? [
-                    "Projected delivered − invoiced by end of current quarter.",
-                    "1st contract Q — excluded from Behind triage.",
-                    "Brand-new contracts look behind on invoicing until they ramp.",
-                    `${currentQ.projectedEndCumDelivered.toLocaleString()} delivered · ${currentQ.endOfQCumInvoiced.toLocaleString()} invoiced.`,
-                  ]
-                : [
-                    "Projected delivered − invoiced by end of current quarter.",
-                    "Drives the Healthy / Within limit / Behind tier badge.",
-                    "≥ 0 healthy · −5 to 0 within limit · below −5 behind.",
-                    `${currentQ.projectedEndCumDelivered.toLocaleString()} delivered · ${currentQ.endOfQCumInvoiced.toLocaleString()} invoiced.`,
-                  ]
-            }
-          />
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+ *  Removed: the QuarterRow now leads with the cumulative variance + tier
+ *  inline, so this standalone "End-of-Q variance" line was redundant. */
+
+/** Classify the actual-vs-expected delivery pace for the current Q.
+ *  Same math + thresholds as Pod Snapshot's paceClassify so the bar
+ *  color reads identically on both surfaces. */
+function paceClassify(
+  actualDelivered: number,
+  projectedEnd: number,
+  monthInQ: number,
+  qLength: number,
+): { color: string; label: string } | null {
+  if (projectedEnd <= 0 || qLength <= 0) return null;
+  const actualProgress = actualDelivered / projectedEnd;
+  const expectedProgress = monthInQ / qLength;
+  if (expectedProgress <= 0) return null;
+  const ratio = actualProgress / expectedProgress;
+  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of schedule" };
+  if (ratio >= 0.85) return { color: "#42CA80", label: "On schedule" };
+  if (ratio >= 0.70) return { color: "#F5C542", label: "Slightly behind" };
+  return { color: "#ED6958", label: "Behind schedule" };
 }
 
 /** Signed-variance color, matches the Overview Triage cards. */
@@ -857,6 +828,9 @@ function QuarterRow({
   monthsLabel,
   delivered,
   target,
+  actualDelivered,
+  variance,
+  isFirstQ = false,
   monthInQ,
   qLength,
   tooltipTitle,
@@ -865,8 +839,21 @@ function QuarterRow({
   kind: "lastFull" | "current";
   label: string;
   monthsLabel: string;
+  /** Last Q: cumulative delivered at close.
+   *  Current Q: cumulative actuals + projections through end of Q. */
   delivered: number;
+  /** Cumulative invoiced through end of Q (denominator). */
   target: number;
+  /** Current-Q only: cumulative ACTUALS through last completed month.
+   *  Drives the solid portion of the two-shade bar so the user sees
+   *  "where we are now" inside the "where we'll land" envelope. */
+  actualDelivered?: number;
+  /** Signed cumulative variance (delivered − target). Color-tracks the
+   *  tier and reads as the row's headline signal. */
+  variance: number;
+  /** 1st contract Q — brand-new clients can't be Healthy/Behind by
+   *  definition, so we render a blue 1st-Q chip instead of a tier. */
+  isFirstQ?: boolean;
   monthInQ: number | null;
   /** Total months in the period — drives the M{n}/{N} chip and pacing math
    *  for variable-length billing periods. Only relevant for the "current"
@@ -875,15 +862,23 @@ function QuarterRow({
   tooltipTitle: string;
   tooltipBullets: React.ReactNode[];
 }) {
-  const pct = target > 0 ? Math.min(Math.round((delivered / target) * 100), 999) : null;
-  const barPct = pct === null ? 0 : Math.min(pct, 100);
-  // Beige → green ramp instead of red/amber/green tiers. Low % reads
-  // beige (cream), full reads bright green; mid-progress reads a calm
-  // olive-ish blend. Matches the visual vocabulary of the Cumulative
-  // Pipeline cards and keeps these bars from triggering false-alarm
-  // reds early in a billing period. The Projected end of Q note below
-  // carries the actionable signal (signed-variance color).
-  const color = progressColor(pct);
+  const tier = isFirstQ
+    ? { color: "#8FB5D9", label: "1st Q" }
+    : variance >= 0
+    ? { color: "#42CA80", label: "Healthy" }
+    : variance >= -5
+    ? { color: "#F5C542", label: "Within limit" }
+    : { color: "#ED6958", label: "Behind" };
+
+  const sign = variance > 0 ? "+" : "";
+  const showBreakdown = actualDelivered !== undefined;
+
+  const safeTarget = Math.max(1, target);
+  const actualPct = showBreakdown
+    ? Math.max(0, Math.min(100, (actualDelivered! / safeTarget) * 100))
+    : 0;
+  const projectedPct = Math.max(0, Math.min(100, (delivered / safeTarget) * 100));
+  const fadedWidth = Math.max(0, projectedPct - actualPct);
 
   const badge =
     kind === "lastFull"
@@ -892,7 +887,7 @@ function QuarterRow({
 
   return (
     <div>
-      {/* Top row — only the kind pill triggers the tooltip */}
+      {/* Top row — label block on the left, variance + tier on the right */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <TooltipProvider>
@@ -924,26 +919,104 @@ function QuarterRow({
             </span>
           )}
         </div>
-        <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-white">
-          {delivered}
-          <span className="text-[#606060]">/{target}</span>
-        </span>
-      </div>
-      {/* Bottom row — progress bar + percentage */}
-      <div className="mt-1 flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#1f1f1f]">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${barPct}%`, backgroundColor: color }}
-          />
+        <div className="shrink-0 flex items-baseline gap-1.5">
+          <span
+            className="font-mono text-[13px] font-bold tabular-nums"
+            style={{ color: tier.color }}
+          >
+            {sign}{Math.round(variance)}
+          </span>
+          <span
+            className="font-mono text-[9px] uppercase tracking-wider"
+            style={{ color: tier.color }}
+          >
+            {tier.label}
+          </span>
         </div>
-        <span
-          className="w-10 shrink-0 text-right font-mono text-[10px] font-semibold tabular-nums"
-          style={{ color }}
-        >
-          {pct !== null ? `${pct}%` : "—"}
-        </span>
       </div>
+      {/* Numbers row — plain (no per-row tooltip). The format is
+          explained once on the section / column subtitle to keep the
+          per-client rows clean. */}
+      <div className="mt-1 text-right font-mono text-[10px] tabular-nums">
+        {showBreakdown ? (
+          <>
+            <span className="text-white">{Math.round(actualDelivered!)}</span>
+            <span className="text-[#606060] mx-1">→</span>
+            <span className="font-semibold text-white">{Math.round(delivered)}</span>
+            <span className="text-[#606060]"> / {Math.round(target)}</span>
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-white">{Math.round(delivered)}</span>
+            <span className="text-[#606060]"> / {Math.round(target)}</span>
+          </>
+        )}
+      </div>
+      {/* Two-shade bar — solid = NOW, faded = projected additional. Bar
+          maxes at 100% = invoiced. Bar color tracks the delivery PACE
+          (red/amber/green based on actual vs expected at this month-
+          in-Q) so the variance + pace are two distinct signals: the
+          variance number tells you what we'll deliver, the bar color
+          tells you whether actuals are tracking the projected
+          trajectory. Last Q has no pace metric — bar uses tier color. */}
+      {(() => {
+        const pace = showBreakdown && monthInQ != null && qLength != null
+          ? paceClassify(actualDelivered!, delivered, monthInQ, qLength)
+          : null;
+        const barColor = pace?.color ?? tier.color;
+        return (
+          <>
+            <div className="mt-1 flex items-center gap-2">
+              <div
+                className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#1f1f1f]"
+              >
+                {showBreakdown ? (
+                  <>
+                    <div
+                      className="absolute top-0 bottom-0 left-0"
+                      style={{ width: `${actualPct}%`, backgroundColor: barColor }}
+                    />
+                    {fadedWidth > 0 && (
+                      <div
+                        className="absolute top-0 bottom-0"
+                        style={{
+                          left: `${actualPct}%`,
+                          width: `${fadedWidth}%`,
+                          backgroundColor: `${barColor}40`,
+                        }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div
+                    className="absolute top-0 bottom-0 left-0"
+                    style={{ width: `${projectedPct}%`, backgroundColor: tier.color }}
+                  />
+                )}
+              </div>
+              {showBreakdown && (
+                <span
+                  className="w-10 shrink-0 text-right font-mono text-[10px] font-semibold tabular-nums"
+                  style={{ color: barColor }}
+                  title="Cumulative actuals now ÷ projected end of Q"
+                >
+                  {delivered > 0
+                    ? `${Math.round((actualDelivered! / delivered) * 100)}%`
+                    : "—"}
+                </span>
+              )}
+            </div>
+            {pace && (
+              <p
+                className="mt-1 text-right font-mono text-[9px] uppercase tracking-wider"
+                style={{ color: pace.color }}
+              >
+                {pace.label}
+              </p>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }

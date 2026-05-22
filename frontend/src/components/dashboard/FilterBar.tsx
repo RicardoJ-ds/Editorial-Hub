@@ -14,6 +14,7 @@ import { cn, parseISODateLocal } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { Search, X } from "lucide-react";
 import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
+import { PodAxisToggle } from "@/components/layout/SyncControls";
 import { displayPod } from "./shared-helpers";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 export type { DateRange } from "./DateRangeFilter";
@@ -103,6 +104,37 @@ export function FilterBar({
       if (v) pods.add(v);
     });
     return ["All", ...Array.from(pods).sort(sortPodOptions)];
+  }, [clients]);
+
+  // Years where ANY client in scope actually has contract activity. The
+  // date picker uses these bounds so users can't navigate to empty years
+  // (e.g. 2028 / 2029 when nothing ships past 2027). Always includes the
+  // current calendar year so today is reachable even when the dataset is
+  // sparse, and pads ±1 around the contract envelope to make in-progress
+  // contracts plus their immediate projections selectable.
+  const availableYears = useMemo<number[]>(() => {
+    let minYear = Infinity;
+    let maxYear = -Infinity;
+    for (const c of clients) {
+      const start = c.start_date ? new Date(c.start_date) : null;
+      const end = c.end_date ? new Date(c.end_date) : null;
+      if (start && !Number.isNaN(start.getTime())) {
+        minYear = Math.min(minYear, start.getFullYear());
+      }
+      if (end && !Number.isNaN(end.getTime())) {
+        maxYear = Math.max(maxYear, end.getFullYear());
+      }
+    }
+    const today = new Date().getFullYear();
+    if (!Number.isFinite(minYear)) minYear = today;
+    if (!Number.isFinite(maxYear)) maxYear = today;
+    // Pad: include this calendar year and one year of buffer beyond the
+    // last contract end so end-of-engagement projections render.
+    minYear = Math.min(minYear, today);
+    maxYear = Math.max(maxYear, today);
+    const out: number[] = [];
+    for (let y = minYear; y <= maxYear; y++) out.push(y);
+    return out;
   }, [clients]);
 
   const updateParams = useCallback(
@@ -402,6 +434,12 @@ export function FilterBar({
         </SelectContent>
       </Select>
 
+      {/* Pod-axis toggle (Editorial / Growth) — sits between Growth Pod
+          and Status so it reads as a grouping control next to the pod
+          filters. Auto-hides for users without canToggle or off pod-axis
+          routes (see PodAxisToggle in SyncControls). */}
+      <PodAxisToggle label="Pod Axis" />
+
       {/* Separator */}
       <div className="h-4 w-px bg-[#1e1e1e]" />
 
@@ -436,7 +474,11 @@ export function FilterBar({
       <div className="h-4 w-px bg-[#1e1e1e]" />
 
       {/* Date */}
-      <DateRangeFilter value={dateRange} onChange={setDateRange} />
+      <DateRangeFilter
+        value={dateRange}
+        onChange={setDateRange}
+        availableYears={availableYears}
+      />
 
       {/* Active filter count */}
       {activeFilters > 0 && (

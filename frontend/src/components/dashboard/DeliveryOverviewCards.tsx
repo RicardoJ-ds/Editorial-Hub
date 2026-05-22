@@ -428,7 +428,7 @@ function signedVarianceColor(v: number): string {
 // spans so the triage cards and the Monthly Detail popover agree on what
 // "current Q" means even for variable-cadence clients like Webflow.
 // ─────────────────────────────────────────────────────────────────────────────
-interface SummaryBillingPeriod {
+export interface SummaryBillingPeriod {
   qIdx: number;
   label: string;
   monthsLabel: string;
@@ -443,7 +443,7 @@ interface SummaryBillingPeriod {
 
 const TRIAGE_MS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function detectSummaryBillingPeriods(row: SummaryRow): SummaryBillingPeriod[] {
+export function detectSummaryBillingPeriods(row: SummaryRow): SummaryBillingPeriod[] {
   const monthly = row.monthly_breakdown ?? [];
   if (monthly.length === 0) return [];
   const sorted = [...monthly].sort((a, b) =>
@@ -507,7 +507,7 @@ function detectSummaryBillingPeriods(row: SummaryRow): SummaryBillingPeriod[] {
  *  Brand-new clients always read "behind" against contracted invoicing
  *  because they haven't had time to ramp — surfacing them as a separate
  *  "New (1st Q)" tier keeps the Behind list honest. */
-function isFirstContractQ(row: SummaryRow): boolean {
+export function isFirstContractQ(row: SummaryRow): boolean {
   const periods = detectSummaryBillingPeriods(row);
   const today = new Date();
   const todayCell = today.getFullYear() * 12 + today.getMonth();
@@ -991,7 +991,7 @@ function LastFullQCard({ row }: { row: SummaryRow }) {
  *  earlier-Q misses — matches the spreadsheet's Variance row. Uses
  *  data-driven billing period detection (same as Monthly Detail popover)
  *  instead of fixed 3-month calendar quarters. */
-function computeCurrentQ(row: SummaryRow): {
+export function computeCurrentQ(row: SummaryRow): {
   label: string;
   monthsLabel: string;
   delivered: number;
@@ -999,11 +999,18 @@ function computeCurrentQ(row: SummaryRow): {
   projectedEnd: number;
   invoiced: number;
   projectedVariance: number;
+  /** 1-based position of today's calendar month within the current Q
+   *  period. Used to compute pacing (actual progress vs expected). */
+  monthInQ: number;
+  /** Total months in the current Q period. */
+  qLength: number;
 } | null {
   const periods = detectSummaryBillingPeriods(row);
   if (periods.length === 0) return null;
   const today = new Date();
-  const todayCell = today.getFullYear() * 12 + today.getMonth();
+  const todayY = today.getFullYear();
+  const todayM = today.getMonth() + 1;
+  const todayCell = todayY * 12 + (todayM - 1);
 
   let cumDelivered = 0;
   let cumInvoiced = 0;
@@ -1017,9 +1024,16 @@ function computeCurrentQ(row: SummaryRow): {
     const endCell = p.endYear * 12 + (p.endMonth - 1);
     if (startCell <= todayCell && todayCell <= endCell) {
       let projectedRemaining = 0;
-      for (const m of p.months) {
+      let monthInQ = 0;
+      for (let i = 0; i < p.months.length; i++) {
+        const m = p.months[i];
         if (m.is_future ?? false) projectedRemaining += m.delivered;
+        if (m.year === todayY && m.month === todayM) monthInQ = i + 1;
       }
+      // Fall back to "last completed-or-current month within this Q" if
+      // today isn't itself in the month list (shouldn't happen but
+      // guards against off-by-one).
+      if (monthInQ === 0) monthInQ = Math.max(1, todayCell - startCell + 1);
       const projectedEnd = cumDelivered + projectedRemaining;
       return {
         label: p.label,
@@ -1029,6 +1043,8 @@ function computeCurrentQ(row: SummaryRow): {
         projectedEnd,
         invoiced: cumInvoiced,
         projectedVariance: projectedEnd - cumInvoiced,
+        monthInQ,
+        qLength: p.months.length,
       };
     }
   }
@@ -1036,11 +1052,24 @@ function computeCurrentQ(row: SummaryRow): {
 }
 
 
-function computeLastFullQ(row: SummaryRow): {
+export function computeLastFullQ(row: SummaryRow): {
   label: string;
   monthsLabel: string;
+  /** Articles delivered DURING the last full Q (just that period). */
   delivered: number;
+  /** Invoicing target FOR the last full Q (just that period). */
   invoiced: number;
+  /** Cumulative actuals from contract start through end of last full Q.
+   *  Matches the spreadsheet's per-Q "Variance" math — over-delivery in
+   *  earlier Qs nets against later under-delivery, so this is the right
+   *  number to anchor any UI that talks about progress "as of end of
+   *  last Q". */
+  cumDelivered: number;
+  /** Cumulative invoicing target from contract start through end of last
+   *  full Q. */
+  cumInvoiced: number;
+  /** Cumulative variance = cumDelivered − cumInvoiced. */
+  cumVariance: number;
 } | null {
   const periods = detectSummaryBillingPeriods(row);
   if (periods.length === 0) return null;
@@ -1049,9 +1078,24 @@ function computeLastFullQ(row: SummaryRow): {
   const lastCell = lastCompleted.getFullYear() * 12 + lastCompleted.getMonth();
 
   let lastFullP: SummaryBillingPeriod | null = null;
+  let cumDelivered = 0;
+  let cumInvoiced = 0;
+  // Cumulative totals frozen at end of the last full period.
+  let cumDeliveredAtLastFull = 0;
+  let cumInvoicedAtLastFull = 0;
   for (const p of periods) {
+    // Accumulate every period (including preludes) for the cumulative
+    // totals — invoicing might be 0 in a prelude but delivered counts.
+    for (const m of p.months) {
+      if (!(m.is_future ?? false)) cumDelivered += m.delivered;
+    }
+    cumInvoiced += p.invoicedQ;
     if (p.isPrelude) continue;
-    if (p.endYear * 12 + (p.endMonth - 1) <= lastCell) lastFullP = p;
+    if (p.endYear * 12 + (p.endMonth - 1) <= lastCell) {
+      lastFullP = p;
+      cumDeliveredAtLastFull = cumDelivered;
+      cumInvoicedAtLastFull = cumInvoiced;
+    }
   }
   if (!lastFullP) return null;
 
@@ -1059,7 +1103,15 @@ function computeLastFullQ(row: SummaryRow): {
   for (const m of lastFullP.months) {
     if (!(m.is_future ?? false)) delivered += m.delivered;
   }
-  return { label: lastFullP.label, monthsLabel: lastFullP.monthsLabel, delivered, invoiced: lastFullP.invoicedQ };
+  return {
+    label: lastFullP.label,
+    monthsLabel: lastFullP.monthsLabel,
+    delivered,
+    invoiced: lastFullP.invoicedQ,
+    cumDelivered: cumDeliveredAtLastFull,
+    cumInvoiced: cumInvoicedAtLastFull,
+    cumVariance: cumDeliveredAtLastFull - cumInvoicedAtLastFull,
+  };
 }
 
 // "Days remaining" + elapsed share of the contract.

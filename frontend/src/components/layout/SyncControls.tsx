@@ -110,7 +110,8 @@ export function SyncControls() {
         }}
         onComplete={handleSyncComplete}
       />
-      <PodAxisToggle />
+      {/* PodAxisToggle moved into FilterBar so it sits next to the date
+          range. Still exported below for direct callers. */}
       <LastSyncBadge />
       <button
         type="button"
@@ -157,7 +158,7 @@ export function SyncControls() {
  *  Each option also gets its own hover ring + axis-tinted active color
  *  (Graphite green for Editorial, sky-blue for Growth) so admins can
  *  glance at the badge and know which axis is live. */
-function PodAxisToggle() {
+export function PodAxisToggle({ label }: { label?: string } = {}) {
   const { axis, canToggle, setAxis } = useCurrentPodAxis();
   const pathname = usePathname();
   // Hide outside the dashboards — the toggle has no effect on Admin,
@@ -184,7 +185,7 @@ function PodAxisToggle() {
       activeRing: "ring-[#4ECBE5]/30",
     },
   ];
-  return (
+  const inner = (
     <div
       role="tablist"
       aria-label="Pod grouping"
@@ -222,6 +223,16 @@ function PodAxisToggle() {
           </button>
         );
       })}
+    </div>
+  );
+
+  if (!label) return inner;
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+        {label}
+      </span>
+      {inner}
     </div>
   );
 }
