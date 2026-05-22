@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ComposedChart,
   Area,
@@ -580,9 +580,11 @@ export function ProductionTrendChart({
           });
         }
       }
-      // Sort pods inside each row by total desc — the tooltip already
-      // surfaces biggest contributors first.
-      breakdownByPod.sort((a, b) => b.total - a.total);
+      // Sort pods inside each row by pod number ascending (Pod 1, 2, 3,
+      // 5, …) so the tooltip reads in stable pod order regardless of
+      // who happened to deliver the most that month. Uses sortPodKey
+      // (handles numeric ordering with Unassigned last).
+      breakdownByPod.sort((a, b) => sortPodKey(a.pod, b.pod));
       row.breakdownByPod = breakdownByPod;
       return row;
     });
@@ -597,6 +599,33 @@ export function ProductionTrendChart({
   const isPerPod = viewMode === "per-pod";
   const activeChartData = isPerPod ? podSeries.chartData : singleSeries.chartData;
   const activeBoundary = isPerPod ? podSeries.boundaryLabel : singleSeries.boundaryLabel;
+
+  // Cursor-aware tooltip position. Recharts default puts the tooltip at
+  // the cursor; that overflows the right edge once a pod breakdown is
+  // wide. Track chartX from onMouseMove and flip the tooltip to the
+  // left of the cursor when it would clip. ~320px is the widest the
+  // per-pod tooltip gets (max-w-[320px] on PerPodTooltip).
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | undefined>(
+    undefined,
+  );
+  // Recharts' onMouseMove fires with a wide MouseHandlerDataParam shape
+  // we don't fully type — cast through unknown to read just chartX. The
+  // alternative would be to import the recharts type but it's not
+  // re-exported from the public surface, so this is the cleanest path.
+  const handleChartMouseMove = (state: unknown) => {
+    const chartX = (state as { chartX?: number } | null)?.chartX;
+    if (chartX == null) return;
+    const containerW = containerRef.current?.offsetWidth ?? 0;
+    if (!containerW) return;
+    const tooltipWidth = isPerPod ? 320 : 240;
+    const flipLeft = chartX + tooltipWidth + 40 > containerW;
+    setTooltipPos({
+      x: flipLeft ? chartX - tooltipWidth - 20 : chartX + 20,
+      y: 10,
+    });
+  };
+  const handleChartMouseLeave = () => setTooltipPos(undefined);
 
   if (activeChartData.length === 0) {
     return (
@@ -615,7 +644,7 @@ export function ProductionTrendChart({
   }
 
   return (
-    <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
+    <div ref={containerRef} className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Production History <DataSourceBadge
@@ -634,6 +663,8 @@ export function ProductionTrendChart({
         <ComposedChart
           data={activeChartData}
           margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          onMouseMove={handleChartMouseMove}
+          onMouseLeave={handleChartMouseLeave}
         >
           <defs>
             <linearGradient id="gradActual" x1="0" y1="0" x2="0" y2="1">
@@ -678,6 +709,9 @@ export function ProductionTrendChart({
               )
             }
             cursor={{ stroke: "#2a2a2a" }}
+            position={tooltipPos}
+            allowEscapeViewBox={{ x: false, y: false }}
+            wrapperStyle={{ pointerEvents: "none" }}
           />
           {activeBoundary && (
             <ReferenceLine

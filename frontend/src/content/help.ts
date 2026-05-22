@@ -38,7 +38,7 @@ Each client has one of each.
 
 **Variance** — Delivered minus invoiced. We use **cumulative variance through end of current quarter**, so over-delivery this quarter cancels earlier deficits.
 
-**Pace** — A second signal next to variance. Compares how far through the quarter you are vs. how much you've actually delivered. A client can be *behind* on variance but *on pace* to recover — both signals show side-by-side.
+**Pace** — A second signal next to variance. Compares how far through the quarter you are vs. how much you've actually delivered. The bar shows one of three states: **Push needed** (yellow — more left to deliver than time on the clock), **On track** (light green — keeping up with the time elapsed), or **Ahead of pace** (dark green — comfortable buffer). A client can be *behind* on variance but *on pace* to recover — both signals show side-by-side.
 
 **Last Q / Current Q** — Each client's **own** contract quarters, anchored to their start date — not calendar quarters.
 
@@ -96,8 +96,8 @@ Each per-client card shows:
 
 - **Tier badge** (next to the name) — at-a-glance status: _Healthy_ (green), _Within limit_ (amber), _Behind_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
 - **Last Q** — cumulative *delivered / invoiced* through the end of the last full contract quarter, plus the variance and a tier chip.
-- **Current Q** — cumulative *delivered / invoiced* through the end of the current contract quarter (actuals + projection for the remaining months). Numbers read as NOW → END / Invoiced.
-- **Pace bar** — colour shows whether the client is on track for the current quarter: _ahead_ / _on pace_ / _slipping_ / _behind pace_. This is a separate signal from variance — a behind-on-variance client can still be on pace to recover.
+- **Current Q** — cumulative *delivered · proj Q · invoiced* through the end of the current contract quarter (actuals + projection for the remaining months). Each number carries a small label so the row reads in plain English.
+- **Pace bar** — colour shows whether the client is on track for the current quarter: **Ahead of pace** (dark green) / **On track** (light green) / **Push needed** (yellow). This is a separate signal from variance — a behind-on-variance client can still be on pace to recover.
 - **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. The friendly label tells you the state at a glance: _On track_ (≥ 0), _Slight drift_ (−5 to 0), or _Behind plan_ (below −5). New 1st-Q contracts get a calm _New 1st Q_ hint instead of an alarm.
 - **Lifetime · SOW** — Delivered / Invoiced / SOW for the full relationship.
 

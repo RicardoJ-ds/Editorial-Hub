@@ -799,7 +799,9 @@ function MonthlyBreakdownTable({
 }
 
 /** Pace classification — mirrors Pod Snapshot's helper so the popover
- *  speaks the same language as the snapshot row. */
+ *  speaks the same language as the snapshot row. Three-bucket palette
+ *  (dark green / light green / yellow); see PeriodSnapshotSection for
+ *  the rationale. */
 function paceClassify(
   actualDelivered: number,
   projectedEnd: number,
@@ -811,10 +813,9 @@ function paceClassify(
   const expectedProgress = monthInQ / qLength;
   if (expectedProgress <= 0) return null;
   const ratio = actualProgress / expectedProgress;
-  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of schedule" };
-  if (ratio >= 0.85) return { color: "#42CA80", label: "On schedule" };
-  if (ratio >= 0.70) return { color: "#F5C542", label: "Slightly behind" };
-  return { color: "#ED6958", label: "Behind schedule" };
+  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of pace" };
+  if (ratio >= 0.85) return { color: "#9FE5BD", label: "On track" };
+  return { color: "#F5C542", label: "Push needed" };
 }
 
 function QSummaryTile({
@@ -916,16 +917,25 @@ function CurrentQSummary({
           {tier.label}
         </span>
       </p>
-      {/* NOW → END / Invoiced numbers */}
+      {/* delivered · proj Q · invoiced — explicit-label format keeps
+          the popover readable without forcing the reader to decode
+          NOW/END/Invoiced arrows. */}
       <p className="font-mono text-[11px] tabular-nums text-[#C4BCAA]">
-        <span className="text-white">NOW {Math.round(actualDelivered)}</span>
-        <span className="text-[#606060] mx-1.5">→</span>
-        <span className="font-semibold italic text-white">
-          END {Math.round(projectedEnd)}
+        <span className="text-white">{Math.round(actualDelivered)}</span>
+        <span className="ml-1 text-[9px] uppercase tracking-wider text-[#606060]">
+          delivered
         </span>
-        <span className="text-[#606060]"> / {Math.round(invoiced)}</span>
-        <span className="ml-1.5 text-[9px] uppercase tracking-wider text-[#606060]">
-          articles cumulative
+        <span className="text-[#606060] mx-2">·</span>
+        <span className="font-semibold italic text-white">
+          {Math.round(projectedEnd)}
+        </span>
+        <span className="ml-1 text-[9px] uppercase tracking-wider text-[#606060]">
+          proj Q
+        </span>
+        <span className="text-[#606060] mx-2">·</span>
+        <span className="text-white">{Math.round(invoiced)}</span>
+        <span className="ml-1 text-[9px] uppercase tracking-wider text-[#606060]">
+          invoiced
         </span>
       </p>
       {/* Pace-colored two-shade bar + progress % + pace label */}

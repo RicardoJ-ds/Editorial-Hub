@@ -62,7 +62,12 @@ function TabRow({ detail }: { detail: TabDetail }) {
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const expandable = detail.status !== "skipped";
+  // Explicit "" preview_key means the backend wrote this detail as an
+  // info-only row (e.g. per-client backfill summary) — no preview to fetch.
+  // null / undefined preview_key still falls back to tab_name for legacy
+  // detail rows that didn't set it.
+  const hasNoPreview = detail.preview_key === "";
+  const expandable = detail.status !== "skipped" && !hasNoPreview;
 
   const toggle = useCallback(async () => {
     const next = !open;
@@ -82,7 +87,7 @@ function TabRow({ detail }: { detail: TabDetail }) {
         setLoading(false);
       }
     }
-  }, [open, preview, loading, expandable, detail.tab_name]);
+  }, [open, preview, loading, expandable, detail.preview_key, detail.tab_name]);
 
   const statusChip = (() => {
     if (detail.status === "imported") {

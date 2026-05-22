@@ -18,6 +18,40 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.13 — May 22
+
+**Current Q reads in plain English now (delivered · proj Q · invoiced); pace bar drops red and gets clearer labels (Push needed / On track / Ahead of pace); Re-sync Past Months gets the same step-by-step progress UI as the Import Wizard; SYNC button no longer re-pulls one-time-seed sheets on every click.**
+
+### Pod Snapshot · Editorial Clients — Current Q rebuilt
+
+- **Numbers are labelled.** The old `55 → 81 / 81` arrow form is replaced by three clearly-labelled numbers: **delivered · proj Q · invoiced**. Each value carries a small tag below so you don't have to remember what each slot means. Same treatment on the Pod Snapshot tile, the click-anchored detail popover, and the per-client Client Delivery cards.
+- **Pace bar drops red.** Now uses three shades: dark green = *Ahead of pace*, light green = *On track*, yellow = *Push needed*. The red BEHIND chip above the bar still appears when delivered minus invoiced has actually fallen below threshold — that's the outcome variance (a different signal). The two are intentionally separate: a client can be Behind on variance and still be on pace to recover.
+- **Tooltip explains the math.** The Current Q column header tooltip now ends with a plain-English line: *"Pace tells you if delivery is keeping up with how much of the Q has elapsed."*
+
+### Overview · Editorial Clients — Production History
+
+- **Tooltip stops getting clipped** at the right edge. When the cursor approaches the right side of the chart, the tooltip flips to the left of the cursor instead of being cut off.
+- **Pods now sort by pod number** inside the tooltip (Pod 1 → Pod 2 → Pod 3 → Pod 5 …) instead of by delivery volume, so the reading order is stable from month to month.
+- **Per-pod toggle works on Editorial Clients too.** Same All / Per pod control as Overview, fully wired to the Editorial / Growth axis. Behavior is identical across both dashboards.
+
+### Admin → Data Management — Re-sync Past Months
+
+- **Step-by-step progress.** Re-sync Past Months now mirrors the Import Wizard's importing screen: five named steps with live status icons (pending → spinner → check / error) and an overall progress bar. No more single ten-second spinner with no insight into where it's stuck.
+- **ET CP Pod History expands into per-tab dropdowns.** Just like Master Tracker — Goals vs Delivery, each historical ET CP version tab is its own row with parsed / imported counts and an *Imported* badge. Click any tab to see a working preview of that month's snapshot (skipping the banner rows so the Client / Pod columns line up).
+- **Backfill Editorial Pod is no longer a 500.** The summary row now expands to show every client that got their pod backfilled (with the source tab it came from) plus any client that had no history to draw from. No more "Preview failed — API error: 500".
+
+### SYNC button — lighter default
+
+- **Drops five sheets** from every SYNC click: ET CP Pod History (the current ET CP version still imports — only the historical walk moved) and four one-time-seed sheets (Model Assumptions, Delivery Schedules, Editorial Engagement Requirements, Meta Calendar Month Deliveries). They rarely change, so re-fetching them on every click was wasted time. All five remain available in the Import Wizard, unchecked by default — tick them only when one actually needs a refresh.
+- **Refresh Computed KPIs preview** no longer 500s. Synthetic steps (computed, no underlying sheet) now return an empty preview gracefully instead of an error card.
+
+### Help & Glossary
+
+- **Pace labels updated** to the new three-bucket vocabulary (Push needed / On track / Ahead of pace).
+- *Reading the cards* updated to describe the new explicit-label number row.
+
+---
+
 ## 0.3.12 — May 22
 
 **Overview gets a Pod Snapshot section as its new lead view; Production History gains a per-pod toggle; legacy sections collapse behind a Show button; Data Quality reorganized around a unified Pod History tab + per-column filters everywhere.**

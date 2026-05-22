@@ -102,6 +102,18 @@ const IMPORTABLE_EXACT = [
   "ET CP Pod History",
 ];
 
+/** Sheets that stay importable but are UNCHECKED by default. One-time
+ *  static config + the historical pod walk — they rarely need a refresh
+ *  on every wizard run, so we don't auto-tick them. Same set that's
+ *  excluded from the SYNC button (SyncAllModal.IMPORTABLE_EXACT). */
+const DEFAULT_UNCHECKED = new Set<string>([
+  "Model Assumptions",
+  "Delivery Schedules",
+  "Editorial Engagement Requirements",
+  "Meta Calendar Month Deliveries",
+  "ET CP Pod History",
+]);
+
 /** Prefix-match importable sheet names (capacity plan versions, KPI scores variants) */
 const IMPORTABLE_PREFIXES = [
   "ET CP 2026",
@@ -310,10 +322,15 @@ function StepSelectSheets({
   onNext: (selected: string[]) => void;
   onBack: () => void;
 }) {
-  // Default selection = every importable real sheet + every synthetic step
+  // Default selection = every importable real sheet EXCEPT the static-
+  // config + historical-pod sheets (DEFAULT_UNCHECKED) + every synthetic
+  // step. The unchecked sheets stay visible so the user can still pick
+  // them manually when one actually needs a refresh.
   const [selected, setSelected] = useState<Set<string>>(() => {
     const initial = new Set(
-      sheets.filter((s) => isImportable(s.name)).map((s) => s.name),
+      sheets
+        .filter((s) => isImportable(s.name) && !DEFAULT_UNCHECKED.has(s.name))
+        .map((s) => s.name),
     );
     for (const s of SYNTHETIC_STEPS) initial.add(s.name);
     return initial;
@@ -923,33 +940,108 @@ function StepComplete({
 // Historical resync card (Advanced)
 // ---------------------------------------------------------------------------
 
+// Re-sync steps, in execution order. Keep in sync with the backend's
+// _resync_step_registry() in migration.py — the `key` matches the URL
+// segment, the `label` is what shows in the UI.
+const RESYNC_STEPS = [
+  {
+    key: "goals-vs-delivery",
+    label: "Master Tracker - Goals vs Delivery",
+    description: "Every [Month Year] Goals vs Delivery monthly tab",
+  },
+  {
+    key: "week-distribution",
+    label: "Master Tracker - Week Distribution",
+    description: "<YYYY> Week Distribution — drives the 'As Of' badge",
+  },
+  {
+    key: "team-pods",
+    label: "Team Pods - Editorial + Growth",
+    description: "RBAC group auto-membership",
+  },
+  {
+    key: "et-cp-history",
+    label: "ET CP Pod History",
+    description: "Every historical ET CP version tab — confirmed pod history",
+  },
+  {
+    key: "backfill-editorial-pod",
+    label: "Backfill Editorial Pod from history",
+    description: "Fills clients.editorial_pod from the most recent confirmed history",
+  },
+] as const;
+
+type ResyncStepKey = (typeof RESYNC_STEPS)[number]["key"];
+
 function HistoricalResyncTab() {
-  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
-  const [results, setResults] = useState<ImportResultItem[] | null>(null);
+  const [stepStatuses, setStepStatuses] = useState<
+    Record<ResyncStepKey, "pending" | "importing" | "done" | "error">
+  >(() =>
+    Object.fromEntries(
+      RESYNC_STEPS.map((s) => [s.key, "pending"]),
+    ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error">,
+  );
+  const [stepResults, setStepResults] = useState<Record<ResyncStepKey, ImportResultItem>>(
+    () => ({}) as Record<ResyncStepKey, ImportResultItem>,
+  );
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState<"idle" | "running" | "complete">("idle");
 
   const run = useCallback(async () => {
-    setStatus("running");
-    setResults(null);
-    try {
-      const r = await apiPost<ImportResultItem[]>(
-        "/api/migrate/goals-historical-resync",
-        {},
-      );
-      setResults(r);
-      setStatus(r.every((x) => x.success) ? "done" : "error");
-    } catch (err) {
-      setResults([
-        {
-          sheet: "Past-months resync",
+    setPhase("running");
+    setProgress(0);
+    setStepStatuses(
+      Object.fromEntries(
+        RESYNC_STEPS.map((s) => [s.key, "pending"]),
+      ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error">,
+    );
+    setStepResults({} as Record<ResyncStepKey, ImportResultItem>);
+
+    // Fire steps sequentially — each is independent on the backend and uses
+    // its own DB session, so a failure in one doesn't block the next.
+    for (let i = 0; i < RESYNC_STEPS.length; i++) {
+      const step = RESYNC_STEPS[i];
+      setStepStatuses((prev) => ({ ...prev, [step.key]: "importing" }));
+
+      try {
+        const result = await apiPost<ImportResultItem>(
+          `/api/migrate/resync/${step.key}`,
+          {},
+        );
+        setStepResults((prev) => ({ ...prev, [step.key]: result }));
+        setStepStatuses((prev) => ({
+          ...prev,
+          [step.key]: result.success ? "done" : "error",
+        }));
+      } catch (err) {
+        const errorResult: ImportResultItem = {
+          sheet: step.label,
           rows_parsed: 0,
           rows_imported: 0,
           success: false,
-          errors: [err instanceof Error ? err.message : "Resync failed"],
-        },
-      ]);
-      setStatus("error");
+          errors: [err instanceof Error ? err.message : "Step failed"],
+        };
+        setStepResults((prev) => ({ ...prev, [step.key]: errorResult }));
+        setStepStatuses((prev) => ({ ...prev, [step.key]: "error" }));
+      }
+
+      setProgress(((i + 1) / RESYNC_STEPS.length) * 100);
     }
+
+    setPhase("complete");
   }, []);
+
+  // Ordered result list for the summary card — same order as RESYNC_STEPS.
+  const orderedResults = useMemo(
+    () =>
+      RESYNC_STEPS.map((s) => stepResults[s.key]).filter(
+        (r): r is ImportResultItem => Boolean(r),
+      ),
+    [stepResults],
+  );
+  const allOk =
+    orderedResults.length === RESYNC_STEPS.length &&
+    orderedResults.every((r) => r.success);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -965,23 +1057,24 @@ function HistoricalResyncTab() {
               when next year&apos;s Editorial week distribution has been added.
             </p>
             <p className="mt-2 font-mono text-[11px] text-[#606060]">
-              Runs across every <span className="text-[#C4BCAA]">[Month Year] Goals vs Delivery</span> tab,
-              every <span className="text-[#C4BCAA]">&lt;YYYY&gt; Week Distribution</span> tab,
-              the <span className="text-[#C4BCAA]">Team Pods</span> sheet,
-              every historical <span className="text-[#C4BCAA]">ET CP version</span> tab (writes confirmed pod history),
-              and finally <span className="text-[#C4BCAA]">backfills Editorial Pod from history</span> for any client
-              that fell off the current ET CP tab.
+              Runs five steps in order — each is independent, so one failure doesn&apos;t
+              block the rest. Watch the progress below as it works through them.
             </p>
           </div>
           <Button
             onClick={run}
-            disabled={status === "running"}
+            disabled={phase === "running"}
             className="shrink-0 bg-[#42CA80] text-black hover:bg-[#42CA80]/80"
           >
-            {status === "running" ? (
+            {phase === "running" ? (
               <>
                 <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                 Re-syncing…
+              </>
+            ) : phase === "complete" ? (
+              <>
+                <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                Run again
               </>
             ) : (
               <>
@@ -993,19 +1086,91 @@ function HistoricalResyncTab() {
         </div>
       </div>
 
-      {status === "running" && (
-        <div className="flex items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
-          <Loader2 className="h-5 w-5 animate-spin text-[#42CA80]" />
-          <span className="text-sm text-[#C4BCAA]">
-            Fetching every monthly tab and upserting rows — this can take 10-30 seconds.
-          </span>
+      {/* Per-step progress — visible during the run AND while results are
+          on screen so the user can see what just happened. */}
+      {phase !== "idle" && (
+        <div className="space-y-4">
+          {/* Overall progress bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-[#606060]">Overall Progress</span>
+              <span className="font-mono text-xs text-[#C4BCAA]">
+                {
+                  Object.values(stepStatuses).filter(
+                    (s) => s === "done" || s === "error",
+                  ).length
+                }{" "}
+                of {RESYNC_STEPS.length} steps
+              </span>
+            </div>
+            <Progress value={progress}>
+              <span className="sr-only">{Math.round(progress)}%</span>
+            </Progress>
+          </div>
+
+          {/* Per-step status rows */}
+          <div className="space-y-2">
+            {RESYNC_STEPS.map((step) => {
+              const status = stepStatuses[step.key];
+              const result = stepResults[step.key];
+              return (
+                <div
+                  key={step.key}
+                  className={cn(
+                    "flex items-center gap-4 rounded-xl border p-4 transition-colors",
+                    status === "done" && "border-[#42CA80]/30 bg-[#42CA80]/5",
+                    status === "error" && "border-[#ED6958]/30 bg-[#ED6958]/5",
+                    (status === "pending" || status === "importing") &&
+                      "border-[#2a2a2a] bg-[#161616]",
+                  )}
+                >
+                  <div className="shrink-0">
+                    {status === "importing" && (
+                      <Loader2 className="h-5 w-5 animate-spin text-[#42CA80]" />
+                    )}
+                    {status === "pending" && (
+                      <div className="h-5 w-5 rounded-full border-2 border-[#333333]" />
+                    )}
+                    {status === "done" && (
+                      <CheckCircle2 className="h-5 w-5 text-[#42CA80]" />
+                    )}
+                    {status === "error" && (
+                      <XCircle className="h-5 w-5 text-[#ED6958]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-white">{step.label}</div>
+                    <div className="mt-0.5 font-mono text-[11px] text-[#606060]">
+                      {step.description}
+                    </div>
+                    {result && status === "done" && (
+                      <div className="mt-1 font-mono text-[11px] text-[#42CA80]">
+                        {result.rows_imported.toLocaleString()} imported · {result.rows_parsed.toLocaleString()} parsed
+                        {result.details && result.details.length > 0 && (
+                          <> · {result.details.length} tab{result.details.length === 1 ? "" : "s"}</>
+                        )}
+                      </div>
+                    )}
+                    {result && status === "error" && result.errors.length > 0 && (
+                      <div className="mt-1 font-mono text-[11px] text-[#ED6958]">
+                        {result.errors[0]}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {results && (status === "done" || status === "error") && (
+      {/* Detailed expandable results — only when run completes. Reuses the
+          same SyncResultDetail component the Import Wizard renders, so each
+          step gets the same per-tab dropdown + preview pattern. */}
+      {phase === "complete" && orderedResults.length > 0 && (
         <SyncResultDetail
-          results={results as SyncResultItem[]}
-          title={status === "done" ? "Re-sync Complete" : "Re-sync Completed with Errors"}
+          results={orderedResults as SyncResultItem[]}
+          title={allOk ? "Re-sync Complete" : "Re-sync Completed with Errors"}
         />
       )}
     </div>

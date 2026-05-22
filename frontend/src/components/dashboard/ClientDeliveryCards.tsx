@@ -692,11 +692,12 @@ function ClientDeliveryCard({
                 qLength={qMeta.currentQ.qLength}
                 tooltipTitle="Current Q"
                 tooltipBullets={[
-                  "# = projected variance = END − Invoiced.",
-                  "NOW → END / Invoiced (cumulative).",
-                  "% = NOW ÷ END (trajectory).",
-                  "Bar = pace = (NOW÷END) ÷ (monthInQ÷qLength).",
-                  "≥ 1.10 ahead · 0.85–1.10 on · 0.70–0.85 slipping · < 0.70 behind.",
+                  "# = projected variance = end-of-Q − Invoiced.",
+                  "Numbers = delivered · projected end-of-Q · invoiced.",
+                  "% = delivered ÷ projected end-of-Q.",
+                  "Bar = pace = (delivered ÷ proj-Q) ÷ (month-in-Q ÷ Q length).",
+                  "Pace tells you if delivery is keeping up with how much of the Q has elapsed.",
+                  "≥ 1.10 ahead of pace · 0.85–1.10 on track · < 0.85 push needed.",
                 ]}
               />
             )}
@@ -788,10 +789,9 @@ function paceClassify(
   const expectedProgress = monthInQ / qLength;
   if (expectedProgress <= 0) return null;
   const ratio = actualProgress / expectedProgress;
-  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of schedule" };
-  if (ratio >= 0.85) return { color: "#42CA80", label: "On schedule" };
-  if (ratio >= 0.70) return { color: "#F5C542", label: "Slightly behind" };
-  return { color: "#ED6958", label: "Behind schedule" };
+  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of pace" };
+  if (ratio >= 0.85) return { color: "#9FE5BD", label: "On track" };
+  return { color: "#F5C542", label: "Push needed" };
 }
 
 /** Signed-variance color, matches the Overview Triage cards. */
@@ -934,17 +934,27 @@ function QuarterRow({
           </span>
         </div>
       </div>
-      {/* Numbers row — plain (no per-row tooltip). The format is
-          explained once on the section / column subtitle to keep the
-          per-client rows clean. */}
+      {/* Numbers row — explicit-label format on Current Q (delivered ·
+          proj Q · invoiced); Last Q stays as the simple delivered /
+          invoiced pair since it's a closed snapshot. */}
       <div className="mt-1 text-right font-mono text-[10px] tabular-nums">
         {showBreakdown ? (
-          <>
+          <span className="inline-flex items-baseline gap-1.5">
             <span className="text-white">{Math.round(actualDelivered!)}</span>
-            <span className="text-[#606060] mx-1">→</span>
+            <span className="text-[8px] uppercase tracking-wider text-[#606060]">
+              del
+            </span>
+            <span className="text-[#606060]">·</span>
             <span className="font-semibold text-white">{Math.round(delivered)}</span>
-            <span className="text-[#606060]"> / {Math.round(target)}</span>
-          </>
+            <span className="text-[8px] uppercase tracking-wider text-[#606060]">
+              proj Q
+            </span>
+            <span className="text-[#606060]">·</span>
+            <span className="text-[#909090]">{Math.round(target)}</span>
+            <span className="text-[8px] uppercase tracking-wider text-[#606060]">
+              inv
+            </span>
+          </span>
         ) : (
           <>
             <span className="font-semibold text-white">{Math.round(delivered)}</span>

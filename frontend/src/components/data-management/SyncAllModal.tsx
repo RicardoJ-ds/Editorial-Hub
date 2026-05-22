@@ -38,14 +38,20 @@ const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
 
 // Mirrors the wizard's isImportable() so the one-click modal syncs the same
 // sheets the wizard would have auto-selected — nothing more, nothing less.
+// Sheets the SYNC button auto-imports on every click. Intentionally
+// excludes:
+//   • ET CP Pod History — the current ET CP version still imports via
+//     the ET CP 2026 prefix below; the *historical* walk only belongs in
+//     the Re-sync Past Months flow.
+//   • Meta Calendar Month Deliveries, Editorial Engagement Requirements,
+//     Delivery Schedules, Model Assumptions — one-time-seed config that
+//     rarely changes; pulling them on every click is wasted time.
+// All 5 remain available in the Import Wizard (unchecked by default) so
+// they're still on-demand refreshable when needed.
 const IMPORTABLE_EXACT = new Set([
   "Editorial SOW overview",
   "Delivered vs Invoiced v2",
-  "Model Assumptions",
   "Editorial Operating Model",
-  "Delivery Schedules",
-  "Editorial Engagement Requirements",
-  "Meta Calendar Month Deliveries",
   "AI Monitoring - Data",
   "AI Monitoring - Rewrites",
   "AI Monitoring - Flags",
@@ -54,7 +60,6 @@ const IMPORTABLE_EXACT = new Set([
   "Master Tracker - Goals vs Delivery",
   "Notion Database",
   "Growth Pods",
-  "ET CP Pod History",
 ]);
 const IMPORTABLE_PREFIXES = [
   "ET CP 2026",

@@ -1314,6 +1314,10 @@ function DeliverablesSOWTab({
   clientProduction: ClientProductionRow[];
   dateRange: DateRange;
 }) {
+  // Pod axis follows the global toggle (Editorial / Growth). Threaded
+  // through to ProductionTrendChart so per-pod mode groups by the
+  // currently-selected axis.
+  const { axis: podAxis } = useCurrentPodAxis();
   // Trim deliverables to the FilterBar selection (client set + date range).
   // FilterBar emits a filtered `clients` array — anything not in that set
   // is hidden by contract (status, pod, search, engagement overlap).
@@ -1741,6 +1745,7 @@ function DeliverablesSOWTab({
             clientProduction={clientProduction}
             filteredClients={clients}
             dateRange={dateRange}
+            podAxis={podAxis}
           />
           <ClientNotesPanel clients={clients} />
         </div>
@@ -1750,6 +1755,7 @@ function DeliverablesSOWTab({
           clientProduction={clientProduction}
           filteredClients={clients}
           dateRange={dateRange}
+          podAxis={podAxis}
         />
       )}
       {/* Per-client cards — pacing badge, delivery/invoice bars, variance + % complete.

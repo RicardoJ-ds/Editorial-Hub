@@ -369,12 +369,115 @@ async def resync_historical_goals():
                     rows_imported=d.rows_imported,
                     status=d.status,
                     skipped_reason=d.skipped_reason,
+                    preview_key=d.preview_key,
                 )
                 for d in r.details
             ],
         )
         for r in results
     ]
+
+
+# ---------------------------------------------------------------------------
+# Per-step resync — same 5 steps as /goals-historical-resync, exposed
+# individually so the frontend can show per-step progress (mirrors the
+# Import Wizard's StepImporting flow). Each call is independent and
+# self-contained — no cross-step state.
+# ---------------------------------------------------------------------------
+
+
+def _resync_step_registry():
+    """Return ordered list of (key, label, fn) tuples for the 5 resync steps.
+
+    Kept inline (not module-level) so the importers resolve lazily — avoids
+    circular-import risk if migration_service grows new dependencies.
+    """
+    return [
+        (
+            "goals-vs-delivery",
+            "Master Tracker - Goals vs Delivery",
+            lambda s: import_goals_vs_delivery(s, mode="all"),
+        ),
+        (
+            "week-distribution",
+            "Master Tracker - Week Distribution",
+            import_week_distribution,
+        ),
+        (
+            "team-pods",
+            "Team Pods - Editorial + Growth",
+            import_team_pods,
+        ),
+        (
+            "et-cp-history",
+            "ET CP Pod History",
+            import_et_cp_pod_history,
+        ),
+        (
+            "backfill-editorial-pod",
+            "Backfill Editorial Pod from history",
+            backfill_editorial_pod_from_history,
+        ),
+    ]
+
+
+@router.post("/resync/{step}", response_model=ImportResultResponse)
+async def resync_single_step(step: str):
+    """Run a single past-months resync step. Frontend fans these out
+    sequentially so each step shows live progress, instead of waiting for all
+    five to finish on one endpoint."""
+    registry = _resync_step_registry()
+    entry = next(((k, label, fn) for k, label, fn in registry if k == step), None)
+    if entry is None:
+        valid = ", ".join(k for k, _, _ in registry)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown resync step '{step}'. Valid: {valid}",
+        )
+
+    _, label, fn = entry
+
+    def _run():
+        session = _get_sync_session()
+        try:
+            return fn(session)
+        except Exception as exc:
+            logger.exception("%s failed during single-step resync", label)
+            from app.services.migration_service import ImportResult as _IR
+
+            try:
+                session.rollback()
+            except Exception:
+                logger.warning("Rollback failed for %s (continuing)", label)
+            return _IR(
+                sheet=label,
+                success=False,
+                errors=[f"{type(exc).__name__}: {exc}"],
+            )
+        finally:
+            session.close()
+
+    result = await asyncio.to_thread(_run)
+
+    return ImportResultResponse(
+        sheet=result.sheet,
+        rows_parsed=result.rows_parsed,
+        rows_imported=result.rows_imported,
+        success=result.success,
+        errors=result.errors,
+        details=[
+            TabDetailResponse(
+                tab_name=d.tab_name,
+                month_year=d.month_year,
+                rows_parsed=d.rows_parsed,
+                rows_imported=d.rows_imported,
+                status=d.status,
+                skipped_reason=d.skipped_reason,
+                preview_key=d.preview_key,
+            )
+            for d in result.details
+        ],
+    )
 
 
 @router.get("/editorial-weeks", response_model=list[EditorialWeekResponse])

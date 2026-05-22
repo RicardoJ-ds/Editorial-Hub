@@ -90,6 +90,17 @@ IMPORT_DISPATCH: dict[str, str] = {
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
 
+# Synthetic / computed import steps that the frontend may try to preview
+# (because they appear as result rows in SYNC + Re-sync UIs) but that
+# have no underlying sheet — return an empty payload for these instead
+# of raising. Keep this list in sync with frontend SYNTHETIC_STEPS.
+_NON_PREVIEWABLE_STEPS = frozenset(
+    {
+        "Refresh computed KPIs",
+        "Backfill Editorial Pod from history",
+    }
+)
+
 
 # ---------------------------------------------------------------------------
 # Result dataclass
@@ -621,6 +632,25 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
         return _preview_growth_pods(max_rows)
     if sheet_name == "ET CP Pod History":
         return _preview_et_cp_pod_history(max_rows)
+
+    # Individual ET CP version tab — e.g. "ET CP 2026 [V11 Mar 2026]".
+    # Each historical version is its own tab inside the Editorial Capacity
+    # Planning spreadsheet; route directly so the Re-sync UI's per-tab
+    # dropdown can show the actual data from that month's snapshot.
+    if _ET_CP_TAB_RE.match(sheet_name):
+        return _preview_et_cp_version_tab(sheet_name, max_rows)
+
+    # Empty / explicit-skip preview_key: caller signals "no drill-down".
+    # Surface as an empty payload rather than a 500.
+    if not sheet_name:
+        return {"sheet_name": "", "headers": [], "rows": [], "total_rows": 0}
+
+    # Synthetic / computed steps that aren't backed by a sheet — the
+    # Refresh Computed KPIs row in the SYNC modal, the Backfill Editorial
+    # Pod from history row in the Re-sync UI, etc. Return an empty payload
+    # instead of trying to resolve them to a sheet (which 500's).
+    if sheet_name in _NON_PREVIEWABLE_STEPS:
+        return {"sheet_name": sheet_name, "headers": [], "rows": [], "total_rows": 0}
 
     service = get_sheets_client()
     ssid, tab_name = _resolve_sheet_source(sheet_name)
@@ -3768,6 +3798,58 @@ def _preview_et_cp_pod_history(max_rows: int = 20) -> dict:
     }
 
 
+def _preview_et_cp_version_tab(tab_name: str, max_rows: int = 20) -> dict:
+    """Preview a specific historical ET CP version tab (e.g. 'ET CP 2026 [V11
+    Mar 2026]'). Used by the Re-sync UI's per-tab dropdown so each ET CP
+    snapshot can be inspected independently — not just the latest one.
+    """
+    service = get_sheets_client()
+    resp = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=SPREADSHEET_ID, range=f"'{tab_name}'!1:{max_rows + 1}")
+        .execute()
+    )
+    values = resp.get("values", [])
+    if not values:
+        return {"sheet_name": tab_name, "headers": [], "rows": [], "total_rows": 0}
+
+    # The ET CP sheets carry several pre-header banner rows before the actual
+    # Client / Pod / Pod Members header row. Find that header line so the
+    # preview shows a meaningful header (not a row of metadata cells).
+    header_idx: int | None = None
+    for idx, row in enumerate(values[:10]):
+        cells = [str(c).strip().lower() for c in row[:8]]
+        if "client" in cells and "pod" in cells:
+            header_idx = idx
+            break
+    if header_idx is None:
+        header_idx = 0
+
+    headers = [str(h) for h in values[header_idx]]
+    rows = values[header_idx + 1 :]
+
+    # Total row count from grid metadata so the user knows the sheet extends
+    # past the preview window.
+    meta = (
+        service.spreadsheets()
+        .get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties")
+        .execute()
+    )
+    total_rows = 0
+    for s in meta.get("sheets", []):
+        if s.get("properties", {}).get("title") == tab_name:
+            total_rows = s["properties"].get("gridProperties", {}).get("rowCount", 0)
+            break
+
+    return {
+        "sheet_name": tab_name,
+        "headers": headers,
+        "rows": [[str(c) if c is not None else "" for c in r] for r in rows],
+        "total_rows": total_rows,
+    }
+
+
 def _preview_growth_pods(max_rows: int = 20) -> dict:
     """Return a preview row-set for the Growth Pods source (BigQuery)."""
     rows = _fetch_growth_pod_pairs()
@@ -4016,6 +4098,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
 
     service = get_sheets_client()
     result = ImportResult(sheet="ET CP Pod History")
+    _MONTH_ABBR_REV = {v: k for k, v in _MONTH_ABBR_TO_NUM.items()}
 
     try:
         meta = (
@@ -4056,6 +4139,13 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
         skip_keywords = ("total", "median", "average", "production")
 
         for tab_name, _version, sheet_year, year, month in tabs:
+            # Per-tab counters — captured into a TabImportDetail at the end of
+            # the loop so the Re-sync UI can show a dropdown per ET CP version
+            # tab (mirrors the Goals vs Delivery month-tab pattern).
+            tab_parsed = 0
+            tab_imported = 0
+            tab_skipped_reason: str | None = None
+            tab_status = "imported"
             # Every ET CP sheet covers Dec(sheet_year-1) through Dec(sheet_year).
             # The N-th "Pod" column in the header row maps to that N-th month.
             sheet_months = _et_cp_sheet_months(sheet_year)
@@ -4068,6 +4158,17 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     year,
                     month,
                     sheet_year,
+                )
+                result.details.append(
+                    TabImportDetail(
+                        tab_name=tab_name,
+                        month_year=f"{_MONTH_ABBR_REV.get(month, '???')} {year}",
+                        rows_parsed=0,
+                        rows_imported=0,
+                        status="skipped",
+                        skipped_reason=f"Month not in sheet_year={sheet_year} layout",
+                        preview_key=tab_name,
+                    )
                 )
                 continue
 
@@ -4108,6 +4209,17 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
 
             if header_row_idx is None:
                 logger.warning("ET CP pod history: no header row in '%s' — skipping", tab_name)
+                result.details.append(
+                    TabImportDetail(
+                        tab_name=tab_name,
+                        month_year=f"{_MONTH_ABBR_REV.get(month, '???')} {year}",
+                        rows_parsed=0,
+                        rows_imported=0,
+                        status="skipped",
+                        skipped_reason="No header row found in tab",
+                        preview_key=tab_name,
+                    )
+                )
                 continue
             if month_idx >= len(pod_col_indices):
                 logger.warning(
@@ -4115,6 +4227,19 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     tab_name,
                     len(pod_col_indices),
                     month_idx,
+                )
+                result.details.append(
+                    TabImportDetail(
+                        tab_name=tab_name,
+                        month_year=f"{_MONTH_ABBR_REV.get(month, '???')} {year}",
+                        rows_parsed=0,
+                        rows_imported=0,
+                        status="skipped",
+                        skipped_reason=(
+                            f"Only {len(pod_col_indices)} pod cols, need index {month_idx}"
+                        ),
+                        preview_key=tab_name,
+                    )
                 )
                 continue
 
@@ -4137,6 +4262,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     continue
 
                 result.rows_parsed += 1
+                tab_parsed += 1
                 c = _resolve_client(client_lookup, client_name)
 
                 if c is not None:
@@ -4239,11 +4365,28 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                         )
 
                 result.rows_imported += 1
+                tab_imported += 1
 
             session.flush()
 
+            # Capture per-tab summary for the resync UI dropdown.
+            result.details.append(
+                TabImportDetail(
+                    tab_name=tab_name,
+                    month_year=f"{_MONTH_ABBR_REV.get(month, '???')} {year}",
+                    rows_parsed=tab_parsed,
+                    rows_imported=tab_imported,
+                    status=tab_status,
+                    skipped_reason=tab_skipped_reason,
+                    preview_key=tab_name,
+                )
+            )
+
         session.commit()
         result.success = True
+        # Sort details chronologically — earliest tab first — mirrors Goals
+        # vs Delivery's per-month ordering in the same UI.
+        result.details.sort(key=lambda d: d.tab_name)
         logger.info(
             "ET CP pod history: parsed=%d imported=%d tabs=%d",
             result.rows_parsed,
@@ -4306,9 +4449,43 @@ def backfill_editorial_pod_from_history(session: Session) -> ImportResult:
             if latest and latest.editorial_pod:
                 client.editorial_pod = latest.editorial_pod
                 result.rows_imported += 1
+                # Per-client detail row for the Re-sync UI dropdown.
+                # preview_key="" tells the frontend "no further preview to
+                # fetch" — the row renders inline (not expandable).
+                # TabRow renders month_year as the primary label and
+                # tab_name as a dim suffix, so put the client name in
+                # month_year and the pod assignment in tab_name.
+                result.details.append(
+                    TabImportDetail(
+                        tab_name=f"{latest.editorial_pod} · from {latest.source_tab or 'history'}",
+                        month_year=client.name,
+                        rows_parsed=1,
+                        rows_imported=1,
+                        status="imported",
+                        skipped_reason=None,
+                        preview_key="",
+                    )
+                )
+            else:
+                # Client had no pod history to draw from. Record as skipped
+                # so the dropdown shows both buckets clearly.
+                result.details.append(
+                    TabImportDetail(
+                        tab_name="no history",
+                        month_year=client.name,
+                        rows_parsed=1,
+                        rows_imported=0,
+                        status="skipped",
+                        skipped_reason="No pod history available",
+                        preview_key="",
+                    )
+                )
 
         session.commit()
         result.success = True
+        # Backfilled clients first, then skipped ones — matches the visual
+        # weight the user cares about most.
+        result.details.sort(key=lambda d: (d.status != "imported", d.tab_name.lower()))
         logger.info(
             "Backfill Editorial Pod: parsed=%d backfilled=%d",
             result.rows_parsed,

@@ -402,16 +402,17 @@ function PodDeliveryProgressCard({
           />
           <ColumnHeader
             title="Current Q · Variance"
-            sub="NOW → projected END ÷ Invoiced"
+            sub="delivered · proj Q · invoiced"
             align="center"
             help={{
               title: "Current Q",
               bullets: [
-                "# = projected variance = END − Invoiced.",
-                "NOW → END / Invoiced (cumulative).",
-                "% = NOW ÷ END (trajectory).",
-                "Bar = pace = (NOW÷END) ÷ (monthInQ÷qLength).",
-                "≥ 1.10 ahead · 0.85–1.10 on · 0.70–0.85 slipping · < 0.70 behind.",
+                "# = projected variance = end-of-Q − Invoiced.",
+                "Numbers = delivered · projected end-of-Q · invoiced.",
+                "% = delivered ÷ projected end-of-Q.",
+                "Bar = pace = (delivered ÷ proj-Q) ÷ (month-in-Q ÷ Q length).",
+                "Pace tells you if delivery is keeping up with how much of the Q has elapsed.",
+                "≥ 1.10 ahead of pace · 0.85–1.10 on track · < 0.85 push needed.",
               ],
             }}
           />
@@ -1057,16 +1058,25 @@ function QTile({
       </p>
       {showBreakdown ? (
         <div className="mt-1 space-y-1 font-mono text-[10px] tabular-nums text-[#C4BCAA]">
-          {/* Both NOW and END share the same cumulative-invoiced
-              denominator — show it once at the end. Numbers strip is
-              hover-explained so users can decode the convention on
-              demand without inline labels cluttering the row. */}
-          <span className="text-white">{Math.round(actualDelivered!)}</span>
-          <span className="text-[#606060] mx-1">→</span>
-          <span className={`font-semibold text-white ${italicCls}`}>
-            {Math.round(delivered)}
-          </span>
-          <span className="text-[#606060]"> / {Math.round(invoiced)}</span>
+          {/* Three labelled numbers replace the cryptic NOW → END / Invoiced
+              arrow form. Each value carries its own meaning chip below so
+              the user doesn't have to decode the symbols. */}
+          <div className="flex items-center justify-center gap-1.5 leading-tight">
+            <span className="text-white">{Math.round(actualDelivered!)}</span>
+            <span className="text-[#606060]">·</span>
+            <span className={`font-semibold text-white ${italicCls}`}>
+              {Math.round(delivered)}
+            </span>
+            <span className="text-[#606060]">·</span>
+            <span className="text-[#909090]">{Math.round(invoiced)}</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 font-mono text-[8px] uppercase tracking-wider text-[#606060]">
+            <span>delivered</span>
+            <span>·</span>
+            <span>proj Q</span>
+            <span>·</span>
+            <span>invoiced</span>
+          </div>
           {(() => {
             // Pace coloring: bar uses pace tier (separate from variance
             // tier above). Falls back to variance tier color if we don't
@@ -1123,14 +1133,15 @@ function QTile({
  *  progress at this month-in-Q (monthInQ / qLength).
  *
  *  pace_ratio = (NOW/END) / (monthInQ/qLength)
- *    > 1.10   → ahead of schedule
- *    0.85-1.10 → on schedule
- *    < 0.85   → behind schedule
+ *    ≥ 1.10   → "Ahead of pace"  (dark green)
+ *    0.85-1.10 → "On track"       (light green)
+ *    < 0.85   → "Push needed"    (yellow)
  *
- *  Returns the pace tier + bar color (red/amber/green) — kept separate
- *  from the variance tier color so a row can be Healthy on outcome AND
- *  Behind schedule on pace at the same time (the case the user wants
- *  to surface). */
+ *  Three buckets, three colours — separate from the variance tier so a
+ *  row can be Healthy on outcome AND "Push needed" on pace at the same
+ *  time. Red dropped on purpose: yellow already says "needs attention"
+ *  and the variance tier (above the bar) carries the alarm when
+ *  delivered − invoiced has actually fallen behind. */
 function paceClassify(
   actualDelivered: number,
   projectedEnd: number,
@@ -1142,10 +1153,9 @@ function paceClassify(
   const expectedProgress = monthInQ / qLength;
   if (expectedProgress <= 0) return null;
   const ratio = actualProgress / expectedProgress;
-  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of schedule" };
-  if (ratio >= 0.85) return { color: "#42CA80", label: "On schedule" };
-  if (ratio >= 0.70) return { color: "#F5C542", label: "Slightly behind" };
-  return { color: "#ED6958", label: "Behind schedule" };
+  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of pace" };
+  if (ratio >= 0.85) return { color: "#9FE5BD", label: "On track" };
+  return { color: "#F5C542", label: "Push needed" };
 }
 
 /** Clean two-shade bar (matches the Goals MiniProgress idiom). Solid fill
