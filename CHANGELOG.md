@@ -18,6 +18,61 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.12 — May 22
+
+**Overview gets a Pod Snapshot section as its new lead view; Production History gains a per-pod toggle; legacy sections collapse behind a Show button; Data Quality reorganized around a unified Pod History tab + per-column filters everywhere.**
+
+### Overview — new lead section: Pod Snapshot
+
+- **Per-pod Delivery Progress + Milestone Journey** — Two new cards at the top of Overview replace the old top-row triage. Delivery Progress rolls Last Q / Current Q numbers up per pod (NOW → END / Invoiced, projected variance, pace-coloured bar, progress %). Milestone Journey shows the timeline of Editorial KO → First CB → First Article → First Feedback → First Published per pod.
+- **Section-local Goals period selector** — Above the Goals column, pick Current month / Last 1 / 3 / 6 / 12 months / All time. Period bounds are computed from the actual goals data envelope, not the calendar.
+- **Click-to-drill popovers** — Click any Last Q / Current Q / Goals / Lifetime cell to open a detail popover with the monthly breakdown table (variance cells tinted by tier), pace bar, projected end-of-Q variance, and the contract's SOW progress chart anchored to the editorial AS-OF date.
+- **Cumulative-through-end-of-Q math everywhere** — Last Q and Current Q numbers across Pod Snapshot AND Client Delivery at a Glance now consistently show cumulative totals through the end of the quarter (not per-Q deltas). Matches the spreadsheet's per-Q Variance row.
+- **Pace classification** — A second signal beside variance. The bar colour shows whether a client is *ahead* / *on pace* / *slipping* / *behind pace* for the current quarter. A client can be Behind on variance but on pace to recover — both signals show side-by-side.
+
+### Overview — Production History
+
+- **All / Per pod toggle** — New segmented control in the chart's top-right. *Per pod* draws one line per pod using the pod colours, no fill. Tooltip groups the clients under each pod with pod totals + per-client values.
+- **Follows the global Editorial / Growth axis** — Per-pod mode regroups according to the current axis toggle, so admins / leadership can see the same chart through either lens.
+
+### Overview — Legacy sections
+
+- **Show toggle at the bottom** — Time-to Metrics, Delivery Overview, Cumulative Pipeline, and Client Delivery at a Glance all moved into a single *Legacy sections* block behind a Show / Hide button. They were superseded by Pod Snapshot above and stay mounted for reference until removal.
+- **Left nav rail trimmed** — Only Pod Snapshot and Production History show in the section index now.
+
+### Editorial Clients — Client Delivery at a Glance
+
+- **Last Q / Current Q rows rebuilt** — Same NOW → END / Invoiced + variance + pace-bar pattern as Pod Snapshot. The Current Q row now leads with the variance number + tier chip on the right, then the cumulative numbers, then the pace-coloured two-shade bar with progress %.
+- **Single source of truth across surfaces** — Pace thresholds and tier thresholds are now identical between Pod Snapshot, the per-client cards, and the drill-down popovers.
+
+### Filter bar — date range + pod axis
+
+- **Date picker improvements** — Year bounds are now driven by the data envelope (no more rolling through empty years). The picker uses subtle past / current / future tense colours, an iOS-style multi-year selector, and a Quick Select highlight on the active preset.
+- **Dynamic panel anchor** — Date picker now flips its alignment (left vs right) based on the trigger's viewport position so it never clips off-screen.
+- **Pod Axis toggle inline with the filters** — Moved out of the top-right and into the filter row with a "Pod Axis" label, between Growth Pod and Status.
+
+### Admin → Data Quality (reorganized)
+
+- **Pod History tab (merged)** — Old Pod Drift, Missing SOW, and Not-in-SOW-Overview tabs collapsed into a single Pod History tab. Combined filter chips: RESOLVED / POD DRIFT / INCOMPLETE SOW / NOT IN SOW OVERVIEW. Each row exposes a `missing_fields` summary.
+- **Delivered Drift — 4-source comparison** — Refactored to compare Operating Model, Delivered vs Invoiced, Cumulative Pipeline, and SOW Overview side-by-side with span colouring.
+- **New Modeling Limitations tab** — Moved out of the body and into its own tab.
+- **Per-column filters everywhere** — Google-Sheets-style header filter dropdowns (text / combobox / select / range / date) on every tab. Powered by a new shared `ColumnFilter` primitive.
+- **Backfill Editorial Pod from history** — Added as a step inside the *Re-sync past months* flow so missing editorial-pod assignments get filled automatically.
+- **Page layout fixed to the viewport** — Only the tab tables scroll now; tabs + filters stay anchored.
+
+### Admin / Data Management
+
+- **Page titles normalized** — All admin + data-management pages share the same Data Quality eyebrow + h1 pattern for a consistent look.
+- **Access Control** — Fixed an overlap in the sticky left column on hover.
+
+### Help & Glossary
+
+- **Pace term added** — Sits next to Variance in the glossary as a separate signal.
+- **New How-to entries** — Drilling into a Q cell on Overview, the per-pod toggle on Production History, and finding the Legacy sections block.
+- **Reading the cards rewritten** — Updated around the new NOW / END / Invoiced + pace-bar + variance pattern.
+
+---
+
 ## 0.3.11 — May 15
 
 **Delivery Progress card now drives every Deliverables view; per-card tier badges + explicit "variance" wording across Overview Triage; Help modal made wider and gated to Admin/Leadership/BI Team.**
