@@ -38,6 +38,8 @@ Each client has one of each.
 
 **Variance** — Delivered minus invoiced. We use **cumulative variance through end of current quarter**, so over-delivery this quarter cancels earlier deficits.
 
+**Pace** — A second signal next to variance. Compares how far through the quarter you are vs. how much you've actually delivered. A client can be *behind* on variance but *on pace* to recover — both signals show side-by-side.
+
 **Last Q / Current Q** — Each client's **own** contract quarters, anchored to their start date — not calendar quarters.
 
 **As Of** — The last fully-completed Editorial month (from the team's week-distribution sheet).
@@ -58,8 +60,14 @@ Use the date-range picker at the top of any dashboard.
 #### Find a specific client fast
 Use **Search clients…** in the top filter row. The **Status** filter lets you narrow to Active, **Soon to be active**, or Inactive/Completed clients.
 
-#### Drill from a triage signal into the client
-Click any row inside **Most Behind** or **Pod Attention** — it scrolls straight to the per-client card.
+#### Drill into a Q cell on Overview
+Click any Last Q / Current Q / Goals / Lifetime cell inside **Pod Snapshot** to open a detail popover — monthly breakdown, pace bar, projected end-of-Q variance, and the contract's SOW progress chart.
+
+#### See the per-pod split on Production History
+The chart has an **All / Per pod** toggle in the top-right. *Per pod* draws one line per pod using the pod colours, with a tooltip that groups the clients under each pod. It follows the global **Editorial / Growth** axis toggle.
+
+#### Reach a legacy section on Overview
+Time-to Metrics, Delivery Overview, Cumulative Pipeline, and per-client Delivery cards now live under a single **Legacy sections** block at the bottom of Overview — click **Show** to expand. They'll be removed once Pod Snapshot is fully validated.
 
 #### Switch how charts group clients
 Click **Editorial / Growth** at the top-right (if available to you).
@@ -86,13 +94,14 @@ Five seeded groups. Click **Admin → Access Control** to see the full matrix.
 
 Each per-client card shows:
 
-- **Tier badge** (next to the name) — at-a-glance status: _Healthy_ (green), _Within limit_ (amber), _Behind_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as the Overview Delivery Progress card.
-- **Last Full Q** — what they actually closed last quarter (% of invoicing target).
-- **Current Q** — partial progress this quarter (settled months only).
-- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. The friendly label tells you the state at a glance: _On track_ (variance ≥ 0), _Slight drift_ (−5 to 0), or _Behind plan_ (below −5). Over-delivery counts as on-track. New 1st-Q contracts get a calm _New 1st Q_ hint instead of an alarm — they haven't had time to ramp.
+- **Tier badge** (next to the name) — at-a-glance status: _Healthy_ (green), _Within limit_ (amber), _Behind_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
+- **Last Q** — cumulative *delivered / invoiced* through the end of the last full contract quarter, plus the variance and a tier chip.
+- **Current Q** — cumulative *delivered / invoiced* through the end of the current contract quarter (actuals + projection for the remaining months). Numbers read as NOW → END / Invoiced.
+- **Pace bar** — colour shows whether the client is on track for the current quarter: _ahead_ / _on pace_ / _slipping_ / _behind pace_. This is a separate signal from variance — a behind-on-variance client can still be on pace to recover.
+- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. The friendly label tells you the state at a glance: _On track_ (≥ 0), _Slight drift_ (−5 to 0), or _Behind plan_ (below −5). New 1st-Q contracts get a calm _New 1st Q_ hint instead of an alarm.
 - **Lifetime · SOW** — Delivered / Invoiced / SOW for the full relationship.
 
-The bar colors run beige (low) → deep green (full). They are intentionally **not** alarming — the actionable signal lives in the **tier badge** and the **End-of-Q variance** row.
+The two-shade bar shows actuals as solid + remaining projection as a fainter extension — the colour itself comes from the pace classification, not the absolute %.
 
 ---
 
