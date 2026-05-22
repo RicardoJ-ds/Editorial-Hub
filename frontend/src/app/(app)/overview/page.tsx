@@ -60,12 +60,12 @@ import type {
 // All three lenses read from the same fetched data; switching is free.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Visible sections drive the left nav rail. Everything below Production
+// History was deprecated by Pod Snapshot and lives inside a single
+// LegacySectionsContainer (hidden behind a Show toggle) until removal.
 const SECTIONS = [
   { id: "period-snapshot", label: "Pod Snapshot" },
   { id: "production-history", label: "Production History" },
-  { id: "delivery-overview", label: "Delivery Overview" },
-  { id: "cumulative-pipeline", label: "Cumulative Pipeline" },
-  { id: "client-delivery", label: "Client Delivery" },
 ];
 
 type Lens = "composition" | "triage";
@@ -75,6 +75,7 @@ export default function OverviewPage() {
   // spec. The hook bounces them to /editorial-clients.
   useRequireView("overview");
   const overviewAsOf = useEditorialAsOf();
+  const { axis: podAxis } = useCurrentPodAxis();
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [deliverables, setDeliverables] = useState<DeliverableMonthly[]>([]);
@@ -262,19 +263,22 @@ export default function OverviewPage() {
                 clientProduction={clientProduction}
                 filteredClients={filteredClients}
                 dateRange={dateRange}
+                podAxis={podAxis}
               />
             </Section>
 
-            {/* Time-to Metrics — superseded by Period Snapshot above. Kept
-                mounted (collapsed) for side-by-side comparison; will be
-                removed in a follow-up once the new section is validated. */}
-            <CollapsibleLegacySection
-              id="time-to-metrics-legacy"
-              title="Time-to Metrics (legacy)"
-              subtitle="Original aggregate cards — now covered by Period Snapshot"
-            >
-              <TimeToMetrics clients={filteredClients} hideHeader />
-            </CollapsibleLegacySection>
+            {/* All sections below were superseded by Pod Snapshot. Kept
+                mounted (collapsed) behind a single Show toggle for
+                reference; removed in a follow-up once the new section
+                is validated. */}
+            <LegacySectionsContainer>
+              <CollapsibleLegacySection
+                id="time-to-metrics-legacy"
+                title="Time-to Metrics (legacy)"
+                subtitle="Original aggregate cards — now covered by Period Snapshot"
+              >
+                <TimeToMetrics clients={filteredClients} hideHeader />
+              </CollapsibleLegacySection>
 
             <Section
               id="delivery-overview"
@@ -360,6 +364,7 @@ export default function OverviewPage() {
                 hideHeader
               />
             </Section>
+            </LegacySectionsContainer>
 
           </div>
         </div>
@@ -500,9 +505,45 @@ function LensSwitcher({
   );
 }
 
-// Wrapper for sections that are superseded by Period Snapshot — rendered
-// collapsed by default with a toggle so the Director can A/B against the
-// new view. Removed entirely in a follow-up cleanup.
+// Single Show/Hide wrapper for everything below Production History that
+// Period Snapshot supersedes. Lets a VP audit the older views without
+// leaking them into the default Overview surface. Removed entirely once
+// the new section is validated and we drop the legacy code.
+function LegacySectionsContainer({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="scroll-mt-[140px]">
+      <div className="flex items-end justify-between gap-3 border-t border-[#2a2a2a] pt-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#606060]">
+              Legacy sections
+            </h2>
+            <span className="rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+              Deprecated
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-[#606060]">
+            Time-to Metrics · Delivery Overview · Cumulative Pipeline · Client Delivery — superseded by Pod Snapshot above.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:border-[#42CA80]/40 hover:text-[#42CA80]"
+        >
+          {open ? "Hide" : "Show"}
+        </button>
+      </div>
+      {open && <div className="mt-8 space-y-12">{children}</div>}
+    </section>
+  );
+}
+
+// Wrapper for an individual legacy section nested inside
+// LegacySectionsContainer — Time-to Metrics gets its own inner Show/Hide
+// because it's much taller than the others and most users only want to
+// peek at it.
 function CollapsibleLegacySection({
   id,
   title,

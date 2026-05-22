@@ -31,6 +31,24 @@ export const POD_COLORS: Record<string, string> = {
   "Pod 12": "bg-[#93C5FD]/15 text-[#93C5FD] border-[#93C5FD]/30",
 };
 
+// Pure hex swatches for charts (recharts can't use Tailwind class strings).
+// Keep in sync with POD_COLORS above.
+export const POD_HEX_COLORS: Record<string, string> = {
+  "Pod 1":  "#8FB5D9",
+  "Pod 2":  "#42CA80",
+  "Pod 3":  "#F5C542",
+  "Pod 4":  "#F28D59",
+  "Pod 5":  "#ED6958",
+  "Pod 6":  "#CEBCF4",
+  "Pod 7":  "#7FE8D6",
+  "Pod 8":  "#F472B6",
+  "Pod 9":  "#A78BFA",
+  "Pod 10": "#FDBA74",
+  "Pod 11": "#6EE7B7",
+  "Pod 12": "#93C5FD",
+  Unassigned: "#606060",
+};
+
 // ---------------------------------------------------------------------------
 // Badge helpers
 // ---------------------------------------------------------------------------
