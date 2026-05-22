@@ -176,10 +176,10 @@ export default function AccessControlPage() {
     <div className="space-y-6">
       <header>
         <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">Admin</p>
-        <h1 className="mt-1 font-mono text-lg font-bold uppercase tracking-[0.2em] text-white">
+        <h1 className="mt-0.5 font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
           Access Control
         </h1>
-        <p className="mt-2 max-w-3xl text-sm text-[#C4BCAA]">
+        <p className="mt-1 max-w-3xl text-sm text-[#C4BCAA]">
           Per-user and per-group permissions. View-only across the matrix —
           nobody can edit dashboard data through these grants. Group defaults
           flow to every member; per-user overrides win when both apply.
@@ -1236,8 +1236,8 @@ function FragmentRow({
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   return (
     <>
-      <tr className="border-t border-[#1a1a1a] hover:bg-[#161616]">
-        <td className="sticky left-0 z-10 bg-inherit border-r-2 border-r-[#3a3a3a] px-3 py-2">
+      <tr className="group border-t border-[#1a1a1a] bg-[#0d0d0d] hover:bg-[#161616]">
+        <td className="sticky left-0 z-10 bg-[#0d0d0d] group-hover:bg-[#161616] border-r-2 border-r-[#3a3a3a] px-3 py-2">
           <button
             type="button"
             onClick={onToggleExpand}
@@ -1959,8 +1959,8 @@ function UsersViewsTab({ profile }: { profile: AccessProfile }) {
             {filtered.map((u) => {
               const counts = overrideCounts.find((c) => c.email === u.email);
               return (
-                <tr key={u.email} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
-                  <td className="sticky left-0 z-10 bg-inherit border-r-2 border-r-[#3a3a3a] px-3 py-2">
+                <tr key={u.email} className="group border-t border-[#1a1a1a] bg-[#0d0d0d] hover:bg-[#161616]">
+                  <td className="sticky left-0 z-10 bg-[#0d0d0d] group-hover:bg-[#161616] border-r-2 border-r-[#3a3a3a] px-3 py-2">
                     <div className="flex items-center gap-2">
                       <div className="font-mono text-[12px] text-white">
                         {u.display_name}

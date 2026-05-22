@@ -145,6 +145,78 @@ export function ClientStatusCard({ client }: { client: Client }) {
   );
 }
 
+/** One-line inline strip version of ClientStatusCard — used on /overview top bar. */
+export function ClientStatusStrip({ client }: { client: Client }) {
+  const style = statusStyle(client.status);
+  const daysToEnd = daysBetweenToday(client.end_date);
+  const daysSinceStart = client.start_date
+    ? -1 * (daysBetweenToday(client.start_date) ?? 0)
+    : null;
+
+  const remainingColor =
+    daysToEnd === null ? "#C4BCAA"
+    : daysToEnd < 0 ? "#ED6958"
+    : daysToEnd < 30 ? "#F5C542"
+    : "#42CA80";
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 font-mono text-[11px]">
+      {/* Client name */}
+      <span className="font-semibold text-white">{client.name}</span>
+
+      {/* Status pill */}
+      <span
+        className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+        style={{ color: style.fg, backgroundColor: style.bg }}
+      >
+        {style.label}
+      </span>
+
+      {/* Separator */}
+      <span className="text-[#333]">·</span>
+
+      {/* Pods */}
+      {client.editorial_pod && (
+        <span className="text-[#909090]">
+          <span className="text-[#606060]">Ed </span>
+          <span className="text-[#C4BCAA]">{displayPod(client.editorial_pod, "editorial")}</span>
+        </span>
+      )}
+      {client.growth_pod && (
+        <span className="text-[#909090]">
+          <span className="text-[#606060]">Gr </span>
+          <span className="text-[#C4BCAA]">{displayPod(client.growth_pod, "growth")}</span>
+        </span>
+      )}
+
+      {/* Separator */}
+      <span className="text-[#333]">·</span>
+
+      {/* Contract window */}
+      <span className="text-[#606060]">
+        {fmtDate(client.start_date)}{" "}
+        <span className="text-[#444]">→</span>{" "}
+        {fmtDate(client.end_date)}
+      </span>
+
+      {/* Remaining / elapsed */}
+      {daysToEnd !== null && (
+        <>
+          <span className="text-[#333]">·</span>
+          <span style={{ color: remainingColor }} className="tabular-nums">
+            {Math.abs(daysToEnd)}d {daysToEnd < 0 ? "ended" : "remaining"}
+          </span>
+        </>
+      )}
+      {daysSinceStart !== null && daysSinceStart >= 0 && (
+        <span className="text-[#606060] tabular-nums">
+          {daysSinceStart}d elapsed
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Triage tiers for the Delivery Progress card, using the same health rule as
 // every per-card chip. Order = visual priority (Behind first).
 const HEALTH_TIERS: Health[] = ["behind", "watch", "healthy"];

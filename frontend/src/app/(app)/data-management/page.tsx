@@ -125,8 +125,13 @@ export default function DataManagementPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Data Management</h2>
-        <p className="mt-1 text-muted-foreground">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+          Admin
+        </p>
+        <h1 className="mt-0.5 font-mono text-base font-bold uppercase tracking-[0.2em] text-white">
+          Data Management
+        </h1>
+        <p className="mt-1 text-sm text-[#C4BCAA]">
           Manage editorial data, clients, deliverables, and team capacity.
         </p>
       </div>
