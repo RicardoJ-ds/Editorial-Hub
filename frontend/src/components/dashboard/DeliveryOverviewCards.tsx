@@ -1070,6 +1070,11 @@ export function computeLastFullQ(row: SummaryRow): {
   cumInvoiced: number;
   /** Cumulative variance = cumDelivered − cumInvoiced. */
   cumVariance: number;
+  /** True when the last full Q was THE FIRST contract Q (label "Q1").
+   *  Same semantics as `isFirstContractQ` for the current Q — surfaces
+   *  brand-new clients whose ramp-up quarter just closed so the variance
+   *  card can show a "1st Q" tier instead of "Behind Plan". */
+  isFirstQ: boolean;
 } | null {
   const periods = detectSummaryBillingPeriods(row);
   if (periods.length === 0) return null;
@@ -1111,6 +1116,7 @@ export function computeLastFullQ(row: SummaryRow): {
     cumDelivered: cumDeliveredAtLastFull,
     cumInvoiced: cumInvoicedAtLastFull,
     cumVariance: cumDeliveredAtLastFull - cumInvoicedAtLastFull,
+    isFirstQ: lastFullP.label === "Q1",
   };
 }
 

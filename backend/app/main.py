@@ -118,6 +118,51 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("overview_comments.client_name nullability migration failed (continuing)")
 
+    # 6. goals_vs_delivery: enforce uniqueness on
+    #    (month_year, week_number, client_name, content_type). Pre-0.3.16
+    #    the importer's upsert ignored content_type, so a row with
+    #    content_type=NULL or "article" would silently overwrite an
+    #    LP / jumbo row for the same client + week. We dedupe first
+    #    (keep the lowest id per natural key, which is the earliest
+    #    insert) then add the constraint so future bad imports fail
+    #    loudly. Postgres treats NULLs as distinct in unique
+    #    constraints by default, which is what we want — legacy rows
+    #    without a content_type stay in their own slot.
+    try:
+        await conn.execute(
+            text(
+                """
+                DELETE FROM goals_vs_delivery g1
+                USING goals_vs_delivery g2
+                WHERE g1.month_year = g2.month_year
+                  AND g1.week_number = g2.week_number
+                  AND g1.client_name = g2.client_name
+                  AND g1.content_type IS NOT DISTINCT FROM g2.content_type
+                  AND g1.id < g2.id
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'uq_goals_vs_delivery_mw_client_ctype'
+                    ) THEN
+                        ALTER TABLE goals_vs_delivery
+                            ADD CONSTRAINT uq_goals_vs_delivery_mw_client_ctype
+                            UNIQUE (month_year, week_number, client_name, content_type);
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
+    except Exception:
+        logger.exception("goals_vs_delivery dedupe/constraint migration failed (continuing)")
+
     # 4. access_groups: collapse the old pod-derived `leadership` group into
     #    the renamed `vps_managers` (now also called `leadership`). Old
     #    leadership members were Senior Editors / Growth Leads / Directors

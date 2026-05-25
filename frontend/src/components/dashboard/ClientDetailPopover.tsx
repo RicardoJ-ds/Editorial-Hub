@@ -150,18 +150,41 @@ export function ClientDetailPopover({
   //   3. Cap the popover's maxHeight to that space — the body scrolls
   //      inside if content is taller. No more bottom-clipping when the
   //      click is near the top of the viewport.
-  // Wider for the Q variants — they render a full monthly breakdown table.
-  const WIDTH = detail.kind === "lastQ" || detail.kind === "currentQ" ? 540 : 380;
-  const ESTIMATED_HEIGHT = detail.kind === "lastQ" || detail.kind === "currentQ" ? 460 : 320;
+  // Wider for the Q variants (monthly breakdown table) and the goals
+  // variant (per-content-type × per-month grid mirroring Editorial
+  // Clients' Month-by-Month Detail).
+  const WIDTH =
+    detail.kind === "lastQ" || detail.kind === "currentQ"
+      ? 540
+      : detail.kind === "goals"
+        ? 760
+        : 380;
+  // Estimated height drives the "does it fit below?" decision. Keep this
+  // close to the typical rendered height (the body scrolls internally
+  // via maxHeight), so the popover stays anchored near the click instead
+  // of flipping high above when only a 40px gap is missing below.
+  const ESTIMATED_HEIGHT =
+    detail.kind === "lastQ" || detail.kind === "currentQ"
+      ? 420
+      : detail.kind === "goals"
+        ? 360
+        : 300;
   const GAP = 12;
   const EDGE = 8;
+  // Below-preference floor: even if it doesn't fit, stay below as long
+  // as there's at least this much space — beats flipping the popover up
+  // to a corner of the viewport, far from the click point.
+  const MIN_BELOW_OK = 240;
   const viewportW = typeof window !== "undefined" ? window.innerWidth : 1280;
   const viewportH = typeof window !== "undefined" ? window.innerHeight : 800;
   const spaceBelow = viewportH - detail.anchorY - GAP - EDGE;
   const spaceAbove = detail.anchorY - GAP - EDGE;
-  // Prefer below when it fits OR when there's more room below than above.
+  // Open above ONLY when below is genuinely cramped AND above gives a
+  // meaningfully better experience. Otherwise stay anchored under the
+  // click — the popover body scrolls internally if content overflows.
   const fitsBelow = spaceBelow >= ESTIMATED_HEIGHT;
-  const openBelow = fitsBelow || spaceBelow >= spaceAbove;
+  const openBelow =
+    fitsBelow || spaceBelow >= MIN_BELOW_OK || spaceBelow >= spaceAbove;
   const usableHeight = Math.max(
     160, // sane floor so the popover is at least usable
     openBelow ? spaceBelow : spaceAbove,
@@ -323,43 +346,95 @@ function GoalsBody({
     () => new Set(periodMonths.map((m) => m.year * 12 + (m.month - 1))),
     [periodMonths],
   );
-  // Roll up the last 6 month_year buckets, sorted chronological.
-  const rows = useMemo(() => {
-    const byMonth = new Map<
+
+  // Aggregate: per (content_type × month) for this client. Carries BOTH
+  // CB and AR values per cell so the popover can show both metrics
+  // stacked — toggling between them hid useful context (e.g. April for
+  // College HUNKS = 10/10 CBs + 10/15 articles, both from the LP row).
+  const { typeRows, monthCols, overallByMonth } = useMemo(() => {
+    type Cell = { cbGoal: number; cbDel: number; adGoal: number; adDel: number };
+    const perCMC = new Map<
       string,
-      { y: number; m: number; cbGoal: number; cbDel: number; adGoal: number; adDel: number }
+      { ct: string; ratio: number; y: number; m: number } & Cell
     >();
+    const monthsSet = new Set<string>(); // "YYYY-MM"
     for (const r of goals) {
       if (r.client_name !== clientName) continue;
       const ym = parseMonthYear(r.month_year);
       if (!ym) continue;
-      const k = `${ym.year}-${String(ym.month).padStart(2, "0")}`;
-      let agg = byMonth.get(k);
-      if (!agg) {
-        agg = { y: ym.year, m: ym.month, cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
-        byMonth.set(k, agg);
+      const monthKey = `${ym.year}-${String(ym.month).padStart(2, "0")}`;
+      monthsSet.add(monthKey);
+      const ct = (r.content_type ?? "").trim().toLowerCase() || "article";
+      const key = `${ct}|${monthKey}`;
+      let e = perCMC.get(key);
+      if (!e) {
+        e = {
+          ct,
+          ratio: contentTypeRatio(r.content_type, r.ratios),
+          y: ym.year,
+          m: ym.month,
+          cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0,
+        };
+        perCMC.set(key, e);
       }
-      // Max-of-week per content type aggregation done elsewhere; here we
-      // just take the latest cumulative (max across weeks). For the
-      // popover it's sufficient — the user wanted recent monthly trend,
-      // not the full 3-step roll-up.
-      const ratio = contentTypeRatio(r.content_type, r.ratios);
-      agg.cbGoal = Math.max(agg.cbGoal, (r.cb_monthly_goal ?? 0) * ratio);
-      agg.adGoal = Math.max(agg.adGoal, (r.ad_monthly_goal ?? 0) * ratio);
-      agg.cbDel = Math.max(agg.cbDel, (r.cb_delivered_to_date ?? 0) * ratio);
-      agg.adDel = Math.max(agg.adDel, (r.ad_delivered_to_date ?? 0) * ratio);
+      e.cbGoal = Math.max(e.cbGoal, r.cb_monthly_goal ?? 0);
+      e.cbDel  = Math.max(e.cbDel,  r.cb_delivered_to_date ?? 0);
+      e.adGoal = Math.max(e.adGoal, r.ad_monthly_goal ?? 0);
+      e.adDel  = Math.max(e.adDel,  r.ad_delivered_to_date ?? 0);
     }
-    // Show as many months as fit the period (so a 12-month selection
-    // shows all 12 in the table) — capped at 12 so the popover doesn't
-    // become a wall of text for "All time".
-    const cap = Math.max(6, Math.min(12, periodMonths.length));
-    const sorted = Array.from(byMonth.values())
-      .sort((a, b) => (a.y * 12 + a.m) - (b.y * 12 + b.m))
-      .slice(-cap);
-    return sorted;
+
+    const allMonths = Array.from(monthsSet)
+      .sort()
+      .map((k) => {
+        const [y, m] = k.split("-");
+        return { key: k, y: parseInt(y, 10), m: parseInt(m, 10) };
+      });
+    const cap = Math.max(6, Math.min(12, periodMonths.length || 6));
+    const monthCols = allMonths.slice(-cap);
+
+    type Row = {
+      ct: string;
+      ratio: number;
+      monthData: Map<string, Cell>;
+    };
+    const byType = new Map<string, Row>();
+    for (const e of perCMC.values()) {
+      let t = byType.get(e.ct);
+      if (!t) {
+        t = { ct: e.ct, ratio: e.ratio, monthData: new Map() };
+        byType.set(e.ct, t);
+      }
+      t.monthData.set(`${e.y}-${String(e.m).padStart(2, "0")}`, {
+        cbGoal: e.cbGoal, cbDel: e.cbDel,
+        adGoal: e.adGoal, adDel: e.adDel,
+      });
+    }
+    const typeOrder: Record<string, number> = {
+      article: 0, jumbo: 1, lp: 2, "landing page": 2, "landing pages": 2,
+    };
+    const typeRows = Array.from(byType.values()).sort(
+      (a, b) => (typeOrder[a.ct] ?? 9) - (typeOrder[b.ct] ?? 9),
+    );
+
+    // Overall per month — raw physical sum across content types (not
+    // weighted). Pod Snapshot card uses weighted totals; the popover
+    // serves the "show me actual numbers" view.
+    const overallByMonth = new Map<string, Cell>();
+    for (const t of typeRows) {
+      for (const [mk, v] of t.monthData.entries()) {
+        const cur = overallByMonth.get(mk) ?? {
+          cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0,
+        };
+        cur.cbGoal += v.cbGoal; cur.cbDel += v.cbDel;
+        cur.adGoal += v.adGoal; cur.adDel += v.adDel;
+        overallByMonth.set(mk, cur);
+      }
+    }
+
+    return { typeRows, monthCols, overallByMonth };
   }, [goals, clientName, periodMonths]);
 
-  if (rows.length === 0) {
+  if (typeRows.length === 0 || monthCols.length === 0) {
     return (
       <p className="font-mono text-[11px] text-[#606060]">
         No goals data captured for this client.
@@ -367,59 +442,163 @@ function GoalsBody({
     );
   }
 
+  // Column template: TYPE 6rem · then monthCols.length × 5rem (each
+  // cell stacks "CB X/Y" + "AR X/Y" so we need room for the metric
+  // labels as well as the numbers).
+  const monthColsWidth = `repeat(${monthCols.length}, minmax(5rem, 1fr))`;
+  const gridTemplate = `6rem ${monthColsWidth}`;
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-          Last {rows.length} {rows.length === 1 ? "month" : "months"}
+          Per content type · {monthCols.length} months
         </p>
-        <span className="rounded-sm border border-[#42CA80]/40 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[8px] uppercase tracking-wider text-[#42CA80]">
-          ● In period
-        </span>
+        <p className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+          <span className="text-[#42CA80]">CB</span> content briefs · <span className="text-[#C4BCAA]">AR</span> articles
+        </p>
       </div>
+
       <div className="rounded-md border border-[#1a1a1a] overflow-hidden">
-        <div className="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 px-2 py-1.5 bg-[#111] border-b border-[#1a1a1a] font-mono text-[10px] tabular-nums">
-          <p className="text-[#606060]">Month</p>
-          <p className="text-[#606060]">CB del/goal</p>
-          <p className="text-[#606060]">AR del/goal</p>
+        {/* Header row */}
+        <div
+          className="grid gap-x-1.5 bg-[#111] border-b border-[#1a1a1a] px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider text-[#606060]"
+          style={{ gridTemplateColumns: gridTemplate }}
+        >
+          <span>Type</span>
+          {monthCols.map((mc) => (
+            <span
+              key={mc.key}
+              className={
+                "text-right " +
+                (periodCells.has(mc.y * 12 + (mc.m - 1)) ? "text-[#42CA80]" : "")
+              }
+            >
+              {MONTH_NAMES_SHORT[mc.m - 1]} {String(mc.y).slice(2)}
+            </span>
+          ))}
         </div>
-        {rows.map((r) => {
-          const cbPct = r.cbGoal > 0 ? (r.cbDel / r.cbGoal) * 100 : null;
-          const adPct = r.adGoal > 0 ? (r.adDel / r.adGoal) * 100 : null;
-          const inPeriod = periodCells.has(r.y * 12 + (r.m - 1));
+
+        {/* Per-content-type rows — raw physical CBs + Articles stacked */}
+        {typeRows.map((t) => {
+          const label = t.ct === "lp" || t.ct === "landing page" || t.ct === "landing pages"
+            ? "LP"
+            : t.ct.charAt(0).toUpperCase() + t.ct.slice(1);
           return (
             <div
-              key={`${r.y}-${r.m}`}
-              className={
-                "grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 px-2 py-1 font-mono text-[10px] tabular-nums border-b border-[#1a1a1a] last:border-b-0 " +
-                (inPeriod ? "bg-[#42CA80]/8" : "")
-              }
-              style={inPeriod ? { boxShadow: "inset 2px 0 0 #42CA80" } : undefined}
+              key={t.ct}
+              className="grid gap-x-1.5 px-2 py-1 font-mono text-[10px] tabular-nums border-b border-[#1a1a1a] last:border-b-0 items-center"
+              style={{ gridTemplateColumns: gridTemplate }}
             >
-              <span className={inPeriod ? "text-white font-semibold" : "text-[#909090]"}>
-                {MONTH_NAMES_SHORT[r.m - 1]} {String(r.y).slice(2)}
+              <span className="text-[#C4BCAA] font-semibold flex items-baseline gap-1">
+                {label}
+                <span className="text-[#606060] text-[8px]">×{t.ratio}</span>
               </span>
-              <span style={{ color: pctColor(cbPct) }}>
-                {r.cbGoal > 0
-                  ? `${Math.round(r.cbDel)}/${Math.round(r.cbGoal)} (${Math.round(cbPct!)}%)`
-                  : "—"}
-              </span>
-              <span style={{ color: pctColor(adPct) }}>
-                {r.adGoal > 0
-                  ? `${Math.round(r.adDel)}/${Math.round(r.adGoal)} (${Math.round(adPct!)}%)`
-                  : "—"}
-              </span>
+              {monthCols.map((mc) => {
+                const md = t.monthData.get(mc.key);
+                const inPeriod = periodCells.has(mc.y * 12 + (mc.m - 1));
+                return (
+                  <StackedCell
+                    key={mc.key}
+                    cell={md}
+                    inPeriod={inPeriod}
+                  />
+                );
+              })}
             </div>
           );
         })}
+
+        {/* Overall row — RAW sum across content types (not weighted) */}
+        <div
+          className="grid gap-x-1.5 bg-[#0a0a0a] border-t border-[#222] px-2 py-1.5 font-mono text-[10px] tabular-nums items-center"
+          style={{ gridTemplateColumns: gridTemplate }}
+        >
+          <span className="text-white font-semibold uppercase text-[9px] tracking-wider">
+            Overall
+          </span>
+          {monthCols.map((mc) => {
+            const o = overallByMonth.get(mc.key);
+            const inPeriod = periodCells.has(mc.y * 12 + (mc.m - 1));
+            return (
+              <StackedCell
+                key={mc.key}
+                cell={o}
+                inPeriod={inPeriod}
+                bold
+              />
+            );
+          })}
+        </div>
       </div>
-      <p className="mt-2 font-mono text-[9px] italic text-[#606060]">
-        Highlighted rows are within: {periodLabel}.
+
+      <p className="font-mono text-[9px] italic text-[#606060]">
+        Green-tinted columns are within: {periodLabel}. Each cell shows <span className="text-[#42CA80]">CB</span> content brief del/goal on top and <span className="text-[#C4BCAA]">AR</span> article del/goal below. "Overall" sums physical units (not weighted) — the Pod Snapshot bar uses weighted totals (article ×1, jumbo ×2, LP ×0.5) so different content types stay comparable.
       </p>
-      <div className="mt-2">
+      <div>
         <DataQualityNote compact />
       </div>
     </div>
+  );
+}
+
+/** Per-cell stacked CB + AR del/goal value with explicit labels so
+ *  there's no ambiguity which line is which metric. CB uses Graphite
+ *  primary green for the label (matches the "P1 Articles → P3 Topics"
+ *  pipeline palette where CBs sit further upstream); AR uses cream
+ *  (#C4BCAA) to keep the contrast distinct. */
+function StackedCell({
+  cell,
+  inPeriod,
+  bold = false,
+}: {
+  cell: { cbGoal: number; cbDel: number; adGoal: number; adDel: number } | undefined;
+  inPeriod: boolean;
+  bold?: boolean;
+}) {
+  if (!cell || (cell.cbGoal === 0 && cell.adGoal === 0 && cell.cbDel === 0 && cell.adDel === 0)) {
+    return (
+      <span
+        className={
+          "text-right text-[#3a3a3a] leading-tight " +
+          (inPeriod ? "bg-[#42CA80]/5 -mx-px px-px rounded-[2px]" : "")
+        }
+      >
+        —
+      </span>
+    );
+  }
+  const cbPct = cell.cbGoal > 0 ? (cell.cbDel / cell.cbGoal) * 100 : null;
+  const adPct = cell.adGoal > 0 ? (cell.adDel / cell.adGoal) * 100 : null;
+  return (
+    <span
+      className={
+        "leading-tight flex flex-col items-end gap-px " +
+        (bold ? "font-semibold " : "") +
+        (inPeriod ? "bg-[#42CA80]/5 -mx-px px-px rounded-[2px]" : "")
+      }
+    >
+      <span className="flex items-baseline justify-end gap-1">
+        <span className="font-mono text-[8px] uppercase tracking-wider text-[#42CA80]/70">CB</span>
+        {cell.cbGoal > 0 ? (
+          <span style={{ color: pctColor(cbPct) }}>
+            {Math.round(cell.cbDel)}/{Math.round(cell.cbGoal)}
+          </span>
+        ) : (
+          <span className="text-[#3a3a3a]">—</span>
+        )}
+      </span>
+      <span className="flex items-baseline justify-end gap-1">
+        <span className="font-mono text-[8px] uppercase tracking-wider text-[#C4BCAA]/50">AR</span>
+        {cell.adGoal > 0 ? (
+          <span style={{ color: pctColor(adPct) }}>
+            {Math.round(cell.adDel)}/{Math.round(cell.adGoal)}
+          </span>
+        ) : (
+          <span className="text-[#3a3a3a]">—</span>
+        )}
+      </span>
+    </span>
   );
 }
 

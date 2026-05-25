@@ -3,6 +3,7 @@
 Endpoints:
     GET    /api/overview/comments            — list, filterable by section/client
     POST   /api/overview/comments            — admin OR leadership, create
+    PATCH  /api/overview/comments/{id}        — admin OR leadership, edit body
     POST   /api/overview/comments/{id}/resolve — admin OR leadership, mark resolved
     POST   /api/overview/comments/{id}/reopen  — admin OR leadership, clear resolution
     DELETE /api/overview/comments/{id}        — admin OR leadership, remove
@@ -49,6 +50,10 @@ class CreateCommentBody(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
 
 
+class UpdateCommentBody(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+
+
 @router.get("/", response_model=list[OverviewCommentResponse])
 async def list_comments(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -83,6 +88,24 @@ async def create_comment(
         body=body.body.strip(),
     )
     db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    return comment
+
+
+@router.patch("/{comment_id}", response_model=OverviewCommentResponse)
+async def update_comment(
+    comment_id: int,
+    payload: UpdateCommentBody,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: AccessProfile = Depends(require_admin_or_leadership),
+):
+    comment = (
+        await db.execute(select(OverviewComment).where(OverviewComment.id == comment_id))
+    ).scalar_one_or_none()
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    comment.body = payload.body.strip()
     await db.commit()
     await db.refresh(comment)
     return comment

@@ -3128,17 +3128,53 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
 
             rows_this_tab = 0
             rows_parsed_this_tab = 0
+            # Forward-fill state: maintainers commonly leave Column A blank
+            # on continuation rows that share the previous client (e.g. an
+            # LP / Jumbo row that visually belongs to the row above). The
+            # importer used to silently drop those rows. We now carry over
+            # the last seen client + pods, but ONLY when the row is a
+            # real data row (has a content_type AND at least one numeric
+            # column) — that protects against accidental blank rows or
+            # divider rows inheriting the wrong client.
+            last_client_name: str | None = None
+            last_growth_pod: str | None = None
+            last_ed_pod: str | None = None
+            last_client_type: str | None = None
             for row in data_rows:
                 result.rows_parsed += 1
                 rows_parsed_this_tab += 1
-                client_name = _cell(row, 0)
-                if not client_name or client_name.lower() in ("client", ""):
-                    continue
-
-                growth_pod = _cell(row, 1) or None
-                ed_pod = _cell(row, 2) or None
-                client_type = _cell(row, 3) or None
+                raw_client = _cell(row, 0)
                 content_type = _cell(row, 4) or None
+
+                if raw_client and raw_client.lower() not in ("client", ""):
+                    # Normal row — anchor the forward-fill state.
+                    client_name = raw_client
+                    growth_pod = _cell(row, 1) or None
+                    ed_pod = _cell(row, 2) or None
+                    client_type = _cell(row, 3) or None
+                    last_client_name = client_name
+                    last_growth_pod = growth_pod
+                    last_ed_pod = ed_pod
+                    last_client_type = client_type
+                else:
+                    # Continuation row candidate. Only adopt the previous
+                    # client when the row clearly belongs to a content-type
+                    # variant — that means it has a content_type AND at
+                    # least one numeric cell anywhere in the week blocks.
+                    # An empty / divider row keeps getting dropped as
+                    # before, so guesses stay safe.
+                    if not last_client_name or not content_type:
+                        continue
+                    has_any_numeric = any(
+                        safe_int(_cell(row, ci)) is not None for ci in range(6, len(row))
+                    )
+                    if not has_any_numeric:
+                        continue
+                    client_name = last_client_name
+                    growth_pod = last_growth_pod
+                    ed_pod = last_ed_pod
+                    client_type = last_client_type
+
                 ratios = _cell(row, 5) or None
 
                 # Import ALL weeks (not just the latest)
@@ -3162,17 +3198,24 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
                         parse_date(_cell(date_row, cb_base)) if cb_base < len(date_row) else None
                     )
 
-                    existing = (
-                        session.execute(
-                            select(GoalsVsDelivery).where(
-                                GoalsVsDelivery.month_year == month_year,
-                                GoalsVsDelivery.week_number == week_num,
-                                GoalsVsDelivery.client_name == client_name,
-                            )
-                        )
-                        .scalars()
-                        .first()
+                    # Upsert key: (month_year, week_number, client_name,
+                    # content_type). Without content_type in the key, a
+                    # client with multiple content types (article + LP,
+                    # or article + jumbo) would silently overwrite its
+                    # own rows depending on import order — only the last
+                    # type processed would survive. NULL content_type is
+                    # treated as a distinct slot for legacy / unspecified
+                    # rows.
+                    existing_q = select(GoalsVsDelivery).where(
+                        GoalsVsDelivery.month_year == month_year,
+                        GoalsVsDelivery.week_number == week_num,
+                        GoalsVsDelivery.client_name == client_name,
                     )
+                    if content_type is None:
+                        existing_q = existing_q.where(GoalsVsDelivery.content_type.is_(None))
+                    else:
+                        existing_q = existing_q.where(GoalsVsDelivery.content_type == content_type)
+                    existing = session.execute(existing_q).scalars().first()
 
                     data = dict(
                         month_year=month_year,

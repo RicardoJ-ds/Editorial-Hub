@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.15`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.16`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
@@ -123,7 +123,7 @@ ID: `1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY`
 | Sheet | Destination | Ingested? |
 |---|---|---|
 | Cumulative | `cumulative_metrics` | ✅ seeded |
-| [Month Year] Goals vs Delivery (x9) | `goals_vs_delivery` | ✅ seeded |
+| [Month Year] Goals vs Delivery (x9) | `goals_vs_delivery` | ✅ seeded — importer forward-fills `client_name` / pods on continuation rows whose Column A is blank (typical for LP / Jumbo variants under the Article row) so multi-content-type clients are no longer silently dropped. Upsert key is `(month_year, week_number, client_name, content_type)`; DB enforces it via `uq_goals_vs_delivery_mw_client_ctype` (0.3.16 startup migration). |
 | `<YYYY> Week Distribution` | `editorial_weeks` | ✅ via past-months resync — defines when each Editorial month begins (drives "As of" badge) |
 
 ### Spreadsheet 3 — Writer AI Monitoring

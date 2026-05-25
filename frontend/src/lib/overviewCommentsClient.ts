@@ -10,7 +10,7 @@
  *  the rail re-mounted. This module fixes that. */
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
 export interface OverviewComment {
   id: number;
@@ -126,12 +126,18 @@ export function useOverviewComments() {
     await refetch();
   }, []);
 
+  const update = useCallback(async (id: number, body: string) => {
+    await apiPatch<OverviewComment>(`/api/overview/comments/${id}`, { body });
+    await refetch();
+  }, []);
+
   return {
     comments: snapshot.comments,
     loading: snapshot.loading,
     error: snapshot.error,
     refetch,
     create,
+    update,
     resolve,
     reopen,
     remove,

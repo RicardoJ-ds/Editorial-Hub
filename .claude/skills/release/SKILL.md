@@ -204,56 +204,73 @@ changelog page. **Format is precise — don't deviate.**
 
 ### Format rules (locked-in conventions)
 
-The user's preferred Notion format is:
+The Notion block is **scannable, not exhaustive**. The audience is
+Editorial Ops + stakeholders — they want to know **what visually
+changed and how to test it** in under 30 seconds. No technical detail.
 
 - **Heading**: `## X.Y.Z — <Month Day>` (level-2 markdown so it nests
   cleanly under the master "Changelog" page).
-- **Section sub-headings**: `#### <Page or area>` describing where in
-  the app the user will see the change.
-- **Bullets**: every bullet must lead with a bolded route/path label,
-  then `:` then the plain-language summary. Format:
-  `- **<Page> · <Tab/Subsection> · <Detail>:** <one short sentence>.`
-- **Non-technical audience**: write for the Editorial Ops team and
-  stakeholders. No file paths, no function names, no commit hashes. Use
-  outcomes ("comments stay where you left them when you reload") not
-  implementation details ("now persisted in Postgres").
-- **Keep it short**: one or two lines per bullet. Cover everything that
-  shipped, but the goal is scannable, not exhaustive.
-- **Order**: from highest-traffic area to lowest. Dashboards first
-  (Overview → Editorial Clients → Team KPIs), then admin features, then
-  under-the-hood fixes at the bottom.
+- **Section sub-headings**: `#### <Page · Tab · Subsection>` describing
+  exactly where in the app the user will see the change. Highest-traffic
+  area first (Overview → Editorial Clients → Team KPIs → Capacity
+  Maintenance → Admin → Data Quality → Under the hood).
+- **Bullets — ONE LINE EACH.** Format strictly:
+  `- **<UX label>** — <what visually changed>. *Validate:* <2–5 word click path>.`
+  - **UX label** = the user-visible UI affordance (e.g. "Rich-text composer",
+    "Monthly grid", "1st Q tier label"). Never a code name or component name.
+  - **What changed** = the outcome in plain English ("bold, italic, links,
+    lists via toolbar"). Never the implementation ("Tiptap", "useEditor",
+    "context"). No "now persists in Postgres" — say "stays where you left
+    it when you reload".
+  - **Validate** = the concrete click path the reader can run themselves
+    to see the change. Keep it short — `click X → see Y`. Skip the
+    *Validate:* clause only when the change has no UX surface to click
+    on (rare — for under-the-hood entries only).
+- **One bullet = one change.** Never combine two changes with "and".
+  Two changes = two bullets.
+- **Non-technical vocabulary only.** No file paths, function names,
+  schema names, library names, commit hashes, version numbers
+  (other than the heading), or stack jargon. The reader doesn't know
+  what "upsert" or "stacking context" or "Postgres" means.
+- **No mid-bullet UI screenshots.** Notion will render the markdown
+  cleanly; resist the urge to add formatting beyond bold + italic.
+- **Inline emphasis** with `**bold**` (UX label, italicised value) and
+  `*Validate:*` only. No `<code>` blocks, no tables.
 
 ### Template
 
 ```markdown
 ## X.Y.Z — May 11
 
-#### Admin → Access Control
+#### Admin · Access Control · Groups tab
 
-- **Tab: Groups · Capability card:** Each expanded group row now lists what the group can see, whether they can toggle Editorial / Growth, and their client scope.
-- **Tab: Groups · Reference table:** "How groups work" collapsible at the top maps all six seeded groups in one view.
+- **Capability card** — each expanded group row lists views, axis-toggle, and client scope. *Validate:* expand any group row.
+- **Reference table** — "How groups work" collapsible at the top maps all six seeded groups. *Validate:* open the collapsible above the matrix.
 
-#### Top Bar
+#### Top bar
 
-- **Editorial / Growth toggle:** Now only appears on the dashboards (Overview, Editorial Clients, Team KPIs). Hidden everywhere else where it had no effect.
+- **Editorial / Growth toggle** — only renders on the three dashboards now. *Validate:* visit Admin pages → toggle is gone.
 
-#### Overview
+#### Overview · Comments
 
-- **Comments · Per-section icons:** The right-side rail is replaced with a small chat-bubble icon next to each section title. Click → comments open in a popover anchored below the icon. No layout shift, no full-screen overlay.
-- **Comments · Empty-state icon:** Empty sections show a "+ chat bubble" glyph and fade in on hover; sections with threads show a plain bubble + open / resolved count.
-- **Comments · Client picker:** The composer's client dropdown is now a typeahead search box matching the dashboards' "Search clients..." filter.
-- **Comments · Timestamps:** Read like Notion: `now`, `42m`, `2h`, `10:42 AM`, `Yesterday`, `May 8`, `May 8, 2024`. Hover for the full date and time.
+- **Per-section icons** — chat-bubble next to each section title; click opens a popover anchored below. *Validate:* hover any section title.
+- **Empty-state icon** — empty sections show a faded "+ chat bubble" that fades in on hover. *Validate:* hover a section with no comments.
+- **Client picker** — typeahead search box matching the dashboards' "Search clients..." filter. *Validate:* click `+ Add comment` and start typing a client name.
+- **Notion-style timestamps** — `now / 42m / 2h / 10:42 AM / Yesterday / May 8 / May 8, 2024`. Hover shows full date. *Validate:* hover any timestamp.
 ```
 
 ### Reference
 
-If the user asks "remember how I want the Notion format," cite:
+If the user asks "remember how I want the Notion format," cite this
+SKILL.md `Step 8 — Format rules`. The three rules that matter most:
 
-- Source-of-truth conversation: bullets per app section, leading with
-  `**Page · Tab · Subsection:**`, plain English for non-technical readers.
-- Keep entries short — a few lines covering everything edited per
-  section, not a wall of text.
-- Never include technical jargon, file paths, or implementation details.
+1. **One line per bullet, with a *Validate:* clause.** This is the
+   single hardest rule to internalise — earlier drafts ran 2–4 lines
+   per bullet and felt like a wall. One line + click path.
+2. **UX label, not code label.** "Rich-text composer" beats "Tiptap
+   editor". "Monthly grid" beats "ClientDetailPopover goals variant".
+3. **No tech leak.** If the reader needs to know what a "stacking
+   context" or "upsert key" is to understand the bullet, rewrite it.
 
 ## Step 9 — Report
 

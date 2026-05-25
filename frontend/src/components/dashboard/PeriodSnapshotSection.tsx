@@ -555,6 +555,10 @@ interface PerClientRow {
     delivered: number;        // cumulative delivered through end of last Q
     invoiced: number;         // cumulative invoiced through end of last Q
     variance: number;
+    /** True when this last full Q was the client's FIRST contract Q
+     *  (Q1) — drives the "1st Q" tier on the variance card so a
+     *  ramp-up close doesn't read as "Behind Plan". */
+    isFirstQ: boolean;
   } | null;
   currentQ: {
     label: string;
@@ -1234,6 +1238,7 @@ function aggregatePodDelivery(
             delivered: lq.cumDelivered,
             invoiced: lq.cumInvoiced,
             variance: lq.cumVariance,
+            isFirstQ: lq.isFirstQ,
           };
           lastQVariance += lq.cumVariance;
           lastQDelivered += lq.cumDelivered;
@@ -1695,6 +1700,10 @@ function PerClientDeliveryList({
                       variance: r.lastQ.variance,
                     }
                   : null}
+                // If the last full Q was the client's first contract Q,
+                // surface "1st Q" on the variance card instead of
+                // "Behind Plan" — same semantics as Current Q.
+                isNew={r.lastQ?.isFirstQ ?? false}
                 sow={r.lifetimeSow}
               />
             </CellButton>

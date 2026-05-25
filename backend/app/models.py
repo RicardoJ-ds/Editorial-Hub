@@ -581,6 +581,22 @@ class GoalsVsDelivery(Base):
         DateTime, server_default=func.now(), onupdate=func.now()
     )
 
+    __table_args__ = (
+        # Multi-content-type clients (e.g. article + LP, article + jumbo)
+        # need each variant as its own row per (month × week × client).
+        # Without content_type in the key, the importer's upsert silently
+        # overwrites its own work depending on row order — that's how
+        # College HUNKS lost its LP rows for months until the importer
+        # forward-fill fix landed in 0.3.16.
+        UniqueConstraint(
+            "month_year",
+            "week_number",
+            "client_name",
+            "content_type",
+            name="uq_goals_vs_delivery_mw_client_ctype",
+        ),
+    )
+
 
 class NotionArticle(Base):
     __tablename__ = "notion_articles"

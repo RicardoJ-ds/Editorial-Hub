@@ -18,6 +18,43 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.16 — May 25
+
+**Comments composer rebuilt with rich text (bold, italic, links, lists) and an Hub-themed delete flow; Pod Snapshot Goals popover redesigned as a per-content-type × per-month grid; importer fix recovers months of dropped LP / Jumbo rows for multi-content-type clients.**
+
+### Overview — Comments
+
+- **Rich-text editor**: bold, italic, link, bulleted list, numbered list — typed inline via toolbar buttons or `Cmd+B / Cmd+I / Cmd+K` keyboard shortcuts. Links open inline in a "type URL → Apply" bar (no browser prompt). Existing plain-text comments still render as plain text — nothing breaks for old threads.
+- **Comment editor auto-grows** with the text instead of staying a fixed three-line textarea.
+- **Modal lock while writing**: clicking *+ Add comment* dims & blurs the dashboard behind the popover and disables outside-click, Esc, and the popover's X — the only exits are *Cancel* or *Post*. Same lock applies to the right-side comments rail (stays open, can't collapse on hover-out, while a draft is in flight).
+- **Client picker is optional** on section comments: type a note and *Post* enables immediately. Comments without a client land under a green **General** group at the top of that section's popover.
+- **Themed delete confirmation**: the browser's native "OK / Cancel" dialog is replaced by an inline confirmation box matching the Hub theme — *Delete this comment? This can't be undone…* with explicit *Cancel* and *Delete* buttons in red.
+- **Edit your comments**: every comment now has a pencil "Edit" button next to Resolve and Delete. Clicking it swaps the body for the same rich-text editor with your existing text prefilled; *Save* updates the comment in place. The dashboard locks behind the scrim while editing, just like writing a new one.
+
+### Overview — Pod Snapshot, Goals popover
+
+- **Per-content-type × per-month grid**: each row is one content type (Article ×1, Jumbo ×2, LP ×0.5) and each column is a month. Every cell shows **CB del/goal** on top and **AR del/goal** below, with green/cream labels so the metric is unambiguous at a glance.
+- **Overall row at the bottom** sums physical units across types (raw, not weighted) so the totals reflect actual produced deliverables. The Pod Snapshot bar continues to show the weighted overall so different content types stay comparable on the card.
+- **Period highlighting**: columns within the selected period are tinted green.
+- **Wider popover (760px)** to fit the grid, with positioning preference shifted to "below the click" — no more flipping high above the row.
+
+### Overview — Pod Snapshot, Last Q
+
+- **"1st Q" tier label** now also appears on the *Last Q · Last Close Variance* card when the client's last closed quarter was its first contract quarter — matching the Current Q behaviour. New contracts no longer get an alarming "Behind Plan" badge just because they started recently.
+
+### Data Quality — Goals vs Delivery importer
+
+- **Multi-content-type clients now ingest correctly.** Pre-fix, when a maintainer left Column A blank on a continuation row (typical for an LP or Jumbo row below the Article row), the importer silently dropped it. The fix forward-fills client + pods from the previous row when the continuation row has a real content type and at least one numeric cell. Empty / divider rows still get skipped — guarded.
+- **Upsert key now includes content_type.** Previously an LP row and an Article row for the same client + week would overwrite each other depending on import order. A new DB-level unique constraint enforces the natural key going forward, so future bad imports fail loudly instead of silently dropping data.
+- **Backfill via re-sync**: run *Data Management → Re-sync Past Months* on any month to recover historical LP / Jumbo rows that were previously dropped.
+- **Selective re-sync**: the Re-sync Past Months tab now has a checkbox per step (Goals vs Delivery, Week Distribution, Team Pods, ET CP History, Backfill Editorial Pod). Pick only the steps you need — defaults to all selected. Faster targeted runs when you just want to refresh one tab.
+
+### Under the hood
+
+- Idempotent startup migration dedupes existing duplicate rows in `goals_vs_delivery` and adds the new uniqueness constraint on Neon.
+
+---
+
 ## 0.3.15 — May 25
 
 **Overview rebuilt around three clean sections — Pod Snapshot, Time to Milestones (new), Production History — with a click-to-focus interaction connecting Pod Timelines, Time-to-Metrics, and Per-Client Days. Legacy sections removed; hub-wide header + DataSourceBadge cleanup.**

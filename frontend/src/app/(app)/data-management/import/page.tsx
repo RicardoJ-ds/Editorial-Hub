@@ -975,32 +975,52 @@ type ResyncStepKey = (typeof RESYNC_STEPS)[number]["key"];
 
 function HistoricalResyncTab() {
   const [stepStatuses, setStepStatuses] = useState<
-    Record<ResyncStepKey, "pending" | "importing" | "done" | "error">
+    Record<ResyncStepKey, "pending" | "importing" | "done" | "error" | "skipped">
   >(() =>
     Object.fromEntries(
       RESYNC_STEPS.map((s) => [s.key, "pending"]),
-    ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error">,
+    ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error" | "skipped">,
   );
   const [stepResults, setStepResults] = useState<Record<ResyncStepKey, ImportResultItem>>(
     () => ({}) as Record<ResyncStepKey, ImportResultItem>,
   );
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<"idle" | "running" | "complete">("idle");
+  // Selective re-sync — users running a quick targeted re-import (e.g.
+  // just Goals vs Delivery for a fixed month) don't need to wait for
+  // every step. Default = all selected to preserve the original
+  // "run everything" behaviour.
+  const [selected, setSelected] = useState<Set<ResyncStepKey>>(
+    () => new Set(RESYNC_STEPS.map((s) => s.key)),
+  );
+  const toggle = (key: ResyncStepKey) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const allSelected = selected.size === RESYNC_STEPS.length;
+  const noneSelected = selected.size === 0;
+  const selectedSteps = RESYNC_STEPS.filter((s) => selected.has(s.key));
 
   const run = useCallback(async () => {
+    if (selected.size === 0) return;
     setPhase("running");
     setProgress(0);
     setStepStatuses(
       Object.fromEntries(
-        RESYNC_STEPS.map((s) => [s.key, "pending"]),
-      ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error">,
+        RESYNC_STEPS.map((s) => [s.key, selected.has(s.key) ? "pending" : "skipped"]),
+      ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error" | "skipped">,
     );
     setStepResults({} as Record<ResyncStepKey, ImportResultItem>);
 
-    // Fire steps sequentially — each is independent on the backend and uses
-    // its own DB session, so a failure in one doesn't block the next.
-    for (let i = 0; i < RESYNC_STEPS.length; i++) {
-      const step = RESYNC_STEPS[i];
+    // Fire only the SELECTED steps sequentially — each is independent
+    // on the backend and uses its own DB session, so a failure in one
+    // doesn't block the next.
+    const stepsToRun = RESYNC_STEPS.filter((s) => selected.has(s.key));
+    for (let i = 0; i < stepsToRun.length; i++) {
+      const step = stepsToRun[i];
       setStepStatuses((prev) => ({ ...prev, [step.key]: "importing" }));
 
       try {
@@ -1025,11 +1045,11 @@ function HistoricalResyncTab() {
         setStepStatuses((prev) => ({ ...prev, [step.key]: "error" }));
       }
 
-      setProgress(((i + 1) / RESYNC_STEPS.length) * 100);
+      setProgress(((i + 1) / stepsToRun.length) * 100);
     }
 
     setPhase("complete");
-  }, []);
+  }, [selected]);
 
   // Ordered result list for the summary card — same order as RESYNC_STEPS.
   const orderedResults = useMemo(
@@ -1040,31 +1060,80 @@ function HistoricalResyncTab() {
     [stepResults],
   );
   const allOk =
-    orderedResults.length === RESYNC_STEPS.length &&
+    orderedResults.length === selectedSteps.length &&
     orderedResults.every((r) => r.success);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="max-w-xl">
-            <h3 className="text-base font-semibold text-white">
-              Re-sync past-only / annual sheets
-            </h3>
-            <p className="mt-1 text-sm text-[#C4BCAA]">
-              The normal <b className="text-white">Sync</b> button only re-imports the
-              current month. Use this when older numbers were edited retroactively, or
-              when next year&apos;s Editorial week distribution has been added.
-            </p>
-            <p className="mt-2 font-mono text-[11px] text-[#606060]">
-              Runs five steps in order — each is independent, so one failure doesn&apos;t
-              block the rest. Watch the progress below as it works through them.
-            </p>
+        <div className="max-w-2xl">
+          <h3 className="text-base font-semibold text-white">
+            Re-sync past-only / annual sheets
+          </h3>
+          <p className="mt-1 text-sm text-[#C4BCAA]">
+            The normal <b className="text-white">Sync</b> button only re-imports the
+            current month. Use this when older numbers were edited retroactively, or
+            when next year&apos;s Editorial week distribution has been added.
+          </p>
+          <p className="mt-2 font-mono text-[11px] text-[#606060]">
+            Pick the steps you need below — each is independent, so one failure
+            doesn&apos;t block the rest. Defaults to all selected (full re-sync).
+          </p>
+        </div>
+
+        {/* Step selector */}
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            <span>
+              Steps to run · {selected.size} of {RESYNC_STEPS.length} selected
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setSelected(
+                  allSelected ? new Set() : new Set(RESYNC_STEPS.map((s) => s.key)),
+                )
+              }
+              disabled={phase === "running"}
+              className="text-[#42CA80] hover:text-[#65FFAA] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {allSelected ? "Clear all" : "Select all"}
+            </button>
           </div>
+          <div className="space-y-1 rounded-md border border-[#1f1f1f] bg-[#0d0d0d] p-2">
+            {RESYNC_STEPS.map((step) => {
+              const isChecked = selected.has(step.key);
+              return (
+                <label
+                  key={step.key}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-2.5 rounded px-2 py-1.5 transition-colors",
+                    isChecked ? "bg-[#42CA80]/5" : "hover:bg-[#161616]",
+                    phase === "running" && "cursor-not-allowed opacity-60",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggle(step.key)}
+                    disabled={phase === "running"}
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-[#42CA80] disabled:cursor-not-allowed"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-mono text-[11px] text-[#C4BCAA]">{step.label}</p>
+                    <p className="font-mono text-[10px] text-[#606060]">{step.description}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end">
           <Button
             onClick={run}
-            disabled={phase === "running"}
-            className="shrink-0 bg-[#42CA80] text-black hover:bg-[#42CA80]/80"
+            disabled={phase === "running" || noneSelected}
+            className="shrink-0 bg-[#42CA80] text-black hover:bg-[#42CA80]/80 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {phase === "running" ? (
               <>
@@ -1079,7 +1148,11 @@ function HistoricalResyncTab() {
             ) : (
               <>
                 <RotateCcw className="mr-2 h-3.5 w-3.5" />
-                Re-sync all past months
+                {allSelected
+                  ? "Re-sync all past months"
+                  : noneSelected
+                    ? "Select at least one step"
+                    : `Re-sync ${selected.size} step${selected.size === 1 ? "" : "s"}`}
               </>
             )}
           </Button>
@@ -1100,7 +1173,7 @@ function HistoricalResyncTab() {
                     (s) => s === "done" || s === "error",
                   ).length
                 }{" "}
-                of {RESYNC_STEPS.length} steps
+                of {selectedSteps.length} step{selectedSteps.length === 1 ? "" : "s"}
               </span>
             </div>
             <Progress value={progress}>
@@ -1108,9 +1181,11 @@ function HistoricalResyncTab() {
             </Progress>
           </div>
 
-          {/* Per-step status rows */}
+          {/* Per-step status rows — only show rows for SELECTED steps.
+              Skipped (unchecked) steps stay out of the way so the user
+              focuses on what's actually running. */}
           <div className="space-y-2">
-            {RESYNC_STEPS.map((step) => {
+            {RESYNC_STEPS.filter((s) => stepStatuses[s.key] !== "skipped").map((step) => {
               const status = stepStatuses[step.key];
               const result = stepResults[step.key];
               return (

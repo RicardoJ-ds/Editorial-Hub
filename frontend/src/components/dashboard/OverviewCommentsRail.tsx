@@ -23,21 +23,30 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
 import {
+  Bold,
   Check,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
   MessageSquare,
   MessageSquarePlus,
   MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Trash2,
   Undo2,
   X,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TiptapLink from "@tiptap/extension-link";
 import { useAccessProfile, type AccessProfile } from "@/lib/accessClient";
 import { useOverviewComments, type OverviewComment } from "@/lib/overviewCommentsClient";
 import type { Client } from "@/lib/types";
@@ -111,9 +120,24 @@ export function SectionCommentIcon({
 }) {
   const ctx = useContext(OverviewCommentsContext);
   const profile = useAccessProfile();
-  const { comments, loading, create, resolve, reopen, remove } =
+  const { comments, loading, create, update, resolve, reopen, remove } =
     useOverviewComments();
   const [open, setOpen] = useState(false);
+  // True while the section composer is in "writing mode" (the textarea
+  // is open) OR a CommentItem is in edit mode. Used to render the
+  // modal scrim as a sibling of the popover panel — same stacking
+  // context, so z-index ordering works regardless of any ancestor
+  // stacking traps.
+  const [isComposing, setIsComposing] = useState(false);
+  // Counter rather than a boolean because multiple CommentItems can
+  // momentarily report transitions in/out of edit mode — using a
+  // counter avoids one item's close racing another's open and
+  // dropping the scrim early.
+  const [editingCount, setEditingCount] = useState(0);
+  const handleEditOpenChange = useCallback((open: boolean) => {
+    setEditingCount((n) => Math.max(0, n + (open ? 1 : -1)));
+  }, []);
+  const isLocked = isComposing || editingCount > 0;
 
   // Close on Esc. Outside-click closing is handled by a transparent
   // backdrop rendered alongside the popover — that pattern is more
@@ -126,11 +150,14 @@ export function SectionCommentIcon({
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      // Escape closes the popover — but NOT while a comment is being
+      // written or edited. The composer's / editor's own Cancel button
+      // is the only exit path so users can't lose in-progress text.
+      if (e.key === "Escape" && !isLocked) setOpen(false);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, isLocked]);
 
   const filteredClients = ctx?.filteredClients ?? [];
   const filteredClientNames = useMemo(
@@ -139,16 +166,15 @@ export function SectionCommentIcon({
   );
 
   // Comments for THIS section, narrowed to the filter scope.
-  // Section-anchored comments always have a client_name (the inline
-  // composer requires it) — skip any client-less general notes so they
-  // don't surface in section popovers, only in the right-side rail.
+  // Client_name is OPTIONAL on the composer — comments without a
+  // client are accepted as a section-wide note and rendered under a
+  // "General" group at the top of the popover.
   const sectionComments = useMemo(
     () =>
       comments.filter(
         (c) =>
           c.section_id === sectionId &&
-          c.client_name !== null &&
-          filteredClientNames.has(c.client_name),
+          (c.client_name === null || filteredClientNames.has(c.client_name)),
       ),
     [comments, sectionId, filteredClientNames],
   );
@@ -165,18 +191,23 @@ export function SectionCommentIcon({
   const totalThreads = sectionComments.length;
   const unresolved = sectionComments.filter((c) => c.resolved_at === null).length;
 
-  // Group by client for the panel display. Section comments are
-  // guaranteed to have a client_name (filtered above), so the non-null
-  // assertion here is safe.
+  // Group by client. Null-client comments land under the "" (empty
+  // string) key, which we render with a "General" label at the top of
+  // the list.
   const threadsByClient = useMemo(() => {
     const m = new Map<string, OverviewComment[]>();
     for (const c of sectionComments) {
-      const name = c.client_name as string;
+      const name = c.client_name ?? "";
       const arr = m.get(name) ?? [];
       arr.push(c);
       m.set(name, arr);
     }
-    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // Sort: General (null/"") first, then alphabetical by client name.
+    return Array.from(m.entries()).sort(([a], [b]) => {
+      if (a === "" && b !== "") return -1;
+      if (b === "" && a !== "") return 1;
+      return a.localeCompare(b);
+    });
   }, [sectionComments]);
 
   // Notion-style: a bare chat-bubble glyph (no bounding box) sitting
@@ -229,11 +260,29 @@ export function SectionCommentIcon({
       {open && (
         // Transparent, full-viewport backdrop. Clicking anywhere
         // outside the popover panel below lands on this and closes the
-        // popover. No `bg-black/50` or blur — the page stays visually
-        // untouched and remains interactive elsewhere only after close.
+        // popover — UNLESS the composer is actively being written
+        // (then the modal scrim above this catches the click first and
+        // prevents accidental dismissal of in-progress work).
         <div
           className="fixed inset-0 z-40"
           onMouseDown={() => setOpen(false)}
+          aria-hidden
+        />
+      )}
+      {open && isLocked && (
+        // Modal scrim — dims the dashboard while a comment is being
+        // written OR edited. Rendered as a sibling of the popover
+        // panel so they share the SAME stacking context (the
+        // `relative` wrapper), avoiding z-index traps from any
+        // ancestor that creates an isolated context. Sits at z-45:
+        // above the z-40 backdrop (so accidental outside-clicks don't
+        // close the popover during writing) and below the z-50 panel
+        // (so the composer stays
+        // sharp + clickable on top).
+        <div
+          className="fixed inset-0 z-[45] bg-black/55 backdrop-blur-[2px]"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           aria-hidden
         />
       )}
@@ -268,15 +317,19 @@ export function SectionCommentIcon({
                       : "no comments"}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              title="Close"
-              aria-label="Close"
-              className="inline-flex h-5 w-5 items-center justify-center rounded text-[#606060] transition-colors hover:bg-[#1f1f1f] hover:text-white"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+            {/* Hidden while composing or editing — the composer's /
+                editor's own Cancel / Save are the only exit paths. */}
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                title="Close"
+                aria-label="Close"
+                className="inline-flex h-5 w-5 items-center justify-center rounded text-[#606060] transition-colors hover:bg-[#1f1f1f] hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="px-3 py-2 space-y-3">
@@ -300,6 +353,8 @@ export function SectionCommentIcon({
                   onResolve={resolve}
                   onReopen={reopen}
                   onDelete={remove}
+                  onUpdate={update}
+                  onEditOpenChange={handleEditOpenChange}
                 />
               ))
             )}
@@ -308,6 +363,8 @@ export function SectionCommentIcon({
               <SectionComposer
                 sectionId={sectionId}
                 clientOptions={filteredClients}
+                optionalClient
+                onComposerOpenChange={setIsComposing}
                 onCreate={async (clientName, body) => {
                   await create({
                     section_id: sectionId,
@@ -325,6 +382,257 @@ export function SectionCommentIcon({
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Rich-text composer (Tiptap) + read-only renderer.
+//
+// Comments are stored as Tiptap HTML (e.g. "<p><strong>Hi</strong></p>").
+// Old plain-text comments (no leading "<") render as a plain paragraph
+// for backwards compat.
+// ──────────────────────────────────────────────────────────────────────
+
+/** Read-only body renderer — HTML for new comments, plain text for old. */
+function CommentBody({ body, muted = false }: { body: string; muted?: boolean }) {
+  const isHtml = body.trimStart().startsWith("<");
+  const base =
+    "comment-body text-[11px] leading-snug [&_p]:mb-1 [&_p:last-child]:mb-0 " +
+    "[&_strong]:font-semibold [&_strong]:text-white [&_em]:italic " +
+    "[&_a]:text-[#65FFAA] [&_a]:underline [&_a]:decoration-dotted [&_a]:underline-offset-2 [&_a]:hover:text-[#42CA80] " +
+    "[&_ul]:my-1 [&_ul]:ml-3.5 [&_ul]:list-disc [&_ul]:space-y-0.5 " +
+    "[&_ol]:my-1 [&_ol]:ml-3.5 [&_ol]:list-decimal [&_ol]:space-y-0.5 " +
+    "[&_code]:rounded [&_code]:bg-[#0d0d0d] [&_code]:px-1 [&_code]:py-px [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-[#65FFAA] " +
+    (muted ? "text-[#606060] line-through" : "text-[#C4BCAA]");
+
+  if (isHtml) {
+    return (
+      <div
+        className={base}
+        // Safe: content is produced by our own Tiptap editor (bold/italic/link/list/code only).
+        dangerouslySetInnerHTML={{ __html: body }}
+      />
+    );
+  }
+  return (
+    <p className={base + " whitespace-pre-wrap break-words"}>{body}</p>
+  );
+}
+
+/** Tiptap-powered composer with WYSIWYG toolbar (bold, italic, link, lists). */
+function RichComposer({
+  onSubmit,
+  onCancel,
+  submitting,
+  canSubmit,
+  initialBody,
+  submitLabel = "Post",
+  submittingLabel = "Posting",
+}: {
+  onSubmit: (html: string) => void;
+  onCancel: () => void;
+  submitting: boolean;
+  canSubmit: boolean;
+  /** Prefill the editor with existing content — used when editing an
+   *  existing comment. Stored as Tiptap HTML; plain-text bodies (old
+   *  back-compat comments) are wrapped in a single paragraph. */
+  initialBody?: string;
+  /** Label for the primary action button. Defaults to "Post" for new
+   *  comments; pass "Save" for edits. */
+  submitLabel?: string;
+  /** Label shown while the submit is in flight. */
+  submittingLabel?: string;
+}) {
+  const [linkBarOpen, setLinkBarOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("https://");
+  const linkInputRef = useRef<HTMLInputElement>(null);
+
+  // Tiptap v3's `useEditor` doesn't trigger React re-renders on every
+  // editor change by default — so `editor.isEmpty` / `editor.isActive(...)`
+  // stay stale until something else forces a re-render. We hook the
+  // editor's `onUpdate` (content change) and `onSelectionUpdate`
+  // (cursor moved into/out of a bold range, etc.) to force a re-render
+  // via a counter — this keeps the Post button and toolbar active
+  // states in sync with what the user sees in the editor.
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+  // Coerce initial body to valid HTML — wrap legacy plain-text comments
+  // in a single <p> so the editor doesn't render literal text without
+  // a block container.
+  const initialContent = initialBody
+    ? initialBody.trimStart().startsWith("<")
+      ? initialBody
+      : `<p>${initialBody.replace(/\n/g, "<br>")}</p>`
+    : "";
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TiptapLink.configure({ openOnClick: false, autolink: true }),
+    ],
+    content: initialContent,
+    onUpdate: () => forceUpdate(),
+    onSelectionUpdate: () => forceUpdate(),
+    editorProps: {
+      attributes: {
+        class:
+          "min-h-[80px] max-h-[240px] overflow-y-auto px-2.5 py-2 text-[12px] text-[#C4BCAA] focus:outline-none " +
+          "[&_p]:mb-1 [&_p:last-child]:mb-0 " +
+          "[&_strong]:font-semibold [&_strong]:text-white [&_em]:italic " +
+          "[&_a]:text-[#65FFAA] [&_a]:underline [&_a]:decoration-dotted [&_a]:underline-offset-2 " +
+          "[&_ul]:my-1 [&_ul]:ml-3.5 [&_ul]:list-disc [&_ul]:space-y-0.5 " +
+          "[&_ol]:my-1 [&_ol]:ml-3.5 [&_ol]:list-decimal [&_ol]:space-y-0.5 " +
+          "[&_code]:rounded [&_code]:bg-[#0d0d0d] [&_code]:px-1 [&_code]:py-px [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-[#65FFAA]",
+      },
+    },
+  });
+
+  // Cmd+Enter submits
+  useEffect(() => {
+    if (!editor) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (canSubmit && !editor.isEmpty) onSubmit(editor.getHTML());
+      }
+    };
+    editor.view.dom.addEventListener("keydown", handler);
+    return () => editor.view.dom.removeEventListener("keydown", handler);
+  }, [editor, canSubmit, onSubmit]);
+
+  const applyLink = useCallback(() => {
+    if (!editor || !linkUrl.trim() || linkUrl === "https://") return;
+    editor.chain().focus().setLink({ href: linkUrl.trim() }).run();
+    setLinkBarOpen(false);
+    setLinkUrl("https://");
+  }, [editor, linkUrl]);
+
+  const removeLink = useCallback(() => {
+    editor?.chain().focus().unsetLink().run();
+    setLinkBarOpen(false);
+  }, [editor]);
+
+  const isEmpty = editor?.isEmpty ?? true;
+
+  const btnClass = (active?: boolean) =>
+    "inline-flex h-6 w-6 items-center justify-center rounded transition-colors " +
+    (active
+      ? "bg-[#42CA80]/20 text-[#65FFAA]"
+      : "text-[#909090] hover:bg-[#1F1F1F] hover:text-white");
+
+  return (
+    <div className="overflow-hidden rounded-md border border-[#2a2a2a] bg-[#161616] focus-within:border-[#42CA80] focus-within:ring-1 focus-within:ring-[#42CA80]/30">
+      {/* Toolbar */}
+      <div className="flex items-center gap-0.5 border-b border-[#1F1F1F] bg-[#101010] px-1 py-1">
+        <button
+          type="button"
+          className={btnClass(editor?.isActive("bold"))}
+          title="Bold (Cmd+B)"
+          onMouseDown={(e) => { e.preventDefault(); editor?.chain().focus().toggleBold().run(); }}
+        >
+          <Bold className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          className={btnClass(editor?.isActive("italic"))}
+          title="Italic (Cmd+I)"
+          onMouseDown={(e) => { e.preventDefault(); editor?.chain().focus().toggleItalic().run(); }}
+        >
+          <Italic className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          className={btnClass(editor?.isActive("link"))}
+          title="Link (Cmd+K)"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            if (editor?.isActive("link")) {
+              removeLink();
+            } else {
+              setLinkBarOpen((v) => !v);
+              requestAnimationFrame(() => linkInputRef.current?.focus());
+            }
+          }}
+        >
+          <LinkIcon className="h-3 w-3" />
+        </button>
+        <span className="mx-1 h-3 w-px bg-[#2a2a2a]" />
+        <button
+          type="button"
+          className={btnClass(editor?.isActive("bulletList"))}
+          title="Bulleted list"
+          onMouseDown={(e) => { e.preventDefault(); editor?.chain().focus().toggleBulletList().run(); }}
+        >
+          <List className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          className={btnClass(editor?.isActive("orderedList"))}
+          title="Numbered list"
+          onMouseDown={(e) => { e.preventDefault(); editor?.chain().focus().toggleOrderedList().run(); }}
+        >
+          <ListOrdered className="h-3 w-3" />
+        </button>
+      </div>
+
+      {/* Inline link bar — slides open when Link button is clicked */}
+      {linkBarOpen && (
+        <div className="flex items-center gap-1.5 border-b border-[#1F1F1F] bg-[#0d0d0d] px-2 py-1">
+          <LinkIcon className="h-3 w-3 shrink-0 text-[#606060]" />
+          <input
+            ref={linkInputRef}
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); applyLink(); }
+              if (e.key === "Escape") { setLinkBarOpen(false); editor?.commands.focus(); }
+            }}
+            placeholder="https://..."
+            className="min-w-0 flex-1 bg-transparent font-mono text-[11px] text-white placeholder:text-[#606060] focus:outline-none"
+          />
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); applyLink(); }}
+            className="font-mono text-[9px] uppercase tracking-wider text-[#42CA80] hover:text-[#65FFAA]"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); setLinkBarOpen(false); editor?.commands.focus(); }}
+            className="text-[#606060] hover:text-white"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Tiptap editor area — auto-grows with content */}
+      <EditorContent editor={editor} />
+
+      {/* Footer actions */}
+      <div className="flex items-center justify-end gap-1.5 border-t border-[#1F1F1F] bg-[#101010] px-2 py-1.5">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={submitting}
+          className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:bg-[#1f1f1f] hover:text-white"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => { if (editor) onSubmit(editor.getHTML()); }}
+          disabled={submitting || isEmpty || !canSubmit}
+          className="inline-flex h-7 items-center gap-1 rounded-md bg-[#42CA80] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-black transition-colors hover:bg-[#65FFAA] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {submitting ? (
+            <><MoreHorizontal className="h-3 w-3 animate-pulse" /> {submittingLabel}</>
+          ) : (
+            <><MessageSquare className="h-3 w-3" /> {submitLabel}</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Composer w/ typeahead client picker (mirrors FilterBar's "Search
 // clients..." control so the visual language stays consistent).
 // ──────────────────────────────────────────────────────────────────────
@@ -334,6 +642,7 @@ function SectionComposer({
   clientOptions,
   onCreate,
   optionalClient = false,
+  onComposerOpenChange,
 }: {
   sectionId: string;
   clientOptions: Client[];
@@ -345,6 +654,10 @@ function SectionComposer({
    *  Used by the right-side ClientCommentsRail; section-anchored icons
    *  still require a client (default false). */
   optionalClient?: boolean;
+  /** Notifies the parent popover when the writing mode opens / closes
+   *  so the parent can render the modal scrim as a sibling of the
+   *  popover panel (sharing the same stacking context). */
+  onComposerOpenChange?: (open: boolean) => void;
 }) {
   // Pre-select the single filtered client when there is one — but only
   // outside `optionalClient` mode. The rail composer should default to
@@ -356,10 +669,16 @@ function SectionComposer({
   const [client, setClient] = useState<string>(defaultClient);
   const [query, setQuery] = useState<string>(defaultClient);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [body, setBody] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const comboRef = useRef<HTMLDivElement>(null);
+
+  // Bubble open/close to the popover wrapper so it can render the scrim
+  // as a sibling of the popover panel (correct stacking — see note in
+  // SectionCommentIcon below).
+  useEffect(() => {
+    onComposerOpenChange?.(composerOpen);
+  }, [composerOpen, onComposerOpenChange]);
 
   // Re-sync when the parent filter scope changes (single-client preselect).
   // Skipped in optionalClient mode so the rail composer doesn't snap to a
@@ -393,18 +712,17 @@ function SectionComposer({
     return sorted.filter((c) => c.name.toLowerCase().includes(q));
   }, [clientOptions, query]);
 
-  const submit = useCallback(async () => {
-    if (!body.trim()) return;
+  const submit = useCallback(async (html: string) => {
+    if (!html.trim()) return;
     if (!optionalClient && !client) return;
     setSubmitting(true);
     try {
-      await onCreate(client || null, body.trim());
-      setBody("");
+      await onCreate(client || null, html);
       setComposerOpen(false);
     } finally {
       setSubmitting(false);
     }
-  }, [client, body, onCreate, optionalClient]);
+  }, [client, onCreate, optionalClient]);
 
   if (!composerOpen) {
     return (
@@ -492,44 +810,14 @@ function SectionComposer({
         <label className="block font-mono text-[9px] uppercase tracking-wider text-[#606060]">
           Comment
         </label>
-        <textarea
-          rows={3}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write a comment…"
-          className="w-full resize-none rounded-md border border-[#2a2a2a] bg-[#161616] px-2.5 py-1.5 font-mono text-[12px] text-white placeholder:text-[#606060] focus:border-[#42CA80] focus:outline-none focus:ring-1 focus:ring-[#42CA80]/30"
+        <RichComposer
+          onSubmit={(html) => void submit(html)}
+          onCancel={() => setComposerOpen(false)}
+          submitting={submitting}
+          canSubmit={optionalClient ? true : !!client}
         />
       </div>
 
-      <div className="flex items-center justify-end gap-1.5">
-        <button
-          type="button"
-          onClick={() => {
-            setComposerOpen(false);
-            setBody("");
-          }}
-          disabled={submitting}
-          className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 font-mono text-[10px] uppercase tracking-wider text-[#909090] transition-colors hover:bg-[#1f1f1f] hover:text-white"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={submitting || !body.trim() || (!optionalClient && !client)}
-          className="inline-flex h-7 items-center gap-1 rounded-md bg-[#42CA80] px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-black transition-colors hover:bg-[#65FFAA] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {submitting ? (
-            <>
-              <MoreHorizontal className="h-3 w-3 animate-pulse" /> Posting
-            </>
-          ) : (
-            <>
-              <MessageSquare className="h-3 w-3" /> Post
-            </>
-          )}
-        </button>
-      </div>
     </div>
   );
 }
@@ -545,6 +833,8 @@ function ClientThreadBlock({
   onResolve,
   onReopen,
   onDelete,
+  onUpdate,
+  onEditOpenChange,
 }: {
   clientName: string;
   comments: OverviewComment[];
@@ -552,14 +842,22 @@ function ClientThreadBlock({
   onResolve: (id: number) => Promise<void>;
   onReopen: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onUpdate?: (id: number, body: string) => Promise<void>;
+  onEditOpenChange?: (open: boolean) => void;
 }) {
+  // Empty clientName key means the comment was posted without a
+  // client attribution — render it as a "General" group.
+  const isGeneral = clientName === "";
   return (
     <div className="rounded border border-[#1a1a1a] bg-[#161616] p-2">
       <p
-        className="truncate font-mono text-[10px] uppercase tracking-wider text-[#909090]"
-        title={clientName}
+        className={
+          "truncate font-mono text-[10px] uppercase tracking-wider " +
+          (isGeneral ? "text-[#42CA80]" : "text-[#909090]")
+        }
+        title={isGeneral ? "Section-wide note (no client)" : clientName}
       >
-        {clientName}
+        {isGeneral ? "General" : clientName}
       </p>
       <ul className="mt-1.5 space-y-2">
         {comments.map((c) => (
@@ -570,6 +868,8 @@ function ClientThreadBlock({
             onResolve={onResolve}
             onReopen={onReopen}
             onDelete={onDelete}
+            onUpdate={onUpdate}
+            onEditOpenChange={onEditOpenChange}
           />
         ))}
       </ul>
@@ -583,12 +883,19 @@ function CommentItem({
   onResolve,
   onReopen,
   onDelete,
+  onUpdate,
+  onEditOpenChange,
 }: {
   comment: OverviewComment;
   isAdmin: boolean;
   onResolve: (id: number) => Promise<void>;
   onReopen: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onUpdate?: (id: number, body: string) => Promise<void>;
+  /** Notifies the popover wrapper when this item enters / exits edit
+   *  mode so the modal scrim lock follows the same rules as creating
+   *  a new comment. */
+  onEditOpenChange?: (open: boolean) => void;
 }) {
   const resolved = comment.resolved_at !== null;
   const author =
@@ -596,11 +903,33 @@ function CommentItem({
     comment.author_email.split("@")[0].replace(/\./g, " ");
   const when = formatRelative(comment.created_at);
   const fullDateTime = new Date(comment.created_at).toLocaleString();
+  // Inline two-step confirmation — clicking Delete swaps the action
+  // row to "Delete? [Confirm] [Cancel]" instead of triggering the
+  // browser's native confirm() dialog (which ignores the Hub's theme).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
+  useEffect(() => {
+    onEditOpenChange?.(isEditing);
+  }, [isEditing, onEditOpenChange]);
+
+  const handleSaveEdit = async (html: string) => {
+    if (!onUpdate) return;
+    setSubmittingEdit(true);
+    try {
+      await onUpdate(comment.id, html);
+      setIsEditing(false);
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
   return (
     <li
       className={
         "rounded border border-[#1f1f1f] bg-[#0d0d0d] px-2 py-1.5 " +
-        (resolved ? "opacity-60" : "")
+        (resolved && !isEditing ? "opacity-60" : "")
       }
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -614,46 +943,96 @@ function CommentItem({
           {when}
         </span>
       </div>
-      <p
-        className={
-          "mt-1 whitespace-pre-wrap text-[11px] leading-snug " +
-          (resolved ? "text-[#606060] line-through" : "text-[#C4BCAA]")
-        }
-      >
-        {comment.body}
-      </p>
-      {isAdmin && (
-        <div className="mt-1 flex gap-2">
-          {!resolved ? (
-            <button
-              type="button"
-              onClick={() => void onResolve(comment.id)}
-              title="Mark resolved"
-              className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#42CA80]"
-            >
-              <Check className="h-2.5 w-2.5" /> Resolve
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void onReopen(comment.id)}
-              title="Re-open"
-              className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#F5BC4E]"
-            >
-              <Undo2 className="h-2.5 w-2.5" /> Reopen
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm("Delete this comment?")) void onDelete(comment.id);
-            }}
-            title="Delete"
-            className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#ED6958]"
-          >
-            <Trash2 className="h-2.5 w-2.5" /> Delete
-          </button>
+      {isEditing ? (
+        <div className="mt-1.5">
+          <RichComposer
+            initialBody={comment.body}
+            submitLabel="Save"
+            submittingLabel="Saving"
+            submitting={submittingEdit}
+            canSubmit={true}
+            onSubmit={(html) => void handleSaveEdit(html)}
+            onCancel={() => setIsEditing(false)}
+          />
         </div>
+      ) : (
+        <div className="mt-1">
+          <CommentBody body={comment.body} muted={resolved} />
+        </div>
+      )}
+      {isAdmin && !isEditing && (
+        confirmingDelete ? (
+          <div className="mt-1.5 space-y-1.5 rounded-sm border border-[#ED6958]/40 bg-[#ED6958]/8 px-2 py-1.5">
+            <div className="space-y-0.5">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#ED6958]">
+                Delete this comment?
+              </p>
+              <p className="font-mono text-[9px] text-[#909090] leading-snug">
+                This can't be undone. The comment and its thread will be permanently removed.
+              </p>
+            </div>
+            <div className="flex justify-end gap-1">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                className="inline-flex h-5 items-center px-2 font-mono text-[9px] uppercase tracking-wider text-[#909090] rounded-sm hover:bg-[#1f1f1f] hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingDelete(false);
+                  void onDelete(comment.id);
+                }}
+                className="inline-flex h-5 items-center gap-1 px-2 font-mono text-[9px] font-semibold uppercase tracking-wider text-white bg-[#ED6958] rounded-sm hover:bg-[#ED6958]/80 transition-colors"
+              >
+                <Trash2 className="h-2.5 w-2.5" />
+                Delete
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-1 flex gap-2">
+            {!resolved ? (
+              <button
+                type="button"
+                onClick={() => void onResolve(comment.id)}
+                title="Mark resolved"
+                className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#42CA80]"
+              >
+                <Check className="h-2.5 w-2.5" /> Resolve
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void onReopen(comment.id)}
+                title="Re-open"
+                className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#F5BC4E]"
+              >
+                <Undo2 className="h-2.5 w-2.5" /> Reopen
+              </button>
+            )}
+            {onUpdate && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                title="Edit"
+                className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#4ECBE5]"
+              >
+                <Pencil className="h-2.5 w-2.5" /> Edit
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              title="Delete"
+              className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-[#606060] hover:text-[#ED6958]"
+            >
+              <Trash2 className="h-2.5 w-2.5" /> Delete
+            </button>
+          </div>
+        )
       )}
     </li>
   );
@@ -737,27 +1116,42 @@ function formatRelative(iso: string): string {
 export function ClientCommentsRail() {
   const ctx = useContext(OverviewCommentsContext);
   const profile = useAccessProfile();
-  const { comments, loading, create, resolve, reopen, remove } =
+  const { comments, loading, create, update, resolve, reopen, remove } =
     useOverviewComments();
   const [hovered, setHovered] = useState(false);
   // Click-to-pin so the panel stays open while the user types. Hover
   // alone would collapse the panel the moment the mouse moves to the
   // textarea inside an absolutely-positioned dropdown.
   const [pinned, setPinned] = useState(false);
-  const open = hovered || pinned;
+  // True while the rail's composer is in writing mode OR any comment
+  // is being edited — locks the page behind a dim scrim so accidental
+  // clicks don't dismiss in-progress work. Bumps the rail z-index so
+  // it sits above the scrim itself, and forces the rail open
+  // regardless of hover/pin state so it can't collapse while a draft
+  // is in flight. Uses a counter for the edit case so multiple items
+  // transitioning don't race each other.
+  const [isComposing, setIsComposing] = useState(false);
+  const [editingCount, setEditingCount] = useState(0);
+  const handleEditOpenChange = useCallback((opened: boolean) => {
+    setEditingCount((n) => Math.max(0, n + (opened ? 1 : -1)));
+  }, []);
+  const isLocked = isComposing || editingCount > 0;
+  const open = hovered || pinned || isLocked;
 
-  // Esc closes (releases the pin too).
+  // Esc closes (releases the pin too) — but NOT while composing or
+  // editing, so an accidental keypress doesn't discard in-progress
+  // content. The composer's / editor's own Cancel is the only exit.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !isLocked) {
         setPinned(false);
         setHovered(false);
       }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, isLocked]);
 
   const filteredClients = ctx?.filteredClients ?? [];
   const allowedSectionIds = useMemo(() => {
@@ -838,11 +1232,24 @@ export function ClientCommentsRail() {
     // below the sticky filter band, caps its height so it doesn't run
     // to the bottom of the viewport, and sits 12px in from the right
     // edge so it never overlaps the browser's vertical scrollbar.
+    //
+    // While composing, the rail bumps to z-50 and a modal scrim is
+    // rendered at z-45 to lock the page until Save / Cancel.
+    <>
+    {isLocked && (
+      <div
+        className="fixed inset-0 z-[45] bg-black/55 backdrop-blur-[2px]"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        aria-hidden
+      />
+    )}
     <aside
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
-        "fixed right-3 top-[140px] z-40 flex flex-col rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]",
+        "fixed right-3 top-[140px] flex flex-col rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]",
+        isLocked ? "z-[50]" : "z-40",
         "transition-[width,max-height] duration-200 ease-in-out overflow-hidden",
         open
           ? "w-[380px] max-h-[calc(100vh-180px)] shadow-2xl shadow-black/60"
@@ -965,6 +1372,8 @@ export function ClientCommentsRail() {
                                 onResolve={resolve}
                                 onReopen={reopen}
                                 onDelete={remove}
+                                onUpdate={update}
+                                onEditOpenChange={handleEditOpenChange}
                               />
                             ))}
                           </ul>
@@ -981,6 +1390,7 @@ export function ClientCommentsRail() {
                 sectionId={GENERAL_SECTION_ID}
                 clientOptions={filteredClients}
                 optionalClient
+                onComposerOpenChange={setIsComposing}
                 onCreate={async (clientName, body) => {
                   await create({
                     section_id: GENERAL_SECTION_ID,
@@ -994,6 +1404,7 @@ export function ClientCommentsRail() {
         </div>
       )}
     </aside>
+    </>
   );
 }
 

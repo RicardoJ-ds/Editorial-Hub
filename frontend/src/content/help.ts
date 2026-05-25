@@ -61,7 +61,7 @@ Use the date-range picker at the top of any dashboard.
 Use **Search clients…** in the top filter row. The **Status** filter lets you narrow to Active, **Soon to be active**, or Inactive/Completed clients.
 
 #### Drill into a cell on Overview
-Click any Last Q / Current Q / Goals / Lifetime cell inside **Pod Snapshot** to open a detail popover — monthly breakdown, projected end-of-Q variance, and the contract's SOW progress chart. Clicking the client name itself opens a lighter snapshot with status + pods + contract dates only. The popover closes when you click outside it, hit Esc, or scroll the page.
+Click any Last Q / Current Q / Goals / Lifetime cell inside **Pod Snapshot** to open a detail popover. The **Goals popover** opens as a wide per-content-type × per-month grid: each row is one content type (Article ×1, Jumbo ×2, LP ×0.5), each column is a month, and every cell stacks *CB del/goal* (green) on top and *AR del/goal* (cream) below. The bottom **Overall** row sums physical units across types (raw, not weighted) — the Pod Snapshot bar stays weighted for cross-type comparability. Clicking the client name itself opens a lighter snapshot with status + pods + contract dates only. The popover closes when you click outside it, hit Esc, or scroll the page.
 
 #### Focus the milestone cards on one client
 On the **Time to Milestones** section, click a client row in **Pod Timelines**. The row is highlighted, the **Time-to-Metrics** cards re-scope to that client's days (the card title carries a chip with the client name), and the **Per-Client Days** bar for that client lights up. Click again to clear.
@@ -79,7 +79,7 @@ Click **Editorial / Growth** at the top-right (if available to you).
 Hover the dotted-underlined title — every metric carries a 2–3 bullet explanation.
 
 #### Comment on a section
-Hover the chat-bubble next to each section title on the Overview dashboard. Click to open a popover, pick a client, and post. Admins + Leadership can post; everyone can read.
+Hover the chat-bubble next to each section title on the Overview dashboard. Click to open a popover, optionally pick a client, and post. The composer is a rich-text editor — *Bold*, *Italic*, *Link*, *Bulleted list*, *Numbered list* via the toolbar or *Cmd+B / Cmd+I / Cmd+K* shortcuts. Comments posted without a client land under a green **General** group at the top of the section's popover. While you're writing or editing, the dashboard behind dims and locks — only *Cancel* or *Post / Save* dismiss the composer (no accidental loss of in-progress text). Admins + Leadership can post; everyone can read. Every existing comment carries an **Edit** button (pencil icon) next to Resolve and Delete; clicking it opens the same editor with your text prefilled so you can fix typos or add detail. Deleting a comment opens an inline confirmation (*Cancel / Delete*) — irreversible.
 
 ---
 
@@ -114,6 +114,8 @@ The **SYNC** button at the top right pulls fresh data from Google Sheets + Notio
 - An admin moved a client between pods.
 
 The badge next to the button shows when the last sync ran.
+
+**Re-sync past months** (Data Management → Re-sync Past Months) forces a re-import of a closed Goals vs Delivery month. Use it after the importer fix in 0.3.16 to backfill LP / Jumbo rows that were previously dropped when the source sheet left Column A blank on continuation rows. Each step (Goals vs Delivery, Week Distribution, Team Pods, ET CP History, Backfill Editorial Pod) has its own checkbox — uncheck the ones you don't need for a faster targeted run.
 
 ---
 
