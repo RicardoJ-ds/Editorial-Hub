@@ -683,71 +683,97 @@ function ClientDeliveryCard({
                 kind="current"
                 label={qMeta.currentQ.label}
                 monthsLabel={qMeta.currentQ.monthsLabel}
-                delivered={qMeta.currentQ.projectedEndCumDelivered}
+                // Bar shows ACTUAL delivered to date (cumulative actuals
+                // through the last completed month), not the projected
+                // end-of-Q total. Variance still uses the projected
+                // end-of-Q figure — matches the Overview Pod Snapshot.
+                delivered={qMeta.currentQ.actualCumDelivered}
                 target={qMeta.currentQ.endOfQCumInvoiced}
-                actualDelivered={qMeta.currentQ.actualCumDelivered}
                 variance={qMeta.currentQ.projectedEndCumVariance}
                 isFirstQ={isFirstQ}
                 monthInQ={qMeta.currentQ.monthInQ}
                 qLength={qMeta.currentQ.qLength}
                 tooltipTitle="Current Q"
                 tooltipBullets={[
-                  "# = projected variance = end-of-Q − Invoiced.",
-                  "Numbers = delivered · projected end-of-Q · invoiced.",
-                  "% = delivered ÷ projected end-of-Q.",
-                  "Bar = pace = (delivered ÷ proj-Q) ÷ (month-in-Q ÷ Q length).",
-                  "Pace tells you if delivery is keeping up with how much of the Q has elapsed.",
-                  "≥ 1.10 ahead of pace · 0.85–1.10 on track · < 0.85 push needed.",
+                  "# = projected variance = delivered − invoiced through end-of-Q.",
+                  "Bar = actual delivered (to date) ÷ invoiced (cumulative through end-of-Q).",
+                  "≥ 0 On Track · −5–0 Within Limit · < −5 Behind Plan.",
                 ]}
               />
             )}
           </div>
+          {/* End-of-Q variance chip — single chip per card carrying the
+              headline (variance + tier) below the two Q rows. Mirrors
+              the image #100 pattern the user explicitly asked to keep. */}
+          {qMeta.currentQ && (
+            <EndOfQVarianceChip
+              variance={qMeta.currentQ.projectedEndCumVariance}
+              isFirstQ={isFirstQ}
+            />
+          )}
         </div>
       )}
 
-      {/* Lifetime — secondary tier, separated by a divider */}
-      <div className="mt-3 border-t border-[#2a2a2a] pt-3">
-        <div className="mb-2 flex items-center justify-between">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#606060] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
-                }
-              >
-                Lifetime · SOW
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-                <TooltipBody
-                  title="SOW (lifetime)"
-                  bullets={[
-                    "Total articles contracted for the full engagement.",
-                  ]}
-                />
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <span className="font-mono text-[12px] font-semibold text-white tabular-nums">
-            {row.articles_sow.toLocaleString()}
-          </span>
-        </div>
-        <div className="space-y-1.5">
-          <DeliveryBar
-            label="Delivered"
-            current={row.articles_delivered}
-            target={row.articles_invoiced}
-            tooltipTitle="Delivered ÷ Invoiced"
-            tooltipBullets={["Share of billed work that's shipped."]}
-          />
-          <DeliveryBar
-            label="Invoiced"
-            current={row.articles_invoiced}
-            target={row.articles_sow}
-            tooltipTitle="Invoiced ÷ SOW"
-            tooltipBullets={["Share of the contract that's been billed."]}
-          />
-        </div>
-      </div>
+      {/* Lifetime — secondary tier. Numbers are computed from the row's
+          monthly_breakdown so they reflect actual cumulative through
+          the last completed month, NOT the date-filter scope (which
+          would distort the lifetime view when the user has filtered).
+          Same logic as Pod Snapshot's %SOW + Invoiced columns. */}
+      {(() => {
+        const monthly = row.monthly_breakdown ?? [];
+        const cumDelivered = monthly
+          .filter((m) => !m.is_future)
+          .reduce((sum, m) => sum + m.delivered, 0);
+        const cumInvoiced = monthly
+          .filter((m) => !m.is_future)
+          .reduce((sum, m) => sum + m.invoiced, 0);
+        return (
+          <div className="mt-3 border-t border-[#2a2a2a] pt-3">
+            <div className="mb-2 flex items-center justify-between">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#606060] cursor-help underline decoration-dotted decoration-[#404040] underline-offset-2" />
+                    }
+                  >
+                    Lifetime · SOW
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                    <TooltipBody
+                      title="SOW (lifetime)"
+                      bullets={[
+                        "Total articles contracted for the full engagement.",
+                      ]}
+                    />
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span className="font-mono text-[12px] font-semibold text-white tabular-nums">
+                {row.articles_sow.toLocaleString()}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <DeliveryBar
+                label="Delivered"
+                current={cumDelivered}
+                target={cumInvoiced}
+                tooltipTitle="Delivered ÷ Invoiced"
+                tooltipBullets={[
+                  "Cumulative delivered through last completed month ÷ cumulative invoiced.",
+                ]}
+              />
+              <DeliveryBar
+                label="Invoiced"
+                current={cumInvoiced}
+                target={row.articles_sow}
+                tooltipTitle="Invoiced ÷ SOW"
+                tooltipBullets={["Share of the contract that's been billed."]}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Footer — single right-aligned link to the per-month detail */}
       <div className="mt-3 flex justify-end border-t border-[#2a2a2a] pt-2">
@@ -774,25 +800,6 @@ function ClientDeliveryCard({
  *  Intentionally neutral: a current-Q progress bar that looks "behind"
  *  Removed: the QuarterRow now leads with the cumulative variance + tier
  *  inline, so this standalone "End-of-Q variance" line was redundant. */
-
-/** Classify the actual-vs-expected delivery pace for the current Q.
- *  Same math + thresholds as Pod Snapshot's paceClassify so the bar
- *  color reads identically on both surfaces. */
-function paceClassify(
-  actualDelivered: number,
-  projectedEnd: number,
-  monthInQ: number,
-  qLength: number,
-): { color: string; label: string } | null {
-  if (projectedEnd <= 0 || qLength <= 0) return null;
-  const actualProgress = actualDelivered / projectedEnd;
-  const expectedProgress = monthInQ / qLength;
-  if (expectedProgress <= 0) return null;
-  const ratio = actualProgress / expectedProgress;
-  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of pace" };
-  if (ratio >= 0.85) return { color: "#9FE5BD", label: "On track" };
-  return { color: "#F5C542", label: "Push needed" };
-}
 
 /** Signed-variance color, matches the Overview Triage cards. */
 function signedVarianceColor(v: number): string {
@@ -828,7 +835,6 @@ function QuarterRow({
   monthsLabel,
   delivered,
   target,
-  actualDelivered,
   variance,
   isFirstQ = false,
   monthInQ,
@@ -844,56 +850,49 @@ function QuarterRow({
   delivered: number;
   /** Cumulative invoiced through end of Q (denominator). */
   target: number;
-  /** Current-Q only: cumulative ACTUALS through last completed month.
-   *  Drives the solid portion of the two-shade bar so the user sees
-   *  "where we are now" inside the "where we'll land" envelope. */
-  actualDelivered?: number;
-  /** Signed cumulative variance (delivered − target). Color-tracks the
-   *  tier and reads as the row's headline signal. */
+  /** Signed cumulative variance (delivered − target). Drives the bar
+   *  colour and the End-of-Q chip below the two Q rows. */
   variance: number;
   /** 1st contract Q — brand-new clients can't be Healthy/Behind by
-   *  definition, so we render a blue 1st-Q chip instead of a tier. */
+   *  definition, so the bar uses the calm blue 1st-Q palette. */
   isFirstQ?: boolean;
   monthInQ: number | null;
-  /** Total months in the period — drives the M{n}/{N} chip and pacing math
-   *  for variable-length billing periods. Only relevant for the "current"
-   *  kind; lastFull omits it. */
+  /** Total months in the period — drives the M{n}/{N} chip. Only
+   *  relevant for the "current" kind; lastFull omits it. */
   qLength?: number;
   tooltipTitle: string;
   tooltipBullets: React.ReactNode[];
 }) {
   // Last Q is reference context — render in mid-grey so the eye lands
-  // on Current Q (the actionable row). Tier label stays accurate for
-  // tooltip / accessibility readers; only the colour drops to grey.
+  // on Current Q (the actionable row). The End-of-Q chip below the two
+  // rows carries the variance/tier headline for Current Q.
   const dim = kind === "lastFull";
   const tier = isFirstQ
     ? { color: "#8FB5D9", label: "1st Q" }
     : variance >= 0
-    ? { color: dim ? "#909090" : "#42CA80", label: "Healthy" }
+    ? { color: dim ? "#909090" : "#42CA80", label: "On Track" }
     : variance >= -5
-    ? { color: dim ? "#909090" : "#F5C542", label: "Within limit" }
-    : { color: dim ? "#909090" : "#ED6958", label: "Behind" };
-
-  const sign = variance > 0 ? "+" : "";
-  const showBreakdown = actualDelivered !== undefined;
+    ? { color: dim ? "#909090" : "#F5C542", label: "Within Limit" }
+    : { color: dim ? "#909090" : "#ED6958", label: "Behind Plan" };
 
   const safeTarget = Math.max(1, target);
-  const actualPct = showBreakdown
-    ? Math.max(0, Math.min(100, (actualDelivered! / safeTarget) * 100))
-    : 0;
   const projectedPct = Math.max(0, Math.min(100, (delivered / safeTarget) * 100));
-  const fadedWidth = Math.max(0, projectedPct - actualPct);
+  const pctText = target > 0 ? `${Math.round((delivered / target) * 100)}%` : "—";
 
-  // Last Q chip drops to the same neutral grey as the numbers — its
-  // outcome is already in the past, so the colour cue isn't needed.
+  // Badge: Last Full Q stays muted grey (past); Current Q gets the
+  // warm amber chip to mark it as the actionable row.
   const badge = dim
     ? { text: "Last Full Q", fg: "#909090", bg: "rgba(144,144,144,0.10)" }
     : { text: "Current Q", fg: "#F5BC4E", bg: "rgba(245,188,78,0.14)" };
   const labelColor = dim ? "text-[#909090]" : "text-[#C4BCAA]";
+  const numColor = dim ? "text-[#909090]" : "text-white";
 
   return (
     <div>
-      {/* Top row — label block on the left, variance + tier on the right */}
+      {/* Top row — label block on the left, delivered/target + % on right.
+          No more variance/tier inline here — image #100 keeps the row
+          clean and routes the headline through the End-of-Q chip below
+          the two Q rows. */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <TooltipProvider>
@@ -925,115 +924,61 @@ function QuarterRow({
             </span>
           )}
         </div>
-        <div className="shrink-0 flex items-baseline gap-1.5">
-          <span
-            className="font-mono text-[13px] font-bold tabular-nums"
-            style={{ color: tier.color }}
-          >
-            {sign}{Math.round(variance)}
-          </span>
-          <span
-            className="font-mono text-[9px] uppercase tracking-wider"
-            style={{ color: tier.color }}
-          >
-            {tier.label}
-          </span>
+        <span className={`shrink-0 font-mono text-[12px] font-semibold tabular-nums ${numColor}`}>
+          {Math.round(delivered)}/{Math.round(target)}
+        </span>
+      </div>
+      {/* Single tier-coloured progress bar — projected delivered ÷
+          invoiced. No two-shade pace bar, no pace label. */}
+      <div className="mt-1 flex items-center gap-2">
+        <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#1f1f1f]">
+          <div
+            className="absolute top-0 bottom-0 left-0"
+            style={{ width: `${projectedPct}%`, backgroundColor: tier.color }}
+          />
         </div>
+        <span
+          className="w-10 shrink-0 text-right font-mono text-[10px] font-semibold tabular-nums"
+          style={{ color: tier.color }}
+        >
+          {pctText}
+        </span>
       </div>
-      {/* Numbers row — explicit-label format on Current Q (delivered ·
-          proj Q · invoiced); Last Q stays as the simple delivered /
-          invoiced pair since it's a closed snapshot. */}
-      <div className="mt-1 text-right font-mono text-[10px] tabular-nums">
-        {showBreakdown ? (
-          <span className="inline-flex items-baseline gap-1.5">
-            <span className="text-white">{Math.round(actualDelivered!)}</span>
-            <span className="text-[8px] uppercase tracking-wider text-[#606060]">
-              del
-            </span>
-            <span className="text-[#606060]">·</span>
-            <span className="font-semibold text-white">{Math.round(delivered)}</span>
-            <span className="text-[8px] uppercase tracking-wider text-[#606060]">
-              proj Q
-            </span>
-            <span className="text-[#606060]">·</span>
-            <span className="text-[#909090]">{Math.round(target)}</span>
-            <span className="text-[8px] uppercase tracking-wider text-[#606060]">
-              inv
-            </span>
-          </span>
-        ) : (
-          // Last Q numbers — muted; Current Q above is the focal point.
-          <>
-            <span className="font-semibold text-[#909090]">{Math.round(delivered)}</span>
-            <span className="text-[#606060]"> / {Math.round(target)}</span>
-          </>
-        )}
-      </div>
-      {/* Two-shade bar — solid = NOW, faded = projected additional. Bar
-          maxes at 100% = invoiced. Bar color tracks the delivery PACE
-          (red/amber/green based on actual vs expected at this month-
-          in-Q) so the variance + pace are two distinct signals: the
-          variance number tells you what we'll deliver, the bar color
-          tells you whether actuals are tracking the projected
-          trajectory. Last Q has no pace metric — bar uses tier color. */}
-      {(() => {
-        const pace = showBreakdown && monthInQ != null && qLength != null
-          ? paceClassify(actualDelivered!, delivered, monthInQ, qLength)
-          : null;
-        const barColor = pace?.color ?? tier.color;
-        return (
-          <>
-            <div className="mt-1 flex items-center gap-2">
-              <div
-                className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#1f1f1f]"
-              >
-                {showBreakdown ? (
-                  <>
-                    <div
-                      className="absolute top-0 bottom-0 left-0"
-                      style={{ width: `${actualPct}%`, backgroundColor: barColor }}
-                    />
-                    {fadedWidth > 0 && (
-                      <div
-                        className="absolute top-0 bottom-0"
-                        style={{
-                          left: `${actualPct}%`,
-                          width: `${fadedWidth}%`,
-                          backgroundColor: `${barColor}40`,
-                        }}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div
-                    className="absolute top-0 bottom-0 left-0"
-                    style={{ width: `${projectedPct}%`, backgroundColor: tier.color }}
-                  />
-                )}
-              </div>
-              {showBreakdown && (
-                <span
-                  className="w-10 shrink-0 text-right font-mono text-[10px] font-semibold tabular-nums"
-                  style={{ color: barColor }}
-                  title="Cumulative actuals now ÷ projected end of Q"
-                >
-                  {delivered > 0
-                    ? `${Math.round((actualDelivered! / delivered) * 100)}%`
-                    : "—"}
-                </span>
-              )}
-            </div>
-            {pace && (
-              <p
-                className="mt-1 text-right font-mono text-[9px] uppercase tracking-wider"
-                style={{ color: pace.color }}
-              >
-                {pace.label}
-              </p>
-            )}
-          </>
-        );
-      })()}
+    </div>
+  );
+}
+
+/** End-of-Q variance chip rendered once per card, below the two Q rows.
+ *  Carries the variance number + tier label so each Q row above can stay
+ *  clean. Mirror of the original Client Delivery card pattern
+ *  (image #100) and the same chip used inside Pod Snapshot tiles + the
+ *  drill-down popover. */
+function EndOfQVarianceChip({
+  variance,
+  isFirstQ,
+}: {
+  variance: number;
+  isFirstQ: boolean;
+}) {
+  const tier = isFirstQ
+    ? { color: "#8FB5D9", label: "1st Q" }
+    : variance >= 0
+    ? { color: "#42CA80", label: "On Track" }
+    : variance >= -5
+    ? { color: "#F5C542", label: "Within Limit" }
+    : { color: "#ED6958", label: "Behind Plan" };
+  const sign = variance > 0 ? "+" : "";
+  return (
+    <div
+      className="mt-2 inline-flex items-center gap-2 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wider"
+      style={{ borderColor: `${tier.color}40`, backgroundColor: `${tier.color}12` }}
+    >
+      <span className="text-[#909090]">End-of-Q Variance</span>
+      <span className="tabular-nums font-bold" style={{ color: tier.color }}>
+        {sign}{Math.round(variance)} articles
+      </span>
+      <span className="text-[#606060]">·</span>
+      <span style={{ color: tier.color }}>{tier.label}</span>
     </div>
   );
 }

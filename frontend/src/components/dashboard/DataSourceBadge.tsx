@@ -71,7 +71,17 @@ function parseSource(source: string): ParsedPart[] {
   return parts;
 }
 
-export function DataSourceBadge({ type, source, shows, className }: DataSourceBadgeProps) {
+export function DataSourceBadge(_props: DataSourceBadgeProps) {
+  // Hub-wide normalization: the LIVE / MOCK chip + provenance tooltip
+  // was deemed visual noise on the dashboards. The component is kept
+  // so existing JSX references compile, but renders nothing. Delete
+  // the call sites in a follow-up cleanup pass.
+  return null;
+}
+
+// Legacy implementation kept below for reference; unreached because
+// the function above returns null. Strip after the call-site cleanup.
+function _LegacyDataSourceBadge({ type, source, shows, className }: DataSourceBadgeProps) {
   const isLive = type === "live";
   const parsed = parseSource(source);
 

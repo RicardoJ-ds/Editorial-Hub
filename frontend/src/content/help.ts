@@ -38,9 +38,9 @@ Each client has one of each.
 
 **Variance** — Delivered minus invoiced. We use **cumulative variance through end of current quarter**, so over-delivery this quarter cancels earlier deficits.
 
-**Pace** — A second signal next to variance. Compares how far through the quarter you are vs. how much you've actually delivered. The bar shows one of three states: **Push needed** (yellow — more left to deliver than time on the clock), **On track** (light green — keeping up with the time elapsed), or **Ahead of pace** (dark green — comfortable buffer). A client can be *behind* on variance but *on pace* to recover — both signals show side-by-side.
+**Last Q / Current Q** — Each client's **own** contract quarters, anchored to their start date — not calendar quarters. **Current Q** progress bars show actual delivered to date vs cumulative invoiced through end of Q; the variance + tier always describe the projected end-of-Q outcome.
 
-**Last Q / Current Q** — Each client's **own** contract quarters, anchored to their start date — not calendar quarters.
+**Milestones** — Six steps a client passes through, numbered in order: **1** Consulting KO · **2** Editorial KO · **3** First CB Approved · **4** First Article · **5** First Feedback · **6** First Published. The numbers show up in legends, card titles, dropdowns, and tooltips so the same milestone is identifiable across surfaces.
 
 **As Of** — The last fully-completed Editorial month (from the team's week-distribution sheet).
 
@@ -60,14 +60,17 @@ Use the date-range picker at the top of any dashboard.
 #### Find a specific client fast
 Use **Search clients…** in the top filter row. The **Status** filter lets you narrow to Active, **Soon to be active**, or Inactive/Completed clients.
 
-#### Drill into a Q cell on Overview
-Click any Last Q / Current Q / Goals / Lifetime cell inside **Pod Snapshot** to open a detail popover — monthly breakdown, pace bar, projected end-of-Q variance, and the contract's SOW progress chart.
+#### Drill into a cell on Overview
+Click any Last Q / Current Q / Goals / Lifetime cell inside **Pod Snapshot** to open a detail popover — monthly breakdown, projected end-of-Q variance, and the contract's SOW progress chart. Clicking the client name itself opens a lighter snapshot with status + pods + contract dates only. The popover closes when you click outside it, hit Esc, or scroll the page.
 
-#### See the per-pod split on Production History
-The chart has an **All / Per pod** toggle in the top-right. *Per pod* draws one line per pod using the pod colours, with a tooltip that groups the clients under each pod. It follows the global **Editorial / Growth** axis toggle.
+#### Focus the milestone cards on one client
+On the **Time to Milestones** section, click a client row in **Pod Timelines**. The row is highlighted, the **Time-to-Metrics** cards re-scope to that client's days (the card title carries a chip with the client name), and the **Per-Client Days** bar for that client lights up. Click again to clear.
 
-#### Reach a legacy section on Overview
-Time-to Metrics, Delivery Overview, Cumulative Pipeline, and per-client Delivery cards now live under a single **Legacy sections** block at the bottom of Overview — click **Show** to expand. They'll be removed once Pod Snapshot is fully validated.
+#### Cross-card highlight on hover
+Hover a Time-to-Metrics card OR a Pod Timelines segment / dot — matching elements in the other cards light up; Per-Client Days temporarily switches to the hovered metric. Toggle **Link cards** in the section header to disable.
+
+#### See the per-pod (or per-client) split on Production History
+The chart has an **All / Per pod / Per client** toggle in the top-right. *Per client* only shows up when a pod filter narrows the scope to one pod (20+ overlapping lines is unreadable otherwise).
 
 #### Switch how charts group clients
 Click **Editorial / Growth** at the top-right (if available to you).
@@ -94,14 +97,11 @@ Five seeded groups. Click **Admin → Access Control** to see the full matrix.
 
 Each per-client card shows:
 
-- **Tier badge** (next to the name) — at-a-glance status: _Healthy_ (green), _Within limit_ (amber), _Behind_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
-- **Last Q** — cumulative *delivered / invoiced* through the end of the last full contract quarter, plus the variance and a tier chip.
-- **Current Q** — cumulative *delivered · proj Q · invoiced* through the end of the current contract quarter (actuals + projection for the remaining months). Each number carries a small label so the row reads in plain English.
-- **Pace bar** — colour shows whether the client is on track for the current quarter: **Ahead of pace** (dark green) / **On track** (light green) / **Push needed** (yellow). This is a separate signal from variance — a behind-on-variance client can still be on pace to recover.
-- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. The friendly label tells you the state at a glance: _On track_ (≥ 0), _Slight drift_ (−5 to 0), or _Behind plan_ (below −5). New 1st-Q contracts get a calm _New 1st Q_ hint instead of an alarm.
+- **Tier badge** (next to the name) — at-a-glance status: _On Track_ (green), _Within Limit_ (amber), _Behind Plan_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
+- **Last Q** — cumulative *delivered / invoiced* through the end of the last full contract quarter, with the variance + tier label below the bar.
+- **Current Q** — bar shows *actual delivered to date* over *invoiced through end of Q* (the bar is real progress, not a projection). The variance number + tier label describe the projected end-of-Q outcome.
+- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. Tiers: _On Track_ (≥ 0), _Within Limit_ (−5 to 0), _Behind Plan_ (below −5). New 1st-Q contracts get a calm _1st Q_ chip instead of an alarm.
 - **Lifetime · SOW** — Delivered / Invoiced / SOW for the full relationship.
-
-The two-shade bar shows actuals as solid + remaining projection as a fainter extension — the colour itself comes from the pace classification, not the absolute %.
 
 ---
 

@@ -275,11 +275,34 @@ export function FilterBar({
   const comboRef = useRef<HTMLDivElement>(null);
 
   const filteredClientNames = useMemo(() => {
-    const names = Array.from(new Set(clients.map((c) => c.name))).sort();
+    // Scope the dropdown to clients matching the active pod + status
+    // filters. Without this the search showed every client even after
+    // a pod was selected, which forced the user to remember the pod
+    // membership in their head.
+    let pool = clients;
+    if (editorialPod !== "All") {
+      pool = pool.filter((c) => normalizePod(c.editorial_pod) === editorialPod);
+    }
+    if (growthPod !== "All") {
+      pool = pool.filter((c) => normalizePod(c.growth_pod) === growthPod);
+    }
+    if (status === "Active") {
+      pool = pool.filter((c) => c.status === "ACTIVE");
+    } else if (status === "Soon to be active") {
+      pool = pool.filter((c) => c.status === "SOON_TO_BE_ACTIVE");
+    } else if (status === "Inactive/Completed") {
+      pool = pool.filter(
+        (c) =>
+          c.status === "COMPLETED" ||
+          c.status === "CANCELLED" ||
+          c.status === "INACTIVE",
+      );
+    }
+    const names = Array.from(new Set(pool.map((c) => c.name))).sort();
     if (!search) return names;
     const q = search.toLowerCase();
     return names.filter((n) => n.toLowerCase().includes(q));
-  }, [clients, search]);
+  }, [clients, search, editorialPod, growthPod, status]);
 
   // Close dropdown on click outside
   useEffect(() => {

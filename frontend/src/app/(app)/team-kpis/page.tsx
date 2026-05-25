@@ -395,8 +395,11 @@ export default function TeamKpisPage() {
             min-h matches the h3 sticky top inside subsections so the band's
             bg-black butts up against the h3 with no transparent gap. */}
         <div className="sticky top-0 z-20 bg-black pb-3 -mx-8 px-8 pt-3 min-h-[120px]">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-3">
-            <h1 className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-white whitespace-nowrap shrink-0">
+          {/* Compact header — title + filters + sync controls inline.
+              flex-nowrap + gap-x-4 + text-base title to match Overview
+              and Editorial Clients (single hub-wide style). */}
+          <div className="flex flex-nowrap items-center gap-x-4 mb-3">
+            <h1 className="font-mono text-base font-bold uppercase tracking-[0.18em] text-white whitespace-nowrap shrink-0">
               Team KPIs
             </h1>
             <TeamKpiFilterBar
@@ -405,7 +408,7 @@ export default function TeamKpisPage() {
               filters={filters}
               onFiltersChange={setFilters}
             />
-            <div className="ml-auto">
+            <div className="ml-auto shrink-0">
               <SyncControls />
             </div>
           </div>
@@ -614,7 +617,7 @@ function AIComplianceTab() {
 
       {/* Flagged Articles Table */}
       <section id="ai-flagged" className="space-y-3 scroll-mt-[140px]">
-        <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
+        <h3 className="mb-2 font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Flagged Articles <DataSourceBadge type="live" source="Articles flagged for AI review · Writer AI Monitoring." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
@@ -672,7 +675,7 @@ function AIComplianceTab() {
 
       {/* Rewrites Table */}
       <section id="ai-rewrites" className="space-y-3 scroll-mt-[140px]">
-        <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
+        <h3 className="mb-2 font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Rewrites <DataSourceBadge type="live" source="Articles needing full rewrite (AI compliance fail)." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">
@@ -730,7 +733,7 @@ function AIComplianceTab() {
 
       {/* Surfer API Usage Table */}
       <section id="ai-surfer" className="space-y-3 scroll-mt-[140px]">
-        <h3 className="sticky top-[120px] z-10 bg-black pt-1 pb-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#606060] border-b border-[#2a2a2a]">
+        <h3 className="mb-2 font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
           Surfer API Usage <DataSourceBadge type="live" source="Monthly Surfer API call counts by pod." />
         </h3>
         <div className="rounded-lg border border-[#2a2a2a] bg-[#161616]">

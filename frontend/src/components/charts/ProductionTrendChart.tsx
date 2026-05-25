@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ComposedChart,
   Area,
@@ -42,12 +42,18 @@ function formatLabel(year: number, month: number): string {
 }
 
 type PodAxis = "editorial" | "growth";
-type ViewMode = "all" | "per-pod";
+type ViewMode = "all" | "per-pod" | "per-client";
 
 interface BreakdownClient {
   name: string;
   value: number;
   isActual: boolean;
+  /** Pod the client belongs to — used by per-client tooltip grouping. */
+  pod?: string;
+  /** Series colour for the client. Per-client mode assigns a distinct
+   *  brand swatch per client (when one pod in scope) or the pod colour
+   *  (when multiple pods in scope); single-line mode leaves this blank. */
+  color?: string;
 }
 
 interface PodBreakdown {
@@ -118,49 +124,286 @@ function bridgePodSeries(rows: ChartRow[], pods: string[]) {
 }
 
 // ---------------------------------------------------------------------------
-// Custom Tooltips
+// Custom Tooltip
+//
+// We render our own tooltip OUTSIDE Recharts and drive it from a hover-state
+// object captured in the chart's onMouseMove. Recharts' built-in Tooltip is
+// kept for the cursor crosshair (content prop returns null) but doesn't
+// render any box itself.
+//
+// Why custom? Recharts' Tooltip positions a wrapper div via `top`/`left`
+// in coord spaces that vary (chart-relative, padded, etc.) and its
+// `position` prop doesn't play well with `position: fixed` overrides.
+// Mirroring the pattern used by JourneyTooltip in PeriodSnapshotSection
+// (position: fixed + cursor viewport coords + self-measure with
+// useLayoutEffect) gives us predictable placement.
 // ---------------------------------------------------------------------------
 
-interface TooltipPayloadEntry {
-  name: string;
-  value: number;
-  color: string;
-  payload?: ChartRow;
+interface HoverState {
+  /** Cursor X in viewport coords (event.clientX) at re-anchor moment. */
+  cursorX: number;
+  /** Cursor Y in viewport coords (event.clientY) at re-anchor moment. */
+  cursorY: number;
+  /** Active month label (e.g. "Apr 26"). */
+  label: string;
+  /** The active row's full ChartRow payload — used to derive breakdown. */
+  payload: ChartRow;
+  /** Chart card's viewport bounding rect — used to clip the tooltip's X
+   *  position to the card's right edge. Captured at re-anchor so it
+   *  stays stable while the cursor moves inside one month's band. */
+  containerRect: { left: number; right: number };
 }
 
-const BREAKDOWN_LIMIT = 10;
-const POD_CLIENT_LIMIT = 6;
-
-function SingleTooltip({
+/** Recharts content component that observes the chart's hover state
+ *  (active/payload/label) and reports label changes to the parent via
+ *  onChange. Returns null so Recharts renders no tooltip itself — the
+ *  actual box is <ChartTooltipBox>, rendered outside the Recharts tree.
+ *
+ *  We use this instead of just reading state.activeLabel from the
+ *  chart's onMouseMove because that approach is unreliable: state
+ *  tracking can be skipped or stale when the Tooltip's content returns
+ *  null. Going through Recharts' own content-props pipeline is the
+ *  documented way to observe tooltip state. */
+function TooltipProbe({
   active,
   payload,
   label,
+  onChange,
 }: {
   active?: boolean;
-  payload?: TooltipPayloadEntry[];
+  payload?: { payload?: ChartRow }[];
   label?: string;
+  onChange: (info: { label: string; row: ChartRow } | null) => void;
 }) {
-  if (!active || !payload?.length) return null;
-  const breakdown = payload[0]?.payload?.breakdown ?? [];
-  const visible = breakdown.slice(0, BREAKDOWN_LIMIT);
-  const hidden = breakdown.length - visible.length;
+  const lastLabelRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (active && label && payload?.length) {
+      const row = payload[0]?.payload;
+      if (row && lastLabelRef.current !== label) {
+        lastLabelRef.current = label;
+        onChange({ label, row });
+      }
+    } else if (lastLabelRef.current !== null) {
+      lastLabelRef.current = null;
+      onChange(null);
+    }
+  }, [active, label, payload, onChange]);
+  return null;
+}
+
+function ChartTooltipBox({
+  hover,
+  viewMode,
+  podAxis,
+}: {
+  hover: HoverState;
+  viewMode: ViewMode;
+  podAxis: PodAxis;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Start hidden; measure on mount, then position + reveal — same frame
+  // via useLayoutEffect so the user never sees the first-render flash.
+  const [pos, setPos] = useState<{ left: number; top: number; ready: boolean }>(
+    { left: 0, top: 0, ready: false },
+  );
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const viewportH = window.innerHeight;
+    const sideMargin = 8;
+    const gap = 30;
+    // Horizontal: 30px right of cursor by default; flip to 30px left
+    // of cursor when the right side would clip past the chart card's
+    // right edge.
+    const wouldClipRight = hover.cursorX + gap + w > hover.containerRect.right - sideMargin;
+    const left = wouldClipRight
+      ? Math.max(sideMargin, hover.cursorX - gap - w)
+      : hover.cursorX + gap;
+    // Vertical: center on cursor, clamp so the box stays fully inside
+    // [sideMargin, viewportH - sideMargin]. When the box is taller
+    // than the viewport (rare), pin to top — the box's own max-h cap +
+    // internal overflow handle it gracefully.
+    const idealTop = hover.cursorY - h / 2;
+    const maxTop = viewportH - h - sideMargin;
+    const top = h > 0
+      ? Math.max(sideMargin, Math.min(idealTop, maxTop))
+      : sideMargin;
+    setPos({ left, top, ready: true });
+  }, [hover]);
+
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] px-3 py-2 shadow-lg">
-      <p className="mb-1 font-mono text-xs font-semibold text-white">
-        {label}
-      </p>
-      {payload.map((entry) => (
-        <div key={entry.name} className="flex items-center gap-2 text-xs">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-[#C4BCAA]">{entry.name}:</span>
-          <span className="font-mono font-semibold text-white">
-            {entry.value}
+    <div
+      ref={ref}
+      className="fixed z-40 max-h-[calc(100vh-16px)] overflow-y-auto overscroll-contain rounded-lg border border-[#2a2a2a] bg-[#161616] px-3 py-2 shadow-lg max-w-[320px]"
+      style={{
+        left: pos.left,
+        top: pos.top,
+        visibility: pos.ready ? "visible" : "hidden",
+        pointerEvents: "none",
+      }}
+    >
+      <ChartTooltipContent
+        label={hover.label}
+        payload={hover.payload}
+        viewMode={viewMode}
+        podAxis={podAxis}
+      />
+    </div>
+  );
+}
+
+const BREAKDOWN_LIMIT = 10;
+
+function ChartTooltipContent({
+  label,
+  payload,
+  viewMode,
+  podAxis,
+}: {
+  label: string;
+  payload: ChartRow;
+  viewMode: ViewMode;
+  podAxis: PodAxis;
+}) {
+  if (viewMode === "per-pod") {
+    const breakdownByPod = payload.breakdownByPod ?? [];
+    if (breakdownByPod.length === 0) return null;
+    const total = breakdownByPod.reduce((sum, p) => sum + p.total, 0);
+    const isActual = breakdownByPod.some((p) => p.isActual);
+    return (
+      <>
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <p className="font-mono text-xs font-semibold text-white">{label}</p>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            {isActual ? "Actual" : "Projected"} · {total}
           </span>
         </div>
-      ))}
+        {/* Per-pod view → pod totals only (no per-client list). */}
+        <ul className="space-y-0.5">
+          {breakdownByPod.map((p) => (
+            <li
+              key={p.pod}
+              className="flex items-center justify-between gap-3 font-mono text-[11px]"
+            >
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className="inline-block h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: p.color }}
+                />
+                <span className="font-semibold" style={{ color: p.color }}>
+                  {displayPod(p.pod, podAxis)}
+                </span>
+              </span>
+              <span className="tabular-nums font-semibold text-white">
+                {p.total}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+
+  if (viewMode === "per-client") {
+    const breakdown = payload.breakdown ?? [];
+    const nonZero = breakdown.filter((b) => b.value > 0);
+    if (nonZero.length === 0) return null;
+    const byPod = new Map<string, BreakdownClient[]>();
+    for (const b of nonZero) {
+      const pod = b.pod ?? "Unassigned";
+      if (!byPod.has(pod)) byPod.set(pod, []);
+      byPod.get(pod)!.push(b);
+    }
+    for (const list of byPod.values()) {
+      list.sort((a, b) => b.value - a.value);
+    }
+    const pods = Array.from(byPod.keys()).sort(sortPodKey);
+    const total = nonZero.reduce((sum, c) => sum + c.value, 0);
+    const isActual = nonZero.some((b) => b.isActual);
+    return (
+      <>
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <p className="font-mono text-xs font-semibold text-white">{label}</p>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+            {isActual ? "Actual" : "Projected"} · {total}
+          </span>
+        </div>
+        <ul className="space-y-1.5">
+          {pods.map((pod) => {
+            const list = byPod.get(pod) ?? [];
+            const podTotal = list.reduce((sum, c) => sum + c.value, 0);
+            const podColor = POD_HEX_COLORS[pod] ?? list[0]?.color ?? "#606060";
+            return (
+              <li key={pod} className="space-y-0.5">
+                <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: podColor }}
+                    />
+                    <span className="font-semibold" style={{ color: podColor }}>
+                      {displayPod(pod, podAxis)}
+                    </span>
+                  </span>
+                  <span className="tabular-nums font-semibold text-white">
+                    {podTotal}
+                  </span>
+                </div>
+                <ul className="space-y-0.5 pl-3.5">
+                  {list.map((c) => (
+                    <li
+                      key={c.name}
+                      className="flex items-center justify-between gap-3 font-mono text-[10px]"
+                    >
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: c.color ?? podColor }}
+                        />
+                        <span className="truncate text-[#909090]" title={c.name}>
+                          {c.name}
+                        </span>
+                      </span>
+                      <span className="tabular-nums text-[#C4BCAA]">
+                        {c.value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </>
+    );
+  }
+
+  // Default (All) view — single solid/dashed line.
+  const breakdown = payload.breakdown ?? [];
+  const visible = breakdown.slice(0, BREAKDOWN_LIMIT);
+  const hidden = breakdown.length - visible.length;
+  const totalActual = typeof payload.Actual === "number" ? payload.Actual : null;
+  const totalProjected = typeof payload.Projected === "number" ? payload.Projected : null;
+  return (
+    <>
+      <p className="mb-1 font-mono text-xs font-semibold text-white">{label}</p>
+      {totalActual !== null && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#42CA80" }} />
+          <span className="text-[#C4BCAA]">Actual:</span>
+          <span className="font-mono font-semibold text-white">{totalActual}</span>
+        </div>
+      )}
+      {totalProjected !== null && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#42CA80" }} />
+          <span className="text-[#C4BCAA]">Projected:</span>
+          <span className="font-mono font-semibold text-white">{totalProjected}</span>
+        </div>
+      )}
       {visible.length > 0 && (
         <>
           <div className="my-1.5 h-px bg-[#2a2a2a]" />
@@ -189,84 +432,7 @@ function SingleTooltip({
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function PerPodTooltip({
-  active,
-  payload,
-  label,
-  podAxis,
-}: {
-  active?: boolean;
-  payload?: TooltipPayloadEntry[];
-  label?: string;
-  podAxis: PodAxis;
-}) {
-  if (!active || !payload?.length) return null;
-  const breakdownByPod = payload[0]?.payload?.breakdownByPod ?? [];
-  if (breakdownByPod.length === 0) return null;
-  const total = breakdownByPod.reduce((sum, p) => sum + p.total, 0);
-  const isActual = breakdownByPod.some((p) => p.isActual);
-  return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] px-3 py-2 shadow-lg max-w-[320px]">
-      <div className="mb-1.5 flex items-center justify-between gap-3">
-        <p className="font-mono text-xs font-semibold text-white">{label}</p>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-          {isActual ? "Actual" : "Projected"} · {total}
-        </span>
-      </div>
-      <ul className="space-y-1.5">
-        {breakdownByPod.map((p) => {
-          const visible = p.clients.slice(0, POD_CLIENT_LIMIT);
-          const hidden = p.clients.length - visible.length;
-          return (
-            <li key={p.pod} className="space-y-0.5">
-              <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block h-2 w-2 rounded-full"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  <span
-                    className="font-semibold"
-                    style={{ color: p.color }}
-                  >
-                    {displayPod(p.pod, podAxis)}
-                  </span>
-                </span>
-                <span className="tabular-nums font-semibold text-white">
-                  {p.total}
-                </span>
-              </div>
-              {visible.length > 0 && (
-                <ul className="space-y-0.5 pl-3.5">
-                  {visible.map((c) => (
-                    <li
-                      key={c.name}
-                      className="flex items-center justify-between gap-3 font-mono text-[10px]"
-                    >
-                      <span className="truncate text-[#909090]" title={c.name}>
-                        {c.name}
-                      </span>
-                      <span className="tabular-nums text-[#C4BCAA]">
-                        {c.value}
-                      </span>
-                    </li>
-                  ))}
-                  {hidden > 0 && (
-                    <li className="font-mono text-[10px] text-[#606060]">
-                      +{hidden} more
-                    </li>
-                  )}
-                </ul>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    </>
   );
 }
 
@@ -277,14 +443,26 @@ function PerPodTooltip({
 function ViewModeToggle({
   value,
   onChange,
+  allowPerClient,
 }: {
   value: ViewMode;
   onChange: (v: ViewMode) => void;
+  /** Whether the "Per client" option is offered. Hidden when more
+   *  than one pod is in scope — 20+ overlapping client lines on the
+   *  same chart is unreadable; per-client only makes sense with a
+   *  pod filter narrowing the set to ≤ ~10 clients. */
+  allowPerClient: boolean;
 }) {
-  const opts: { id: ViewMode; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "per-pod", label: "Per pod" },
-  ];
+  const opts: { id: ViewMode; label: string }[] = allowPerClient
+    ? [
+        { id: "all", label: "All" },
+        { id: "per-pod", label: "Per pod" },
+        { id: "per-client", label: "Per client" },
+      ]
+    : [
+        { id: "all", label: "All" },
+        { id: "per-pod", label: "Per pod" },
+      ];
   return (
     <div className="inline-flex rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5">
       {opts.map((o) => {
@@ -596,36 +774,247 @@ export function ProductionTrendChart({
     };
   }, [clientProduction, filteredClients, dateRange, podByName, podAxis]);
 
-  const isPerPod = viewMode === "per-pod";
-  const activeChartData = isPerPod ? podSeries.chartData : singleSeries.chartData;
-  const activeBoundary = isPerPod ? podSeries.boundaryLabel : singleSeries.boundaryLabel;
+  // Per-client aggregation — one line per client. Each client keeps its
+  // pod's colour so the chart visually clusters by pod even though the
+  // individual lines belong to clients. Tooltip lists clients (sorted
+  // by pod then desc value), with the pod label as a group header.
+  const clientSeries = useMemo(() => {
+    const inRange = (y: number, m: number) => {
+      if (!dateRange || dateRange.type !== "range" || !dateRange.from) return true;
+      const cell = new Date(y, m - 1, 1);
+      const from = new Date(
+        dateRange.from.getFullYear(),
+        dateRange.from.getMonth(),
+        1,
+      );
+      const toSrc = dateRange.to ?? dateRange.from;
+      const to = new Date(toSrc.getFullYear(), toSrc.getMonth() + 1, 0);
+      return cell >= from && cell <= to;
+    };
 
-  // Cursor-aware tooltip position. Recharts default puts the tooltip at
-  // the cursor; that overflows the right edge once a pod breakdown is
-  // wide. Track chartX from onMouseMove and flip the tooltip to the
-  // left of the cursor when it would clip. ~320px is the widest the
-  // per-pod tooltip gets (max-w-[320px] on PerPodTooltip).
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | undefined>(
-    undefined,
-  );
-  // Recharts' onMouseMove fires with a wide MouseHandlerDataParam shape
-  // we don't fully type — cast through unknown to read just chartX. The
-  // alternative would be to import the recharts type but it's not
-  // re-exported from the public surface, so this is the cleanest path.
-  const handleChartMouseMove = (state: unknown) => {
-    const chartX = (state as { chartX?: number } | null)?.chartX;
-    if (chartX == null) return;
-    const containerW = containerRef.current?.offsetWidth ?? 0;
-    if (!containerW) return;
-    const tooltipWidth = isPerPod ? 320 : 240;
-    const flipLeft = chartX + tooltipWidth + 40 > containerW;
-    setTooltipPos({
-      x: flipLeft ? chartX - tooltipWidth - 20 : chartX + 20,
-      y: 10,
+    if (!clientProduction || clientProduction.length === 0) {
+      return { chartData: [], boundaryLabel: "", clients: [] as { name: string; pod: string; color: string }[] };
+    }
+    const names = filteredClients
+      ? new Set(filteredClients.map((c) => c.name))
+      : null;
+    const rows = names
+      ? clientProduction.filter((r) => names.has(r.client_name))
+      : clientProduction;
+
+    type Bucket = {
+      year: number;
+      month: number;
+      perClient: Map<string, { actual: number; projected: number }>;
+    };
+    const byMonth = new Map<string, Bucket>();
+    const allClients = new Map<string, { pod: string; color: string }>();
+
+    for (const r of rows) {
+      const podFromMap = podByName.get(r.client_name);
+      const fallback =
+        podAxis === "editorial" && r.editorial_pod
+          ? normalizePod(r.editorial_pod)
+          : "Unassigned";
+      const pod = podFromMap ?? fallback;
+      const color = POD_HEX_COLORS[pod] ?? "#606060";
+      allClients.set(r.client_name, { pod, color });
+      for (const m of r.monthly) {
+        if (!inRange(m.year, m.month)) continue;
+        const key = `${m.year}-${String(m.month).padStart(2, "0")}`;
+        const bucket = byMonth.get(key) ?? {
+          year: m.year,
+          month: m.month,
+          perClient: new Map(),
+        };
+        const cell = bucket.perClient.get(r.client_name) ?? { actual: 0, projected: 0 };
+        cell.actual += m.actual ?? 0;
+        cell.projected += m.projected ?? 0;
+        bucket.perClient.set(r.client_name, cell);
+        byMonth.set(key, bucket);
+      }
+    }
+
+    const sortedMonths = Array.from(byMonth.values()).sort(
+      (a, b) => a.year * 100 + a.month - (b.year * 100 + b.month),
+    );
+    // Order clients by pod (for tooltip grouping) then by name.
+    const sortedClients = Array.from(allClients.entries())
+      .map(([name, meta]) => ({ name, pod: meta.pod, color: meta.color }))
+      .sort((a, b) => {
+        const podCmp = sortPodKey(a.pod, b.pod);
+        return podCmp !== 0 ? podCmp : a.name.localeCompare(b.name);
+      });
+
+    // When only ONE pod is in scope (e.g. user filtered to a single pod
+    // in the header), every client would otherwise share the same pod
+    // colour and the chart looks like a tangle of identical lines.
+    // Assign each client a distinct brand-palette swatch (same swatches
+    // as POD_HEX_COLORS) so lines are individually identifiable and the
+    // chart stays on-brand. Falls back to the pod-colour scheme when 2+
+    // pods are in scope.
+    const CLIENT_BRAND_PALETTE = [
+      "#8FB5D9", // blue
+      "#42CA80", // green
+      "#F5C542", // yellow
+      "#F28D59", // orange
+      "#ED6958", // red
+      "#CEBCF4", // lavender
+      "#7FE8D6", // teal
+      "#C4BCAA", // warm neutral
+    ];
+    const distinctPods = new Set(sortedClients.map((c) => c.pod));
+    const singlePod = distinctPods.size === 1;
+    const clients = singlePod
+      ? sortedClients.map((c, i) => ({
+          ...c,
+          color: CLIENT_BRAND_PALETTE[i % CLIENT_BRAND_PALETTE.length],
+        }))
+      : sortedClients;
+
+    let lastActualLabel = "";
+    const chartData: ChartRow[] = sortedMonths.map((pt) => {
+      const label = formatLabel(pt.year, pt.month);
+      const monthIsActual = Array.from(pt.perClient.values()).some((c) => c.actual > 0);
+      if (monthIsActual) lastActualLabel = label;
+
+      const row: ChartRow = { month: label, Actual: null, Projected: null };
+      const breakdown: BreakdownClient[] = [];
+      for (const c of clients) {
+        const cell = pt.perClient.get(c.name);
+        const aKey = `${c.name}__Actual`;
+        const pKey = `${c.name}__Projected`;
+        if (!cell) {
+          row[aKey] = null;
+          row[pKey] = null;
+          continue;
+        }
+        row[aKey] = monthIsActual ? cell.actual : null;
+        row[pKey] = !monthIsActual ? cell.projected : null;
+        const v = monthIsActual ? cell.actual : cell.projected;
+        if (v > 0) breakdown.push({
+          name: c.name,
+          value: v,
+          isActual: monthIsActual,
+          pod: c.pod,
+          color: c.color,
+        });
+      }
+      // Sort each pod's clients desc by value — PerClientTooltip then
+      // groups by pod in pod-sort order. The flat list stays desc-by-value
+      // for the legacy SingleTooltip render path.
+      breakdown.sort((a, b) => b.value - a.value);
+      row.breakdown = breakdown;
+      return row;
     });
+
+    // Per-series Actual → Projected bridge (avoid the 1-month gap).
+    for (const c of clients) {
+      const aKey = `${c.name}__Actual`;
+      const pKey = `${c.name}__Projected`;
+      for (let i = 0; i < chartData.length - 1; i++) {
+        const cur = chartData[i];
+        const next = chartData[i + 1];
+        const curA = cur[aKey];
+        const nextA = next[aKey];
+        const nextP = next[pKey];
+        if (
+          typeof curA === "number" &&
+          curA !== null &&
+          (nextA === null || nextA === undefined) &&
+          typeof nextP === "number" &&
+          nextP !== null
+        ) {
+          cur[pKey] = curA;
+          break;
+        }
+      }
+    }
+
+    return { chartData, boundaryLabel: lastActualLabel, clients };
+  }, [clientProduction, filteredClients, dateRange, podByName, podAxis]);
+
+  const isPerPod = viewMode === "per-pod";
+  const isPerClient = viewMode === "per-client";
+  const activeChartData = isPerClient
+    ? clientSeries.chartData
+    : isPerPod
+      ? podSeries.chartData
+      : singleSeries.chartData;
+  const activeBoundary = isPerClient
+    ? clientSeries.boundaryLabel
+    : isPerPod
+      ? podSeries.boundaryLabel
+      : singleSeries.boundaryLabel;
+
+  // Tooltip is rendered OUTSIDE Recharts as <ChartTooltipBox> (see end
+  // of this component's JSX). Two pieces of state work together:
+  //   • cursorRef       — viewport coords of the mouse, refreshed on
+  //     every mousemove inside the chart. A ref (not state) so we
+  //     don't trigger a re-render on every pixel of motion.
+  //   • hover           — the React state that actually triggers the
+  //     tooltip to render. Updated by TooltipProbe (the Recharts
+  //     tooltip's `content` component) when the active month changes.
+  //     Captures cursorRef's value at the moment of label change so
+  //     the tooltip anchors there and stays put.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cursorRef = useRef<{ x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<HoverState | null>(null);
+
+  const handleChartMouseMove = (_state: unknown, e: unknown) => {
+    const evt = e as { clientX?: number; clientY?: number } | null;
+    if (
+      evt == null ||
+      typeof evt.clientX !== "number" ||
+      typeof evt.clientY !== "number"
+    ) {
+      return;
+    }
+    cursorRef.current = { x: evt.clientX, y: evt.clientY };
   };
-  const handleChartMouseLeave = () => setTooltipPos(undefined);
+  const handleChartMouseLeave = () => {
+    cursorRef.current = null;
+    setHover(null);
+  };
+
+  /** Called by TooltipProbe (Recharts' content component) when the
+   *  active month changes OR active state turns off. Captures the
+   *  CURRENT mouse coords at that moment so the tooltip anchors next
+   *  to where the user actually pointed when crossing into the new
+   *  column. useCallback so the function reference is stable across
+   *  renders — otherwise the probe's effect would re-fire every render. */
+  const handleHoverChange = useCallback(
+    (info: { label: string; row: ChartRow } | null) => {
+      if (!info) {
+        setHover(null);
+        return;
+      }
+      if (!cursorRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      setHover({
+        cursorX: cursorRef.current.x,
+        cursorY: cursorRef.current.y,
+        label: info.label,
+        payload: info.row,
+        containerRect: { left: rect.left, right: rect.right },
+      });
+    },
+    [],
+  );
+
+  // Allow the "Per client" toggle ONLY when the filtered set narrows
+  // to a single pod. With every pod visible there are 20+ overlapping
+  // lines on one chart — unreadable and impossible to map to legend.
+  const allowPerClient = useMemo(() => {
+    const pods = new Set(clientSeries.clients.map((c) => c.pod));
+    return pods.size === 1;
+  }, [clientSeries.clients]);
+  // If the user previously selected "per-client" and the scope just
+  // widened back to multiple pods, snap them back to "all" so we don't
+  // render a hidden mode.
+  useEffect(() => {
+    if (!allowPerClient && viewMode === "per-client") setViewMode("all");
+  }, [allowPerClient, viewMode]);
 
   if (activeChartData.length === 0) {
     return (
@@ -634,7 +1023,7 @@ export function ProductionTrendChart({
           <h3 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
             Production History
           </h3>
-          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          <ViewModeToggle value={viewMode} onChange={setViewMode} allowPerClient={allowPerClient} />
         </div>
         <p className="text-center text-sm text-[#606060]">
           No production history data available.
@@ -657,7 +1046,7 @@ export function ProductionTrendChart({
             ]}
           />
         </h3>
-        <ViewModeToggle value={viewMode} onChange={setViewMode} />
+        <ViewModeToggle value={viewMode} onChange={setViewMode} allowPerClient={allowPerClient} />
       </div>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart
@@ -700,18 +1089,16 @@ export function ProductionTrendChart({
             axisLine={{ stroke: "#2a2a2a" }}
             tickLine={false}
           />
+          {/* Recharts Tooltip — draws the vertical cursor crosshair AND
+              feeds active/payload/label into TooltipProbe, which reports
+              hover changes back via handleHoverChange. The probe returns
+              null so Recharts doesn't render its own tooltip box; the
+              actual UI is <ChartTooltipBox> below the chart, outside the
+              Recharts tree. */}
           <Tooltip
-            content={
-              isPerPod ? (
-                <PerPodTooltip podAxis={podAxis} />
-              ) : (
-                <SingleTooltip />
-              )
-            }
+            content={<TooltipProbe onChange={handleHoverChange} />}
             cursor={{ stroke: "#2a2a2a" }}
-            position={tooltipPos}
-            allowEscapeViewBox={{ x: false, y: false }}
-            wrapperStyle={{ pointerEvents: "none" }}
+            isAnimationActive={false}
           />
           {activeBoundary && (
             <ReferenceLine
@@ -727,7 +1114,7 @@ export function ProductionTrendChart({
               }}
             />
           )}
-          {!isPerPod && (
+          {!isPerPod && !isPerClient && (
             <>
               <Area
                 type="monotone"
@@ -749,6 +1136,43 @@ export function ProductionTrendChart({
               />
             </>
           )}
+          {/* Per-client mode: one line per client, coloured by the
+              client's pod so the chart visually clusters even though the
+              individual lines are per-client. Thinner stroke + faded
+              alpha since there can be 20+ lines. */}
+          {isPerClient &&
+            clientSeries.clients.map((c) => (
+              <Area
+                key={`${c.name}-actual`}
+                type="monotone"
+                dataKey={`${c.name}__Actual`}
+                name={`${c.name} Actual`}
+                stroke={c.color}
+                strokeWidth={1.5}
+                strokeOpacity={0.75}
+                fill="transparent"
+                connectNulls={false}
+                dot={false}
+                activeDot={{ r: 2.5 }}
+              />
+            ))}
+          {isPerClient &&
+            clientSeries.clients.map((c) => (
+              <Area
+                key={`${c.name}-projected`}
+                type="monotone"
+                dataKey={`${c.name}__Projected`}
+                name={`${c.name} Projected`}
+                stroke={c.color}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                strokeOpacity={0.5}
+                fill="transparent"
+                connectNulls={false}
+                dot={false}
+                activeDot={{ r: 2.5 }}
+              />
+            ))}
           {isPerPod &&
             podSeries.pods.map((pod) => {
               const color = POD_HEX_COLORS[pod] ?? "#606060";
@@ -789,25 +1213,56 @@ export function ProductionTrendChart({
             })}
         </ComposedChart>
       </ResponsiveContainer>
-      {isPerPod && podSeries.pods.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
-          {podSeries.pods.map((pod) => {
-            const color = POD_HEX_COLORS[pod] ?? "#606060";
-            return (
-              <span
-                key={pod}
-                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider"
-                style={{ color }}
-              >
+      {/* Legend
+           • Per-pod mode → one swatch per pod (pod colours)
+           • Per-client mode w/ multiple pods → pod swatches + "N clients" hint
+           • Per-client mode w/ ONE pod → swatch per client (distinct colours
+             so the user can map each line to a client name)
+      */}
+      {(isPerPod || isPerClient) && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {isPerClient && new Set(clientSeries.clients.map((c) => c.pod)).size === 1
+            ? clientSeries.clients.map((c) => (
                 <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-                {displayPod(pod, podAxis)}
-              </span>
-            );
-          })}
+                  key={c.name}
+                  className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider"
+                  style={{ color: c.color }}
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: c.color }}
+                  />
+                  {c.name}
+                </span>
+              ))
+            : podSeries.pods.map((pod) => {
+                const color = POD_HEX_COLORS[pod] ?? "#606060";
+                return (
+                  <span
+                    key={pod}
+                    className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider"
+                    style={{ color }}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                    {displayPod(pod, podAxis)}
+                  </span>
+                );
+              })}
+          {isPerClient && new Set(clientSeries.clients.map((c) => c.pod)).size > 1 && (
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
+              · {clientSeries.clients.length} clients (hover for names)
+            </span>
+          )}
         </div>
+      )}
+      {/* Custom hover tooltip — rendered OUTSIDE the Recharts tree so
+          we control its positioning directly (position:fixed +
+          viewport-coord clamp). See HoverState + ChartTooltipBox. */}
+      {hover && (
+        <ChartTooltipBox hover={hover} viewMode={viewMode} podAxis={podAxis} />
       )}
     </div>
   );

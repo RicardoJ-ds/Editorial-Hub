@@ -149,6 +149,38 @@ export const PIPELINE_STAGE_COLORS = {
 export type PipelineStage = keyof typeof PIPELINE_STAGE_COLORS;
 
 // ---------------------------------------------------------------------------
+// Milestone numbering — used to prefix milestone names across the Time to
+// Milestones section (Pod Timelines legend, Time-to-Metrics card titles,
+// Per-Client Days metric dropdown) so the same milestone is identifiable
+// at a glance across cards.
+//
+// Order matches the canonical lifecycle: Consulting KO (1) is the start
+// anchor and each subsequent milestone happens in this order under
+// normal conditions.
+// ---------------------------------------------------------------------------
+
+export const MILESTONE_NUM_BY_FIELD: Record<string, number> = {
+  consulting_ko_date: 1,
+  editorial_ko_date: 2,
+  first_cb_approved_date: 3,
+  first_article_delivered_date: 4,
+  first_feedback_date: 5,
+  first_article_published_date: 6,
+};
+
+/** Build a "N→M" prefix string for a milestone-transition metric (e.g.
+ *  the TTM cards). Returns "" when either end is unknown. */
+export function milestonePairPrefix(
+  fromField: string | undefined,
+  toField: string,
+): string {
+  const fromN = MILESTONE_NUM_BY_FIELD[fromField ?? "consulting_ko_date"];
+  const toN = MILESTONE_NUM_BY_FIELD[toField];
+  if (fromN == null || toN == null) return "";
+  return `${fromN}→${toN}`;
+}
+
+// ---------------------------------------------------------------------------
 // Pacing-aware color — for "% of contract progress" style metrics, raw
 // thresholds (75/50/<50) unfairly punish new clients whose contracts have
 // barely started. A brand-new client at 5% delivery isn't behind — they

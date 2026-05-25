@@ -9,4 +9,4 @@
 //
 // Update this on every release; the sidebar chip + any other consumer reads
 // from here so we don't end up with version strings in two places.
-export const VERSION = "0.3.14";
+export const VERSION = "0.3.15";

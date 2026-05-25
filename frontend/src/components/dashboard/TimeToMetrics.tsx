@@ -4,7 +4,11 @@ import React, { useMemo, useRef, useState } from "react";
 import type { Client } from "@/lib/types";
 import { SummaryCard } from "./SummaryCard";
 import { DataSourceBadge } from "./DataSourceBadge";
-import { displayPod } from "./shared-helpers";
+import {
+  displayPod,
+  MILESTONE_NUM_BY_FIELD,
+  milestonePairPrefix,
+} from "./shared-helpers";
 import { cn } from "@/lib/utils";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import {
@@ -115,15 +119,20 @@ type MetricDef = {
   to: string;
 };
 
+// Canonical labels — match the Pod Timelines legend + tooltips exactly.
+// Two milestone names were previously truncated ("First CB" missing the
+// "Approved" suffix, plain "Feedback" / "Published" missing the "First"
+// prefix); now every entry uses the same vocabulary the rest of the
+// section speaks.
 const METRIC_DEFS: MetricDef[] = [
   { key: "cko_eko", short: "CKO → EKO", label: "Consulting KO → Editorial KO", subtitle: "Growth-to-Editorial handoff time", to: "editorial_ko_date" },
-  { key: "cko_cb", short: "CKO → CB", label: "Consulting KO → First CB", subtitle: "Consulting kickoff to first content brief approved", to: "first_cb_approved_date" },
+  { key: "cko_cb", short: "CKO → CB", label: "Consulting KO → First CB Approved", subtitle: "Consulting kickoff to first content brief approved", to: "first_cb_approved_date" },
   { key: "cko_art", short: "CKO → Article", label: "Consulting KO → First Article", subtitle: "Consulting kickoff to first article delivered", to: "first_article_delivered_date" },
   { key: "cko_fb", short: "CKO → Feedback", label: "Consulting KO → First Feedback", subtitle: "Consulting kickoff to first client feedback", to: "first_feedback_date" },
-  { key: "cb_art", short: "CB → Article", label: "First CB → First Article", subtitle: "Content brief approval to article delivery", from: "first_cb_approved_date", to: "first_article_delivered_date" },
+  { key: "cb_art", short: "CB → Article", label: "First CB Approved → First Article", subtitle: "Content brief approval to article delivery", from: "first_cb_approved_date", to: "first_article_delivered_date" },
   { key: "cko_pub", short: "CKO → Published", label: "Consulting KO → First Published", subtitle: "Full cycle from kickoff to live publication", to: "first_article_published_date" },
   { key: "art_fb", short: "Article → Feedback", label: "First Article → First Feedback", subtitle: "Article delivery to client response time", from: "first_article_delivered_date", to: "first_feedback_date" },
-  { key: "fb_pub", short: "Feedback → Published", label: "Feedback → Published", subtitle: "Client feedback to article going live", from: "first_feedback_date", to: "first_article_published_date" },
+  { key: "fb_pub", short: "Feedback → Published", label: "First Feedback → First Published", subtitle: "Client feedback to article going live", from: "first_feedback_date", to: "first_article_published_date" },
 ];
 
 // All milestones in chronological order after CKO
@@ -241,8 +250,8 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
   return (
     <div className="space-y-4">
       {!hideHeader && (
-        <div className="sticky top-[120px] z-10 bg-black flex items-center gap-3 border-b border-[#2a2a2a] pb-2 pt-1">
-          <h2 className="font-mono text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
             Time-to Metrics
             <DataSourceBadge
               type="live"
@@ -255,7 +264,6 @@ export function TimeToMetrics({ clients, hideHeader = false }: TimeToMetricsProp
               ]}
             />
           </h2>
-          <span className="h-px flex-1 bg-[#2a2a2a]" />
           <span className="text-[10px] font-mono text-[#909090]">Reference: Consulting KO (Day 0)</span>
         </div>
       )}
@@ -312,6 +320,10 @@ function HoverableMetricCard({
   onEnter: (e: React.MouseEvent<HTMLDivElement>, card: MetricCard) => void;
   onLeave: () => void;
 }) {
+  const pairPrefix = milestonePairPrefix(card.from, card.to);
+  const title = pairPrefix
+    ? `${pairPrefix} · Avg ${card.label}`
+    : `Avg ${card.label}`;
   return (
     <div
       className="cursor-default h-full"
@@ -319,7 +331,7 @@ function HoverableMetricCard({
       onMouseLeave={onLeave}
     >
       <SummaryCard
-        title={`Avg ${card.label}`}
+        title={title}
         value={card.stats.avg !== null ? `${card.stats.avg} days` : "N/A"}
         description={fmtRange(card.stats)}
       />
@@ -422,9 +434,30 @@ type TrendBucket = {
   toDate?: string | null;
 };
 
-function TimeToTrendChart({ clients }: { clients: Client[] }) {
-  const [metricKey, setMetricKey] = useState<string>("cko_art");
+export function TimeToTrendChart({
+  clients,
+  metricOverride,
+  highlightedClientName,
+}: {
+  clients: Client[];
+  /** Optional, takes precedence over the user's dropdown choice while
+   *  set (used by Pod Pace's "Link cards" toggle to transiently show
+   *  the metric matching the currently hovered TTM card or Pod Timelines
+   *  segment). When null, the chart reverts to the user's selection. */
+  metricOverride?: string | null;
+  /** When set, the bar for this client is rendered with a ring + glow
+   *  so the user can spot the selected client in the bar chart.
+   *  Driven by Pod Timelines click-to-select. */
+  highlightedClientName?: string | null;
+}) {
+  const [internalMetricKey, setInternalMetricKey] = useState<string>("cko_art");
   const { axis: podAxis } = useCurrentPodAxis();
+  // External override wins while present; otherwise use the user's
+  // dropdown choice. The user's choice (internalMetricKey) is never
+  // touched by the override path, so when the cross-card hover clears
+  // the chart goes back to whatever they had selected.
+  const metricKey = metricOverride ?? internalMetricKey;
+  const setMetricKey = setInternalMetricKey;
 
   const metric = useMemo(
     () => METRIC_DEFS.find((m) => m.key === metricKey) ?? METRIC_DEFS[0],
@@ -497,48 +530,67 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
   } | null>(null);
 
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5">
-      {/* Title + subtitle. */}
-      <div className="mb-3">
-        <p className="text-xs font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
-          Per-Client Breakdown
-          <DataSourceBadge
-            type="live"
-            source="Per-client milestone days · Editorial CP."
-            shows={[
-              `Each bar: one client's ${metric.label.toLowerCase()}.`,
-              "Sorted slowest → fastest.",
-              "Lower is better.",
-              ...(actualMax > scaleMax
-                ? [`Bars clipped at ${scaleMax}d are marked ↑.`]
-                : []),
-            ]}
-          />
-        </p>
-        {overallAvg !== null && (
-          <p className="text-[11px] font-mono text-[#909090] mt-0.5">
-            Overall avg: <span className="text-white font-semibold">{overallAvg}d</span>
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
+      {/* Single-row header: title + Overall avg on the LEFT, Metric
+          dropdown on the RIGHT. Replaces the previous three-row stack
+          (title / avg / metric) to free vertical space so the card
+          fits in the viewport alongside the other Time to Milestones
+          cards. */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <p className="text-xs font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
+            Per-Client Days
+            <DataSourceBadge
+              type="live"
+              source="Per-client milestone days · Editorial CP."
+              shows={[
+                `Each bar: one client's ${metric.label.toLowerCase()}.`,
+                "Sorted slowest → fastest.",
+                "Lower is better.",
+                ...(actualMax > scaleMax
+                  ? [`Bars clipped at ${scaleMax}d are marked ↑.`]
+                  : []),
+              ]}
+            />
           </p>
-        )}
-      </div>
-
-      {/* Row 2: Metric dropdown only, left-aligned. */}
-      <div className="mb-4 flex items-center gap-2">
-        <span className="font-mono text-[10px] text-[#606060] uppercase tracking-wider">Metric</span>
-        <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
-          <SelectTrigger size="sm" className="w-[280px]">
+          {overallAvg !== null && (
+            <p className="text-[11px] font-mono text-[#909090]">
+              Overall avg: <span className="text-white font-semibold">{overallAvg}d</span>
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-[#606060] uppercase tracking-wider">Metric</span>
+          <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
+            <SelectTrigger size="sm" className="w-[300px]">
             <SelectValue>
-              <span className="text-xs">{metric.label}</span>
+              <span className="text-xs">
+                {(() => {
+                  const p = milestonePairPrefix(metric.from, metric.to);
+                  return p ? `${p} · ${metric.label}` : metric.label;
+                })()}
+              </span>
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {METRIC_DEFS.map((m) => (
-              <SelectItem key={m.key} value={m.key}>
-                <span className="text-xs font-medium">{m.label}</span>
-              </SelectItem>
-            ))}
+            {METRIC_DEFS.map((m) => {
+              const p = milestonePairPrefix(m.from, m.to);
+              return (
+                <SelectItem key={m.key} value={m.key}>
+                  <span className="text-xs font-medium">
+                    {p && (
+                      <span className="mr-1.5 inline-block rounded-sm bg-[#1a1a1a] px-1 py-px font-mono text-[10px] text-[#909090] tabular-nums">
+                        {p}
+                      </span>
+                    )}
+                    {m.label}
+                  </span>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {buckets.length === 0 ? (
@@ -597,8 +649,21 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                                 above ? "bg-[#F5BC4E]" : "bg-[#42CA80]",
                                 "hover:opacity-100",
                                 clipped && "ring-1 ring-inset ring-[#ED6958]/70",
+                                // Highlight ring when this bar matches
+                                // the client currently selected in Pod
+                                // Timelines — gives the user a clear
+                                // marker across both cards.
+                                highlightedClientName === b.label &&
+                                  "ring-2 ring-[#42CA80] shadow-[0_0_12px_rgba(66,202,128,0.4)]",
                               )}
-                              style={{ height: hPx, opacity: 0.85 }}
+                              style={{
+                                height: hPx,
+                                opacity:
+                                  highlightedClientName != null &&
+                                  highlightedClientName !== b.label
+                                    ? 0.35
+                                    : 0.85,
+                              }}
                               onMouseEnter={(e) => {
                                 const r = e.currentTarget.getBoundingClientRect();
                                 setHover({
@@ -715,9 +780,18 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
 
                 {/* Tooltip */}
                 {hover && (() => {
+                  // Use the metric's `from`/`to` field names (canonical
+                  // DB columns) so we can look up each milestone's
+                  // number prefix — labels stay in sync with the rest
+                  // of the section (Pod Timelines legend, TTM cards,
+                  // dropdown options).
+                  const fromField = metric.from ?? REF_FIELD;
+                  const toField = metric.to;
                   const parts = metric.label.split(" → ");
                   const fromLabel = parts[0] ?? "From";
                   const toLabel = parts[1] ?? "To";
+                  const fromNum = MILESTONE_NUM_BY_FIELD[fromField];
+                  const toNum = MILESTONE_NUM_BY_FIELD[toField];
                   return (
                     <div
                       className="fixed z-[9999] pointer-events-none"
@@ -730,11 +804,21 @@ function TimeToTrendChart({ clients }: { clients: Client[] }) {
                         )}
                         <div className="mt-1.5 space-y-0.5 border-t border-[#1e1e1e] pt-1.5">
                           <p className="text-[10px] font-mono text-[#C4BCAA] flex items-center justify-between gap-3">
-                            <span className="text-[#606060]">{fromLabel}</span>
+                            <span className="text-[#606060]">
+                              {fromNum != null && (
+                                <span className="text-[#909090] mr-1">{fromNum}</span>
+                              )}
+                              {fromLabel}
+                            </span>
                             <span className="tabular-nums">{fmtDateShort(hover.fromDate ?? null)}</span>
                           </p>
                           <p className="text-[10px] font-mono text-[#C4BCAA] flex items-center justify-between gap-3">
-                            <span className="text-[#606060]">{toLabel}</span>
+                            <span className="text-[#606060]">
+                              {toNum != null && (
+                                <span className="text-[#909090] mr-1">{toNum}</span>
+                              )}
+                              {toLabel}
+                            </span>
                             <span className="tabular-nums">{fmtDateShort(hover.toDate ?? null)}</span>
                           </p>
                         </div>
@@ -813,7 +897,7 @@ function MilestoneWaterfall({
     <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-5 overflow-hidden relative z-0" style={{ isolation: "isolate" }}>
       <div className="mb-5">
         <p className="text-xs font-mono font-semibold uppercase tracking-widest text-[#C4BCAA] flex items-center gap-2">
-          Client Milestone Journey
+          Client Timelines
           <DataSourceBadge
             type="live"
             source="Milestone timeline per client · Editorial CP."
@@ -937,22 +1021,35 @@ function MilestoneWaterfall({
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Legend — each chip prefixed with its milestone order number so
+          they match the Time-to-Metrics card titles and the Per-Client
+          Days metric dropdown. */}
       <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-[#2a2a2a]">
         <div className="flex items-center gap-2">
           <div className="w-[8px] h-[8px] bg-white rounded-sm rotate-45" />
-          <span className="text-[10px] font-mono text-[#606060]">Consulting KO (Day 0)</span>
+          <span className="text-[10px] font-mono text-[#606060]">
+            <span className="text-[#909090]">
+              {MILESTONE_NUM_BY_FIELD.consulting_ko_date}
+            </span>{" "}
+            Consulting KO (Day 0)
+          </span>
         </div>
-        {JOURNEY.map((m) => (
-          <div key={m.key} className="flex items-center gap-2">
-            {m.shape === "diamond" ? (
-              <div className="w-[8px] h-[8px] rounded-sm rotate-45" style={{ backgroundColor: m.color }} />
-            ) : (
-              <div className="rounded-full" style={{ width: 9, height: 9, backgroundColor: m.color, boxShadow: `0 0 4px ${m.color}40` }} />
-            )}
-            <span className="text-[10px] font-mono text-[#606060]">{m.label}</span>
-          </div>
-        ))}
+        {JOURNEY.map((m) => {
+          const num = MILESTONE_NUM_BY_FIELD[m.field];
+          return (
+            <div key={m.key} className="flex items-center gap-2">
+              {m.shape === "diamond" ? (
+                <div className="w-[8px] h-[8px] rounded-sm rotate-45" style={{ backgroundColor: m.color }} />
+              ) : (
+                <div className="rounded-full" style={{ width: 9, height: 9, backgroundColor: m.color, boxShadow: `0 0 4px ${m.color}40` }} />
+              )}
+              <span className="text-[10px] font-mono text-[#606060]">
+                {num != null && <span className="text-[#909090]">{num}</span>}{" "}
+                {m.label}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Tooltip */}

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type {
   Client,
   ClientProductionRow,
+  CumulativeMetric,
   GoalsVsDeliveryRow,
 } from "@/lib/types";
 import {
@@ -21,6 +22,8 @@ import {
 import {
   contentTypeRatio,
   displayPod,
+  MILESTONE_NUM_BY_FIELD,
+  milestonePairPrefix,
   TooltipBody,
 } from "@/components/dashboard/shared-helpers";
 import {
@@ -34,6 +37,7 @@ import {
   sortPodKey,
 } from "@/components/dashboard/ContractClientProgress";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { TimeToTrendChart } from "@/components/dashboard/TimeToMetrics";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Period Snapshot — top of /overview.
@@ -79,13 +83,20 @@ interface Props {
   /** Per-client monthly actual + projected from the Operating Model. Drives
    *  the projected bars in the %SOW popover trend chart. */
   clientProduction: ClientProductionRow[];
+  /** Cumulative pipeline metrics — used to compute %Published per client
+   *  (published_live ÷ SOW). One row per client; client_name is the key
+   *  back to filteredClients[].name. */
+  cumulative: CumulativeMetric[];
 }
 
+/** Pod Snapshot section — Pod Delivery Progress only. The milestone /
+ *  time-to-metric cards live in PodPaceSection below this in the page. */
 export function PeriodSnapshotSection({
   filteredClients,
   summaries,
   goals,
   clientProduction,
+  cumulative,
 }: Props) {
   const { axis: podAxis } = useCurrentPodAxis();
 
@@ -103,28 +114,281 @@ export function PeriodSnapshotSection({
   );
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <PodDeliveryProgressCard
-            clients={filteredClients}
-            summaries={summaries}
-            goals={goals}
-            clientProduction={clientProduction}
-            period={periodScope}
-            goalsPeriod={goalsPeriod}
-            onGoalsPeriodChange={setGoalsPeriod}
-            podAxis={podAxis}
-          />
-        </div>
-        <div className="lg:col-span-1">
-          <PodMilestoneJourneyCard
-            clients={filteredClients}
-            podAxis={podAxis}
-          />
-        </div>
-      </div>
+    <PodDeliveryProgressCard
+      clients={filteredClients}
+      summaries={summaries}
+      goals={goals}
+      clientProduction={clientProduction}
+      cumulative={cumulative}
+      period={periodScope}
+      goalsPeriod={goalsPeriod}
+      onGoalsPeriodChange={setGoalsPeriod}
+      podAxis={podAxis}
+    />
+  );
+}
+
+/** Linked-hover state shared across the 3 cards in Pod Pace section.
+ *  Drives the "Link cards" toggle behavior:
+ *    • kind="pair"      — a milestone-pair (from→to). Emitted by TTM
+ *                         cards and Pod Timelines segments. Identifies
+ *                         a single transition and can sync the Per-Client
+ *                         Days metric dropdown.
+ *    • kind="milestone" — a single milestone field. Emitted by Pod
+ *                         Timelines dots (a dot is one milestone, not a
+ *                         transition — so multiple TTM cards may match).
+ *                         Does NOT sync the per-client dropdown. */
+export type LinkedHover =
+  | { kind: "pair"; from: string; to: string }
+  | { kind: "milestone"; field: string }
+  | null;
+
+const LINK_ENABLED_STORAGE_KEY = "pod-pace-link-enabled";
+
+/** Pod Timelines legend chip — interactive: matches the cross-card
+ *  hover state (dims when something else is hovered, highlights when
+ *  this milestone is) AND emits a milestone-kind LinkedHover so the
+ *  rest of the cards react when the user hovers the chip. */
+function LegendChip({
+  field,
+  label,
+  color,
+  shape,
+  linkedHover,
+  onHoverChange,
+}: {
+  field: string;
+  label: string;
+  color: string;
+  shape: "diamond" | "circle";
+  linkedHover?: LinkedHover;
+  onHoverChange?: (h: LinkedHover) => void;
+}) {
+  const num = MILESTONE_NUM_BY_FIELD[field];
+  const m = matchDot(linkedHover, field);
+  const dim = m === false;
+  const hi = m === true;
+  return (
+    <div
+      className={
+        "flex items-center gap-1.5 cursor-default transition-opacity " +
+        (dim ? "opacity-30" : "")
+      }
+      onMouseEnter={() => onHoverChange?.({ kind: "milestone", field })}
+      onMouseLeave={() => onHoverChange?.(null)}
+    >
+      {shape === "diamond" ? (
+        <div
+          className="h-[8px] w-[8px] rotate-45 rounded-sm"
+          style={{
+            backgroundColor: color,
+            boxShadow: hi ? `0 0 6px ${color}90` : undefined,
+          }}
+        />
+      ) : (
+        <div
+          className="rounded-full"
+          style={{
+            width: 9,
+            height: 9,
+            backgroundColor: color,
+            boxShadow: hi ? `0 0 8px ${color}90` : undefined,
+          }}
+        />
+      )}
+      <span
+        className={
+          "font-mono text-[10px] " +
+          (hi ? "text-white" : "text-[#606060]")
+        }
+      >
+        {num != null && (
+          <span className={hi ? "text-white" : "text-[#909090]"}>{num}</span>
+        )}{" "}
+        {label}
+      </span>
     </div>
+  );
+}
+
+/** Decide a Pod Timelines SEGMENT's match status given the current
+ *  cross-card hover. Returns:
+ *    • true  → highlight (the segment IS the hover target)
+ *    • false → dim (hover is active but on something else)
+ *    • null  → render normally (nothing is hovered) */
+function matchSegment(
+  h: LinkedHover | undefined,
+  from: string,
+  to: string,
+): boolean | null {
+  if (!h) return null;
+  if (h.kind === "pair") return h.from === from && h.to === to;
+  // Milestone hover: a segment matches if EITHER endpoint is the
+  // hovered milestone (keeps the segments adjacent to the hovered
+  // dot visually emphasised).
+  return h.field === from || h.field === to;
+}
+
+/** Decide a Pod Timelines DOT's match status given the current
+ *  cross-card hover. Same return contract as matchSegment. */
+function matchDot(h: LinkedHover | undefined, field: string): boolean | null {
+  if (!h) return null;
+  if (h.kind === "milestone") return h.field === field;
+  // Pair hover: a dot matches if it's the from OR to endpoint of the
+  // hovered transition.
+  return h.from === field || h.to === field;
+}
+
+/** Hook the parent (overview page) calls to manage the "Link cards"
+ *  toggle's state + localStorage persistence. Returns the toggle state,
+ *  a setter (for use inside PodPaceSection), and a ready-to-render
+ *  <LinkCardsToggle> chip you can drop into the Section's rightSlot.
+ *
+ *  We expose this as a hook so the toggle button lives in the section
+ *  header (next to "Open in Editorial Clients") while the state itself
+ *  drives the cards inside PodPaceSection. Without this split we'd be
+ *  rendering the chip inside the cards' body, which the user didn't
+ *  want — they wanted it inline with the section's right-side button.
+ */
+export function useLinkCardsToggle() {
+  const [linkEnabled, setLinkEnabled] = useState<boolean>(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(LINK_ENABLED_STORAGE_KEY);
+    if (stored !== null) setLinkEnabled(stored === "true");
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LINK_ENABLED_STORAGE_KEY, String(linkEnabled));
+  }, [linkEnabled]);
+  const toggle = (
+    <LinkCardsToggle
+      enabled={linkEnabled}
+      onToggle={() => setLinkEnabled((v) => !v)}
+    />
+  );
+  return { linkEnabled, toggle };
+}
+
+/** Pod Pace section — milestone journey, time-to-metrics stat cards, and
+ *  per-client time-to-metrics breakdown bar chart (legacy TimeToTrendChart
+ *  from TimeToMetrics.tsx). Rendered as its own page section beneath the
+ *  Pod Snapshot section. */
+export function PodPaceSection({
+  filteredClients,
+  linkEnabled,
+}: {
+  filteredClients: Client[];
+  /** From useLinkCardsToggle() in the parent page. When false the three
+   *  cards stop influencing each other on hover. */
+  linkEnabled: boolean;
+}) {
+  const { axis: podAxis } = useCurrentPodAxis();
+  const [linkedHover, setLinkedHover] = useState<LinkedHover>(null);
+  // ID of the client currently SELECTED via click on a Pod Timeline
+  // row. When set (and `linkEnabled`), the Time-to-Metrics cards
+  // re-scope to ONLY that client and the Per-Client Days bar for that
+  // client gets a highlight ring. Cleared by clicking the same row
+  // again, or by external state changes (e.g. filter change).
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+
+  // Effective hover signal — when the toggle is off we ignore it entirely
+  // so the three cards stop influencing each other.
+  const activeHover: LinkedHover = linkEnabled ? linkedHover : null;
+  const activeSelectedId = linkEnabled ? selectedClientId : null;
+  // TTM cards work off a single-client array when a row is selected,
+  // otherwise the full filtered set. Variance/avg etc compute the
+  // same way — just with N=1.
+  const ttmClients = useMemo(() => {
+    if (activeSelectedId == null) return filteredClients;
+    const c = filteredClients.find((cc) => cc.id === activeSelectedId);
+    return c ? [c] : filteredClients;
+  }, [filteredClients, activeSelectedId]);
+  const selectedClientName = useMemo(() => {
+    if (activeSelectedId == null) return null;
+    return filteredClients.find((cc) => cc.id === activeSelectedId)?.name ?? null;
+  }, [filteredClients, activeSelectedId]);
+
+  // For Per-Client Days: when a TTM card or segment is hovered (a unique
+  // pair), look up the matching metric key and use it as a transient
+  // override so the bar chart reflects the hovered transition. When the
+  // hover ends, the chart reverts to the user's dropdown selection.
+  const metricOverride =
+    activeHover?.kind === "pair"
+      ? matchTTMKeyByPair(activeHover.from, activeHover.to)
+      : null;
+
+  return (
+    <div className="space-y-3">
+      {/* Pod Timelines gets more horizontal room (60/40 split) so its
+          legend fits on one line and the labels for long pod names
+          stop wrapping. TTM cards still readable at 40% — the chip
+          titles fit at the 2-col grid we set inside. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr]">
+        <PodMilestoneJourneyCard
+          clients={filteredClients}
+          podAxis={podAxis}
+          linkedHover={activeHover}
+          onHoverChange={setLinkedHover}
+          onClientFocus={setSelectedClientId}
+          selectedClientId={activeSelectedId}
+          selectedClientName={selectedClientName}
+        />
+        <PodTTMStatsCard
+          clients={ttmClients}
+          linkedHover={activeHover}
+          onHoverChange={setLinkedHover}
+          focusedClientName={selectedClientName}
+        />
+      </div>
+      <TimeToTrendChart
+        clients={filteredClients}
+        metricOverride={metricOverride}
+        highlightedClientName={selectedClientName}
+      />
+    </div>
+  );
+}
+
+/** Return the TTM metric key whose (from, to) milestone pair matches the
+ *  given fields, or null if no match. Used to sync the Per-Client Days
+ *  metric dropdown when a pair is hovered elsewhere. */
+function matchTTMKeyByPair(from: string, to: string): string | null {
+  const fromField = from === "" ? "consulting_ko_date" : from;
+  for (const m of TTM_METRICS) {
+    const mFrom = m.from ?? "consulting_ko_date";
+    if (mFrom === fromField && m.to === to) return m.key;
+  }
+  return null;
+}
+
+function LinkCardsToggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={
+        "inline-flex items-center gap-2 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors " +
+        (enabled
+          ? "border-[#42CA80]/40 bg-[#42CA80]/10 text-[#42CA80] hover:bg-[#42CA80]/15"
+          : "border-[#2a2a2a] bg-[#0d0d0d] text-[#606060] hover:text-[#909090]")
+      }
+      title="Highlight related milestones across cards on hover; sync the Per-Client Days dropdown to the hovered transition."
+    >
+      <span
+        className={
+          "inline-block h-2.5 w-2.5 rounded-full transition-colors " +
+          (enabled ? "bg-[#42CA80]" : "bg-[#404040]")
+        }
+      />
+      Link cards{enabled ? "" : " (off)"}
+    </button>
   );
 }
 
@@ -269,7 +533,11 @@ interface PodDeliveryRow {
   newCount: number;
   // Lifetime (across-all-time)
   lifetimeDelivered: number;
+  lifetimeInvoiced: number;
   lifetimeSow: number;
+  /** Sum of published_live across the pod's clients, from
+   *  cumulative_metrics. Drives the new %Published column. */
+  lifetimePublished: number;
 }
 
 interface PerClientRow {
@@ -300,7 +568,10 @@ interface PerClientRow {
   isNew: boolean;
   // Lifetime
   lifetimeDelivered: number;
+  lifetimeInvoiced: number;
   lifetimeSow: number;
+  /** published_live from cumulative_metrics for this client. */
+  lifetimePublished: number;
 }
 
 /** Shared grid for the pod summary row + per-client expand list. Keeps the
@@ -315,13 +586,31 @@ interface PerClientRow {
 //   • Last Q        — 1fr  min 6rem
 //   • Current Q     — 1fr  min 6rem
 //   • %SOW          — 1fr  min 6rem
-const DELIVERY_GRID = "grid-cols-[1.25rem_minmax(10rem,13rem)_minmax(11rem,2fr)_minmax(6rem,1fr)_minmax(6rem,1fr)_minmax(6rem,1fr)]";
+// 7 columns now: chevron · name · Goals · Last Q · Current Q · %SOW ·
+// %Published. The two Q columns get more breathing room (10rem min) so
+// the two stacked lifetime bars + chip have width to render. %SOW and
+// %Published are compact since each is a single bar + percentage.
+// 7 columns: chevron · name · Goals · Last Q · Current Q · %SOW · %Published.
+// Name + Goals + %SOW + %Published are kept slim so the two Q columns
+// (which carry the [chip block | bars] layout) get most of the width.
+// Vertical dividers between columns come from the DELIVERY_CELL_DIVIDER
+// class applied to each cell except the last.
+const DELIVERY_GRID = "grid-cols-[1.25rem_minmax(8rem,11rem)_minmax(7rem,1.1fr)_minmax(13rem,1.7fr)_minmax(13rem,1.7fr)_minmax(4rem,0.8fr)_minmax(4rem,0.8fr)]";
+
+/** Vertical column dividers — applied to the grid row container via
+ *  Tailwind arbitrary selectors. Targets every direct child EXCEPT the
+ *  first (chevron column) and the last (%Published) so the divider
+ *  shows between the data columns only. Pairs with gap-x-3 + pr-3 to
+ *  push the line away from the cell's content. */
+const DELIVERY_DIVIDERS =
+  "[&>*:not(:first-child):not(:last-child)]:border-r [&>*:not(:first-child):not(:last-child)]:border-[#1a1a1a] [&>*:not(:first-child):not(:last-child)]:pr-3";
 
 function PodDeliveryProgressCard({
   clients,
   summaries,
   goals,
   clientProduction,
+  cumulative,
   period,
   goalsPeriod,
   onGoalsPeriodChange,
@@ -331,6 +620,7 @@ function PodDeliveryProgressCard({
   summaries: SummaryRow[];
   goals: GoalsVsDeliveryRow[];
   clientProduction: ClientProductionRow[];
+  cumulative: CumulativeMetric[];
   period: PeriodScope;
   goalsPeriod: LocalPeriodKey;
   onGoalsPeriodChange: (k: LocalPeriodKey) => void;
@@ -339,34 +629,39 @@ function PodDeliveryProgressCard({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailState | null>(null);
 
+  // Build name → published_live map once per cumulative change. The
+  // aggregator below sums published_live per pod alongside delivered /
+  // invoiced / SOW so the %Published column can show per-pod + per-client.
+  const publishedByName = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of cumulative) {
+      m.set(c.client_name, c.published_live ?? 0);
+    }
+    return m;
+  }, [cumulative]);
+
   const { podRows, perClientByPod } = useMemo(
-    () => aggregatePodDelivery(clients, summaries, goals, period, podAxis),
-    [clients, summaries, goals, period, podAxis],
+    () => aggregatePodDelivery(clients, summaries, goals, period, podAxis, publishedByName),
+    [clients, summaries, goals, period, podAxis, publishedByName],
   );
 
   return (
     <div className="h-full rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA]">
-            Pod Delivery Progress
-          </p>
-          <p className="mt-0.5 text-[11px] text-[#606060]">
-            Goals (month) · Δ vs invoiced (per-client Q) · Lifetime articles delivered ÷ SOW
-          </p>
-        </div>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-          {podRows.length} pod{podRows.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
-
       {/* Column header — visible only when at least one pod row will
           render. The Goals header carries the column title (with hover
           tooltip) and the period dropdown sits immediately to its right
           on the same line. */}
       {podRows.length > 0 && (
-        <div className={`mt-3 grid ${DELIVERY_GRID} items-center gap-2 border-b border-[#222] px-2 pb-2`}>
+        <div
+          className={
+            `grid ${DELIVERY_GRID} ${DELIVERY_DIVIDERS} items-center gap-3 px-3 pb-2 ` +
+            // When filtered to a single pod we drop the column-header's
+            // bottom border so the line inside the pod-label strip below
+            // becomes the only separator between headers and rows —
+            // avoids stacking two near-identical horizontal rules.
+            (podRows.length === 1 ? "" : "border-b border-[#222]")
+          }
+        >
           <span />
           <span />
           <GoalsHeaderWithSelector
@@ -384,37 +679,36 @@ function PodDeliveryProgressCard({
                 value={goalsPeriod}
                 onChange={onGoalsPeriodChange}
                 scope={period}
+                goals={goals}
+                clientNames={
+                  new Set(clients.map((c) => c.name))
+                }
               />
             }
           />
           <ColumnHeader
-            title="Last Q · Variance"
-            sub="Cumulative Delivered ÷ Invoiced at close"
+            title="Last Q"
+            sub="Q delivered · invoiced"
             align="center"
-            muted
             help={{
               title: "Last Q",
               bullets: [
-                "# = variance = delivered − invoiced (cumulative).",
-                "Numbers = delivered / invoiced.",
-                "≥ 0 Healthy · −5–0 Within · < −5 Behind.",
-                "Dimmed because Current Q is the focal point.",
+                "Delivered = Q delivered ÷ Q invoiced.",
+                "Invoiced = Q invoiced ÷ SOW.",
+                "Chip = last-close variance + tier.",
               ],
             }}
           />
           <ColumnHeader
-            title="Current Q · Variance"
-            sub="delivered · proj Q · invoiced"
+            title="Current Q"
+            sub="Q delivered · invoiced"
             align="center"
             help={{
               title: "Current Q",
               bullets: [
-                "# = projected variance = end-of-Q − Invoiced.",
-                "Numbers = delivered · projected end-of-Q · invoiced.",
-                "% = delivered ÷ projected end-of-Q.",
-                "Bar = pace = (delivered ÷ proj-Q) ÷ (month-in-Q ÷ Q length).",
-                "Pace tells you if delivery is keeping up with how much of the Q has elapsed.",
-                "≥ 1.10 ahead of pace · 0.85–1.10 on track · < 0.85 push needed.",
+                "Delivered = Q delivered ÷ Q invoiced.",
+                "Invoiced = Q invoiced ÷ SOW.",
+                "Chip = end-of-Q variance + tier.",
               ],
             }}
           />
@@ -425,9 +719,18 @@ function PodDeliveryProgressCard({
             help={{
               title: "%SOW",
               bullets: [
-                "Articles only (not CBs).",
                 "% = delivered ÷ contracted SOW.",
-                "All-time — not period-scoped.",
+              ],
+            }}
+          />
+          <ColumnHeader
+            title="%Published"
+            sub="published vs SOW"
+            align="center"
+            help={{
+              title: "%Published",
+              bullets: [
+                "% = published-live ÷ contracted SOW.",
               ],
             }}
           />
@@ -451,6 +754,40 @@ function PodDeliveryProgressCard({
           <p className="py-6 text-center text-[11px] text-[#606060]">
             No data in scope.
           </p>
+        ) : podRows.length === 1 ? (
+          /* Single pod in scope. Drop the aggregated summary row —
+             the client rows ARE the data — but keep a thin labelled
+             separator at the top so the user can still see WHICH pod
+             they're looking at. Matches the Pod Timelines pod label
+             strip (dot + name + count + horizontal rule). */
+          (() => {
+            const row = podRows[0];
+            const podColor = POD_HEX_COLORS[row.pod] ?? "#606060";
+            return (
+              <div>
+                <div className="flex items-center gap-3 pt-2.5 pb-1 px-2">
+                  <span
+                    className="inline-block h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: podColor }}
+                  />
+                  <span
+                    className="font-mono text-[11px] font-semibold uppercase tracking-wider shrink-0"
+                    style={{ color: podColor }}
+                  >
+                    {displayPod(row.pod, podAxis)}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#606060] shrink-0">
+                    ({row.clients.length})
+                  </span>
+                  <span className="h-px flex-1 bg-[#2a2a2a]" />
+                </div>
+                <PerClientDeliveryList
+                  rows={perClientByPod.get(row.pod) ?? []}
+                  onOpenDetail={(d) => setDetail(d)}
+                />
+              </div>
+            );
+          })()
         ) : (
           podRows.map((row) => {
             const open = expanded === row.pod;
@@ -635,10 +972,18 @@ function GoalsPeriodSelector({
   value,
   onChange,
   scope,
+  goals,
+  clientNames,
 }: {
   value: LocalPeriodKey;
   onChange: (v: LocalPeriodKey) => void;
   scope: PeriodScope;
+  /** Source data needed to compute each option's month-range label —
+   *  shows the concrete window under each option in the dropdown
+   *  (e.g. `Last 3 months · Feb – Apr 26`). The trigger button stays
+   *  on the short label. */
+  goals?: GoalsVsDeliveryRow[];
+  clientNames?: Set<string>;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -678,22 +1023,36 @@ function GoalsPeriodSelector({
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-44 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl">
+        <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl">
           {GOALS_PERIOD_OPTIONS.map((o) => {
             const isActive = o.id === value;
+            // Resolve the concrete month range for this option so
+            // users can preview the window before picking it. Cheap —
+            // the helper just walks the goals list once per option.
+            const optionScope = resolveLocalPeriod(o.id, goals, clientNames);
             return (
               <button
                 key={o.id}
                 type="button"
                 onClick={() => { onChange(o.id); setOpen(false); }}
                 className={
-                  "block w-full px-2.5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider transition-colors " +
+                  "block w-full px-2.5 py-1.5 text-left transition-colors " +
                   (isActive
                     ? "bg-[#42CA80]/10 text-[#42CA80]"
                     : "text-[#C4BCAA] hover:bg-[#1a1a1a] hover:text-white")
                 }
               >
-                {o.label}
+                <div className="font-mono text-[10px] uppercase tracking-wider">
+                  {o.label}
+                </div>
+                <div
+                  className={
+                    "font-mono text-[9px] tabular-nums " +
+                    (isActive ? "text-[#42CA80]/70" : "text-[#606060]")
+                  }
+                >
+                  {optionScope.label}
+                </div>
               </button>
             );
           })}
@@ -722,6 +1081,7 @@ function aggregatePodDelivery(
   goals: GoalsVsDeliveryRow[],
   period: PeriodScope,
   podAxis: "editorial" | "growth",
+  publishedByName: Map<string, number>,
 ): {
   podRows: PodDeliveryRow[];
   perClientByPod: Map<string, PerClientRow[]>;
@@ -807,7 +1167,9 @@ function aggregatePodDelivery(
     let currentQPaceWeight = 0;
     let newCount = 0;
     let lifetimeDelivered = 0;
+    let lifetimeInvoiced = 0;
     let lifetimeSow = 0;
+    let lifetimePublished = 0;
     const clientRows: PerClientRow[] = [];
 
     for (const c of podClients) {
@@ -820,14 +1182,19 @@ function aggregatePodDelivery(
       let lastQ: PerClientRow["lastQ"] = null;
       let isNew = false;
       let clientLifetimeDelivered = 0;
+      let clientLifetimeInvoiced = 0;
       let clientLifetimeSow = 0;
+      const clientLifetimePublished = publishedByName.get(c.name) ?? 0;
+      lifetimePublished += clientLifetimePublished;
       if (row) {
         const cq = computeCurrentQ(row);
         const lq = computeLastFullQ(row);
         isNew = isFirstContractQ(row);
         clientLifetimeDelivered = row.articles_delivered;
+        clientLifetimeInvoiced = row.articles_invoiced;
         clientLifetimeSow = row.articles_sow;
         lifetimeDelivered += clientLifetimeDelivered;
+        lifetimeInvoiced += clientLifetimeInvoiced;
         lifetimeSow += clientLifetimeSow;
         if (cq) {
           currentQ = {
@@ -839,12 +1206,18 @@ function aggregatePodDelivery(
             monthInQ: cq.monthInQ,
             qLength: cq.qLength,
           };
+          // Actual delivered/invoiced numbers ALWAYS aggregate every
+          // client with a current Q — including 1st-Q clients. Their
+          // delivered work is real data and should match the lifetime
+          // delivered shown in %SOW. The VARIANCE + pace metrics still
+          // skip 1st-Q clients (variance is meaningless when they
+          // just started ramping).
+          currentQActualDelivered += cq.delivered;
+          currentQDelivered += cq.projectedEnd;
+          currentQInvoiced += cq.invoiced;
+          currentQHasData = true;
           if (!isNew) {
             currentQVariance += cq.projectedVariance;
-            currentQActualDelivered += cq.delivered;
-            currentQDelivered += cq.projectedEnd;
-            currentQInvoiced += cq.invoiced;
-            currentQHasData = true;
             const weight = Math.max(1, cq.invoiced);
             currentQMonthInQWeighted += cq.monthInQ * weight;
             currentQQLengthWeighted += cq.qLength * weight;
@@ -879,7 +1252,9 @@ function aggregatePodDelivery(
         currentQ,
         isNew,
         lifetimeDelivered: clientLifetimeDelivered,
+        lifetimeInvoiced: clientLifetimeInvoiced,
         lifetimeSow: clientLifetimeSow,
+        lifetimePublished: clientLifetimePublished,
       });
     }
 
@@ -909,7 +1284,7 @@ function aggregatePodDelivery(
         ? currentQQLengthWeighted / currentQPaceWeight
         : 0,
       newCount,
-      lifetimeDelivered, lifetimeSow,
+      lifetimeDelivered, lifetimeInvoiced, lifetimeSow, lifetimePublished,
     });
     perClientByPod.set(pod, clientRows);
   }
@@ -938,7 +1313,7 @@ function PodDeliveryRowHeader({
     <button
       type="button"
       onClick={onToggle}
-      className={`grid w-full ${DELIVERY_GRID} items-center gap-2 py-3 px-2 text-left transition-colors hover:bg-[#1a1a1a]`}
+      className={`grid w-full ${DELIVERY_GRID} ${DELIVERY_DIVIDERS} items-center gap-3 py-3 px-3 text-left transition-colors hover:bg-[#1a1a1a]`}
     >
       <ChevronRight
         className={
@@ -966,24 +1341,32 @@ function PodDeliveryRowHeader({
         <MiniProgress label="CBs" del={row.cbDel} goal={row.cbGoal} pct={cbPct} />
         <MiniProgress label="Articles" del={row.adDel} goal={row.adGoal} pct={adPct} />
       </div>
-      {/* Last Q */}
+      {/* Last Q — same layout as Current Q but muted grey. Uses Last Q's
+          own per-Q delivered/invoiced (not lifetime) so numbers differ
+          from Current Q. SOW is the constant denominator on the
+          %Invoiced bar. */}
       <QTile
+        kind="last"
+        muted
         variance={row.lastQHasData ? row.lastQVariance : null}
         delivered={row.lastQDelivered}
         invoiced={row.lastQInvoiced}
+        sow={row.lifetimeSow}
       />
-      {/* Current Q — shows variance + tier + NOW (actuals so far) + PROJ END */}
+      {/* Current Q — coloured by tier. Bar uses ACTUAL delivered to
+          date (currentQActualDelivered), NOT the projected end-of-Q
+          number — that way the bar reflects real progress so far.
+          The variance + tier are still computed from the projected
+          end-of-Q outcome. */}
       <QTile
+        kind="current"
         variance={row.currentQHasData ? row.currentQVariance : null}
-        delivered={row.currentQDelivered}
+        delivered={row.currentQActualDelivered}
         invoiced={row.currentQInvoiced}
-        actualDelivered={row.currentQActualDelivered}
-        avgMonthInQ={row.currentQAvgMonthInQ}
-        avgQLength={row.currentQAvgQLength}
+        sow={row.lifetimeSow}
         newCount={row.newCount}
-        projected
       />
-      {/* Lifetime */}
+      {/* %SOW (lifetime delivered ÷ contracted SOW) */}
       <div className="text-center">
         <p className="font-mono text-base font-bold tabular-nums leading-none text-white">
           {lifetimePct !== null ? `${lifetimePct}%` : "—"}
@@ -991,6 +1374,20 @@ function PodDeliveryRowHeader({
         <p className="mt-0.5 font-mono text-[10px] tabular-nums text-[#C4BCAA]">
           {row.lifetimeSow > 0
             ? `${row.lifetimeDelivered.toLocaleString()} / ${row.lifetimeSow.toLocaleString()}`
+            : "—"}
+        </p>
+      </div>
+      {/* %Published (published_live ÷ contracted SOW) — pulled from
+          cumulative_metrics, sums across the pod's clients. */}
+      <div className="text-center">
+        <p className="font-mono text-base font-bold tabular-nums leading-none text-white">
+          {row.lifetimeSow > 0
+            ? `${Math.round((row.lifetimePublished / row.lifetimeSow) * 100)}%`
+            : "—"}
+        </p>
+        <p className="mt-0.5 font-mono text-[10px] tabular-nums text-[#C4BCAA]">
+          {row.lifetimeSow > 0
+            ? `${row.lifetimePublished.toLocaleString()} / ${row.lifetimeSow.toLocaleString()}`
             : "—"}
         </p>
       </div>
@@ -1015,20 +1412,26 @@ function QTile({
   variance,
   delivered,
   invoiced,
-  actualDelivered,
-  avgMonthInQ,
-  avgQLength,
+  sow,
   newCount,
-  projected = false,
+  muted = false,
+  kind,
 }: {
   variance: number | null;
+  /** Delivered cumulative through end of THIS Q (per-Q snapshot, not
+   *  lifetime). Drives the %Delivered bar's numerator. */
   delivered: number;
+  /** Invoiced cumulative through end of THIS Q (per-Q snapshot). */
   invoiced: number;
-  actualDelivered?: number;
-  avgMonthInQ?: number;
-  avgQLength?: number;
+  /** Contracted SOW (lifetime — constant across Qs). */
+  sow: number;
   newCount?: number;
-  projected?: boolean;
+  /** Render in muted greys. Used for Last Q so the eye lands on
+   *  Current Q (the actionable column). */
+  muted?: boolean;
+  /** "current" → End-of-Q chip; "last" → Last Close chip. Drives chip
+   *  wording only; the rest of the layout is identical. */
+  kind: "last" | "current";
 }) {
   if (variance === null) {
     return (
@@ -1043,184 +1446,128 @@ function QTile({
       </div>
     );
   }
-  const sign = variance > 0 ? "+" : "";
-  const italicCls = projected ? "italic" : "";
-  const showBreakdown = actualDelivered !== undefined;
-  // Last Q (no breakdown) is reference context — render in muted greys so
-  // the eye lands on Current Q. Tier colours stay on Current Q where they
-  // still drive triage decisions.
-  const tier = showBreakdown
-    ? variance >= 0
-      ? { color: "#42CA80", label: "Healthy" }
-      : variance >= -5
-      ? { color: "#F5C542", label: "Within limit" }
-      : { color: "#ED6958", label: "Behind" }
+  // Tier drives the End-of-Q chip's colour. When `muted`, every shade
+  // collapses to mid-grey so Last Q stays calm against Current Q.
+  const tier = muted
+    ? { color: "#909090", label: variance >= 0 ? "On Track" : variance >= -5 ? "Within Limit" : "Behind Plan" }
     : variance >= 0
-      ? { color: "#909090", label: "Healthy" }
+      ? { color: "#42CA80", label: "On Track" }
       : variance >= -5
-      ? { color: "#909090", label: "Within limit" }
-      : { color: "#909090", label: "Behind" };
-  const labelColor = showBreakdown ? tier.color : "#606060";
+      ? { color: "#F5C542", label: "Within Limit" }
+      : { color: "#ED6958", label: "Behind Plan" };
+  const barColor = muted ? "#909090" : "#42CA80";
   return (
-    <div className="text-center">
-      <p
-        className={`font-mono text-base font-bold tabular-nums leading-none ${italicCls}`}
-        style={{ color: tier.color }}
-      >
-        {sign}{Math.round(variance)}
-      </p>
-      <p
-        className="mt-0.5 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: labelColor }}
-      >
-        {tier.label}
-      </p>
-      {showBreakdown ? (
-        <div className="mt-1 space-y-1 font-mono text-[10px] tabular-nums text-[#C4BCAA]">
-          {/* Three labelled numbers replace the cryptic NOW → END / Invoiced
-              arrow form. Each value carries its own meaning chip below so
-              the user doesn't have to decode the symbols. */}
-          <div className="flex items-center justify-center gap-1.5 leading-tight">
-            <span className="text-white">{Math.round(actualDelivered!)}</span>
-            <span className="text-[#606060]">·</span>
-            <span className={`font-semibold text-white ${italicCls}`}>
-              {Math.round(delivered)}
-            </span>
-            <span className="text-[#606060]">·</span>
-            <span className="text-[#909090]">{Math.round(invoiced)}</span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 font-mono text-[8px] uppercase tracking-wider text-[#606060]">
-            <span>delivered</span>
-            <span>·</span>
-            <span>proj Q</span>
-            <span>·</span>
-            <span>invoiced</span>
-          </div>
-          {(() => {
-            // Pace coloring: bar uses pace tier (separate from variance
-            // tier above). Falls back to variance tier color if we don't
-            // have pacing data.
-            const pace = avgMonthInQ !== undefined && avgQLength !== undefined
-              ? paceClassify(actualDelivered!, delivered, avgMonthInQ, avgQLength)
-              : null;
-            const barColor = pace?.color ?? tier.color;
-            return (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex-1">
-                    <QProgressBar
-                      actual={actualDelivered!}
-                      projected={delivered}
-                      target={invoiced}
-                      color={barColor}
-                    />
-                  </div>
-                  <span
-                    className="shrink-0 font-mono text-[9px] font-semibold tabular-nums"
-                    style={{ color: barColor }}
-                    title="Cumulative actuals now ÷ projected end of Q"
-                  >
-                    {delivered > 0
-                      ? `${Math.round((actualDelivered! / delivered) * 100)}%`
-                      : "—"}
-                  </span>
-                </div>
-                {pace && (
-                  <p
-                    className="font-mono text-[9px] uppercase tracking-wider"
-                    style={{ color: pace.color }}
-                  >
-                    {pace.label}
-                  </p>
-                )}
-              </>
-            );
-          })()}
-        </div>
-      ) : (
-        // Last Q numbers — muted so the eye lands on Current Q.
-        <p className={`mt-1 font-mono text-[10px] tabular-nums text-[#909090] ${italicCls}`}>
-          <span className="font-semibold">{Math.round(delivered)}</span>
-          <span className="text-[#606060]"> / {Math.round(invoiced)}</span>
-        </p>
-      )}
+    <div className="flex items-center gap-3 font-mono text-[10px] tabular-nums">
+      {/* LEFT: variance + tier on its own column — same QInfoBlock the
+          per-client row uses, just without a Q label since the pod
+          summary spans multiple clients with different Qs. */}
+      <QInfoBlock
+        qLabel=""
+        variance={variance}
+        tier={tier}
+        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
+        muted={muted}
+      />
+      {/* RIGHT: just the two progress bars. */}
+      <div className="flex-1 min-w-0 space-y-1 text-left">
+        <LifetimeBar
+          label="Q delivered"
+          num={delivered}
+          numUnit="del"
+          denom={invoiced}
+          denomUnit="inv"
+          color={barColor}
+          muted={muted}
+        />
+        <LifetimeBar
+          label="Invoiced"
+          num={invoiced}
+          numUnit="inv"
+          denom={sow}
+          denomUnit="SOW"
+          color={barColor}
+          muted={muted}
+        />
+      </div>
     </div>
   );
 }
 
-/** Classify the actual-vs-expected delivery pace for the current Q.
- *  Compares actual progress (NOW / END) against the linear expected
- *  progress at this month-in-Q (monthInQ / qLength).
- *
- *  pace_ratio = (NOW/END) / (monthInQ/qLength)
- *    ≥ 1.10   → "Ahead of pace"  (dark green)
- *    0.85-1.10 → "On track"       (light green)
- *    < 0.85   → "Push needed"    (yellow)
- *
- *  Three buckets, three colours — separate from the variance tier so a
- *  row can be Healthy on outcome AND "Push needed" on pace at the same
- *  time. Red dropped on purpose: yellow already says "needs attention"
- *  and the variance tier (above the bar) carries the alarm when
- *  delivered − invoiced has actually fallen behind. */
-function paceClassify(
-  actualDelivered: number,
-  projectedEnd: number,
-  monthInQ: number,
-  qLength: number,
-): { color: string; label: string } | null {
-  if (projectedEnd <= 0 || qLength <= 0) return null;
-  const actualProgress = actualDelivered / projectedEnd;
-  const expectedProgress = monthInQ / qLength;
-  if (expectedProgress <= 0) return null;
-  const ratio = actualProgress / expectedProgress;
-  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of pace" };
-  if (ratio >= 0.85) return { color: "#9FE5BD", label: "On track" };
-  return { color: "#F5C542", label: "Push needed" };
+/** Stacked bar — label + percentage on the first line, full-width bar
+ *  beneath, raw num/denom on the third line. Used for the two per-Q
+ *  ratios on Current Q + Last Q tiles. Vertical layout so the bar
+ *  always takes the full cell width. The `muted` flag washes everything
+ *  to grey so Last Q can sit next to a coloured Current Q without
+ *  fighting for attention. */
+function LifetimeBar({
+  label,
+  num,
+  numUnit,
+  denom,
+  denomUnit,
+  color,
+  muted = false,
+}: {
+  label: string;
+  num: number;
+  numUnit: string;
+  denom: number;
+  denomUnit: string;
+  color: string;
+  muted?: boolean;
+}) {
+  const pct = denom > 0 ? Math.min(100, (num / denom) * 100) : 0;
+  const pctText = denom > 0 ? `${Math.round((num / denom) * 100)}%` : "—";
+  const labelColor = muted ? "text-[#707070]" : "text-[#909090]";
+  const pctColor = muted ? "text-[#909090]" : "text-[#C4BCAA]";
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-baseline justify-between gap-1 font-mono text-[9px] tabular-nums">
+        <span className={`uppercase tracking-wider ${labelColor}`}>{label}</span>
+        <span className={`font-semibold ${pctColor}`}>{pctText}</span>
+      </div>
+      <div className="relative h-1 w-full overflow-hidden rounded-sm bg-[#1a1a1a]">
+        <div
+          className="absolute top-0 bottom-0 left-0"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+      <p className="font-mono text-[8px] tabular-nums text-[#606060]">
+        {denom > 0 ? (
+          <>
+            <span className={muted ? "text-[#707070]" : "text-[#909090]"}>{num.toLocaleString()}</span> {numUnit} / {denom.toLocaleString()} {denomUnit}
+          </>
+        ) : "—"}
+      </p>
+    </div>
+  );
 }
 
-/** Clean two-shade bar (matches the Goals MiniProgress idiom). Solid fill
- *  is NOW cumulative actuals; faded same color is the projected additional
- *  through end of Q. 100% of the bar represents the cumulative invoiced
- *  target — the variance number above already conveys overshoot
- *  precisely, so the bar caps at 100% and stays calm. */
-function QProgressBar({
-  actual,
-  projected,
-  target,
-  color,
-  compact = false,
+/** End-of-Q variance chip — mirrors the Client Delivery cards' chip
+ *  format ("END-OF-Q VARIANCE X · TIER") so the two surfaces share one
+ *  vocabulary. Compact, single-line. */
+function EndOfQChip({
+  variance,
+  tier,
+  chipLabel = "End-of-Q",
 }: {
-  actual: number;
-  projected: number;
-  target: number;
-  color: string;
-  compact?: boolean;
+  variance: number;
+  tier: { color: string; label: string };
+  /** "End-of-Q" for Current Q, "Last Close" for Last Q. */
+  chipLabel?: string;
 }) {
-  const safeTarget = Math.max(1, target);
-  const actualPct = Math.max(0, Math.min(100, (actual / safeTarget) * 100));
-  const projectedPct = Math.max(0, Math.min(100, (projected / safeTarget) * 100));
-  const fadedWidth = Math.max(0, projectedPct - actualPct);
-  const h = compact ? 3 : 5;
+  const sign = variance > 0 ? "+" : "";
   return (
     <div
-      className="relative w-full overflow-hidden rounded-sm bg-[#1a1a1a]"
-      style={{ height: h }}
-      aria-label={`Now ${Math.round(actual)} of ${Math.round(target)} invoiced, projected ${Math.round(projected)}`}
+      className="inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider"
+      style={{ borderColor: `${tier.color}40`, backgroundColor: `${tier.color}12` }}
     >
-      <div
-        className="absolute top-0 bottom-0 left-0"
-        style={{ width: `${actualPct}%`, backgroundColor: color }}
-      />
-      {fadedWidth > 0 && (
-        <div
-          className="absolute top-0 bottom-0"
-          style={{
-            left: `${actualPct}%`,
-            width: `${fadedWidth}%`,
-            backgroundColor: `${color}40`,
-          }}
-        />
-      )}
+      <span className="text-[#909090]">{chipLabel}</span>
+      <span className="tabular-nums font-semibold" style={{ color: tier.color }}>
+        {sign}{Math.round(variance)}
+      </span>
+      <span className="text-[#606060]">·</span>
+      <span style={{ color: tier.color }}>{tier.label}</span>
     </div>
   );
 }
@@ -1300,7 +1647,7 @@ function PerClientDeliveryList({
   };
   return (
     <div className="bg-[#0d0d0d]/40 py-1.5">
-      {rows.map((r) => {
+      {rows.map((r, idx) => {
         const cbPct = r.cbGoal > 0 ? (r.cbDel / r.cbGoal) * 100 : null;
         const adPct = r.adGoal > 0 ? (r.adDel / r.adGoal) * 100 : null;
         const lifetimePct = r.lifetimeSow > 0
@@ -1309,7 +1656,7 @@ function PerClientDeliveryList({
         return (
           <div
             key={r.id}
-            className={`grid ${DELIVERY_GRID} items-center gap-2 px-2 py-1.5 hover:bg-[#1a1a1a]`}
+            className={`grid ${DELIVERY_GRID} ${DELIVERY_DIVIDERS} items-center gap-3 px-3 py-2 border-b border-[#1a1a1a] last:border-b-0 ${idx % 2 === 1 ? "bg-[#0e0e0e]" : ""} hover:bg-[#1a1a1a]`}
           >
             {/* col 1: indent under chevron */}
             <span />
@@ -1329,14 +1676,18 @@ function PerClientDeliveryList({
             {/* col 3: goals → opens "goals" monthly table */}
             <CellButton onClick={(e) => openCell("goals", r, e)} ariaLabel={`Open goals detail for ${r.name}`}>
               <div className="space-y-0.5">
-                <ClientGoalCell label="CB" del={r.cbDel} goal={r.cbGoal} pct={cbPct} />
-                <ClientGoalCell label="AR" del={r.adDel} goal={r.adGoal} pct={adPct} />
+                <ClientGoalCell label="CBs" del={r.cbDel} goal={r.cbGoal} pct={cbPct} />
+                <ClientGoalCell label="Articles" del={r.adDel} goal={r.adGoal} pct={adPct} />
               </div>
             </CellButton>
-            {/* col 4: last Q (actual) → opens "lastQ" detail */}
+            {/* col 4: last Q (actual) → opens "lastQ" detail. Same
+                layout as Current Q but muted grey. Uses Last Q's own
+                per-Q numbers. */}
             <CellButton onClick={(e) => openCell("lastQ", r, e)} ariaLabel={`Open Last Q detail for ${r.name}`}>
               <ClientQCell
                 label={r.lastQ?.label ?? "Last Q"}
+                kind="last"
+                muted
                 q={r.lastQ
                   ? {
                       delivered: r.lastQ.delivered,
@@ -1344,27 +1695,30 @@ function PerClientDeliveryList({
                       variance: r.lastQ.variance,
                     }
                   : null}
+                sow={r.lifetimeSow}
               />
             </CellButton>
-            {/* col 5: current Q (projected) → opens "currentQ" detail */}
+            {/* col 5: current Q → opens "currentQ" detail.
+                Bar uses ACTUAL delivered-to-date (cumulative through
+                last completed month), NOT projected end-of-Q. The chip
+                still shows END-OF-Q variance — the only thing that's
+                projection-based is the variance number. */}
             <CellButton onClick={(e) => openCell("currentQ", r, e)} ariaLabel={`Open Current Q detail for ${r.name}`}>
               <ClientQCell
                 label={r.currentQ?.label ?? "Curr Q"}
+                kind="current"
                 q={r.currentQ
                   ? {
-                      delivered: r.currentQ.delivered,
+                      delivered: r.currentQ.actualDelivered,
                       invoiced: r.currentQ.invoiced,
                       variance: r.currentQ.projectedVariance,
-                      actualDelivered: r.currentQ.actualDelivered,
-                      monthInQ: r.currentQ.monthInQ,
-                      qLength: r.currentQ.qLength,
                     }
                   : null}
                 isNew={r.isNew}
-                projected
+                sow={r.lifetimeSow}
               />
             </CellButton>
-            {/* col 6: lifetime → opens "lifetime" detail */}
+            {/* col 6: %SOW (lifetime delivered ÷ SOW) → opens "lifetime" detail */}
             <CellButton onClick={(e) => openCell("lifetime", r, e)} ariaLabel={`Open Lifetime detail for ${r.name}`}>
               <div className="text-center">
                 <p className="font-mono text-[11px] font-bold tabular-nums text-white">
@@ -1377,6 +1731,21 @@ function PerClientDeliveryList({
                 </p>
               </div>
             </CellButton>
+            {/* col 7: %Published (published_live ÷ SOW) — read-only,
+                no popover yet since we don't have a dedicated detail
+                view for it. Sourced from cumulative_metrics. */}
+            <div className="text-center px-1">
+              <p className="font-mono text-[11px] font-bold tabular-nums text-white">
+                {r.lifetimeSow > 0
+                  ? `${Math.round((r.lifetimePublished / r.lifetimeSow) * 100)}%`
+                  : "—"}
+              </p>
+              <p className="font-mono text-[9px] tabular-nums text-[#909090]">
+                {r.lifetimeSow > 0
+                  ? `${r.lifetimePublished}/${r.lifetimeSow}`
+                  : "—"}
+              </p>
+            </div>
           </div>
         );
       })}
@@ -1407,6 +1776,10 @@ function CellButton({
   );
 }
 
+/** Per-client Goals cell — same layout as the pod summary's
+ *  MiniProgress (label + num/goal + percentage on top, progress bar
+ *  below). Delegates to MiniProgress so both rows render identically;
+ *  call sites just pass the canonical "CBs" / "Articles" labels. */
 function ClientGoalCell({
   label,
   del,
@@ -1418,141 +1791,447 @@ function ClientGoalCell({
   goal: number;
   pct: number | null;
 }) {
-  if (goal === 0) {
-    return (
-      <p className="font-mono text-[10px] tabular-nums text-[#606060]">
-        <span className="text-[#606060]">{label}</span> —
-      </p>
-    );
-  }
-  const color = pct === null
-    ? "#909090"
-    : pct >= 90 ? "#42CA80"
-    : pct >= 70 ? "#F5C542"
-    : "#ED6958";
-  return (
-    <p className="font-mono text-[10px] tabular-nums text-[#C4BCAA]">
-      <span className="text-[#606060]">{label}</span>{" "}
-      {Math.round(del)}/{Math.round(goal)}{" "}
-      <span style={{ color }}>({Math.round(pct!)}%)</span>
-    </p>
-  );
+  return <MiniProgress label={label} del={del} goal={goal} pct={pct} />;
 }
 
 function ClientQCell({
   label,
   q,
+  sow,
   isNew,
-  projected = false,
+  kind,
+  muted = false,
 }: {
   label: string;
   q: {
-    delivered: number;
-    invoiced: number;
+    delivered: number;     // cumulative through end of THIS Q
+    invoiced: number;      // cumulative through end of THIS Q
     variance: number;
-    /** Cumulative actuals through last completed month. Only set on
-     *  Current Q so the cell can render NOW → END breakdown. */
-    actualDelivered?: number;
-    /** Position within Q + Q length, for the pace classification. Only
-     *  set on Current Q. */
-    monthInQ?: number;
-    qLength?: number;
   } | null;
+  /** Lifetime contracted SOW — constant; used as the denominator on
+   *  the %Invoiced bar. */
+  sow: number;
   isNew?: boolean;
-  projected?: boolean;
+  kind: "last" | "current";
+  /** Render in muted greys. Last Q passes `muted` so it stays calm
+   *  against a coloured Current Q in the same row. */
+  muted?: boolean;
 }) {
   if (!q) {
     return (
-      <div className="text-center font-mono text-[10px] tabular-nums">
-        <p className="text-[#606060]">{label}</p>
-        <p className="text-[#606060]">{isNew ? "1st Q" : "—"}</p>
+      <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
+        <QSideLabel text={label} muted />
+        <span className="text-[#606060]">{isNew ? "1st Q" : "—"}</span>
       </div>
     );
   }
-  const sign = q.variance > 0 ? "+" : "";
-  const showBreakdown = q.actualDelivered !== undefined;
-  // Last Q (no breakdown) renders in mid-grey so the eye lands on the
-  // Current Q column. Current Q keeps the full tier palette since it's
-  // the actionable signal. 1st-Q new clients are an exception — they
-  // still get the blue chip so brand-new clients don't read as alarming.
+  // 1st-Q new clients keep the blue chip; Current Q uses full tier
+  // palette; Last Q renders in mid-grey (driven by `muted`).
   const color = isNew
     ? "#8FB5D9"
-    : showBreakdown
-      ? q.variance >= 0 ? "#42CA80"
+    : muted
+      ? "#909090"
+      : q.variance >= 0 ? "#42CA80"
       : q.variance >= -5 ? "#F5C542"
-      : "#ED6958"
-      : "#909090";
+      : "#ED6958";
+  const tierLabel = isNew
+    ? "1st Q"
+    : q.variance >= 0
+      ? "On Track"
+      : q.variance >= -5
+        ? "Within Limit"
+        : "Behind Plan";
+  const barColor = muted ? "#909090" : "#42CA80";
   return (
-    <div className="text-center font-mono text-[10px] tabular-nums">
-      <p className="text-[#606060]">
-        {label}
-        {projected && <span className="ml-1 italic text-[#505050]">(proj.)</span>}
-      </p>
-      <p>
-        <span className="font-semibold" style={{ color }}>
-          {sign}{Math.round(q.variance)}
+    <div className="flex items-center gap-3 font-mono text-[10px] tabular-nums">
+      {/* LEFT: Q label + variance chip stacked. Replaces what was the
+          3rd row below the bars. */}
+      <QInfoBlock
+        qLabel={label}
+        variance={q.variance}
+        tier={{ color, label: tierLabel }}
+        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
+        muted={muted}
+      />
+      {/* RIGHT: just the two progress bars now — no chip row beneath. */}
+      <div className="flex-1 min-w-0 space-y-1 text-left">
+        <LifetimeBar
+          label="Q delivered"
+          num={q.delivered}
+          numUnit="del"
+          denom={q.invoiced}
+          denomUnit="inv"
+          color={barColor}
+          muted={muted}
+        />
+        <LifetimeBar
+          label="Invoiced"
+          num={q.invoiced}
+          numUnit="inv"
+          denom={sow}
+          denomUnit="SOW"
+          color={barColor}
+          muted={muted}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** LEFT block of a Q cell — Q label + variance + tier label, all
+ *  vertically stacked into a single column to the left of the bars.
+ *  Replaces the EndOfQChip that used to sit below the bars; the chip
+ *  data now reads top-to-bottom in this block:
+ *    1) Q label  (e.g. "Q1", "Q2 Y2")
+ *    2) Variance (e.g. "−15")
+ *    3) Tier     (e.g. "Behind Plan")
+ *  Tier colour drives all three lines (muted grey for Last Q). */
+function QInfoBlock({
+  qLabel,
+  variance,
+  tier,
+  chipLabel,
+  muted = false,
+}: {
+  qLabel: string;
+  variance: number;
+  tier: { color: string; label: string };
+  chipLabel: "End-of-Q" | "Last Close";
+  muted?: boolean;
+}) {
+  const sign = variance > 0 ? "+" : "";
+  const labelColor = muted ? "#707070" : tier.color;
+  return (
+    <div className="shrink-0 w-[6rem] flex flex-col items-start gap-1 font-mono tabular-nums">
+      {qLabel && (
+        <span
+          className="text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: labelColor }}
+        >
+          {qLabel}
         </span>
-      </p>
-      {showBreakdown ? (
-        <>
-          <p className="text-[#606060]">
-            <span className="text-[#909090]">{Math.round(q.actualDelivered!)}</span>
-            <span className="mx-0.5">→</span>
-            <span className="text-[#C4BCAA]">{Math.round(q.delivered)}</span>
-            <span> / {Math.round(q.invoiced)}</span>
-          </p>
-          {(() => {
-            const pace = q.monthInQ !== undefined && q.qLength !== undefined
-              ? paceClassify(q.actualDelivered!, q.delivered, q.monthInQ, q.qLength)
-              : null;
-            const barColor = pace?.color ?? color;
-            return (
-              <>
-                <div className="mt-0.5 flex items-center gap-1">
-                  <div className="flex-1">
-                    <QProgressBar
-                      actual={q.actualDelivered!}
-                      projected={q.delivered}
-                      target={q.invoiced}
-                      color={barColor}
-                      compact
-                    />
-                  </div>
-                  <span
-                    className="shrink-0 font-mono text-[8px] font-semibold tabular-nums"
-                    style={{ color: barColor }}
-                    title="Cumulative actuals now ÷ projected end of Q"
-                  >
-                    {q.delivered > 0
-                      ? `${Math.round((q.actualDelivered! / q.delivered) * 100)}%`
-                      : "—"}
-                  </span>
-                </div>
-                {pace && (
-                  <p
-                    className="font-mono text-[8px] uppercase tracking-wider"
-                    style={{ color: pace.color }}
-                  >
-                    {pace.label}
-                  </p>
-                )}
-              </>
-            );
-          })()}
-        </>
-      ) : (
-        // Last Q numbers — mid-grey so Current Q reads as the focal point.
-        <p className="text-[#606060]">
-          <span className="text-[#909090]">{Math.round(q.delivered)}</span>
-          <span> / {Math.round(q.invoiced)}</span>
-        </p>
       )}
+      {/* Variance enclosure — tier-coloured border + faint tint so the
+          variance reads as a self-contained badge (mirrors the old
+          EndOfQChip box, just in vertical form). */}
+      <div
+        className="w-full rounded-md border px-2 py-1 flex flex-col items-start gap-0.5"
+        style={{
+          borderColor: `${labelColor}55`,
+          backgroundColor: `${labelColor}10`,
+        }}
+      >
+        <span
+          className="text-[9px] uppercase tracking-wider leading-tight"
+          style={{ color: muted ? "#606060" : "#909090" }}
+        >
+          {chipLabel} Variance
+        </span>
+        <span
+          className="text-base font-bold leading-none tabular-nums"
+          style={{ color: labelColor }}
+        >
+          {sign}
+          {Math.round(variance)}
+        </span>
+        <span
+          className="text-[9px] font-semibold uppercase tracking-wider leading-tight"
+          style={{ color: labelColor }}
+        >
+          {tier.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Compact horizontal Q label rendered to the left of the bars
+ *  (e.g. "Q1", "Q2 Y2"). Plain text — no card, no border, no rotation —
+ *  so the row reads naturally left-to-right and the label can be
+ *  scanned at a glance. Tier colour (or muted grey for Last Q) tints
+ *  the text so the eye still picks the right column. */
+function QSideLabel({
+  text,
+  muted = false,
+  accent,
+}: {
+  text: string;
+  muted?: boolean;
+  accent?: string;
+}) {
+  const color = muted ? "#707070" : accent ?? "#909090";
+  return (
+    <span
+      className="shrink-0 w-9 self-center text-left font-mono text-[10px] font-semibold uppercase tracking-wider tabular-nums"
+      style={{ color }}
+    >
+      {text}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pod TTM Stat Cards
+//
+// Right half of the PMJ + TTM row below Pod Delivery Progress. Shows the
+// same 8 milestone-transition averages as TimeToMetrics (CKO→EKO, CKO→CB,
+// CKO→Article, CKO→Feedback, CB→Article, CKO→Published, Article→Feedback,
+// Feedback→Published) but in a compact 4×2 card grid instead of a timeline.
+// Computes avg / min / max across ALL filtered clients (not per-pod).
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface TTMMetricDef {
+  key: string;
+  short: string;
+  subtitle: string;
+  /** If omitted, `consulting_ko_date` is the from anchor. */
+  from?: string;
+  to: string;
+  color: string;
+}
+
+/** One contributor row inside a TTM card's hover popup. */
+interface TTMContributor {
+  clientName: string;
+  pod: string;
+  fromDate: string | null;
+  toDate: string | null;
+  days: number;
+}
+
+/** Tooltip payload for the TTM cards hover popup. */
+interface TTMTip {
+  x: number;
+  y: number;
+  stat: TTMMetricDef & {
+    avg: number | null;
+    min: number | null;
+    max: number | null;
+    count: number;
+    contributors: TTMContributor[];
+  };
+}
+
+// Canonical milestone names — match the Pod Timelines legend exactly so
+// the names read identically across every surface (cards, legend,
+// dropdown, tooltips). "short" is just used as the card title now.
+const TTM_METRICS: TTMMetricDef[] = [
+  { key: "cko_eko", short: "Consulting KO → Editorial KO",      subtitle: "Growth-to-Editorial handoff",     to: "editorial_ko_date",             color: "#F28D59" },
+  { key: "cko_cb",  short: "Consulting KO → First CB Approved", subtitle: "Kickoff to first brief approved", to: "first_cb_approved_date",        color: "#42CA80" },
+  { key: "cko_art", short: "Consulting KO → First Article",     subtitle: "Kickoff to first article",         to: "first_article_delivered_date",  color: "#8FB5D9" },
+  { key: "cko_fb",  short: "Consulting KO → First Feedback",    subtitle: "Kickoff to first feedback",        to: "first_feedback_date",           color: "#F5BC4E" },
+  { key: "cb_art",  short: "First CB Approved → First Article", subtitle: "Brief approval to delivery",      from: "first_cb_approved_date",  to: "first_article_delivered_date", color: "#65FFAA" },
+  { key: "cko_pub", short: "Consulting KO → First Published",   subtitle: "Full cycle to live publication",  to: "first_article_published_date",  color: "#CEBCF4" },
+  { key: "art_fb",  short: "First Article → First Feedback",    subtitle: "Delivery to client response",   from: "first_article_delivered_date", to: "first_feedback_date",       color: "#F5C542" },
+  { key: "fb_pub",  short: "First Feedback → First Published",  subtitle: "Feedback to article going live", from: "first_feedback_date",    to: "first_article_published_date", color: "#7FE8D6" },
+];
+
+function daysBetweenTTM(a: string | null | undefined, b: string | null | undefined): number | null {
+  if (!a || !b) return null;
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  if (Number.isNaN(ms)) return null;
+  return Math.round(ms / 86_400_000);
+}
+
+function PodTTMStatsCard({
+  clients,
+  linkedHover,
+  onHoverChange,
+  focusedClientName,
+}: {
+  clients: Client[];
+  linkedHover: LinkedHover;
+  onHoverChange: (h: LinkedHover) => void;
+  /** When set, the card title carries the client name as a chip — the
+   *  parent has narrowed `clients` to a single client (the user
+   *  clicked one in Pod Timelines), so the stats now describe only
+   *  that client. Surfaces the scope so the avg/range numbers aren't
+   *  silently re-scoped. */
+  focusedClientName?: string | null;
+}) {
+  const { axis: podAxisInner } = useCurrentPodAxis();
+  const stats = useMemo(() => {
+    return TTM_METRICS.map((m) => {
+      const values: number[] = [];
+      const contributors: TTMContributor[] = [];
+      for (const c of clients) {
+        const raw = c as unknown as Record<string, string | null>;
+        const fromDate = m.from ? raw[m.from] : c.consulting_ko_date;
+        const toDate = raw[m.to];
+        const d = daysBetweenTTM(fromDate, toDate);
+        if (d !== null && d >= 0) {
+          values.push(d);
+          const rawPod =
+            podAxisInner === "growth" ? c.growth_pod : c.editorial_pod;
+          contributors.push({
+            clientName: c.name,
+            pod: normalizePod(rawPod),
+            fromDate: fromDate ?? null,
+            toDate: toDate ?? null,
+            days: d,
+          });
+        }
+      }
+      const avg = values.length > 0
+        ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+        : null;
+      const min = values.length > 0 ? Math.min(...values) : null;
+      const max = values.length > 0 ? Math.max(...values) : null;
+      return { ...m, avg, min, max, count: values.length, contributors };
+    });
+  }, [clients, podAxisInner]);
+
+  // Tip state lives at the parent so individual cards can hand off the
+  // mouse to a single popup without each managing its own.
+  const [tip, setTip] = useState<TTMTip | null>(null);
+
+  return (
+    <div className="flex h-full flex-col rounded-lg border border-[#2a2a2a] bg-[#161616] p-4">
+      {/* Title row — subtitle pushed to the RIGHT so the header sits on
+          a single line. When a client is selected in Pod Timelines the
+          name is shown as a green chip next to the title so the scope
+          change is visible at a glance. */}
+      <div className="flex-none flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] shrink-0">
+            Time-to-Metrics
+          </p>
+          {focusedClientName && (
+            <span className="truncate rounded-sm border border-[#42CA80]/40 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#42CA80]">
+              {focusedClientName}
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-[#606060] shrink-0">
+          Avg days · {clients.length} client{clients.length === 1 ? "" : "s"}
+        </p>
+      </div>
+      {/* 2-column x 4-row grid — each row stretches with auto-rows-fr so
+          the 8 cards fill the available vertical space, matching the
+          height of the Pod Timelines card next to it. Wider cards give
+          us room for the canonical milestone names (e.g.
+          "Consulting KO → First Article" instead of "CKO → ARTICLE"). */}
+      <div className="mt-3 grid flex-1 grid-cols-2 gap-2 auto-rows-fr">
+        {stats.map((m) => (
+          <TTMStatCard
+            key={m.key}
+            stat={m}
+            linkedHover={linkedHover}
+            onHoverChange={onHoverChange}
+            onShowTip={setTip}
+            onHideTip={() => setTip(null)}
+            podAxis={podAxisInner}
+          />
+        ))}
+      </div>
+      {tip && <TTMContributorsTooltip tip={tip} podAxis={podAxisInner} />}
+    </div>
+  );
+}
+
+function TTMStatCard({
+  stat,
+  linkedHover,
+  onHoverChange,
+  onShowTip,
+  onHideTip,
+}: {
+  stat: TTMMetricDef & {
+    avg: number | null;
+    min: number | null;
+    max: number | null;
+    count: number;
+    contributors: TTMContributor[];
+  };
+  linkedHover: LinkedHover;
+  onHoverChange: (h: LinkedHover) => void;
+  onShowTip: (t: TTMTip) => void;
+  onHideTip: () => void;
+  podAxis: "editorial" | "growth";
+}) {
+  const pairPrefix = milestonePairPrefix(stat.from, stat.to);
+  const fromField = stat.from ?? "consulting_ko_date";
+  // Card is "matched" when the active hover refers to this transition,
+  // OR (for milestone hover) when this card has that milestone as either
+  // its from or to endpoint.
+  const matched =
+    linkedHover?.kind === "pair"
+      ? linkedHover.from === fromField && linkedHover.to === stat.to
+      : linkedHover?.kind === "milestone"
+        ? linkedHover.field === fromField || linkedHover.field === stat.to
+        : null;
+  // null = nothing hovered → render normally. false = something hovered
+  // elsewhere AND this card doesn't match → dim. true = match → keep
+  // full opacity + accent border.
+  const dim = matched === false;
+  return (
+    <div
+      className={
+        "rounded-md border bg-[#111] p-2 transition-opacity cursor-default " +
+        (matched === true
+          ? "border-[#42CA80]/60"
+          : "border-[#1a1a1a]") +
+        (dim ? " opacity-35" : "")
+      }
+      onMouseEnter={(e) => {
+        onHoverChange({ kind: "pair", from: fromField, to: stat.to });
+        const r = e.currentTarget.getBoundingClientRect();
+        onShowTip({
+          // Anchor the tooltip just above the card's top edge,
+          // centered horizontally. The popup itself positions via
+          // translate(-50%, -100%).
+          x: r.left + r.width / 2,
+          y: r.top - 8,
+          stat,
+        });
+      }}
+      onMouseLeave={() => {
+        onHoverChange(null);
+        onHideTip();
+      }}
+    >
+      <p className="font-mono text-[9px] uppercase tracking-wider text-[#606060] truncate" title={stat.subtitle}>
+        {pairPrefix && (
+          <span className="mr-1 inline-block rounded-sm bg-[#1a1a1a] px-1 py-px text-[#909090] tabular-nums">
+            {pairPrefix}
+          </span>
+        )}
+        {stat.short}
+      </p>
+      {/* Avg on the LEFT, range + count stacked on the RIGHT — the
+          right column is top-aligned with the avg's first line so
+          "min – max" lands on the same row as the big "17 d" number,
+          then "6 clients" sits directly under it. */}
+      <div className="mt-1 flex items-start justify-between gap-2">
+        <p className="font-mono leading-none">
+          {stat.avg !== null ? (
+            <>
+              <span className="text-xl font-bold tabular-nums" style={{ color: stat.color }}>
+                {stat.avg}
+              </span>
+              <span className="ml-0.5 text-[9px] text-[#606060]">d</span>
+            </>
+          ) : (
+            <span className="text-[14px] text-[#606060]">—</span>
+          )}
+        </p>
+        <div className="text-right font-mono text-[8px] tabular-nums leading-tight">
+          {stat.min !== null && stat.max !== null && (
+            <p className="text-[#606060]">
+              {stat.min}d – {stat.max}d
+            </p>
+          )}
+          <p className="text-[#909090]">
+            {stat.count} client{stat.count === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pod Milestone Journey (right card)
+// Pod Milestone Journey (left card in the Pod Pace section)
 //
 // Mirrors the "Client Milestone Journey" timeline from TimeToMetrics.tsx —
 // dots on a horizontal day-axis — but groups clients into collapsible pod
@@ -1638,6 +2317,10 @@ function daysBetween(a: string | null, b: string | null): number | null {
 
 interface MilestoneEntry {
   key: string;
+  /** DB column name for this milestone, e.g. `editorial_ko_date`. Used
+   *  to match cross-card hover state to a specific milestone (since the
+   *  TTM cards + Per-Client Days dropdown both key by field). */
+  field: string;
   label: string;
   days: number;
   color: string;
@@ -1673,6 +2356,10 @@ interface PodJourneyGroup {
 interface TimelineRow {
   id: string;
   name: string;
+  /** DB id for client rows; undefined on the Avg row. Used by the
+   *  parent card to focus the Time-to-Metrics cards on a single
+   *  client when the user hovers that row. */
+  clientId?: number;
   milestones: MilestoneEntry[];
   /** Whether to render the white-diamond CKO marker at day 0. */
   hasCKO: boolean;
@@ -1696,10 +2383,14 @@ interface JourneyTip {
   label: string;
   days: number;
   color: string;
+  /** DB field for the focal milestone, used to render its number prefix
+   *  in the tooltip header. */
+  field?: string;
   fromDate?: string | null;
   toDate?: string | null;
-  /** Days from each preceding milestone in journey order. */
-  previousLegs?: { label: string; color: string; days: number }[];
+  /** Days from each preceding milestone in journey order. Includes the
+   *  field so the tooltip can render each leg's milestone number. */
+  previousLegs?: { label: string; color: string; days: number; field?: string }[];
   isAverage?: boolean;
   contributingCount?: number;
 }
@@ -1707,9 +2398,25 @@ interface JourneyTip {
 function PodMilestoneJourneyCard({
   clients,
   podAxis,
+  linkedHover,
+  onHoverChange,
+  onClientFocus,
+  selectedClientId,
+  selectedClientName,
 }: {
   clients: Client[];
   podAxis: "editorial" | "growth";
+  linkedHover: LinkedHover;
+  onHoverChange: (h: LinkedHover) => void;
+  /** Fired when the user clicks a single client's row. Passes the
+   *  client's id; cleared (null) when the same row is clicked again.
+   *  The parent uses this to re-scope the Time-to-Metrics cards. */
+  onClientFocus?: (clientId: number | null) => void;
+  /** Currently-selected client id from the parent. Drives the
+   *  highlighted-row treatment in each pod's timeline. */
+  selectedClientId?: number | null;
+  /** Name of the selected client — surfaced as a chip in the header. */
+  selectedClientName?: string | null;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tip, setTip] = useState<JourneyTip | null>(null);
@@ -1718,6 +2425,20 @@ function PodMilestoneJourneyCard({
     () => aggregatePodJourney(clients, podAxis),
     [clients, podAxis],
   );
+
+  // Auto-expand when the header filter narrows the scope to a single
+  // pod. Without this the user has to manually click the chevron to see
+  // their clients after they've already filtered to that pod. We only
+  // trigger when the set of pods CHANGES (not on every render) so a
+  // manual collapse inside a single-pod view sticks.
+  const lastSinglePodRef = useRef<string | null>(null);
+  useEffect(() => {
+    const onlyPod = groups.length === 1 ? groups[0].pod : null;
+    if (onlyPod && lastSinglePodRef.current !== onlyPod) {
+      setExpanded(onlyPod);
+    }
+    lastSinglePodRef.current = onlyPod;
+  }, [groups]);
   // Shared scale across all pods so they stay comparable, BUT only counts
   // what's actually rendered: a collapsed pod contributes its average max-day
   // (what shows on screen), an expanded pod contributes its longest client.
@@ -1744,21 +2465,70 @@ function PodMilestoneJourneyCard({
       className="flex h-full flex-col rounded-lg border border-[#2a2a2a] bg-[#161616] p-4 relative"
       style={{ isolation: "isolate" }}
     >
-      <div className="flex-none flex items-baseline justify-between gap-2">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA]">
-            Pod Milestone Journey
-          </p>
+      {/* Header — title + optional client chip on the LEFT (with
+          subtitle stacked beneath), interaction hint on the FAR
+          RIGHT. Hint stays out of the title flow so it doesn't
+          compete with the chip for attention. */}
+      <div className="flex-none flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA]">
+              Pod Timelines
+            </p>
+            {selectedClientName && (
+              <span className="truncate rounded-sm border border-[#42CA80]/40 bg-[#42CA80]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#42CA80]">
+                {selectedClientName}
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-[11px] text-[#606060]">
-            Days since Consulting KO · click pod to expand · longest journey first
+            Days since Consulting KO ·{" "}
+            {groups.length === 1
+              ? displayPod(groups[0].pod, podAxis)
+              : `${groups.length} pods`}
           </p>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-          {groups.length} pod{groups.length === 1 ? "" : "s"}
-        </span>
+        <p className="shrink-0 text-right text-[11px] italic text-[#707070]">
+          click a client to focus · hover to highlight
+        </p>
       </div>
 
-      <div className={"mt-3 divide-y divide-[#222] " + (hasExpanded ? "flex-1 min-h-0 flex flex-col" : "")}>
+
+      {/* Unified day-axis tick row — rendered ONCE above all pods so
+          we don't redraw CKO/7d/14d labels for every pod. The dots in
+          each pod's timeline below align to these ticks via the shared
+          sharedScale + JOURNEY_LABEL_W. Uses the same pl-8 pr-2 +
+          grid + mx-3 offsets as JourneyTimeline so positions match. */}
+      {groups.length > 0 && (
+        <div className="mt-3 pl-8 pr-2">
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: `${JOURNEY_LABEL_W}px 1fr` }}
+          >
+            <div />
+            <div className="relative h-3.5 mx-3">
+              {pickTicks(sharedScale).map((d) => (
+                <span
+                  key={d}
+                  className={
+                    "absolute font-mono text-[9px] " +
+                    (d === 0 ? "font-bold text-white" : "text-[#606060]")
+                  }
+                  style={{
+                    left: `${Math.min(Math.max((d / sharedScale) * 100, 0.5), 95)}%`,
+                    transform: "translateX(-50%)",
+                    transition: "left 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  }}
+                >
+                  {d === 0 ? "CKO" : `${d}d`}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={"mt-1 divide-y divide-[#222] " + (hasExpanded ? "flex-1 min-h-0 flex flex-col" : "")}>
         {groups.length === 0 ? (
           <p className="py-6 text-center text-[11px] text-[#606060]">
             No milestone data in scope.
@@ -1766,43 +2536,57 @@ function PodMilestoneJourneyCard({
         ) : (
           groups.map((g) => {
             const open = expanded === g.pod;
+            // When only one pod is in scope, collapsing it would leave
+            // the card empty — disable the toggle so the user can't
+            // accidentally hide their only data.
+            const singlePodLocked = groups.length === 1;
             return (
               <PodJourneyGroupView
                 key={g.pod}
                 group={g}
                 open={open}
-                onToggle={() => setExpanded(open ? null : g.pod)}
+                onToggle={
+                  singlePodLocked
+                    ? () => {}
+                    : () => setExpanded(open ? null : g.pod)
+                }
                 podAxis={podAxis}
                 scale={sharedScale}
                 onShowTip={(payload) => setTip(payload)}
                 onHideTip={() => setTip(null)}
+                linkedHover={linkedHover}
+                onHoverChange={onHoverChange}
+                stretchExpanded={singlePodLocked}
+                lockExpand={singlePodLocked}
+                onClientFocus={onClientFocus}
+                selectedClientId={selectedClientId}
               />
             );
           })
         )}
       </div>
 
-      {/* Legend */}
+      {/* Milestone legend — each chip is interactive (matches the
+          cross-card hover state via LegendChip). */}
       <div className="flex-none mt-4 flex flex-wrap items-center gap-3 border-t border-[#2a2a2a] pt-3">
-        <div className="flex items-center gap-1.5">
-          <div className="h-[8px] w-[8px] rotate-45 rounded-sm bg-white" />
-          <span className="font-mono text-[10px] text-[#606060]">Consulting KO</span>
-        </div>
+        <LegendChip
+          field="consulting_ko_date"
+          label="Consulting KO"
+          color="white"
+          shape="diamond"
+          linkedHover={linkedHover}
+          onHoverChange={onHoverChange}
+        />
         {JOURNEY.map((m) => (
-          <div key={m.key} className="flex items-center gap-1.5">
-            {m.shape === "diamond" ? (
-              <div
-                className="h-[8px] w-[8px] rotate-45 rounded-sm"
-                style={{ backgroundColor: m.color }}
-              />
-            ) : (
-              <div
-                className="rounded-full"
-                style={{ width: 9, height: 9, backgroundColor: m.color }}
-              />
-            )}
-            <span className="font-mono text-[10px] text-[#606060]">{m.label}</span>
-          </div>
+          <LegendChip
+            key={m.key}
+            field={m.field}
+            label={m.label}
+            color={m.color}
+            shape={m.shape}
+            linkedHover={linkedHover}
+            onHoverChange={onHoverChange}
+          />
         ))}
       </div>
 
@@ -1844,7 +2628,9 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
           )}
         </div>
 
-        {/* Primary stat: days from CKO */}
+        {/* Primary stat: days from CKO. Title is prefixed with the
+            focal milestone's number so it ties back to the legend +
+            TTM cards (e.g. "4 First Article"). CKO itself is #1. */}
         <div className="px-3 py-2.5">
           <div className="flex items-center gap-2">
             <div
@@ -1852,6 +2638,11 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
               style={{ backgroundColor: tip.color }}
             />
             <span className="font-mono text-[11px] uppercase tracking-wider text-[#C4BCAA] truncate">
+              {tip.field && MILESTONE_NUM_BY_FIELD[tip.field] != null && (
+                <span className="text-[#909090] mr-1">
+                  {MILESTONE_NUM_BY_FIELD[tip.field]}
+                </span>
+              )}
               {tip.label}
             </span>
           </div>
@@ -1860,35 +2651,53 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
               {tip.days}d
             </span>
             <span className="ml-1.5 text-[11px] text-[#909090]">
-              from Consulting KO
+              from{" "}
+              <span className="text-[#C4BCAA]">
+                {MILESTONE_NUM_BY_FIELD.consulting_ko_date}
+              </span>{" "}
+              Consulting KO
             </span>
           </p>
         </div>
 
-        {/* Previous legs — days first, then label */}
+        {/* Previous legs — days first, then label. Each leg's label
+            carries its milestone number so the user can map back to the
+            legend / TTM card / dropdown numbers. */}
         {tip.previousLegs && tip.previousLegs.length > 0 && (
           <div className="border-t border-[#222] px-3 py-2">
             <p className="mb-1.5 font-mono text-[9px] uppercase tracking-wider text-[#606060]">
               After previous milestones
             </p>
             <div className="space-y-1">
-              {tip.previousLegs.map((leg) => (
-                <div
-                  key={leg.label}
-                  className="grid grid-cols-[2.5rem_1fr] items-center gap-2 font-mono text-[11px]"
-                >
-                  <span className="text-right font-bold tabular-nums text-white">
-                    {leg.days}d
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[#C4BCAA] truncate">
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: leg.color }}
-                    />
-                    <span className="truncate">after {leg.label}</span>
-                  </span>
-                </div>
-              ))}
+              {tip.previousLegs.map((leg) => {
+                const legNum =
+                  leg.field != null
+                    ? MILESTONE_NUM_BY_FIELD[leg.field]
+                    : undefined;
+                return (
+                  <div
+                    key={leg.label}
+                    className="grid grid-cols-[2.5rem_1fr] items-center gap-2 font-mono text-[11px]"
+                  >
+                    <span className="text-right font-bold tabular-nums text-white">
+                      {leg.days}d
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[#C4BCAA] truncate">
+                      <span
+                        className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: leg.color }}
+                      />
+                      <span className="truncate">
+                        after{" "}
+                        {legNum != null && (
+                          <span className="text-[#909090]">{legNum}</span>
+                        )}{" "}
+                        {leg.label}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1900,6 +2709,110 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
               Average across {tip.contributingCount} client
               {tip.contributingCount === 1 ? "" : "s"}
             </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Hover popup rendered above a TTM stat card on the Pod Pace section.
+ *  Mirrors MetricContributorsPopup from TimeToMetrics.tsx — lists each
+ *  contributing client grouped by pod, with their from/to dates and the
+ *  resulting day count. Header carries the milestone numbers (e.g.
+ *  "1→4 · Consulting KO → First Article") to match the legend / cards. */
+function TTMContributorsTooltip({
+  tip,
+  podAxis,
+}: {
+  tip: TTMTip;
+  podAxis: "editorial" | "growth";
+}) {
+  const { stat } = tip;
+  const pairPrefix = milestonePairPrefix(stat.from, stat.to);
+  const byPod = new Map<string, TTMContributor[]>();
+  for (const c of stat.contributors) {
+    const arr = byPod.get(c.pod) ?? [];
+    arr.push(c);
+    byPod.set(c.pod, arr);
+  }
+  for (const arr of byPod.values()) {
+    arr.sort((a, b) => b.days - a.days);
+  }
+  const pods = Array.from(byPod.keys()).sort(sortPodKey);
+  return (
+    <div
+      className="fixed z-[9999] pointer-events-none"
+      style={{ left: tip.x, top: tip.y, transform: "translate(-50%, -100%)" }}
+    >
+      <div className="flex max-h-[360px] w-[380px] flex-col overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl shadow-black/60">
+        <div className="border-b border-[#2a2a2a] px-3 py-2">
+          <p className="font-mono text-[11px] font-semibold text-white">
+            {pairPrefix && (
+              <span className="mr-1.5 inline-block rounded-sm bg-[#1a1a1a] px-1 py-px text-[#909090] tabular-nums">
+                {pairPrefix}
+              </span>
+            )}
+            {stat.short}
+          </p>
+          <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
+            Avg {stat.avg ?? "—"}d across {stat.count} client
+            {stat.count === 1 ? "" : "s"}
+            {stat.min !== null && stat.max !== null && (
+              <> · Min {stat.min}d · Max {stat.max}d</>
+            )}
+          </p>
+        </div>
+        {stat.count === 0 ? (
+          <p className="px-3 py-3 text-center font-mono text-[10px] text-[#606060]">
+            No clients have both dates recorded yet.
+          </p>
+        ) : (
+          <div className="space-y-2 overflow-y-auto px-3 py-2">
+            {pods.map((pod) => {
+              const rows = byPod.get(pod) ?? [];
+              const color = POD_HEX_COLORS[pod] ?? "#606060";
+              return (
+                <div key={pod}>
+                  <div className="mb-0.5 flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span
+                      className="font-mono text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color }}
+                    >
+                      {displayPod(pod, podAxis)}
+                    </span>
+                    <span className="font-mono text-[10px] text-[#606060]">
+                      ({rows.length})
+                    </span>
+                  </div>
+                  <div className="ml-3 space-y-0.5">
+                    {rows.map((r) => (
+                      <div
+                        key={r.clientName}
+                        className="flex items-center gap-2 font-mono text-[10px]"
+                      >
+                        <span
+                          className="w-[110px] shrink-0 truncate text-[#C4BCAA]"
+                          title={r.clientName}
+                        >
+                          {r.clientName}
+                        </span>
+                        <span className="shrink-0 text-[#606060] tabular-nums">
+                          {fmtTipDate(r.fromDate)} → {fmtTipDate(r.toDate)}
+                        </span>
+                        <span className="ml-auto font-semibold tabular-nums text-white">
+                          {r.days}d
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1931,6 +2844,7 @@ function aggregatePodJourney(
           if (d !== null) {
             milestones.push({
               key: m.key,
+              field: m.field,
               label: m.label,
               days: d,
               color: m.color,
@@ -1976,6 +2890,7 @@ function aggregatePodJourney(
       if (cur && cur.count > 0) {
         averages.push({
           key: m.key,
+          field: m.field,
           label: m.label,
           days: Math.round(cur.sum / cur.count),
           color: cur.color,
@@ -1996,6 +2911,12 @@ function aggregatePodJourney(
 /** Pick day-tick marks that fit at the given scale without overlap.
  *  Greedy left-to-right: skip ticks whose position is within 7% of the
  *  previously kept one. Extended-range candidates kick in past 150d. */
+/** Left column width (px) — the area where the pod name / "Avg" /
+ *  client name lives. Shared between the unified tick row at the top
+ *  of PodMilestoneJourneyCard and each JourneyTimeline below so the
+ *  ticks line up exactly with the dots in every row. */
+const JOURNEY_LABEL_W = 130;
+
 function pickTicks(scale: number): number[] {
   const candidates = [0, 7, 14, 21, 30, 45, 60, 90, 120, 150];
   if (scale > 200) {
@@ -2022,6 +2943,12 @@ function PodJourneyGroupView({
   scale,
   onShowTip,
   onHideTip,
+  linkedHover,
+  onHoverChange,
+  stretchExpanded = false,
+  lockExpand = false,
+  onClientFocus,
+  selectedClientId,
 }: {
   group: PodJourneyGroup;
   open: boolean;
@@ -2030,6 +2957,23 @@ function PodJourneyGroupView({
   scale: number;
   onShowTip: (t: JourneyTip) => void;
   onHideTip: () => void;
+  linkedHover: LinkedHover;
+  onHoverChange: (h: LinkedHover) => void;
+  /** When true and this pod is `open`, the timeline rows stretch
+   *  vertically to fill the card's available height. Set by the
+   *  parent when this is the only pod in scope (e.g. user has
+   *  filtered to a single pod), so the empty space below the rows
+   *  becomes usable canvas. */
+  stretchExpanded?: boolean;
+  /** When true, the chevron + click-to-toggle behaviour are hidden.
+   *  Used when this is the only pod in scope — collapsing would
+   *  leave the card empty. */
+  lockExpand?: boolean;
+  /** Forwarded to JourneyTimeline — fires on per-client row click so
+   *  the parent can re-scope the Time-to-Metrics cards. */
+  onClientFocus?: (clientId: number | null) => void;
+  /** Forwarded to JourneyTimeline — drives the selected-row highlight. */
+  selectedClientId?: number | null;
 }) {
   const podColor = POD_HEX_COLORS[group.pod] ?? "#606060";
   const averageRow: TimelineRow = {
@@ -2042,6 +2986,7 @@ function PodJourneyGroupView({
   };
   const clientRows: TimelineRow[] = group.rows.map((r) => ({
     id: `${group.pod}-${r.client.id}`,
+    clientId: r.client.id,
     name: r.client.name,
     milestones: r.milestones,
     hasCKO: !!r.client.consulting_ko_date,
@@ -2051,11 +2996,14 @@ function PodJourneyGroupView({
 
   return (
     <div
-      className="cursor-pointer transition-colors hover:bg-[#1a1a1a] relative"
-      onClick={onToggle}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
+      className={
+        (lockExpand ? "relative" : "cursor-pointer transition-colors hover:bg-[#1a1a1a] relative") +
+        (stretchExpanded && open ? " flex flex-1 min-h-0 flex-col" : "")
+      }
+      onClick={lockExpand ? undefined : onToggle}
+      role={lockExpand ? undefined : "button"}
+      tabIndex={lockExpand ? undefined : 0}
+      onKeyDown={lockExpand ? undefined : (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onToggle();
@@ -2063,12 +3011,14 @@ function PodJourneyGroupView({
       }}
     >
       <div className="flex-none flex items-center gap-3 pt-2.5 pb-1">
-        <ChevronRight
-          className={
-            "h-3.5 w-3.5 shrink-0 text-[#606060] transition-transform " +
-            (open ? "rotate-90" : "")
-          }
-        />
+        {!lockExpand && (
+          <ChevronRight
+            className={
+              "h-3.5 w-3.5 shrink-0 text-[#606060] transition-transform " +
+              (open ? "rotate-90" : "")
+            }
+          />
+        )}
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
           style={{ backgroundColor: podColor }}
@@ -2094,7 +3044,11 @@ function PodJourneyGroupView({
           GROWS / SHRINKS instead of snapping. Both panels mount together
           while one shrinks to 0 and the other grows to its natural
           height — crossfades cleanly without the "pop". */}
-      <div>
+      <div
+        className={
+          stretchExpanded && open ? "flex flex-1 min-h-0 flex-col" : ""
+        }
+      >
         <AnimatePresence initial={false}>
           {open ? (
             <motion.div
@@ -2103,6 +3057,9 @@ function PodJourneyGroupView({
               initial="hidden"
               animate="visible"
               exit="hidden"
+              className={
+                stretchExpanded ? "flex flex-1 min-h-0 flex-col" : ""
+              }
               style={{ overflow: "hidden" }}
             >
               <JourneyTimeline
@@ -2111,6 +3068,12 @@ function PodJourneyGroupView({
                 onShowTip={onShowTip}
                 onHideTip={onHideTip}
                 staggerChildren
+                stretch={stretchExpanded}
+                linkedHover={linkedHover}
+                onHoverChange={onHoverChange}
+                hideTicks
+                onClientFocus={onClientFocus}
+                selectedClientId={selectedClientId}
               />
             </motion.div>
           ) : (
@@ -2129,6 +3092,9 @@ function PodJourneyGroupView({
                 onHideTip={onHideTip}
                 compact
                 staggerChildren
+                linkedHover={linkedHover}
+                onHoverChange={onHoverChange}
+                hideTicks
               />
             </motion.div>
           )}
@@ -2146,6 +3112,11 @@ function JourneyTimeline({
   compact = false,
   stretch = false,
   staggerChildren = false,
+  linkedHover,
+  onHoverChange,
+  hideTicks = false,
+  onClientFocus,
+  selectedClientId,
 }: {
   rows: TimelineRow[];
   scale: number;
@@ -2163,12 +3134,26 @@ function JourneyTimeline({
    *  cascades in rather than appearing all at once. Used only on the
    *  expand-pod transition. */
   staggerChildren?: boolean;
+  /** Cross-card hover state — drives dimming + hover emission so this
+   *  timeline stays in sync with the TTM cards + Per-Client Days. */
+  linkedHover?: LinkedHover;
+  onHoverChange?: (h: LinkedHover) => void;
+  /** Skip the per-timeline tick label row at the top. Set when the
+   *  parent (PodMilestoneJourneyCard) renders a single unified tick
+   *  row above all pods, so each pod's timeline only shows dots + grid
+   *  lines (no repeated CKO/7d/14d/… labels). */
+  hideTicks?: boolean;
+  /** Click on a per-client row sets/clears the parent's selected
+   *  client. Toggles: clicking the same row again deselects. Used to
+   *  re-scope sibling cards (TTM cards, Per-Client Days) to that one
+   *  client + highlight this row visually. */
+  onClientFocus?: (clientId: number | null) => void;
+  /** Currently selected client id (from the parent's state). Drives
+   *  the highlighted-row treatment in the timeline. */
+  selectedClientId?: number | null;
 }) {
   const ROW_H = compact ? 22 : 30;
-  // Shared label column width across compact (Avg row) and full (per-client
-  // rows) so CKO + day ticks line up vertically across collapsed AND
-  // expanded pods. Was previously 50 / 130 — that broke the axis alignment.
-  const labelW = 130;
+  const labelW = JOURNEY_LABEL_W;
   const ticks = useMemo(() => pickTicks(scale), [scale]);
   const pct = (d: number) =>
     Math.min(Math.max((d / scale) * 100, 0.5), 95);
@@ -2189,31 +3174,34 @@ function JourneyTimeline({
 
   return (
     <div className={wrapperCls}>
-      {/* Tick labels */}
-      <div
-        className="flex-none grid mb-0.5"
-        style={{ gridTemplateColumns: `${labelW}px 1fr` }}
-      >
-        <div />
-        <div className="relative h-3.5 mx-3">
-          {ticks.map((d) => (
-            <span
-              key={d}
-              className={
-                "absolute font-mono text-[9px] " +
-                (d === 0 ? "font-bold text-white" : "text-[#606060]")
-              }
-              style={{
-                left: `${pct(d)}%`,
-                transform: "translateX(-50%)",
-                transition: "left 280ms cubic-bezier(0.22, 1, 0.36, 1)",
-              }}
-            >
-              {d === 0 ? "CKO" : `${d}d`}
-            </span>
-          ))}
+      {/* Tick labels — suppressed when hideTicks is set (the parent
+          renders one unified tick row above all pods instead). */}
+      {!hideTicks && (
+        <div
+          className="flex-none grid mb-0.5"
+          style={{ gridTemplateColumns: `${labelW}px 1fr` }}
+        >
+          <div />
+          <div className="relative h-3.5 mx-3">
+            {ticks.map((d) => (
+              <span
+                key={d}
+                className={
+                  "absolute font-mono text-[9px] " +
+                  (d === 0 ? "font-bold text-white" : "text-[#606060]")
+                }
+                style={{
+                  left: `${pct(d)}%`,
+                  transform: "translateX(-50%)",
+                  transition: "left 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+              >
+                {d === 0 ? "CKO" : `${d}d`}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Rows */}
       <div className={"relative pt-1.5" + (stretch ? " flex-1 min-h-0 flex flex-col" : "")}>
@@ -2255,18 +3243,43 @@ function JourneyTimeline({
           const wrapperProps = staggerChildren
             ? { variants: JOURNEY_ROW_VARIANTS }
             : {};
+          // Per-client rows are CLICKABLE — clicking selects the
+          // client (re-scopes sibling cards + highlights the row);
+          // clicking the same row again clears the selection. The
+          // Avg row has no clientId so it stays inert.
+          const isClientRow = row.clientId != null;
+          const isSelected =
+            isClientRow && selectedClientId === row.clientId;
           return (
             <motion.div
               key={row.id}
               {...wrapperProps}
               className={
                 "grid items-center group/row rounded transition-colors" +
-                (stretch ? " flex-1 min-h-[28px]" : "")
+                (stretch ? " flex-1 min-h-[28px]" : "") +
+                (isClientRow ? " cursor-pointer hover:bg-[#1a1a1a]" : "") +
+                (isSelected ? " bg-[#42CA80]/10 ring-1 ring-inset ring-[#42CA80]/30" : "")
               }
               style={
                 stretch
                   ? { gridTemplateColumns: `${labelW}px 1fr` }
                   : { gridTemplateColumns: `${labelW}px 1fr`, height: ROW_H }
+              }
+              onClick={
+                isClientRow && row.clientId != null
+                  ? (e) => {
+                      // stopPropagation so the click does NOT bubble
+                      // up to PodJourneyGroupView's pod-toggle handler.
+                      // Otherwise clicking a client row would collapse
+                      // the pod that hosts it, defeating the focus
+                      // interaction.
+                      e.stopPropagation();
+                      // Toggle: re-clicking the selected row clears it.
+                      onClientFocus?.(
+                        isSelected ? null : (row.clientId as number),
+                      );
+                    }
+                  : undefined
               }
             >
               <span
@@ -2305,6 +3318,7 @@ function JourneyTimeline({
                         label: "Consulting KO (Day 0)",
                         days: 0,
                         color: "#FFFFFF",
+                        field: "consulting_ko_date",
                         fromDate: row.ckoDate ?? undefined,
                         toDate: row.ckoDate ?? undefined,
                         isAverage: row.isAverage,
@@ -2318,31 +3332,53 @@ function JourneyTimeline({
                     />
                   </div>
                 )}
-                {/* Segments */}
+                {/* Segments — each represents the transition FROM the
+                    previous milestone (or CKO) TO this milestone. We
+                    emit a pair-hover so the matching TTM card + the
+                    Per-Client Days metric highlight to match. */}
                 {row.milestones.map((m, i) => {
                   const prev = i > 0 ? row.milestones[i - 1].days : 0;
                   const l = pct(Math.min(prev, m.days));
                   const r = pct(Math.max(prev, m.days));
                   const w = Math.max(0, r - l);
-                  return w > 0.3 ? (
+                  if (w <= 0.3) return null;
+                  const prevField = i > 0
+                    ? row.milestones[i - 1].field
+                    : "consulting_ko_date";
+                  // Match status against the active cross-card hover.
+                  const segMatch = matchSegment(linkedHover, prevField, m.field);
+                  const segDim = segMatch === false;
+                  const segHi = segMatch === true;
+                  return (
                     <div
                       key={`s-${m.key}`}
-                      className="absolute top-1/2 -translate-y-1/2 rounded-full"
+                      className="absolute top-1/2 -translate-y-1/2 rounded-full cursor-default"
                       style={{
                         left: `${l}%`,
                         width: `${w}%`,
-                        height: 3,
+                        height: segHi ? 5 : 3,
                         backgroundColor: m.color,
-                        opacity: 0.4,
-                        transition: "left 280ms cubic-bezier(0.22, 1, 0.36, 1), width 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+                        opacity: segDim ? 0.12 : segHi ? 0.95 : 0.4,
+                        transition:
+                          "left 280ms cubic-bezier(0.22, 1, 0.36, 1), width 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms, height 150ms",
                       }}
+                      onMouseEnter={() =>
+                        onHoverChange?.({
+                          kind: "pair",
+                          from: prevField,
+                          to: m.field,
+                        })
+                      }
+                      onMouseLeave={() => onHoverChange?.(null)}
                     />
-                  ) : null;
+                  );
                 })}
                 {/* Dots */}
                 {row.milestones.map((m, i) => {
                   const hShift = stagger[i] * 6;
                   const size = m.shape === "diamond" ? 9 : 11;
+                  const dotMatch = matchDot(linkedHover, m.field);
+                  const dotDim = dotMatch === false;
                   return (
                     <div
                       key={m.key}
@@ -2353,8 +3389,9 @@ function JourneyTimeline({
                         marginTop: -(size / 2),
                         marginLeft: -(size / 2),
                         zIndex: 10 + i,
+                        opacity: dotDim ? 0.2 : 1,
                         transition:
-                          "left 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 150ms ease",
+                          "left 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 150ms ease, opacity 150ms",
                       }}
                       onMouseEnter={(e) => {
                         const r = e.currentTarget.getBoundingClientRect();
@@ -2364,6 +3401,7 @@ function JourneyTimeline({
                             label: p.label,
                             color: p.color,
                             days: m.days - p.days,
+                            field: p.field,
                           }));
                         onShowTip({
                           x: r.left + r.width / 2,
@@ -2372,6 +3410,7 @@ function JourneyTimeline({
                           label: row.isAverage ? `Average ${m.label}` : m.label,
                           days: m.days,
                           color: m.color,
+                          field: m.field,
                           fromDate: row.isAverage ? undefined : row.ckoDate,
                           toDate: row.isAverage ? undefined : m.date,
                           previousLegs,
@@ -2380,8 +3419,16 @@ function JourneyTimeline({
                             ? row.averageCounts?.get(m.key)
                             : undefined,
                         });
+                        // Cross-card: dot hover = single-milestone signal
+                        // (not a unique pair), so TTM cards involving
+                        // this milestone light up but Per-Client Days
+                        // doesn't switch metrics.
+                        onHoverChange?.({ kind: "milestone", field: m.field });
                       }}
-                      onMouseLeave={onHideTip}
+                      onMouseLeave={() => {
+                        onHideTip();
+                        onHoverChange?.(null);
+                      }}
                     >
                       {m.shape === "diamond" ? (
                         <div

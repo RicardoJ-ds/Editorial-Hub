@@ -18,6 +18,74 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.15 — May 25
+
+**Overview rebuilt around three clean sections — Pod Snapshot, Time to Milestones (new), Production History — with a click-to-focus interaction connecting Pod Timelines, Time-to-Metrics, and Per-Client Days. Legacy sections removed; hub-wide header + DataSourceBadge cleanup.**
+
+### Overview — new "Time to Milestones" section
+
+- **Pod Timelines** card (new): horizontal day-axis per pod (multi-pod collapsed by default → Avg row only). Unified single tick row at the top so every pod shares one CKO/7d/14d/… axis. When you filter to a single pod, the pod expands automatically and stretches to fill the card height.
+- **Time-to-Metrics** card (new): 8 milestone-transition averages in a 2×4 grid (Consulting KO → Editorial KO, Consulting KO → First Article, etc.). Each card surfaces avg / min–max / contributor count, with a hover popup listing every contributing client grouped by pod.
+- **Per-Client Days** card (was inside the Editorial Clients D1 view): bar chart of days per client for the selected milestone transition. Per-client tooltip shows from/to dates + variance.
+
+### Overview — click-to-focus on a client
+
+- Click a client row in **Pod Timelines** → the row gets a green ring, the **Time-to-Metrics** cards re-scope to that client's numbers (avg becomes that single client's days, a chip in the card header shows the client name), and the **Per-Client Days** bar for that client lights up while the others dim. Click again to clear.
+- Hover a Time-to-Metrics card OR a Pod Timelines segment → cross-card highlight: matching segment / card glows, others dim, Per-Client Days dropdown temporarily switches to that transition. Toggle the chip "Link cards" in the section header to disable all cross-card effects.
+
+### Overview — Pod Snapshot
+
+- **Q variance redesign**: each Q cell now shows the Q label, *End-of-Q Variance* or *Last Close Variance*, the variance number, and the tier label stacked in a tier-coloured bordered block on the LEFT of the row, with the two progress bars (Q delivered, Invoiced) on the right. No more bottom chip row.
+- **Current Q bar reads ACTUAL progress, not projection**: the bar shows cumulative delivered through the last completed month vs cumulative invoiced through end-of-Q. Variance + tier still come from the projected end-of-Q outcome.
+- **Pod-aggregate Current Q delivered/invoiced now include 1st-Q clients** — their real delivered work was being excluded from the bar's totals (so the Current Q "del" no longer matched the %SOW lifetime delivered). Only the variance + pace metrics still skip 1st-Q clients (variance is meaningless before a client ramps).
+- **Current Q column rebuilt earlier this round.** Out: the `55 · 81 · 81` labelled triple and the two-shade pace bar with the *Push needed / On track / Ahead of pace* chip. In: two compact bars — Q delivered + Invoiced — followed by an **End-of-Q Variance** chip carrying the variance number and tier label (On Track / Within Limit / Behind Plan / 1st Q).
+- **Goals column on per-client rows** now uses the same MiniProgress design as the pod row (label · num/goal · % + bar) — consistent visualisation across pod summary and client rows.
+- **Single-pod view** drops the aggregated pod summary row and shows a thin labelled separator at the top (dot · pod name · count · horizontal rule) — same style as Pod Timelines' pod label strip.
+- **Column widths tuned**: slimmer name + Goals + %SOW + %Published, more room for the two Q columns, vertical dividers between data columns.
+
+### Overview — Production History
+
+- **Per Client** view toggle is hidden when more than one pod is in scope (20+ overlapping lines is unreadable; per-client only renders when a pod filter narrows it to ≤ ~10).
+- Custom tooltip rendered outside the chart with viewport-clamped positioning — never moves the page, anchors next to the cursor (centered vertically and clamped to viewport edges), shows up to all clients per pod with milestone numbers.
+- Per-Client mode tooltip groups clients by pod with pod-coloured headers; per-pod mode tooltip shows just the pod totals (no client list).
+
+### Milestone numbering across the section
+
+- Every milestone is now prefixed with its chronological number — **1** Consulting KO · **2** Editorial KO · **3** First CB Approved · **4** First Article · **5** First Feedback · **6** First Published. Number appears in the Pod Timelines legend, Time-to-Metrics card titles (e.g. `1→4 · Consulting KO → First Article`), Per-Client Days metric dropdown, and tooltips throughout.
+
+### Editorial Clients — Client Delivery cards alignment
+
+- **QuarterRow** matches the same pattern as Pod Snapshot Q cells: tier-coloured progress bar + `delivered / target` numbers. **Current Q bar reads ACTUAL delivered to date** (not projected end-of-Q) — variance + tier still describe the projected outcome.
+- **End-of-Q Variance chip** restored as a standalone line below the two Q rows carrying the headline variance + tier.
+- `ClientDetailPopover` Current Q variant rebuilt to mirror the same row pattern. Monthly breakdown table + AS-OF SOW progress chart unchanged.
+
+### Hub-wide visual normalization
+
+- **Section titles** on Editorial Clients + Team KPIs now use the lighter Overview Section style (`text-sm font-semibold text-[#C4BCAA]`). Sticky `top-[120px]` + `border-b` + horizontal-rule pattern dropped.
+- **Page header** on Overview slimmed: AsOfBadge moved out of the inline title (still shown inside section title chips), title bumped to `text-base`, filters + sync controls share one non-wrapping row, sticky band reduced to `min-h-[72px]`.
+- **Editorial Clients + Team KPIs** page headers picked up the same `text-base` title + `flex-nowrap gap-x-4` shape so all three dashboards read identically.
+- **Chart titles** moved INSIDE their bordered cards (e.g. "Client Engagement Timeline" no longer hangs outside the card).
+- **LIVE / source badges** (`DataSourceBadge`) hidden across the Hub — the component is now a no-op.
+
+### Smaller fixes
+
+- **Client search dropdown** in the FilterBar scopes to clients matching the active pod + status filters (was showing every client regardless of the visible chips).
+- **Pod Timelines** auto-expand when one pod is in scope; the chevron is hidden + collapse disabled so the card can't accidentally go empty.
+- **Pod Delivery Progress single-pod filter** keeps a thin labelled strip (pod dot + name + count + horizontal rule) at the top so users see which pod they're scoped to.
+- **JourneyTooltip** now shows the milestone number prefix in the focal stat title + each "after previous milestone" leg label.
+- **Client-name popover** (clicking a client name cell in Pod Snapshot) now shows ONLY the static client info (status + pods + contract). The Goals / Last Q / Current Q / %SOW blocks were dropped — each has its own popover variant when clicking its respective cell, so duplicating them was just noise.
+- **Client Delivery card "Lifetime" row** (Editorial Clients D1) now computes its Delivered/Invoiced bar from `monthly_breakdown` (cumulative through last completed month), matching Pod Snapshot logic. Was showing date-filter-scoped numbers that contradicted the "Lifetime · SOW" label.
+- **Popover dismissal** — `ClientDetailPopover` now closes on scroll (outside the popover) in addition to outside-click + Esc. Scrolling inside the popover body still works.
+- **Goals period dropdown** in Pod Snapshot now shows the concrete month range under each option (`Last 3 months` → `Feb – Apr 26`, `All time` → `Jan 24 – Apr 26`, etc.) so users see the window before picking. Trigger pill stays compact on the short label.
+
+### Removed
+
+- **Legacy sections** on Overview (Delivery Overview · Cumulative Pipeline · Client Delivery at a Glance · Time-to Metrics legacy) plus their `Show / Hide` container and ~1,000 lines of supporting view code — superseded by Pod Snapshot + Time to Milestones.
+- **Deep-link "Open in Editorial Clients"** buttons in Overview section headers — the new sections are the canonical view; cross-page deep links were noisy.
+- **Pace bar + chip** (Push needed / On track / Ahead of pace) and `paceClassify` helper removed from all three card surfaces — `QProgressBar` (two-shade bar) gone too. Only the single `LifetimeBar` remains.
+
+---
+
 ## 0.3.14 — May 22
 
 **Last Q is now rendered in a muted grey across Pod Snapshot, Client Delivery cards, and the detail popover — Current Q reads as the focal point.**

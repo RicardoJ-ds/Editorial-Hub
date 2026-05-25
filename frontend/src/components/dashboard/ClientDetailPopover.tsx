@@ -88,8 +88,8 @@ function tierFor(variance: number, isNew = false) {
 const KIND_LABELS: Record<DetailKind, string> = {
   client: "Client snapshot",
   goals: "Goals · monthly",
-  lastQ: "Last Q · actual close",
-  currentQ: "Current Q · projected",
+  lastQ: "Last Q",
+  currentQ: "Current Q",
   lifetime: "%SOW · all-time",
 };
 
@@ -105,7 +105,7 @@ export function ClientDetailPopover({
 }: Props) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click / ESC.
+  // Close on outside click / ESC / scroll outside the popover.
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!popoverRef.current) return;
@@ -115,11 +115,23 @@ export function ClientDetailPopover({
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
+    // Listen on the capture phase so we catch scroll on any ancestor
+    // (the page's actual scroller is a div in (app)/layout.tsx, not
+    // window). Scrolls that originate INSIDE the popover body are
+    // ignored so the user can still scroll within it.
+    function onScroll(e: Event) {
+      if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
+        return;
+      }
+      onClose();
+    }
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
+    document.addEventListener("scroll", onScroll, true);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("scroll", onScroll, true);
     };
   }, [onClose]);
 
@@ -262,11 +274,6 @@ export function ClientDetailPopover({
 
 function ClientSummaryBody({
   client,
-  summary,
-  goals,
-  periodLabel,
-  periodMonths,
-  clientName,
 }: {
   client: Client | null;
   summary: SummaryRow | null;
@@ -275,12 +282,11 @@ function ClientSummaryBody({
   periodMonths: { year: number; month: number }[];
   clientName: string;
 }) {
-  // Goal totals filtered to the EXACT same months the snapshot column
-  // uses — otherwise the popover shows numbers that contradict the row.
-  const periodGoals = useGoalsForPeriod(goals, clientName, periodMonths);
-  const lifetimePct = summary && summary.articles_sow > 0
-    ? Math.round((summary.articles_delivered / summary.articles_sow) * 100)
-    : null;
+  // Client variant intentionally shows ONLY the static client info
+  // (status + pods + contract). Metrics (Goals, Last Q, Current Q,
+  // %SOW) live in their own popover variants triggered from the
+  // respective cells — duplicating them here just made this view
+  // feel redundant.
   return (
     <div className="space-y-3">
       {client && (
@@ -298,52 +304,6 @@ function ClientSummaryBody({
       )}
 
       {client && <ContractMetaBlock client={client} />}
-
-      <StatBlock title={`Goals · ${periodLabel}`}>
-        <StatRow
-          left="CBs"
-          right={
-            periodGoals.cbGoal > 0
-              ? `${Math.round(periodGoals.cbDel)} / ${Math.round(periodGoals.cbGoal)} (${Math.round(
-                  (periodGoals.cbDel / periodGoals.cbGoal) * 100,
-                )}%)`
-              : "—"
-          }
-        />
-        <StatRow
-          left="Articles"
-          right={
-            periodGoals.adGoal > 0
-              ? `${Math.round(periodGoals.adDel)} / ${Math.round(periodGoals.adGoal)} (${Math.round(
-                  (periodGoals.adDel / periodGoals.adGoal) * 100,
-                )}%)`
-              : "—"
-          }
-        />
-      </StatBlock>
-
-      <div className="grid grid-cols-2 gap-2">
-        <StatBlock title="Last Q · actual">
-          <QSummaryTile summary={summary} kind="last" />
-        </StatBlock>
-        <StatBlock title="Current Q · projected">
-          <QSummaryTile summary={summary} kind="current" />
-        </StatBlock>
-      </div>
-
-      <StatBlock title="%SOW · all-time">
-        <p className="font-mono">
-          <span className="text-2xl font-bold tabular-nums text-white">
-            {lifetimePct !== null ? `${lifetimePct}%` : "—"}
-          </span>
-          {summary && summary.articles_sow > 0 && (
-            <span className="ml-2 text-[10px] text-[#909090]">
-              {summary.articles_delivered.toLocaleString()} /{" "}
-              {summary.articles_sow.toLocaleString()} articles
-            </span>
-          )}
-        </p>
-      </StatBlock>
     </div>
   );
 }
@@ -493,9 +453,6 @@ function QBody({
   return (
     <div className="space-y-3">
       <QSummaryTile summary={summary} kind={kind} />
-      {/* SOW progress only on Current Q — for Last Q the popover is
-          about a closed period and the all-time SOW bar adds noise. */}
-      {kind === "current" && <SOWProgressBlock summary={summary} />}
       <MonthlyBreakdownTable
         periods={periods}
         focusQIdx={focusQIdx}
@@ -798,26 +755,6 @@ function MonthlyBreakdownTable({
   );
 }
 
-/** Pace classification — mirrors Pod Snapshot's helper so the popover
- *  speaks the same language as the snapshot row. Three-bucket palette
- *  (dark green / light green / yellow); see PeriodSnapshotSection for
- *  the rationale. */
-function paceClassify(
-  actualDelivered: number,
-  projectedEnd: number,
-  monthInQ: number,
-  qLength: number,
-): { color: string; label: string } | null {
-  if (projectedEnd <= 0 || qLength <= 0) return null;
-  const actualProgress = actualDelivered / projectedEnd;
-  const expectedProgress = monthInQ / qLength;
-  if (expectedProgress <= 0) return null;
-  const ratio = actualProgress / expectedProgress;
-  if (ratio >= 1.10) return { color: "#42CA80", label: "Ahead of pace" };
-  if (ratio >= 0.85) return { color: "#9FE5BD", label: "On track" };
-  return { color: "#F5C542", label: "Push needed" };
-}
-
 function QSummaryTile({
   summary,
   kind,
@@ -833,16 +770,19 @@ function QSummaryTile({
     const q = computeCurrentQ(summary);
     if (!q) return <p className="font-mono text-[11px] text-[#606060]">—</p>;
     return (
-      <CurrentQSummary
+      <QSummaryBars
         label={q.label}
         monthsLabel={q.monthsLabel}
         variance={q.projectedVariance}
-        actualDelivered={q.delivered}
-        projectedEnd={q.projectedEnd}
-        invoiced={q.invoiced}
-        monthInQ={q.monthInQ}
-        qLength={q.qLength}
+        // Bar shows ACTUAL delivered to date (cumulative through the
+        // last completed month), not the projected end-of-Q number.
+        // Variance + tier are still computed from the projected
+        // end-of-Q outcome.
+        qDelivered={q.delivered}
+        qInvoiced={q.invoiced}
+        sow={summary.articles_sow}
         isNew={isNew}
+        kind="current"
       />
     );
   }
@@ -855,183 +795,164 @@ function QSummaryTile({
     );
   }
   return (
-    <QSummaryInner
+    <QSummaryBars
       label={q.label}
       monthsLabel={q.monthsLabel}
       variance={q.cumVariance}
-      delivered={q.cumDelivered}
-      invoiced={q.cumInvoiced}
-      italic={false}
+      qDelivered={q.cumDelivered}
+      qInvoiced={q.cumInvoiced}
+      sow={summary.articles_sow}
       isNew={false}
-      verbiage="cumulative delivered / invoiced"
+      kind="last"
+      muted
     />
   );
 }
 
-/** Current Q popover summary — full picture: variance + tier + NOW → END
- *  / Invoiced numbers + pace-colored progress bar + progress % + pace
- *  label. Mirrors the row-level Current Q tile (QTile) so the popover
- *  reads as a deeper expansion of the same data. */
-function CurrentQSummary({
+/** Q summary block used by BOTH Last Q and Current Q popover variants.
+ *  Two per-Q ratio bars (Q delivered ÷ Q invoiced, Q invoiced ÷ SOW)
+ *  + variance chip. `muted` washes the colours to grey so Last Q sits
+ *  calmly next to a coloured Current Q. Current Q also surfaces an
+ *  AS-OF badge in the header to make the projection cutoff explicit. */
+function QSummaryBars({
   label,
   monthsLabel,
   variance,
-  actualDelivered,
-  projectedEnd,
-  invoiced,
-  monthInQ,
-  qLength,
+  qDelivered,
+  qInvoiced,
+  sow,
   isNew,
+  kind,
+  muted = false,
 }: {
   label: string;
   monthsLabel: string;
   variance: number;
-  actualDelivered: number;
-  projectedEnd: number;
-  invoiced: number;
-  monthInQ: number;
-  qLength: number;
+  /** Delivered cumulative through end of THIS Q (per-Q snapshot). */
+  qDelivered: number;
+  /** Invoiced cumulative through end of THIS Q (per-Q snapshot). */
+  qInvoiced: number;
+  /** Lifetime contracted SOW — the constant denominator on the
+   *  second bar. */
+  sow: number;
   isNew: boolean;
+  kind: "last" | "current";
+  muted?: boolean;
 }) {
-  const tier = tierFor(variance, isNew);
+  const baseTier = tierFor(variance, isNew);
+  // When muted, override the tier colour to grey but keep the label
+  // ("On Track" / "Within Limit" / "Behind Plan" / "1st Q") accurate.
+  const tier = muted && !isNew
+    ? { color: "#909090", label: baseTier.label }
+    : baseTier;
   const sign = variance > 0 ? "+" : "";
-  const pace = paceClassify(actualDelivered, projectedEnd, monthInQ, qLength);
-  const safeTarget = Math.max(1, invoiced);
-  const actualPct = Math.max(0, Math.min(100, (actualDelivered / safeTarget) * 100));
-  const projectedPct = Math.max(0, Math.min(100, (projectedEnd / safeTarget) * 100));
-  const fadedWidth = Math.max(0, projectedPct - actualPct);
-  const barColor = pace?.color ?? tier.color;
-  const progressPct = projectedEnd > 0
-    ? Math.round((actualDelivered / projectedEnd) * 100)
-    : null;
+  const delPct = qInvoiced > 0 ? (qDelivered / qInvoiced) * 100 : 0;
+  const invPct = sow > 0 ? (qInvoiced / sow) * 100 : 0;
+  const barColor = muted ? "#909090" : "#42CA80";
+  const asOf = useEditorialAsOf();
   return (
-    <div className="space-y-2">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-[#909090]">
-        {label} · {monthsLabel}
-      </p>
-      <p className="font-mono italic">
-        <span className="text-2xl font-bold tabular-nums" style={{ color: tier.color }}>
-          {sign}{Math.round(variance)}
-        </span>
-        <span className="ml-2 text-[10px] uppercase tracking-wider" style={{ color: tier.color }}>
-          {tier.label}
-        </span>
-      </p>
-      {/* delivered · proj Q · invoiced — explicit-label format keeps
-          the popover readable without forcing the reader to decode
-          NOW/END/Invoiced arrows. */}
-      <p className="font-mono text-[11px] tabular-nums text-[#C4BCAA]">
-        <span className="text-white">{Math.round(actualDelivered)}</span>
-        <span className="ml-1 text-[9px] uppercase tracking-wider text-[#606060]">
-          delivered
-        </span>
-        <span className="text-[#606060] mx-2">·</span>
-        <span className="font-semibold italic text-white">
-          {Math.round(projectedEnd)}
-        </span>
-        <span className="ml-1 text-[9px] uppercase tracking-wider text-[#606060]">
-          proj Q
-        </span>
-        <span className="text-[#606060] mx-2">·</span>
-        <span className="text-white">{Math.round(invoiced)}</span>
-        <span className="ml-1 text-[9px] uppercase tracking-wider text-[#606060]">
-          invoiced
-        </span>
-      </p>
-      {/* Pace-colored two-shade bar + progress % + pace label */}
+    <div className="space-y-2.5">
       <div className="flex items-center gap-2">
-        <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#1f1f1f]">
-          <div
-            className="absolute top-0 bottom-0 left-0"
-            style={{ width: `${actualPct}%`, backgroundColor: barColor }}
-          />
-          {fadedWidth > 0 && (
-            <div
-              className="absolute top-0 bottom-0"
-              style={{
-                left: `${actualPct}%`,
-                width: `${fadedWidth}%`,
-                backgroundColor: `${barColor}40`,
-              }}
-            />
-          )}
-        </div>
-        {progressPct !== null && (
-          <span
-            className="w-10 shrink-0 text-right font-mono text-[10px] font-semibold tabular-nums"
-            style={{ color: barColor }}
-            title="Cumulative actuals now ÷ projected end of Q"
-          >
-            {progressPct}%
+        <p className="font-mono text-[10px] uppercase tracking-wider text-[#909090]">
+          {label} · {monthsLabel}
+        </p>
+        {/* Current Q only: AS-OF badge — makes the projection cutoff
+            explicit so the reader knows "delivered" includes a
+            projection from this month onward. */}
+        {kind === "current" && (
+          <span className="rounded-sm border border-[#42CA80]/30 bg-[#42CA80]/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[#42CA80]">
+            As of {asOf.label}{asOf.isFallback ? " · cal." : ""}
           </span>
         )}
       </div>
-      {pace && (
-        <p
-          className="font-mono text-[9px] uppercase tracking-wider"
-          style={{ color: pace.color }}
-        >
-          {pace.label}
-        </p>
-      )}
+      <div className="space-y-2">
+        <PopoverLifetimeBar
+          label="Q delivered"
+          numLabel="del"
+          num={qDelivered}
+          denomLabel="inv"
+          denom={qInvoiced}
+          pct={delPct}
+          color={barColor}
+          muted={muted}
+        />
+        <PopoverLifetimeBar
+          label="Invoiced"
+          numLabel="inv"
+          num={qInvoiced}
+          denomLabel="SOW"
+          denom={sow}
+          pct={invPct}
+          color={barColor}
+          muted={muted}
+        />
+      </div>
+      <div
+        className="inline-flex items-center gap-2 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wider"
+        style={{ borderColor: `${tier.color}40`, backgroundColor: `${tier.color}12` }}
+      >
+        <span className="text-[#909090]">
+          {kind === "current" ? "End-of-Q Variance" : "Last Close Variance"}
+        </span>
+        <span className="tabular-nums font-bold" style={{ color: tier.color }}>
+          {sign}{Math.round(variance)} articles
+        </span>
+        <span className="text-[#606060]">·</span>
+        <span style={{ color: tier.color }}>{tier.label}</span>
+      </div>
     </div>
   );
 }
 
-function QSummaryInner({
+/** Popover variant of the lifetime ratio bar. Vertical stack: label + pct
+ *  on the first line, full-width bar below, then num/denom right-aligned.
+ *  This layout avoids cramping — no fixed widths competing on one line. */
+function PopoverLifetimeBar({
   label,
-  monthsLabel,
-  variance,
-  delivered,
-  invoiced,
-  italic,
-  isNew,
-  verbiage,
+  num,
+  numLabel,
+  denom,
+  denomLabel,
+  pct,
+  color,
+  muted = false,
 }: {
   label: string;
-  monthsLabel: string;
-  variance: number;
-  delivered: number;
-  invoiced: number;
-  italic: boolean;
-  isNew: boolean;
-  verbiage: string;
+  num: number;
+  numLabel: string;
+  denom: number;
+  denomLabel: string;
+  pct: number;
+  color: string;
+  muted?: boolean;
 }) {
-  // QSummaryInner is used only for Last Q (closed snapshot). Render in
-  // muted greys so the popover keeps Current Q as the focal point when
-  // the user is comparing the two side-by-side. 1st-Q new clients keep
-  // their blue chip via tierFor() — that's still useful context.
-  const baseTier = tierFor(variance, isNew);
-  const tier = isNew
-    ? baseTier
-    : { color: "#909090", label: baseTier.label };
-  const sign = variance > 0 ? "+" : "";
-  const italicCls = italic ? "italic" : "";
+  const cappedPct = Math.max(0, Math.min(100, pct));
+  const labelColor = muted ? "text-[#707070]" : "text-[#909090]";
+  const pctColor = muted ? "text-[#909090]" : "text-[#42CA80]";
+  const numColor = muted ? "text-[#707070]" : "text-[#909090]";
   return (
-    <div className="space-y-1">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-[#909090]">
-        {label} · {monthsLabel}
-      </p>
-      <p className={`font-mono ${italicCls}`}>
-        <span
-          className="text-2xl font-bold tabular-nums"
-          style={{ color: tier.color }}
-        >
-          {sign}{Math.round(variance)}
+    <div className="space-y-0.5 font-mono tabular-nums">
+      <div className="flex items-baseline justify-between gap-1 text-[10px]">
+        <span className={`uppercase tracking-wider ${labelColor}`}>{label}</span>
+        <span className={`font-semibold ${pctColor}`}>
+          {denom > 0 ? `${Math.round(pct)}%` : "—"}
         </span>
-        <span
-          className="ml-2 text-[10px] uppercase tracking-wider"
-          style={{ color: tier.color }}
-        >
-          {tier.label}
-        </span>
-      </p>
-      <p className={`font-mono text-[11px] tabular-nums text-[#909090] ${italicCls}`}>
-        <span className="font-semibold">{Math.round(delivered)}</span>
-        <span className="text-[#606060]"> / {Math.round(invoiced)}</span>
-        <span className="ml-1.5 text-[9px] uppercase tracking-wider text-[#606060]">
-          articles {verbiage}
-        </span>
+      </div>
+      <div className="relative h-1.5 w-full overflow-hidden rounded-sm bg-[#1f1f1f]">
+        <div
+          className="absolute top-0 bottom-0 left-0"
+          style={{ width: `${cappedPct}%`, backgroundColor: color }}
+        />
+      </div>
+      <p className={`text-right text-[9px] ${numColor}`}>
+        {denom > 0 ? (
+          <>
+            {num.toLocaleString()}
+            <span className="text-[#606060]"> {numLabel} / </span>
+            {denom.toLocaleString()}
+            <span className="text-[#606060]"> {denomLabel}</span>
+          </>
+        ) : "—"}
       </p>
     </div>
   );
