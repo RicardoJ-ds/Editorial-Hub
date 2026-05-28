@@ -416,17 +416,24 @@ function GoalsBody({
       (a, b) => (typeOrder[a.ct] ?? 9) - (typeOrder[b.ct] ?? 9),
     );
 
-    // Overall per month — raw physical sum across content types (not
-    // weighted). Pod Snapshot card uses weighted totals; the popover
-    // serves the "show me actual numbers" view.
+    // Overall per month — WEIGHTED sum across content types (article
+    // ×1, jumbo ×2, LP ×0.5). Pair with the ingestion-side ×2
+    // pre-treatment on LP rows from May 2026 onward: the importer
+    // doubles LP AR values so the ×0.5 here cancels back to the team's
+    // original sheet value. Per-type LP rows display the stored
+    // (doubled) value so reviewers can see where the Overall came
+    // from. Pod Snapshot card uses the same weighted totals — both
+    // surfaces stay in lockstep.
     const overallByMonth = new Map<string, Cell>();
     for (const t of typeRows) {
       for (const [mk, v] of t.monthData.entries()) {
         const cur = overallByMonth.get(mk) ?? {
           cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0,
         };
-        cur.cbGoal += v.cbGoal; cur.cbDel += v.cbDel;
-        cur.adGoal += v.adGoal; cur.adDel += v.adDel;
+        cur.cbGoal += v.cbGoal * t.ratio;
+        cur.cbDel  += v.cbDel  * t.ratio;
+        cur.adGoal += v.adGoal * t.ratio;
+        cur.adDel  += v.adDel  * t.ratio;
         overallByMonth.set(mk, cur);
       }
     }
@@ -533,7 +540,7 @@ function GoalsBody({
       </div>
 
       <p className="font-mono text-[9px] italic text-[#606060]">
-        Green-tinted columns are within: {periodLabel}. Each cell shows <span className="text-[#42CA80]">CB</span> content brief del/goal on top and <span className="text-[#C4BCAA]">AR</span> article del/goal below. "Overall" sums physical units (not weighted) — the Pod Snapshot bar uses weighted totals (article ×1, jumbo ×2, LP ×0.5) so different content types stay comparable.
+        Green-tinted columns are within: {periodLabel}. Each cell shows <span className="text-[#42CA80]">CB</span> content brief del/goal on top and <span className="text-[#C4BCAA]">AR</span> article del/goal below. Per-type rows show stored values (LP AR from May 2026 onward is pre-doubled at ingestion). "Overall" sums weighted units (article ×1, jumbo ×2, LP ×0.5) — the ×0.5 cancels the ingestion-side ×2 so the Overall row reads the team's original spreadsheet number.
       </p>
       <div>
         <DataQualityNote compact />

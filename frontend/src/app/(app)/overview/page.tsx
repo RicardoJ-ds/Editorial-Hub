@@ -40,8 +40,8 @@ import type {
 
 const SECTIONS = [
   { id: "period-snapshot", label: "Pod Snapshot" },
-  { id: "pod-pace", label: "Time to Milestones" },
   { id: "production-history", label: "Production History" },
+  { id: "pod-pace", label: "Time to Milestones" },
 ];
 
 export default function OverviewPage() {
@@ -187,30 +187,6 @@ export default function OverviewPage() {
             </Section>
 
             <Section
-              id="pod-pace"
-              title="Time to Milestones"
-              subtitle="Pod timelines · time-to-metrics · per-client days"
-              titleChip={
-                <AsOfBadge
-                  label={overviewAsOf.label}
-                  fallback={overviewAsOf.isFallback}
-                />
-              }
-              trailingSlot={
-                <SectionCommentIcon
-                  sectionId="pod-pace"
-                  sectionLabel="Time to Milestones"
-                />
-              }
-              rightSlot={linkCardsToggle}
-            >
-              <PodPaceSection
-                filteredClients={filteredClients}
-                linkEnabled={linkCardsEnabled}
-              />
-            </Section>
-
-            <Section
               id="production-history"
               title="Production History"
               subtitle="Monthly actuals + projection trajectory across the filtered clients"
@@ -233,6 +209,30 @@ export default function OverviewPage() {
                 filteredClients={filteredClients}
                 dateRange={dateRange}
                 podAxis={podAxis}
+              />
+            </Section>
+
+            <Section
+              id="pod-pace"
+              title="Time to Milestones"
+              subtitle="Pod timelines · time-to-metrics · per-client days"
+              titleChip={
+                <AsOfBadge
+                  label={overviewAsOf.label}
+                  fallback={overviewAsOf.isFallback}
+                />
+              }
+              trailingSlot={
+                <SectionCommentIcon
+                  sectionId="pod-pace"
+                  sectionLabel="Time to Milestones"
+                />
+              }
+              rightSlot={linkCardsToggle}
+            >
+              <PodPaceSection
+                filteredClients={filteredClients}
+                linkEnabled={linkCardsEnabled}
               />
             </Section>
 

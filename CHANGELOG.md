@@ -18,6 +18,38 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.17 — May 27
+
+**Overview reordered around Production History; Pod Snapshot drops the Last Q column; Editorial Clients' Delivery Overview gets two new scope-aware cards (per-pod Current Q variance + lifetime %SOW / %Published); Goals vs Delivery importer pre-treats LP rows from May 2026 onward so the Overall display matches the sheet exactly.**
+
+### Overview — section order
+
+- **Production History moves up** — section order is now Pod Snapshot → Production History → Time to Milestones. Left-rail SectionIndex follows. The Time to Milestones block (Pod Timelines + Time-to-Metrics + Per-Client Days) is still there, just lower on the page so the production trajectory sits adjacent to the headline Pod Snapshot card.
+
+### Overview — Pod Snapshot
+
+- **Last Q column hidden** — the per-pod and per-client Last Q variance column is dropped from the grid. Current Q widens to fill the freed space. Last Q is still readable in the click-anchored drill-down popover (lastQ variant) — only the always-on column was removed.
+
+### Editorial Clients — Deliverables vs SOW · Delivery Overview
+
+- **Projected Q Variance card (was Delivery Progress)** — section keeps the name "Delivery Overview", but the left card was renamed to **Projected Q Variance** so the title reads as exactly what the numbers mean. Lists per-pod End-of-Q variance (delivered · invoiced bar + tier chip per pod). Headline number on top stays as the portfolio variance. Each row carries `END-OF-Q +variance` and the tier label (`On Track / Within Limit / Behind`) inline — no separate legend block.
+- **Pod Progress card replaces Closing in 90d** — same card aesthetic, contents now show per-pod `%SOW` and `%Published` bars side-by-side with raw `delivered / SOW` and `published / SOW` numbers underneath. Falls back to "no published count" when cumulative_metrics is empty for a client.
+- **Scope-adaptive views** — both cards collapse to a **per-client breakdown** when a single pod is filtered (rather than a single-row pod summary). Single-client filter still uses the original 5-card lineup (Client Status → Delivery Progress → ratios → Time Remaining).
+- **Pod color dots + bigger bars** — each row leads with the canonical pod color dot from the Graphite palette (matches what Pod Snapshot and the timeline cards already use), and the progress bars + percentages are larger and easier to read at a glance.
+- **Closing in 90d card removed** — the lifetime contract-end signal was rarely actionable on the Delivery Overview surface; clients closing soon still surface in Data Quality and via the contract metadata in the per-client cards below.
+
+### Data ingestion — Goals vs Delivery, LP-row AR pre-treatment
+
+- **LP rows' delivery numbers (both CB and AR columns) from May 2026 onward are now stored doubled at ingestion** so when the Hub applies the canonical LP × 0.5 weight at display time, the per-type LP row shows the doubled stored value and the **Overall** row reads back the team's original sheet value. The spreadsheet from May entered LP rows as final physical-unit counts; the ingestion-side × 2 cancels the display-side × 0.5 so totals match what's on the sheet. Article rows pass through unchanged (× 1). Jumbo rows pass through unchanged at ingestion and get × 2 at display (as article-equivalents). April 2026 and earlier rows are untouched.
+- **Pod Snapshot Goals popover · Overall row is now weighted** — applies the canonical content-type ratios (article × 1, jumbo × 2, LP × 0.5) at aggregation so the Overall always matches the Pod Snapshot bar above. Per-content-type rows still display stored values directly, so reviewers can see where the Overall came from (doubled LP cells from May 2026 onward; raw article/jumbo cells).
+- **To activate:** run *Data Management → Re-sync Past Months → Master Tracker - Goals vs Delivery* once after deploy. Only May 2026 and later tabs change; the importer's month_year check guarantees April and earlier stay raw.
+
+### Under the hood
+
+- `arRowRatio` helper added then reverted in favour of the ingestion-side pre-treatment, so the canonical content-type ratio table (article ×1, jumbo ×2, LP ×0.5) is the **single source of truth** across every frontend aggregator. No per-axis ratio plumbing anywhere in the dashboards.
+
+---
+
 ## 0.3.16 — May 25
 
 **Comments composer rebuilt with rich text (bold, italic, links, lists) and an Hub-themed delete flow; Pod Snapshot Goals popover redesigned as a per-content-type × per-month grid; importer fix recovers months of dropped LP / Jumbo rows for multi-content-type clients.**

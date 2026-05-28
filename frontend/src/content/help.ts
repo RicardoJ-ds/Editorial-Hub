@@ -38,7 +38,7 @@ Each client has one of each.
 
 **Variance** — Delivered minus invoiced. We use **cumulative variance through end of current quarter**, so over-delivery this quarter cancels earlier deficits.
 
-**Last Q / Current Q** — Each client's **own** contract quarters, anchored to their start date — not calendar quarters. **Current Q** progress bars show actual delivered to date vs cumulative invoiced through end of Q; the variance + tier always describe the projected end-of-Q outcome.
+**Last Q / Current Q** — Each client's **own** contract quarters, anchored to their start date — not calendar quarters. **Current Q** progress bars show actual delivered to date vs cumulative invoiced through end of Q; the variance + tier always describe the projected end-of-Q outcome. The Last Q column was removed from the Pod Snapshot grid — Last Q is still readable via the per-client drill-down popover (click any row).
 
 **Milestones** — Six steps a client passes through, numbered in order: **1** Consulting KO · **2** Editorial KO · **3** First CB Approved · **4** First Article · **5** First Feedback · **6** First Published. The numbers show up in legends, card titles, dropdowns, and tooltips so the same milestone is identifiable across surfaces.
 
@@ -95,7 +95,12 @@ Five seeded groups. Click **Admin → Access Control** to see the full matrix.
 
 ## Reading the cards on Editorial Clients
 
-Each per-client card shows:
+The **Delivery Overview** section (Deliverables vs SOW tab) leads with two summary cards that adapt to scope:
+
+- **Projected Q Variance** — per-pod end-of-Q variance bars + tier chip (*On Track / Within Limit / Behind*). Filter to a single pod → the card swaps to a per-client breakdown of that pod. Same tiers + math as Pod Snapshot on Overview.
+- **Pod Progress** — per-pod *%SOW* (lifetime delivered ÷ contracted SOW) + *%Published* (published_live ÷ SOW) side-by-side bars with raw counts beneath. Falls back to "no published count" when cumulative pipeline data isn't loaded for a client. Filter to a single pod → switches to a per-client breakdown.
+
+Each per-client card below the summary shows:
 
 - **Tier badge** (next to the name) — at-a-glance status: _On Track_ (green), _Within Limit_ (amber), _Behind Plan_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
 - **Last Q** — cumulative *delivered / invoiced* through the end of the last full contract quarter, with the variance + tier label below the bar.

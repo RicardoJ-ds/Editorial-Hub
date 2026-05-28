@@ -246,6 +246,7 @@ export default function EditorialClientsPage() {
   const [productionTrend, setProductionTrend] = useState<ProductionTrendPoint[]>([]);
   const [pacingData, setPacingData] = useState<ClientPacing[]>([]);
   const [clientProduction, setClientProduction] = useState<ClientProductionRow[]>([]);
+  const [cumulative, setCumulative] = useState<CumulativeMetric[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
   const fetchData = useCallback(async () => {
     try {
@@ -270,6 +271,9 @@ export default function EditorialClientsPage() {
       .catch(() => {});
     apiGet<ClientProductionRow[]>("/api/dashboard/client-production")
       .then(setClientProduction)
+      .catch(() => {});
+    apiGet<CumulativeMetric[]>("/api/goals-delivery/cumulative")
+      .then(setCumulative)
       .catch(() => {});
   }, []);
 
@@ -416,6 +420,7 @@ export default function EditorialClientsPage() {
                   productionTrend={productionTrend}
                   pacingData={pacingData}
                   clientProduction={clientProduction}
+                  cumulative={cumulative}
                   dateRange={dateRange}
                 />
               </div>
@@ -1300,6 +1305,7 @@ function DeliverablesSOWTab({
   productionTrend,
   pacingData,
   clientProduction,
+  cumulative,
   dateRange,
 }: {
   /** Filtered set from the FilterBar — what the page should display. */
@@ -1310,6 +1316,9 @@ function DeliverablesSOWTab({
   productionTrend: ProductionTrendPoint[];
   pacingData: ClientPacing[];
   clientProduction: ClientProductionRow[];
+  /** Cumulative pipeline metrics — drives the new per-pod %Published bar
+   *  on the right-hand Delivery Overview card. */
+  cumulative: CumulativeMetric[];
   dateRange: DateRange;
 }) {
   // Pod axis follows the global toggle (Editorial / Growth). Threaded
@@ -1730,6 +1739,7 @@ function DeliverablesSOWTab({
         allClients={allClients}
         filteredClients={clients}
         rows={rows}
+        cumulative={cumulative}
       />
 
       {/* Production History + Client Notes. When no filtered client has a

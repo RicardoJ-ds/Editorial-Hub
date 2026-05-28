@@ -8,6 +8,7 @@ import { ChevronRight } from "lucide-react";
 import {
   CardTitleWithTooltip,
   HEALTH_STYLE,
+  POD_HEX_COLORS,
   displayPod,
   elapsedContractPct,
   healthOf,
@@ -17,7 +18,7 @@ import {
 } from "./shared-helpers";
 import { ClientStatusCard } from "./FilterContextCard";
 import { parseISODateLocal } from "@/lib/utils";
-import type { Client } from "@/lib/types";
+import type { Client, CumulativeMetric } from "@/lib/types";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { revealDetailTarget, slugifyPodLabel } from "@/lib/detailTargets";
 
@@ -211,11 +212,14 @@ interface Props {
   filteredClients: Client[];
   /** Pre-aggregated per-client summaries from the parent (already date-scoped). */
   rows: SummaryRow[];
+  /** Cumulative pipeline metrics — drives the %Published numbers on the
+   *  per-pod lifetime card. Falls back to %SOW-only when empty. */
+  cumulative?: CumulativeMetric[];
 }
 
 const cardTransition = { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const };
 
-export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Props) {
+export function DeliveryOverviewCards({ allClients, filteredClients, rows, cumulative = [] }: Props) {
   const { axis } = useCurrentPodAxis();
   const scope = useMemo(
     () => detectScope(filteredClients, rows, axis),
@@ -224,7 +228,10 @@ export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Pro
 
   // Each card gets a stable key per scope kind + slot so AnimatePresence can
   // tell which cards are new vs. carried-over across filter swaps.
-  const cards = useMemo(() => buildCardsForScope(scope, allClients), [scope, allClients]);
+  const cards = useMemo(
+    () => buildCardsForScope(scope, allClients, axis, cumulative),
+    [scope, allClients, axis, cumulative],
+  );
 
   // Column count tracks card count so a row never has empty slots:
   //   • 5 in single-client scope (status + 4 ratios)
@@ -271,6 +278,8 @@ export function DeliveryOverviewCards({ allClients, filteredClients, rows }: Pro
 function buildCardsForScope(
   scope: Scope,
   allClients: Client[],
+  axis: "editorial" | "growth",
+  cumulative: CumulativeMetric[],
 ): { key: string; node: React.ReactNode }[] {
   if (scope.kind === "client") {
     const c = scope.client;
@@ -333,46 +342,646 @@ function buildCardsForScope(
   if (scope.kind === "pod") {
     const podRows = scope.rows;
     const podClients = scope.clients;
-    // Pod scope mirrors portfolio: Delivery Progress leads with the current-Q
-    // triage signal, Closing in 90d covers contract-end timing. The lifetime
-    // Variance card was removed — current-Q variance per client already lives
-    // on the per-client cards below.
+    // Pod scope: same two-card top row, but both cards now show per-pod
+    // breakdowns sourced from the same data Pod Snapshot uses on
+    // /overview. With a single-pod filter active, both cards collapse
+    // to a single row inside the card (since the pod scope is exactly
+    // one pod). Headlines + chips inherit the existing card aesthetic.
     return [
       {
         key: "pod-delivery-progress",
         node: (
-          <DeliveryMixCard
+          <PodDeliveryProgressCard
             rows={podRows}
             clients={podClients}
-            subtitle={`${podRows.length} client${podRows.length === 1 ? "" : "s"} in this pod`}
+            axis={axis}
           />
         ),
       },
       {
-        key: "pod-closing",
-        node: <ClosingSoonCard clients={podClients} />,
+        key: "pod-lifetime",
+        node: (
+          <PodLifetimeProgressCard
+            rows={podRows}
+            clients={podClients}
+            cumulative={cumulative}
+            axis={axis}
+          />
+        ),
       },
     ];
   }
 
-  // portfolio (all or multi-pod). Delivery Progress leads — same card as
-  // /overview's Triage lens — followed by the timing signal (Closing in 90d).
-  // Most Behind / Pod Attention still live exclusively on /overview.
+  // portfolio (all or multi-pod). Same two-card pattern as pod scope,
+  // but rows aggregate across every pod in view. Most Behind / Pod
+  // Attention still live exclusively on /overview.
   const r = scope.rows;
   const c = scope.clients;
   return [
     {
       key: "port-delivery-progress",
+      node: <PodDeliveryProgressCard rows={r} clients={c} axis={axis} />,
+    },
+    {
+      key: "port-lifetime",
       node: (
-        <DeliveryMixCard
+        <PodLifetimeProgressCard
           rows={r}
           clients={c}
-          subtitle={`${r.length} client${r.length === 1 ? "" : "s"} in scope`}
+          cumulative={cumulative}
+          axis={axis}
         />
       ),
     },
-    { key: "port-closing", node: <ClosingSoonCard clients={c} /> },
   ];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-pod card pair — 0.3.17 redesign for Delivery Overview's top row.
+//
+// Left card: PodDeliveryProgressCard
+//   One row per pod showing aggregated Current Q delivered / invoiced
+//   + projected end-of-Q variance chip. Sourced from `computeCurrentQ()`
+//   (same math the Pod Snapshot section on /overview uses) but with a
+//   compact list-style visual that fits the existing Card aesthetic on
+//   Editorial Clients — NOT a copy of the Pod Snapshot grid.
+//
+// Right card: PodLifetimeProgressCard
+//   One row per pod with two mini-bars: %SOW (lifetime delivered ÷
+//   contracted SOW) and %Published (published_live ÷ SOW). Cumulative
+//   metrics flow in from the page-level fetch; when missing the
+//   %Published bar falls back to "—".
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PodAggCurrentQ {
+  pod: string;
+  clientCount: number;
+  delivered: number;        // Q delivered through last completed month
+  invoiced: number;         // cumulative invoiced through end-of-Q
+  projectedEnd: number;     // projected end-of-Q delivered
+  variance: number;         // projectedEnd − invoiced
+  scoredCount: number;      // clients with a real Current Q (skips 1st Q + null Q)
+  newCount: number;         // 1st-Q clients in this pod (excluded from variance)
+}
+
+function aggregateCurrentQByPod(
+  rows: SummaryRow[],
+  clients: Client[],
+  axis: "editorial" | "growth",
+): PodAggCurrentQ[] {
+  const podByClientId = new Map<number, string>();
+  for (const c of clients) {
+    const raw = axis === "growth" ? c.growth_pod : c.editorial_pod;
+    podByClientId.set(c.id, normalizePod(raw) || "Unassigned");
+  }
+  const byPod = new Map<string, PodAggCurrentQ>();
+  for (const r of rows) {
+    const pod = podByClientId.get(r.id) ?? "Unassigned";
+    let agg = byPod.get(pod);
+    if (!agg) {
+      agg = {
+        pod,
+        clientCount: 0,
+        delivered: 0,
+        invoiced: 0,
+        projectedEnd: 0,
+        variance: 0,
+        scoredCount: 0,
+        newCount: 0,
+      };
+      byPod.set(pod, agg);
+    }
+    agg.clientCount += 1;
+    const q = computeCurrentQ(r);
+    // Skip clients with no Current Q data (no billing periods detected
+    // OR pre-contract-start); the pod row still counts them in
+    // clientCount so the "(N)" label is honest. Earlier this branch
+    // did `return []` which dropped the entire card whenever one
+    // client lacked a Q — that's why a single multi-pod view read 0
+    // variance + "No Current Q data" even though most pods had Q
+    // numbers.
+    if (!q) continue;
+    if (q.invoiced <= 0) continue;
+    const tier = clientCurrentQTier(r);
+    if (tier === null) continue;
+    if (tier === "new") {
+      agg.newCount += 1;
+      continue;
+    }
+    agg.scoredCount += 1;
+    agg.delivered += q.delivered;
+    agg.invoiced += q.invoiced;
+    agg.projectedEnd += q.projectedEnd;
+  }
+  for (const agg of byPod.values()) {
+    agg.variance = agg.projectedEnd - agg.invoiced;
+  }
+  return Array.from(byPod.values()).sort((a, b) =>
+    sortPodKeyLocal(a.pod, b.pod),
+  );
+}
+
+function sortPodKeyLocal(a: string, b: string): number {
+  // "Pod 1" → 1, "Pod 2" → 2, "Unassigned" → 999
+  const numA = parseInt(a.replace(/[^0-9]/g, ""), 10);
+  const numB = parseInt(b.replace(/[^0-9]/g, ""), 10);
+  const safeA = isNaN(numA) ? 999 : numA;
+  const safeB = isNaN(numB) ? 999 : numB;
+  return safeA - safeB;
+}
+
+/** Compact variance row used by both pod cards. Generic over "label"
+ *  (pod name or client name) so the same shape covers portfolio
+ *  per-pod rollups AND single-pod per-client breakdowns.
+ *
+ *  Layout (left → right):
+ *    [● dot] [label · count]            ← 11rem column with pod dot
+ *    [progress bar + del/inv numbers]   ← flexes to fill
+ *    [tier chip: variance + label]      ← bordered block on the right,
+ *                                          mirrors Pod Snapshot's
+ *                                          End-of-Q Variance tile */
+function CurrentQRow({
+  label,
+  countSuffix,
+  accentColor,
+  delivered,
+  invoiced,
+  variance,
+}: {
+  label: string;
+  countSuffix?: string;
+  /** Hex color shown as a dot before the label. Used for pod rows
+   *  (POD_HEX_COLORS lookup); omitted for per-client rows where it
+   *  defaults to a neutral grey. */
+  accentColor?: string;
+  delivered: number;
+  invoiced: number;
+  variance: number;
+}) {
+  const pct = invoiced > 0 ? Math.min(100, (delivered / invoiced) * 100) : 0;
+  const color = signedVarianceColor(variance);
+  const tier = signedVarianceHealth(variance);
+  const tierLabel =
+    tier === "healthy" ? "On Track" : tier === "watch" ? "Within Limit" : "Behind";
+  const dotColor = accentColor ?? "#606060";
+  return (
+    <div className="grid grid-cols-[minmax(9rem,12rem)_minmax(0,1fr)_auto] items-center gap-3 py-1.5 transition-colors hover:bg-[#1a1a1a]/40">
+      {/* Pod / client label with colored dot */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: dotColor }}
+        />
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] break-words leading-tight"
+          title={label}
+        >
+          {label}
+          {countSuffix && (
+            <span className="ml-1 font-normal text-[#606060]">{countSuffix}</span>
+          )}
+        </span>
+      </div>
+      {/* Progress bar + del/inv readout */}
+      <div className="min-w-0 space-y-0.5">
+        <div className="h-1 overflow-hidden rounded-full bg-[#1f1f1f]">
+          <div
+            className="h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${pct}%`, backgroundColor: color }}
+          />
+        </div>
+        <div className="flex items-baseline justify-between font-mono text-[10px] tabular-nums leading-none">
+          <span>
+            <span className="text-[#C4BCAA]">{delivered}</span>
+            <span className="text-[#606060]">{" del · "}</span>
+            <span className="text-[#C4BCAA]">{invoiced}</span>
+            <span className="text-[#606060]">{" inv"}</span>
+          </span>
+          <span className="text-[#606060]">{Math.round(pct)}%</span>
+        </div>
+      </div>
+      {/* Tier chip — bordered block mirroring Pod Snapshot's End-of-Q
+          Variance tile. Two lines: "END-OF-Q <variance>" on top,
+          tier label below. Wider + shorter than the previous 3-line
+          stack — fits the available horizontal space better. */}
+      <div
+        className="inline-flex flex-col items-center justify-center rounded-md border px-2.5 py-1 leading-tight tabular-nums"
+        style={{
+          color,
+          borderColor: `${color}55`,
+          backgroundColor: `${color}10`,
+        }}
+      >
+        <span className="font-mono text-[10px] uppercase tracking-wider whitespace-nowrap">
+          <span className="text-[#909090]">End-of-Q</span>{" "}
+          <span className="font-bold">
+            {variance > 0 ? "+" : ""}
+            {variance}
+          </span>
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-wider whitespace-nowrap">
+          {tierLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function PodDeliveryProgressCard({
+  rows,
+  clients,
+  axis,
+}: {
+  rows: SummaryRow[];
+  clients: Client[];
+  axis: "editorial" | "growth";
+}) {
+  const podAggs = useMemo(
+    () => aggregateCurrentQByPod(rows, clients, axis),
+    [rows, clients, axis],
+  );
+  const totalVariance = podAggs.reduce((s, p) => s + p.variance, 0);
+  const totalInvoiced = podAggs.reduce((s, p) => s + p.invoiced, 0);
+  const headlineColor =
+    totalInvoiced === 0 ? "#909090" : signedVarianceColor(totalVariance);
+  const totalScored = podAggs.reduce((s, p) => s + p.scoredCount, 0);
+  const totalNew = podAggs.reduce((s, p) => s + p.newCount, 0);
+
+  // Single-pod scope = only one pod in the input. Switch to a
+  // per-client breakdown — the per-pod summary is redundant when
+  // there's only one pod (it just collapses to a one-row list).
+  const isSinglePod = podAggs.length === 1;
+  const perClient = useMemo(() => {
+    if (!isSinglePod) return [];
+    const byId = new Map(clients.map((c) => [c.id, c]));
+    const result: Array<{
+      name: string;
+      delivered: number;
+      invoiced: number;
+      variance: number;
+      isNew: boolean;
+      tierOrder: number; // for sorting: behind=0 watch=1 healthy=2 new=3
+    }> = [];
+    for (const r of rows) {
+      const c = byId.get(r.id);
+      if (!c) continue;
+      const q = computeCurrentQ(r);
+      if (!q) continue;
+      if (q.invoiced <= 0) continue;
+      const tier = clientCurrentQTier(r);
+      if (tier === null) continue;
+      const isNew = tier === "new";
+      const variance = q.projectedEnd - q.invoiced;
+      const tierOrder =
+        tier === "behind" ? 0 : tier === "watch" ? 1 : tier === "new" ? 3 : 2;
+      result.push({
+        name: c.name,
+        delivered: q.delivered,
+        invoiced: q.invoiced,
+        variance: isNew ? 0 : variance,
+        isNew,
+        tierOrder,
+      });
+    }
+    return result.sort(
+      (a, b) =>
+        a.tierOrder - b.tierOrder ||
+        a.variance - b.variance ||
+        a.name.localeCompare(b.name),
+    );
+  }, [isSinglePod, rows, clients]);
+
+  const subtitle = isSinglePod
+    ? `Per-client end-of-Q variance · ${podAggs[0].clientCount} client${podAggs[0].clientCount === 1 ? "" : "s"} in this pod`
+    : `Projected end-of-Q variance · ${totalScored} scored client${totalScored === 1 ? "" : "s"}${totalNew > 0 ? ` · ${totalNew} new (1st Q) excluded` : ""}`;
+
+  return (
+    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
+      <CardContent className="flex h-full flex-col pt-0">
+        <CardTitleWithTooltip
+          label="Projected Q Variance"
+          body={{
+            title: "Projected Q Variance",
+            bullets: [
+              isSinglePod
+                ? "Per-client Current Q delivered vs invoiced for this pod."
+                : "Per-pod aggregated Current Q delivered vs invoiced.",
+              "Variance = projected end-of-Q delivered − invoiced.",
+              "1st-Q clients excluded from variance; counted separately.",
+            ],
+          }}
+        />
+        <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">{subtitle}</p>
+        <p
+          className="mt-1.5 font-mono text-2xl font-bold tabular-nums leading-none"
+          style={{ color: headlineColor }}
+        >
+          {totalVariance > 0 ? "+" : ""}
+          {totalVariance}
+        </p>
+
+        <div className="mt-3 space-y-0.5 divide-y divide-[#1a1a1a]">
+          {isSinglePod ? (
+            perClient.length === 0 ? (
+              <p className="font-mono text-[10px] text-[#606060]">
+                No Current Q data for any client in this pod.
+              </p>
+            ) : (
+              perClient.map((c) => (
+                <CurrentQRow
+                  key={c.name}
+                  label={c.name}
+                  countSuffix={c.isNew ? "1ST Q" : undefined}
+                  delivered={c.delivered}
+                  invoiced={c.invoiced}
+                  variance={c.variance}
+                />
+              ))
+            )
+          ) : podAggs.length === 0 ? (
+            <p className="font-mono text-[10px] text-[#606060]">No Current Q data.</p>
+          ) : (
+            podAggs.map((agg) => (
+              <CurrentQRow
+                key={agg.pod}
+                label={displayPod(agg.pod, axis)}
+                countSuffix={`(${agg.clientCount})`}
+                accentColor={POD_HEX_COLORS[agg.pod]}
+                delivered={agg.delivered}
+                invoiced={agg.invoiced}
+                variance={agg.variance}
+              />
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface LifetimeRow {
+  label: string;
+  /** Optional client count suffix shown next to the label (pod rows
+   *  only). Omitted for per-client rows. */
+  countSuffix?: string;
+  /** Hex color for the leading dot — pod hex on pod rows, undefined
+   *  on per-client rows (falls back to neutral grey). */
+  accentColor?: string;
+  delivered: number;
+  sow: number;
+  published: number;
+  hasPublished: boolean;
+}
+
+function LifetimeProgressRow({ row }: { row: LifetimeRow }) {
+  const pctSow = row.sow > 0 ? Math.min(100, (row.delivered / row.sow) * 100) : 0;
+  const pctPub = row.sow > 0 ? Math.min(100, (row.published / row.sow) * 100) : 0;
+  const dotColor = row.accentColor ?? "#606060";
+  return (
+    <div className="grid grid-cols-[minmax(9rem,12rem)_1fr_1fr] items-center gap-3 py-1.5 transition-colors hover:bg-[#1a1a1a]/40">
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: dotColor }}
+        />
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-[#C4BCAA] break-words leading-tight"
+          title={row.label}
+        >
+          {row.label}
+          {row.countSuffix && (
+            <span className="ml-1 font-normal text-[#606060]">{row.countSuffix}</span>
+          )}
+        </span>
+      </div>
+      {/* %SOW — bar with the percentage rendered to the right so the
+          big number is readable at a glance instead of buried under
+          the bar. */}
+      <div className="min-w-0">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+            SOW
+          </span>
+          <span className="font-mono text-[11px] font-semibold tabular-nums text-[#C4BCAA]">
+            {Math.round(pctSow)}%
+          </span>
+        </div>
+        <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-[#1f1f1f]">
+          <div
+            className="h-full rounded-full bg-[#42CA80] transition-[width] duration-300"
+            style={{ width: `${pctSow}%` }}
+          />
+        </div>
+        <p className="mt-0.5 font-mono text-[9px] tabular-nums leading-none text-[#606060]">
+          {row.delivered.toLocaleString()} / {row.sow.toLocaleString()}
+        </p>
+      </div>
+      {/* %Published — same shape; falls back to muted "—" when no
+          cumulative_metrics row covers this client. */}
+      <div className="min-w-0">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-mono text-[9px] uppercase tracking-wider text-[#606060]">
+            Published
+          </span>
+          {row.hasPublished ? (
+            <span className="font-mono text-[11px] font-semibold tabular-nums text-[#C4BCAA]">
+              {Math.round(pctPub)}%
+            </span>
+          ) : (
+            <span className="font-mono text-[11px] text-[#404040]">—</span>
+          )}
+        </div>
+        <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-[#1f1f1f]">
+          <div
+            className="h-full rounded-full bg-[#DDCFAC] transition-[width] duration-300"
+            style={{ width: `${row.hasPublished ? pctPub : 0}%` }}
+          />
+        </div>
+        <p className="mt-0.5 font-mono text-[9px] tabular-nums leading-none text-[#606060]">
+          {row.hasPublished
+            ? `${row.published.toLocaleString()} / ${row.sow.toLocaleString()}`
+            : "no published count"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function PodLifetimeProgressCard({
+  rows,
+  clients,
+  cumulative,
+  axis,
+}: {
+  rows: SummaryRow[];
+  clients: Client[];
+  cumulative: CumulativeMetric[];
+  axis: "editorial" | "growth";
+}) {
+  // Per-pod aggregates of lifetime delivered, SOW, and published.
+  // Pulls cumulative metrics for published_live; falls back to "—"
+  // when no cumulative row exists for a client.
+  const podRows = useMemo<Array<LifetimeRow & { pod: string }>>(() => {
+    const podByClientId = new Map<number, string>();
+    const sowByClientId = new Map<number, number>();
+    const clientNameById = new Map<number, string>();
+    for (const c of clients) {
+      const raw = axis === "growth" ? c.growth_pod : c.editorial_pod;
+      podByClientId.set(c.id, normalizePod(raw) || "Unassigned");
+      const sowRaw = (c as unknown as { articles_sow?: number | null }).articles_sow;
+      sowByClientId.set(c.id, typeof sowRaw === "number" ? sowRaw : 0);
+      clientNameById.set(c.id, c.name);
+    }
+    const publishedByClient = new Map<string, number>();
+    for (const m of cumulative) {
+      const v = (m as unknown as { published_live?: number | null }).published_live;
+      if (typeof v === "number") publishedByClient.set(m.client_name, v);
+    }
+    type Agg = {
+      pod: string;
+      clientCount: number;
+      delivered: number;
+      sow: number;
+      published: number;
+      hasPublished: boolean;
+    };
+    const byPod = new Map<string, Agg>();
+    for (const r of rows) {
+      const pod = podByClientId.get(r.id) ?? "Unassigned";
+      let agg = byPod.get(pod);
+      if (!agg) {
+        agg = { pod, clientCount: 0, delivered: 0, sow: 0, published: 0, hasPublished: false };
+        byPod.set(pod, agg);
+      }
+      agg.clientCount += 1;
+      agg.delivered += r.articles_delivered ?? 0;
+      agg.sow += sowByClientId.get(r.id) ?? 0;
+      const name = clientNameById.get(r.id);
+      if (name) {
+        const pub = publishedByClient.get(name);
+        if (typeof pub === "number") {
+          agg.published += pub;
+          agg.hasPublished = true;
+        }
+      }
+    }
+    return Array.from(byPod.values())
+      .sort((a, b) => sortPodKeyLocal(a.pod, b.pod))
+      .map((a) => ({
+        pod: a.pod,
+        label: displayPod(a.pod, axis),
+        countSuffix: `(${a.clientCount})`,
+        accentColor: POD_HEX_COLORS[a.pod],
+        delivered: a.delivered,
+        sow: a.sow,
+        published: a.published,
+        hasPublished: a.hasPublished,
+      }));
+  }, [rows, clients, cumulative, axis]);
+
+  // Single-pod scope = render per-client breakdown for that pod.
+  const isSinglePod = podRows.length === 1;
+  const perClientRows = useMemo<LifetimeRow[]>(() => {
+    if (!isSinglePod) return [];
+    const sowByClientId = new Map<number, number>();
+    const nameById = new Map<number, string>();
+    for (const c of clients) {
+      const sowRaw = (c as unknown as { articles_sow?: number | null }).articles_sow;
+      sowByClientId.set(c.id, typeof sowRaw === "number" ? sowRaw : 0);
+      nameById.set(c.id, c.name);
+    }
+    const pubByName = new Map<string, number>();
+    for (const m of cumulative) {
+      const v = (m as unknown as { published_live?: number | null }).published_live;
+      if (typeof v === "number") pubByName.set(m.client_name, v);
+    }
+    const out: LifetimeRow[] = [];
+    for (const r of rows) {
+      const name = nameById.get(r.id);
+      if (!name) continue;
+      const sow = sowByClientId.get(r.id) ?? 0;
+      const pub = pubByName.get(name);
+      out.push({
+        label: name,
+        delivered: r.articles_delivered ?? 0,
+        sow,
+        published: typeof pub === "number" ? pub : 0,
+        hasPublished: typeof pub === "number",
+      });
+    }
+    return out.sort((a, b) => {
+      // Behind on %SOW first → ascending pct
+      const aPct = a.sow > 0 ? a.delivered / a.sow : 1;
+      const bPct = b.sow > 0 ? b.delivered / b.sow : 1;
+      return aPct - bPct;
+    });
+  }, [isSinglePod, rows, clients, cumulative]);
+
+  // Headline = portfolio %SOW (delivered ÷ total SOW).
+  const totalDelivered = podRows.reduce((s, p) => s + p.delivered, 0);
+  const totalSow = podRows.reduce((s, p) => s + p.sow, 0);
+  const portfolioPctSow = totalSow > 0 ? (totalDelivered / totalSow) * 100 : 0;
+  const totalPublished = podRows.reduce((s, p) => s + p.published, 0);
+  const portfolioPctPub = totalSow > 0 ? (totalPublished / totalSow) * 100 : 0;
+  const anyHasPub = podRows.some((p) => p.hasPublished);
+
+  const subtitle = isSinglePod
+    ? `Lifetime %SOW + %Published · per client in this pod`
+    : `Lifetime %SOW + %Published · per pod`;
+
+  return (
+    <Card className="h-full border-[#2a2a2a] bg-[#161616]">
+      <CardContent className="flex h-full flex-col pt-0">
+        <CardTitleWithTooltip
+          label="Pod Progress"
+          body={{
+            title: "Pod Progress",
+            bullets: [
+              "%SOW = lifetime delivered ÷ contracted SOW.",
+              "%Published = articles published live ÷ contracted SOW.",
+              isSinglePod
+                ? "Per-client breakdown when one pod is in scope."
+                : "Per-pod breakdown rolls up across the in-scope clients.",
+            ],
+          }}
+        />
+        <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">{subtitle}</p>
+        <div className="mt-1.5 flex items-baseline gap-3 font-mono tabular-nums">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold leading-none text-white">
+              {Math.round(portfolioPctSow)}%
+            </span>
+            <span className="text-[9px] uppercase tracking-wider text-[#606060]">SOW</span>
+          </div>
+          {anyHasPub && (
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg font-bold leading-none text-[#C4BCAA]">
+                {Math.round(portfolioPctPub)}%
+              </span>
+              <span className="text-[9px] uppercase tracking-wider text-[#606060]">Published</span>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 space-y-0.5 divide-y divide-[#1a1a1a]">
+          {isSinglePod ? (
+            perClientRows.length === 0 ? (
+              <p className="font-mono text-[10px] text-[#606060]">No lifetime data.</p>
+            ) : (
+              perClientRows.map((row) => (
+                <LifetimeProgressRow key={row.label} row={row} />
+              ))
+            )
+          ) : podRows.length === 0 ? (
+            <p className="font-mono text-[10px] text-[#606060]">No lifetime data.</p>
+          ) : (
+            podRows.map((row) => (
+              <LifetimeProgressRow key={row.pod} row={row} />
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

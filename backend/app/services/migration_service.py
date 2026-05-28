@@ -3217,6 +3217,40 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
                         existing_q = existing_q.where(GoalsVsDelivery.content_type == content_type)
                     existing = session.execute(existing_q).scalars().first()
 
+                    # Pre-treatment for LP rows from May 2026 onward.
+                    # ──────────────────────────────────────────────────
+                    # Starting with the May 2026 [Month YYYY] Goals vs
+                    # Delivery tab, the team enters LP rows' delivery
+                    # numbers as FINAL physical-unit counts (no longer
+                    # adjusted for the 0.5 weighting at data-entry
+                    # time). The Hub still applies LP's canonical ×0.5
+                    # ratio at aggregation, so without compensation the
+                    # Overall totals would halve the team's already-
+                    # final numbers. To preserve the canonical content-
+                    # type ratio table everywhere (article ×1, jumbo
+                    # ×2, LP ×0.5) we instead DOUBLE both the CB and AR
+                    # numeric columns at ingestion — the ×2 here
+                    # cancels the ×0.5 at display, so Overall reads the
+                    # same number that's in the spreadsheet. Per-type
+                    # LP cells render the doubled stored value; that's
+                    # expected (it's the "weighted unit" view).
+                    #
+                    # Article + Jumbo rows are unaffected — only LP
+                    # rows on May 2026+ tabs get the doubling.
+                    lp_mult = 1
+                    ct_lower = (content_type or "").strip().lower()
+                    is_lp_row = ct_lower in ("lp", "landing page", "landing pages")
+                    if is_lp_row:
+                        try:
+                            row_month_dt = datetime.strptime(month_year, "%B %Y")
+                            if row_month_dt.year * 12 + row_month_dt.month >= 2026 * 12 + 5:
+                                lp_mult = 2
+                        except ValueError:
+                            lp_mult = 1
+
+                    def _mul(v: int | None, k: int) -> int | None:
+                        return v * k if (v is not None and k != 1) else v
+
                     data = dict(
                         month_year=month_year,
                         week_number=week_num,
@@ -3227,18 +3261,18 @@ def import_goals_vs_delivery(session: Session, mode: str = "current") -> ImportR
                         client_type=client_type,
                         content_type=content_type,
                         ratios=ratios,
-                        cb_delivered_today=safe_int(_cell(row, cb_base)),
-                        cb_projection=safe_int(_cell(row, cb_base + 1)),
-                        cb_delivered_to_date=safe_int(_cell(row, cb_base + 2)),
-                        cb_monthly_goal=safe_int(_cell(row, cb_base + 3)),
+                        cb_delivered_today=_mul(safe_int(_cell(row, cb_base)), lp_mult),
+                        cb_projection=_mul(safe_int(_cell(row, cb_base + 1)), lp_mult),
+                        cb_delivered_to_date=_mul(safe_int(_cell(row, cb_base + 2)), lp_mult),
+                        cb_monthly_goal=_mul(safe_int(_cell(row, cb_base + 3)), lp_mult),
                         cb_pct_of_goal=_cell(row, cb_base + 4) or None,
                         cb_comments=_cell(row, cb_base + 5) or None,
                         ad_revisions=safe_int(_cell(row, ad_base)),
-                        ad_delivered_today=safe_int(_cell(row, ad_base + 1)),
-                        ad_projection=safe_int(_cell(row, ad_base + 2)),
+                        ad_delivered_today=_mul(safe_int(_cell(row, ad_base + 1)), lp_mult),
+                        ad_projection=_mul(safe_int(_cell(row, ad_base + 2)), lp_mult),
                         ad_cb_backlog=safe_int(_cell(row, ad_base + 3)),
-                        ad_delivered_to_date=safe_int(_cell(row, ad_base + 4)),
-                        ad_monthly_goal=safe_int(_cell(row, ad_base + 5)),
+                        ad_delivered_to_date=_mul(safe_int(_cell(row, ad_base + 4)), lp_mult),
+                        ad_monthly_goal=_mul(safe_int(_cell(row, ad_base + 5)), lp_mult),
                         ad_pct_of_goal=_cell(row, ad_base + 6) or None,
                         ad_comments=_cell(row, ad_base + 7) or None,
                     )

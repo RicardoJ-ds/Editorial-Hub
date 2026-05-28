@@ -594,12 +594,15 @@ interface PerClientRow {
 // %Published. The two Q columns get more breathing room (10rem min) so
 // the two stacked lifetime bars + chip have width to render. %SOW and
 // %Published are compact since each is a single bar + percentage.
-// 7 columns: chevron · name · Goals · Last Q · Current Q · %SOW · %Published.
-// Name + Goals + %SOW + %Published are kept slim so the two Q columns
-// (which carry the [chip block | bars] layout) get most of the width.
-// Vertical dividers between columns come from the DELIVERY_CELL_DIVIDER
-// class applied to each cell except the last.
-const DELIVERY_GRID = "grid-cols-[1.25rem_minmax(8rem,11rem)_minmax(7rem,1.1fr)_minmax(13rem,1.7fr)_minmax(13rem,1.7fr)_minmax(4rem,0.8fr)_minmax(4rem,0.8fr)]";
+// 6 columns: chevron · name · Goals · Current Q · %SOW · %Published.
+// (Last Q column hidden in 0.3.17 — focus shifts to Current Q +
+// lifetime SOW; Last Q is still readable via the per-client drill-down
+// popover, which carries the lastQ variant.) Name + Goals + %SOW +
+// %Published stay slim so Current Q (the focal [chip block | bars]
+// layout) gets the breathing room it needs. Vertical dividers between
+// columns come from the DELIVERY_CELL_DIVIDER class applied to each
+// cell except the last.
+const DELIVERY_GRID = "grid-cols-[1.25rem_minmax(8rem,11rem)_minmax(7rem,1.1fr)_minmax(13rem,1.9fr)_minmax(4rem,0.9fr)_minmax(4rem,0.9fr)]";
 
 /** Vertical column dividers — applied to the grid row container via
  *  Tailwind arbitrary selectors. Targets every direct child EXCEPT the
@@ -689,19 +692,6 @@ function PodDeliveryProgressCard({
                 }
               />
             }
-          />
-          <ColumnHeader
-            title="Last Q"
-            sub="Q delivered · invoiced"
-            align="center"
-            help={{
-              title: "Last Q",
-              bullets: [
-                "Delivered = Q delivered ÷ Q invoiced.",
-                "Invoiced = Q invoiced ÷ SOW.",
-                "Chip = last-close variance + tier.",
-              ],
-            }}
           />
           <ColumnHeader
             title="Current Q"
@@ -1346,18 +1336,6 @@ function PodDeliveryRowHeader({
         <MiniProgress label="CBs" del={row.cbDel} goal={row.cbGoal} pct={cbPct} />
         <MiniProgress label="Articles" del={row.adDel} goal={row.adGoal} pct={adPct} />
       </div>
-      {/* Last Q — same layout as Current Q but muted grey. Uses Last Q's
-          own per-Q delivered/invoiced (not lifetime) so numbers differ
-          from Current Q. SOW is the constant denominator on the
-          %Invoiced bar. */}
-      <QTile
-        kind="last"
-        muted
-        variance={row.lastQHasData ? row.lastQVariance : null}
-        delivered={row.lastQDelivered}
-        invoiced={row.lastQInvoiced}
-        sow={row.lifetimeSow}
-      />
       {/* Current Q — coloured by tier. Bar uses ACTUAL delivered to
           date (currentQActualDelivered), NOT the projected end-of-Q
           number — that way the bar reflects real progress so far.
@@ -1685,29 +1663,7 @@ function PerClientDeliveryList({
                 <ClientGoalCell label="Articles" del={r.adDel} goal={r.adGoal} pct={adPct} />
               </div>
             </CellButton>
-            {/* col 4: last Q (actual) → opens "lastQ" detail. Same
-                layout as Current Q but muted grey. Uses Last Q's own
-                per-Q numbers. */}
-            <CellButton onClick={(e) => openCell("lastQ", r, e)} ariaLabel={`Open Last Q detail for ${r.name}`}>
-              <ClientQCell
-                label={r.lastQ?.label ?? "Last Q"}
-                kind="last"
-                muted
-                q={r.lastQ
-                  ? {
-                      delivered: r.lastQ.delivered,
-                      invoiced: r.lastQ.invoiced,
-                      variance: r.lastQ.variance,
-                    }
-                  : null}
-                // If the last full Q was the client's first contract Q,
-                // surface "1st Q" on the variance card instead of
-                // "Behind Plan" — same semantics as Current Q.
-                isNew={r.lastQ?.isFirstQ ?? false}
-                sow={r.lifetimeSow}
-              />
-            </CellButton>
-            {/* col 5: current Q → opens "currentQ" detail.
+            {/* col 4: current Q → opens "currentQ" detail.
                 Bar uses ACTUAL delivered-to-date (cumulative through
                 last completed month), NOT projected end-of-Q. The chip
                 still shows END-OF-Q variance — the only thing that's
