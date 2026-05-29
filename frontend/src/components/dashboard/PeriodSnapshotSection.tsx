@@ -611,7 +611,7 @@ const DELIVERY_GRID = "grid-cols-[1.25rem_minmax(8rem,11rem)_minmax(7rem,1.1fr)_
  *  shows between the data columns only. Pairs with gap-x-3 + pr-3 to
  *  push the line away from the cell's content. */
 const DELIVERY_DIVIDERS =
-  "[&>*:not(:first-child):not(:last-child)]:border-r [&>*:not(:first-child):not(:last-child)]:border-[#1a1a1a] [&>*:not(:first-child):not(:last-child)]:pr-3";
+  "[&>*:not(:first-child):not(:last-child)]:border-r [&>*:not(:first-child):not(:last-child)]:border-[#2a2a2a] [&>*:not(:first-child):not(:last-child)]:pr-3";
 
 function PodDeliveryProgressCard({
   clients,
@@ -1441,19 +1441,9 @@ function QTile({
       : { color: "#ED6958", label: "Behind Plan" };
   const barColor = muted ? "#909090" : "#42CA80";
   return (
-    <div className="flex items-center gap-3 font-mono text-[10px] tabular-nums">
-      {/* LEFT: variance + tier on its own column — same QInfoBlock the
-          per-client row uses, just without a Q label since the pod
-          summary spans multiple clients with different Qs. */}
-      <QInfoBlock
-        qLabel=""
-        variance={variance}
-        tier={tier}
-        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
-        muted={muted}
-      />
-      {/* RIGHT: just the two progress bars. */}
-      <div className="flex-1 min-w-0 space-y-1 text-left">
+    <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
+      {/* LEFT: the two progress bars take the lion's share of the cell. */}
+      <div className="flex-1 min-w-0 space-y-1.5 text-left">
         <LifetimeBar
           label="Q delivered"
           num={delivered}
@@ -1473,6 +1463,16 @@ function QTile({
           muted={muted}
         />
       </div>
+      {/* RIGHT: variance + tier hugs the bars on the right. Compact
+          vertical badge — same data as the old QInfoBlock, smaller
+          footprint, visually attached to the bars they explain. */}
+      <QInfoBlock
+        qLabel=""
+        variance={variance}
+        tier={tier}
+        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
+        muted={muted}
+      />
     </div>
   );
 }
@@ -1503,23 +1503,23 @@ function LifetimeBar({
   const pct = denom > 0 ? Math.min(100, (num / denom) * 100) : 0;
   const pctText = denom > 0 ? `${Math.round((num / denom) * 100)}%` : "—";
   const labelColor = muted ? "text-[#707070]" : "text-[#909090]";
-  const pctColor = muted ? "text-[#909090]" : "text-[#C4BCAA]";
+  const pctColor = muted ? "text-[#909090]" : "text-white";
   return (
-    <div className="space-y-0.5">
-      <div className="flex items-baseline justify-between gap-1 font-mono text-[9px] tabular-nums">
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between gap-1 font-mono text-[10px] tabular-nums">
         <span className={`uppercase tracking-wider ${labelColor}`}>{label}</span>
-        <span className={`font-semibold ${pctColor}`}>{pctText}</span>
+        <span className={`text-[12px] font-bold ${pctColor}`}>{pctText}</span>
       </div>
-      <div className="relative h-1 w-full overflow-hidden rounded-sm bg-[#1a1a1a]">
+      <div className="relative h-2 w-full overflow-hidden rounded-sm bg-[#1a1a1a]">
         <div
-          className="absolute top-0 bottom-0 left-0"
+          className="absolute top-0 bottom-0 left-0 rounded-sm"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
-      <p className="font-mono text-[8px] tabular-nums text-[#606060]">
+      <p className="font-mono text-[10px] tabular-nums text-[#606060]">
         {denom > 0 ? (
           <>
-            <span className={muted ? "text-[#707070]" : "text-[#909090]"}>{num.toLocaleString()}</span> {numUnit} / {denom.toLocaleString()} {denomUnit}
+            <span className={muted ? "text-[#707070]" : "text-[#C4BCAA]"}>{num.toLocaleString()}</span> {numUnit} <span className="text-[#404040]">/</span> {denom.toLocaleString()} {denomUnit}
           </>
         ) : "—"}
       </p>
@@ -1814,18 +1814,9 @@ function ClientQCell({
         : "Behind Plan";
   const barColor = muted ? "#909090" : "#42CA80";
   return (
-    <div className="flex items-center gap-3 font-mono text-[10px] tabular-nums">
-      {/* LEFT: Q label + variance chip stacked. Replaces what was the
-          3rd row below the bars. */}
-      <QInfoBlock
-        qLabel={label}
-        variance={q.variance}
-        tier={{ color, label: tierLabel }}
-        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
-        muted={muted}
-      />
-      {/* RIGHT: just the two progress bars now — no chip row beneath. */}
-      <div className="flex-1 min-w-0 space-y-1 text-left">
+    <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
+      {/* LEFT: the two progress bars take the lion's share. */}
+      <div className="flex-1 min-w-0 space-y-1.5 text-left">
         <LifetimeBar
           label="Q delivered"
           num={q.delivered}
@@ -1845,6 +1836,15 @@ function ClientQCell({
           muted={muted}
         />
       </div>
+      {/* RIGHT: Q label + variance chip stacked — sits adjacent to the
+          bars it explains. */}
+      <QInfoBlock
+        qLabel={label}
+        variance={q.variance}
+        tier={{ color, label: tierLabel }}
+        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
+        muted={muted}
+      />
     </div>
   );
 }
@@ -1873,7 +1873,7 @@ function QInfoBlock({
   const sign = variance > 0 ? "+" : "";
   const labelColor = muted ? "#707070" : tier.color;
   return (
-    <div className="shrink-0 w-[6rem] flex flex-col items-start gap-1 font-mono tabular-nums">
+    <div className="shrink-0 w-[5.5rem] flex flex-col items-stretch gap-1 font-mono tabular-nums">
       {qLabel && (
         <span
           className="text-[10px] font-semibold uppercase tracking-wider"
@@ -1883,30 +1883,32 @@ function QInfoBlock({
         </span>
       )}
       {/* Variance enclosure — tier-coloured border + faint tint so the
-          variance reads as a self-contained badge (mirrors the old
-          EndOfQChip box, just in vertical form). */}
+          variance reads as a self-contained badge attached to the bars
+          on its left. Variance NUMBER is the focal element (xl), with
+          the chip label above and the tier label below in compact
+          uppercase text. */}
       <div
-        className="w-full rounded-md border px-2 py-1 flex flex-col items-start gap-0.5"
+        className="w-full rounded-md border px-2 py-1.5 flex flex-col items-center gap-0.5"
         style={{
-          borderColor: `${labelColor}55`,
-          backgroundColor: `${labelColor}10`,
+          borderColor: `${labelColor}66`,
+          backgroundColor: `${labelColor}12`,
         }}
       >
         <span
-          className="text-[9px] uppercase tracking-wider leading-tight"
+          className="text-[9px] uppercase tracking-wider leading-tight text-center"
           style={{ color: muted ? "#606060" : "#909090" }}
         >
-          {chipLabel} Variance
+          {chipLabel}
         </span>
         <span
-          className="text-base font-bold leading-none tabular-nums"
+          className="text-xl font-bold leading-none tabular-nums"
           style={{ color: labelColor }}
         >
           {sign}
           {Math.round(variance)}
         </span>
         <span
-          className="text-[9px] font-semibold uppercase tracking-wider leading-tight"
+          className="text-[9px] font-semibold uppercase tracking-wider leading-tight text-center"
           style={{ color: labelColor }}
         >
           {tier.label}

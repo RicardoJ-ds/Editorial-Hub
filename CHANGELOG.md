@@ -18,6 +18,23 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.19 — May 29
+
+**Pod Snapshot Current Q row redesigned so the End-of-Q tier card sits adjacent to the progress bars it explains, with brighter column dividers and bigger numbers across every bar. New `BUSINESS_RULES.md` doc consolidates the Goals vs Delivery ingestion + display rules (including the upcoming Glossary content type from June) into one place.**
+
+### Overview — Pod Snapshot · Current Q
+
+- **End-of-Q tier card moved next to the bars** — the variance + tier badge now sits to the *right* of the Q delivered / Invoiced bars (was on the left), so the row reads left-to-right as "bars → verdict". Same change applies to the per-client expanded rows.
+- **Bigger progress bars + numbers** — each bar height doubled, the percentage on the right of each bar now renders in larger bold white (was small cream), and the `delivered / invoiced` numbers beneath bumped in size and weight too. Variance number in the tier card grew from 16px to 20px.
+- **Visible column dividers** — vertical separators between Goals · Current Q · %SOW · %Published columns brightened from near-invisible to a readable grey so the grid structure is clearer.
+
+### New documentation
+
+- **`BUSINESS_RULES.md`** (new top-level doc) — consolidates the Goals vs Delivery ingestion + display rules into one place: the full content-type matrix (Article ×1, Jumbo ×2, LP pre-May ×0.5, LP May+ ×2/×0.5, **Glossary June+ ×1/×0.5**), worked examples per type, cutover dates, code-pointer table, and an 8-step checklist for adding a new content type. `CLAUDE.md` (root) and `frontend/AGENTS.md` now carry a one-line summary that points to this doc.
+- **Glossary content type** — new content type the team will start using from June 2026. Ingests as-is (no transform) and weights ×0.5 at display, so it counts as half an article-equivalent in the Overall row. Documented in `BUSINESS_RULES.md`; importer + frontend ratio will ship in a follow-up release once the sheet's content-type label is finalised.
+
+---
+
 ## 0.3.18 — May 28
 
 **New Admin → Analytics dashboard reveals how the team uses the Hub: who visits, which sections, how long they spend, which filters they apply, when they comment. Includes a Tracking Coverage tab documenting what's instrumented and what isn't, plus a Group filter so admins can compare usage by RBAC group (Leadership, Editorial Team, Growth Team, etc.).**

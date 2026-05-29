@@ -1,6 +1,6 @@
 # Editorial Hub
 
-**Current version: `0.3.18`** — see `CHANGELOG.md` for the full history and the
+**Current version: `0.3.19`** — see `CHANGELOG.md` for the full history and the
 versioning scheme (`0.PHASE.ITERATION`; UI surface reads from
 `frontend/src/lib/version.ts`). Bump that constant on every release.
 
@@ -186,7 +186,7 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 - **SectionIndex anchor nav**: each tab renders a thin sticky left-side rail (`SectionIndex`) listing its sections; click jumps to the section, scroll-spy keeps the active item highlighted. Hidden below `xl`. The component walks up the DOM and listens to every scrollable ancestor — the page's actual scroller is `<div className="ml-[64px] ... overflow-auto">` from `(app)/layout.tsx`, not `window`.
 - **Pipeline stage palette**: bars in cumulative-pipeline cards use Graphite primary greens P3 → P2 → P1 (Topics → CBs → Articles, dark → bright) plus WN1 cream for Published. Strictly DS swatches; defined as `PIPELINE_STAGE_COLORS` in `shared-helpers.tsx`.
 - **Pacing-aware status colors**: lifetime % of contract progress uses `pacingColor(actualPct, elapsedPct)` from `shared-helpers.tsx` — a brand-new client at 5 % isn't behind, they just started. Helper unifies this across per-client cards, per-pod cards, and the scope-aware top cards.
-- **Content-type weighting**: goals aggregations apply `contentTypeRatio()` (article ×1, jumbo ×2, LP ×0.5) so a jumbo's CBs/articles count for two units — keeps `GoalsVsDeliverySection` summary, `aggregateGoalsByPod`, and `GoalsMonthTable` totals consistent.
+- **Content-type weighting**: goals aggregations apply `contentTypeRatio()` (article ×1, jumbo ×2, LP ×0.5, glossary ×0.5) so a jumbo's CBs/articles count for two units — keeps `GoalsVsDeliverySection` summary, `aggregateGoalsByPod`, and `GoalsMonthTable` totals consistent. **LP rows from May 2026 onward are doubled at ingestion** so the display-side ×0.5 cancels out and the Overall row reads the sheet's physical-unit total. **Glossary rows (June 2026 onward) pass through at ingestion and weight ×0.5 at display.** See `BUSINESS_RULES.md` § 1 for the full matrix, worked examples per content type, and cutover dates.
 - **Tooltip body**: every metric tooltip uses the `TooltipBody` helper — uppercase mono title + 2–3 short bullets — so every tooltip looks the same. `DataSourceBadge` was deemed visual noise and now renders null hub-wide; the component is kept so existing call sites compile.
 - **Milestone numbering**: the six lifecycle milestones are numbered `1` Consulting KO · `2` Editorial KO · `3` First CB Approved · `4` First Article · `5` First Feedback · `6` First Published. Helper `MILESTONE_NUM_BY_FIELD` + `milestonePairPrefix(from, to)` in `shared-helpers.tsx` drive the numbered prefixes shown in legends, Time-to-Metrics card titles, the Per-Client Days metric dropdown, and tooltips.
 - **Pod display**: always say "Editorial Pod N" or "Growth Pod N" in user-facing copy via `displayPod()` in `frontend/src/components/dashboard/shared-helpers.tsx`. Internal keys stay as `"Pod N"` so existing `POD_COLORS` lookups and Map/Set keys keep working.
