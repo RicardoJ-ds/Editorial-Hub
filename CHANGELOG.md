@@ -18,6 +18,35 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.18 — May 28
+
+**New Admin → Analytics dashboard reveals how the team uses the Hub: who visits, which sections, how long they spend, which filters they apply, when they comment. Includes a Tracking Coverage tab documenting what's instrumented and what isn't, plus a Group filter so admins can compare usage by RBAC group (Leadership, Editorial Team, Growth Team, etc.).**
+
+### Admin — Analytics (new dashboard)
+
+- **Dashboard tab** with: KPI strip (total events / active users / sessions / top dashboard), Daily Activity stacked area chart paired with a leader-line donut showing event mix, Top Dashboards + Top Sections (with average dwell time), Drill-Down popover variants, Click Interactions, Comment Activity timeline, Per-User Activity table (last seen, sessions, top route), Filter Usage breakdown, and Return Cadence (median days between visits).
+- **Tracking Coverage tab** — static inventory matrix of every trackable event grouped by category (Navigation, Section visibility + dwell, Filters, Drill-downs, Click toggles, Write actions, Hover engagement, Errors, Session lifecycle, Help). Each row carries a status badge: ✓ Tracked / ⊖ Partial / ✗ Missing. Includes a "Recommended next batch" priority list and an "Intentionally not tracked" section explaining the privacy / cost trade-offs.
+- **Group filter** at the top of the Dashboard tab — dropdown listing every RBAC group with member counts and checkboxes; lets admins narrow every chart to a single group (e.g. "Editorial Team only") or any combination. Default reads "All groups". Range tabs (7d / 30d / 90d) still drive the time window.
+- **Tooltip contrast fix** — every chart popover on this page now uses a custom dark tooltip so event names, values, and totals are readable regardless of slice colour. The donut's labels sit outside the ring with L-shaped leader lines and an event-name + percent label per slice (slices under 3% hide their label to avoid collisions; still visible on hover).
+- **Privacy-by-design** — events fired while previewing as another user are silently dropped. The dashboard is gated behind Admin-only access; the Sidebar tab only appears for the Admin group. 6-month rolling retention; older events auto-deleted on app startup.
+
+### Across the Hub — usage tracking instrumentation
+
+- **PageView events** fire on every route change (including filter-bar URL updates).
+- **Section visibility + dwell tracking** wired into every section on Overview (Pod Snapshot, Production History, Time to Milestones), Editorial Clients (Delivery Overview, Cumulative Pipeline, Monthly Goals, Contract Timeline), and Team KPIs (AI Flagged, AI Rewrites, AI Surfer). Records when the section enters the viewport and how long the user spent looking at it.
+- **Filter clicks** logged when any FilterBar dimension changes (search, editorial pod, growth pod, status, date range).
+- **Drill-down clicks** logged from Pod Snapshot — captures which popover variant was opened (client / goals / lastQ / currentQ / lifetime).
+- **Comment activity** logged for every create / edit / resolve / delete on the Overview rich-text comments.
+- **Chart toggle clicks** logged on Production History's view-mode toggle (All / Per pod / Per client).
+- **Sync clicks** logged whenever the SYNC button kicks off a refresh.
+
+### Under the hood
+
+- **Recharts dev-mode warning suppressed** — the noisy "width(-1) and height(-1) of chart should be greater than 0" message that fired on every chart mount is now silently filtered in development. Pure dev-time cleanup; production builds are unaffected.
+- **Analytics SQL hardened** — all aggregation queries now use static SQL with bound parameters end-to-end (no string interpolation), so the security scanner stays green on every deploy.
+
+---
+
 ## 0.3.17 — May 27
 
 **Overview reordered around Production History; Pod Snapshot drops the Last Q column; Editorial Clients' Delivery Overview gets two new scope-aware cards (per-pod Current Q variance + lifetime %SOW / %Published); Goals vs Delivery importer pre-treats LP rows from May 2026 onward so the Overall display matches the sheet exactly.**

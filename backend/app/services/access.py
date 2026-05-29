@@ -67,6 +67,7 @@ _VIEWS: list[tuple[str, str, str, str, int]] = [
     # privilege itself — those stay admin-only to prevent escalation.
     ("admin.access.edit", "Edit Access Control", "Access Control", "Admin", 61),
     ("admin.data_quality", "Data Quality", "Data Quality", "Admin", 62),
+    ("admin.analytics", "Analytics", "Analytics", "Admin", 63),
 ]
 
 # ─── Group catalog ───────────────────────────────────────────────────────
@@ -360,6 +361,15 @@ def seed_access_baseline(session: Session) -> None:
         ("bi_team", "cp2"),
         ("editorial_team", "cp2"),
         ("growth_team", "cp2"),
+        # Admin · Analytics is admin-only. The summary endpoint exposes
+        # other users' activity (email, last seen, top route, return
+        # cadence), so we revoke it explicitly on every non-admin
+        # group even when nobody has manually granted it — keeps the
+        # tab off the Sidebar for everyone but admins.
+        ("leadership", "admin.analytics"),
+        ("bi_team", "admin.analytics"),
+        ("editorial_team", "admin.analytics"),
+        ("growth_team", "admin.analytics"),
     ]
     _FORCED_GRANTS: list[tuple[str, str]] = [
         # Leadership — only non-admin group with CP2 access.

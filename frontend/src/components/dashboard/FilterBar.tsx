@@ -16,6 +16,7 @@ import { Search, X } from "lucide-react";
 import { DateRangeFilter, type DateRange } from "./DateRangeFilter";
 import { PodAxisToggle } from "@/components/layout/SyncControls";
 import { displayPod } from "./shared-helpers";
+import { trackEvent } from "@/lib/analyticsClient";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 export type { DateRange } from "./DateRangeFilter";
 
@@ -146,6 +147,16 @@ export function FilterBar({
         params.set(key, value);
       }
       router.replace(`?${params.toString()}`, { scroll: false });
+      // Analytics — every filter setter goes through this helper so a
+      // single track call at the choke point captures the full set of
+      // dimensions (search, editorial_pod, growth_pod, status, etc).
+      // PageView is a separate event that fires on every URL change;
+      // this complements it with the *which dimension* signal so the
+      // admin can answer "which filter is most popular".
+      trackEvent("FilterChanged", {
+        route: typeof window !== "undefined" ? window.location.pathname : "/",
+        props: { dimension: key, value: value || "All" },
+      });
     },
     [router, searchParams]
   );

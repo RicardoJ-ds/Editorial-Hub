@@ -30,6 +30,7 @@ import { TimeToMetrics } from "@/components/dashboard/TimeToMetrics";
 import { ProductionTrendChart } from "@/components/charts/ProductionTrendChart";
 import { ClientNotesPanel, hasClientNote } from "@/components/dashboard/ClientNotesPanel";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { useSectionDwellById } from "@/lib/useSectionDwell";
 import { DeliveryOverviewCards } from "@/components/dashboard/DeliveryOverviewCards";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { ClientDeliveryCards } from "@/components/dashboard/ClientDeliveryCards";
@@ -239,6 +240,15 @@ function DashboardSkeleton() {
 export default function EditorialClientsPage() {
   const searchParams = useSearchParams();
   const d1AsOf = useEditorialAsOf();
+  // Section dwell + enter tracking for the three Deliverables vs SOW
+  // anchors. The page renders bare <section id="..."> elements (no
+  // shared Section component) so we use the by-id variant of the hook
+  // — it finds the element with a polling lookup, then attaches an
+  // IntersectionObserver that emits SectionEntered + SectionViewed.
+  useSectionDwellById("delivery-overview");
+  useSectionDwellById("cumulative-pipeline");
+  useSectionDwellById("monthly-goals");
+  useSectionDwellById("contract-timeline");
   const [clients, setClients] = useState<Client[]>([]);
   const [deliverables, setDeliverables] = useState<DeliverableMonthly[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);

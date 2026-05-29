@@ -7,6 +7,7 @@ import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { SyncAllModal } from "@/components/data-management/SyncAllModal";
 import { apiGet } from "@/lib/api";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
+import { trackEvent } from "@/lib/analyticsClient";
 
 // Routes that group data by pod and benefit from the Editorial / Growth
 // switcher. Other pages (Admin, Data Management, Capacity Planning) hide
@@ -85,6 +86,10 @@ export function SyncControls() {
     setSyncError(null);
     setSyncState("syncing");
     setModalOpen(true);
+    trackEvent("SyncClicked", {
+      route: typeof window !== "undefined" ? window.location.pathname : "/",
+      props: { source: "header" },
+    });
   }
 
   function handleSyncComplete(allOk: boolean) {

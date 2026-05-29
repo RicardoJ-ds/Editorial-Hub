@@ -12,6 +12,7 @@ from app.routers import (
     access,
     admin,
     ai_monitoring,
+    analytics,
     capacity,
     client_delivery,
     clients,
@@ -181,6 +182,34 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("access_groups leadership/vps_managers consolidation failed (continuing)")
 
+    # 7. usage_events: ensure the props column is JSONB (not generic
+    #    JSON). The summary endpoint uses jsonb-only operators (`?`
+    #    key-existence, `->>` text extraction) to compute average
+    #    dwell time per section. If the table was created on an older
+    #    boot before this fix, the column is plain `json` and queries
+    #    fail with "operator does not exist: json ?". The ALTER is
+    #    idempotent — Postgres lets us widen json→jsonb in place.
+    try:
+        await conn.execute(
+            text("ALTER TABLE usage_events ALTER COLUMN props TYPE jsonb USING props::jsonb")
+        )
+    except Exception:
+        logger.exception("usage_events.props json→jsonb migration failed (continuing)")
+
+    # 8. usage_events retention — trim rows older than 6 months on every
+    #    boot. Cheap, bounded, and avoids needing a cron. The model
+    #    itself is created by Base.metadata.create_all; this DELETE
+    #    just keeps the table from growing unbounded over years.
+    try:
+        await conn.execute(
+            text(
+                "DELETE FROM usage_events "
+                "WHERE occurred_at < (CURRENT_TIMESTAMP - INTERVAL '6 months')"
+            )
+        )
+    except Exception:
+        logger.exception("usage_events retention trim failed (continuing)")
+
 
 def _seed_access(_conn) -> None:
     """Run the RBAC seed inside a sync session bound to the same connection
@@ -240,6 +269,7 @@ app.include_router(
     client_delivery.router, prefix="/api/dashboard/client-delivery", tags=["dashboard"]
 )
 app.include_router(notion_articles.router, prefix="/api/notion-articles", tags=["notion-articles"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 
 
 @app.get("/api/health")

@@ -14,6 +14,7 @@ import {
 import type { Client, ClientProductionRow, ProductionTrendPoint } from "@/lib/types";
 import type { DateRange } from "@/components/dashboard/DateRangeFilter";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
+import { trackClick } from "@/lib/analyticsClient";
 import { POD_HEX_COLORS, displayPod } from "@/components/dashboard/shared-helpers";
 import { normalizePod, sortPodKey } from "@/components/dashboard/ContractClientProgress";
 
@@ -471,7 +472,13 @@ function ViewModeToggle({
           <button
             key={o.id}
             type="button"
-            onClick={() => onChange(o.id)}
+            onClick={() => {
+              onChange(o.id);
+              trackClick("production-history.view-toggle", {
+                section_id: "production-history",
+                props: { value: o.id },
+              });
+            }}
             className={
               "rounded-sm px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors " +
               (active

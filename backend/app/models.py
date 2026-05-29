@@ -6,12 +6,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -749,3 +751,65 @@ class IncompleteClient(Base):
     last_seen_month: Mapped[int] = mapped_column(Integer, nullable=False)
     known_pods: Mapped[str | None] = mapped_column(String(500))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class UsageEvent(Base):
+    """Append-only stream of in-app user actions for the Admin Analytics
+    dashboard. One row per user-visible event:
+
+      • PageView          — route entered
+      • SectionViewed     — section scrolled into view (with dwell ms)
+      • FilterChanged     — filter bar setter fired (dimension + value)
+      • DrillDownOpened   — click-anchored popover opened
+      • SyncClicked       — SYNC button or per-step re-sync clicked
+      • CommentPosted     — new comment created
+      • CommentEdited     — existing comment PATCHed
+      • CommentResolved   — comment marked resolved
+      • CommentDeleted    — comment removed
+
+    Events are posted in batches by the frontend (`/api/analytics/event`,
+    flush on 5 events or 10s, whichever is sooner). `props` is a JSON
+    blob carrying event-specific metadata (selected pod, milestone slug,
+    dwell ms, etc.) so adding a new event type doesn't require a schema
+    change. `session_id` is a UUIDv4 generated client-side per tab so
+    return-cadence and session-length metrics work without a server-side
+    session table.
+
+    A startup retention job trims rows older than 6 months on every
+    boot — keeps the table bounded without an external cron.
+    """
+
+    __tablename__ = "usage_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Route the user was on (e.g. "/overview", "/editorial-clients"). For
+    # admin/data-management subpages, the full pathname is stored so we
+    # can disambiguate tabs at the analytics layer.
+    route: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Optional section id on the current route (e.g. "period-snapshot",
+    # "time-to-milestones"). NULL for events that aren't section-scoped
+    # (PageView itself, FilterChanged, SyncClicked).
+    section_id: Mapped[str | None] = mapped_column(String(80))
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    # Free-form metadata — kept small (< ~1 KB per event). The summary
+    # endpoint expects specific keys per event_type (see docstring).
+    # JSONB so we can use the `?` key-existence operator + jsonb_extract
+    # operators in the summary queries (top sections' dwell_ms filter).
+    props: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Tab-scoped session UUID minted by the frontend; lets analytics
+    # join events into sessions without server-side state.
+    session_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        # The two query shapes the analytics summary endpoint runs:
+        # (a) timeline aggregates → range scan by occurred_at, narrowed
+        #     by user_email for the per-user activity card.
+        # (b) top-N rollups by (route, event_type) → covering index for
+        #     GROUP BY route, event_type, date_trunc('day', occurred_at).
+        Index("ix_usage_events_occurred_user", "occurred_at", "user_email"),
+        Index("ix_usage_events_route_event", "route", "event_type"),
+    )

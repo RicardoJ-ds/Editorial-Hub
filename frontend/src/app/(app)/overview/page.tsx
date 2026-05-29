@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSectionDwell } from "@/lib/useSectionDwell";
 import { apiGet } from "@/lib/api";
 import { fetchAllDeliverables } from "@/lib/deliverablesClient";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -270,8 +271,17 @@ function Section({
    *  date-filtered" on Monthly Goals). */
   titleChip?: React.ReactNode;
 }) {
+  // Analytics: measure how long this section sits on-screen (≥50%
+  // visible). Fires SectionViewed with dwell_ms when the section
+  // leaves the viewport or the user navigates away.
+  const ref = useRef<HTMLElement>(null);
+  useSectionDwell(id, ref);
   return (
-    <section id={id} className="group/sec scroll-mt-[92px] space-y-3">
+    <section
+      ref={ref}
+      id={id}
+      className="group/sec scroll-mt-[92px] space-y-3"
+    >
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">

@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { trackEvent } from "@/lib/analyticsClient";
 
 export interface OverviewComment {
   id: number;
@@ -108,11 +109,20 @@ export function useOverviewComments() {
       client_name: input.client_name ?? null,
       body: input.body,
     });
+    trackEvent("CommentPosted", {
+      route: typeof window !== "undefined" ? window.location.pathname : "/",
+      section_id: input.section_id,
+      props: { has_client: !!input.client_name },
+    });
     await refetch();
   }, []);
 
   const resolve = useCallback(async (id: number) => {
     await apiPost<OverviewComment>(`/api/overview/comments/${id}/resolve`, {});
+    trackEvent("CommentResolved", {
+      route: typeof window !== "undefined" ? window.location.pathname : "/",
+      props: { comment_id: id },
+    });
     await refetch();
   }, []);
 
@@ -123,11 +133,19 @@ export function useOverviewComments() {
 
   const remove = useCallback(async (id: number) => {
     await apiDelete(`/api/overview/comments/${id}`);
+    trackEvent("CommentDeleted", {
+      route: typeof window !== "undefined" ? window.location.pathname : "/",
+      props: { comment_id: id },
+    });
     await refetch();
   }, []);
 
   const update = useCallback(async (id: number, body: string) => {
     await apiPatch<OverviewComment>(`/api/overview/comments/${id}`, { body });
+    trackEvent("CommentEdited", {
+      route: typeof window !== "undefined" ? window.location.pathname : "/",
+      props: { comment_id: id },
+    });
     await refetch();
   }, []);
 

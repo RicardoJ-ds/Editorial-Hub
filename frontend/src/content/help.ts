@@ -19,6 +19,7 @@ A single place for Editorial Ops to track clients, deliverables, capacity, and t
 | Plan capacity for next quarter? | **Capacity Maintenance** _(proposal stage)_ |
 | Audit who can see what? | **Admin → Access Control** |
 | Spot data drift between sources? | **Admin → Data Quality** |
+| Who's using the Hub and how often? | **Admin → Analytics** _(admin-only)_ |
 
 ---
 
@@ -80,6 +81,9 @@ Hover the dotted-underlined title — every metric carries a 2–3 bullet explan
 
 #### Comment on a section
 Hover the chat-bubble next to each section title on the Overview dashboard. Click to open a popover, optionally pick a client, and post. The composer is a rich-text editor — *Bold*, *Italic*, *Link*, *Bulleted list*, *Numbered list* via the toolbar or *Cmd+B / Cmd+I / Cmd+K* shortcuts. Comments posted without a client land under a green **General** group at the top of the section's popover. While you're writing or editing, the dashboard behind dims and locks — only *Cancel* or *Post / Save* dismiss the composer (no accidental loss of in-progress text). Admins + Leadership can post; everyone can read. Every existing comment carries an **Edit** button (pencil icon) next to Resolve and Delete; clicking it opens the same editor with your text prefilled so you can fix typos or add detail. Deleting a comment opens an inline confirmation (*Cancel / Delete*) — irreversible.
+
+#### See how the team is using the Hub *(admin-only)*
+Open **Admin → Analytics**. Two tabs: **Dashboard** (charts of total events / active users / sessions, daily activity, top dashboards + sections by view count and dwell, drill-down popover variants, click interactions, comment activity, per-user activity, filter usage, return cadence) and **Tracking Coverage** (inventory of every trackable event with status: ✓ Tracked, ⊖ Partial, ✗ Missing). The Dashboard tab has a **Group filter** (multi-select per RBAC group with member counts) — narrow the charts to "Editorial Team only", "Leadership + Ops", or any combination. Range tabs: 7d / 30d / 90d. Data retention is 6 months.
 
 ---
 

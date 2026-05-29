@@ -38,6 +38,7 @@ import {
 } from "@/components/dashboard/ContractClientProgress";
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { TimeToTrendChart } from "@/components/dashboard/TimeToMetrics";
+import { trackEvent } from "@/lib/analyticsClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Period Snapshot — top of /overview.
@@ -1626,6 +1627,11 @@ function PerClientDeliveryList({
       clientName: row.name,
       anchorX: e.clientX,
       anchorY: e.clientY,
+    });
+    trackEvent("DrillDownOpened", {
+      route: typeof window !== "undefined" ? window.location.pathname : "/",
+      section_id: "period-snapshot",
+      props: { variant: kind },
     });
   };
   return (

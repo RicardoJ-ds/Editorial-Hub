@@ -13,6 +13,7 @@ import {
   Sparkles,
   Shield,
   ShieldAlert,
+  BarChart3,
   LogOut,
   HelpCircle,
 } from "lucide-react";
@@ -71,6 +72,7 @@ const dataManagementNav: NavItem[] = [
 const adminNav: NavItem[] = [
   { label: "Access Control", href: "/admin/access", icon: Shield, requiredViews: ["admin.access"] },
   { label: "Data Quality", href: "/admin/data-quality", icon: ShieldAlert, requiredViews: ["admin.data_quality"] },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3, requiredViews: ["admin.analytics"] },
 ];
 
 function visibleItems(items: NavItem[], grantedViews: Set<string>): NavItem[] {

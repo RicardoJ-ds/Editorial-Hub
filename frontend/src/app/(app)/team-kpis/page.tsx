@@ -41,6 +41,7 @@ import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
 import { SyncControls } from "@/components/layout/SyncControls";
 import { TooltipBody } from "@/components/dashboard/shared-helpers";
+import { useSectionDwellById } from "@/lib/useSectionDwell";
 import {
   Tooltip,
   TooltipContent,
@@ -237,6 +238,10 @@ function DashboardSkeleton() {
 
 export default function TeamKpisPage() {
   const now = new Date();
+  // Section dwell tracking for the three AI tabs.
+  useSectionDwellById("ai-flagged");
+  useSectionDwellById("ai-rewrites");
+  useSectionDwellById("ai-surfer");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [kpiScores, setKpiScores] = useState<KpiScore[]>([]);
   const [capacityData, setCapacityData] = useState<CapacityProjection[]>([]);
