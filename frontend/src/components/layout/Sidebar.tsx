@@ -148,19 +148,19 @@ export function Sidebar({ user }: { user: HeaderUser }) {
   // chip → "changelog"). Sidebar owns this state because both triggers
   // live here.
   const [helpTab, setHelpTab] = useState<HelpModalTab | null>(null);
-  // Until the access profile loads, render every nav item — avoids the
-  // sidebar flickering "empty" on first paint. After load, sections with
-  // zero visible items disappear entirely.
+  // Until the access profile loads, render no permission-gated nav items.
+  // Rendering every item during that gap exposes links the user may not
+  // actually have, which is confusing on slow `/api/access/me` responses.
   const grantedViews = access ? new Set(access.view_slugs) : null;
   const dashItems = grantedViews
     ? visibleItems(dashboardNav, grantedViews)
-    : dashboardNav;
+    : [];
   const dataItems = grantedViews
     ? visibleItems(dataManagementNav, grantedViews)
-    : dataManagementNav;
+    : [];
   const adminItems = grantedViews
     ? visibleItems(adminNav, grantedViews)
-    : adminNav;
+    : [];
 
   return (
     <aside

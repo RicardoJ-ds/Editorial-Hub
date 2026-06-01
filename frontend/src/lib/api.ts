@@ -17,19 +17,37 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
  */
 let cachedEmail: string | null | undefined; // undefined = not fetched yet
 let inFlight: Promise<string | null> | null = null;
+const EMAIL_LOOKUP_TIMEOUT_MS = 10_000;
+const DEFAULT_GET_TIMEOUT_MS = 45_000;
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
 
 async function getEmail(): Promise<string | null> {
   if (cachedEmail !== undefined) return cachedEmail;
   if (inFlight) return inFlight;
-  inFlight = fetch("/api/me", { credentials: "include" })
-    .then(async (r) => {
+  let lookupFailed = false;
+  inFlight = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), EMAIL_LOOKUP_TIMEOUT_MS);
+    try {
+      const r = await fetch("/api/me", {
+        credentials: "include",
+        signal: controller.signal,
+      });
       if (!r.ok) return null;
       const data = (await r.json()) as { email?: string | null };
       return (data.email || "").trim().toLowerCase() || null;
-    })
-    .catch(() => null)
+    } catch {
+      lookupFailed = true;
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  })()
     .then((email) => {
-      cachedEmail = email;
+      if (!lookupFailed) cachedEmail = email;
       return email;
     })
     .finally(() => {
@@ -62,7 +80,19 @@ async function authHeaders(extra?: Record<string, string>): Promise<Record<strin
 
 export async function apiGet<T>(path: string): Promise<T> {
   const headers = await authHeaders();
-  const res = await fetch(`${API_URL}${path}`, { headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_GET_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { headers, signal: controller.signal });
+  } catch (err) {
+    if (isAbortError(err)) {
+      throw new Error(`API timeout after ${DEFAULT_GET_TIMEOUT_MS / 1000}s: ${path}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }

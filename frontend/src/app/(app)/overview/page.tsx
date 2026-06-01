@@ -48,7 +48,8 @@ const SECTIONS = [
 export default function OverviewPage() {
   // Pod-locked teams (Editorial Team / Growth Team) have no Overview by
   // spec. The hook bounces them to /editorial-clients.
-  useRequireView("overview");
+  const access = useRequireView("overview");
+  const canLoadOverview = !!access?.is_authenticated && access.view_slugs.includes("overview");
   const overviewAsOf = useEditorialAsOf();
   const { axis: podAxis } = useCurrentPodAxis();
   // "Link cards" toggle for the Time to Milestones section. The chip
@@ -65,22 +66,28 @@ export default function OverviewPage() {
   const [goals, setGoals] = useState<GoalsVsDeliveryRow[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ type: "all" });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!canLoadOverview) return;
     setLoading(true);
+    setLoadError(null);
     try {
-      const [cs, ds] = await Promise.all([
-        apiGet<Client[]>("/api/clients/?limit=200"),
-        fetchAllDeliverables(),
-      ]);
+      const cs = await apiGet<Client[]>("/api/clients/?limit=200");
       setClients(cs);
       setFilteredClients(cs);
-      setDeliverables(ds);
     } catch (e) {
       console.error("Overview load failed:", e);
+      setLoadError("Overview data failed to load. Refresh or check the API logs.");
+      return;
     } finally {
       setLoading(false);
     }
+    fetchAllDeliverables()
+      .then(setDeliverables)
+      .catch((e) => {
+        console.error("Overview deliverables load failed:", e);
+      });
     apiGet<CumulativeMetric[]>("/api/goals-delivery/cumulative")
       .then(setCumulative)
       .catch(() => {});
@@ -93,15 +100,19 @@ export default function OverviewPage() {
     apiGet<GoalsVsDeliveryRow[]>("/api/goals-delivery/all")
       .then(setGoals)
       .catch(() => {});
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  }, [canLoadOverview]);
 
   useEffect(() => {
+    if (!canLoadOverview) return;
+    fetchData();
+  }, [canLoadOverview, fetchData]);
+
+  useEffect(() => {
+    if (!canLoadOverview) return;
     const handler = () => { fetchData(); };
     window.addEventListener("data-synced", handler);
     return () => window.removeEventListener("data-synced", handler);
-  }, [fetchData]);
+  }, [canLoadOverview, fetchData]);
 
   const handleFilterChange = useCallback((filtered: Client[]) => {
     setFilteredClients(filtered);
@@ -120,6 +131,17 @@ export default function OverviewPage() {
       <div className="space-y-4">
         <p className="text-sm text-[#606060]">Loading overview…</p>
         <OverviewSkeleton />
+      </div>
+    );
+  }
+
+  if (loadError && clients.length === 0) {
+    return (
+      <div className="rounded-md border border-[#2a2a2a] bg-[#111] p-4">
+        <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#ED6958]">
+          Overview unavailable
+        </p>
+        <p className="mt-2 text-sm text-[#C4BCAA]">{loadError}</p>
       </div>
     );
   }
