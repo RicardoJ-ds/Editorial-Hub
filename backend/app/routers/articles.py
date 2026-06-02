@@ -140,12 +140,36 @@ async def list_unmapped(
         for u in unmapped.scalars()
     ]
 
-    editors_res = await db.execute(
-        select(ArticleRecord.editor_name, func.count().label("count"))
-        .group_by(ArticleRecord.editor_name)
-        .order_by(ArticleRecord.editor_name)
-    )
-    editors = [{"name": r.editor_name, "count": r.count} for r in editors_res]
+    # Editors + writers: distinct names with total credits AND their origin
+    # tabs (which client sheets a name appears in) so the value can be fixed at
+    # source. Top 6 tabs by volume per name + a total tab count.
+    async def _names_with_origins(col) -> list[dict]:
+        res = await db.execute(
+            select(col, ArticleRecord.source_tab, func.count().label("c"))
+            .where(col.is_not(None))
+            .group_by(col, ArticleRecord.source_tab)
+        )
+        agg: dict[str, dict] = {}
+        for name, tab, c in res:
+            row = agg.setdefault(name, {"name": name, "count": 0, "tab_counts": {}})
+            row["count"] += c
+            row["tab_counts"][tab] = row["tab_counts"].get(tab, 0) + c
+        out = []
+        for row in agg.values():
+            tabs_sorted = sorted(row["tab_counts"].items(), key=lambda kv: -kv[1])
+            out.append(
+                {
+                    "name": row["name"],
+                    "count": row["count"],
+                    "tab_count": len(tabs_sorted),
+                    "tabs": [t for t, _ in tabs_sorted[:6]],
+                }
+            )
+        out.sort(key=lambda r: r["name"].lower())
+        return out
+
+    editors = await _names_with_origins(ArticleRecord.editor_name)
+    writers = await _names_with_origins(ArticleRecord.writer_name)
 
     client_names_res = await db.execute(select(Client.name).order_by(Client.name))
     client_options = [r[0] for r in client_names_res]
@@ -159,13 +183,14 @@ async def list_unmapped(
     return {
         "clients": clients_unmapped,
         "editors": editors,
+        "writers": writers,
         "client_options": client_options,
         "aliases": aliases,
     }
 
 
 class AliasBody(BaseModel):
-    kind: str  # 'client' | 'editor'
+    kind: str  # 'client' | 'editor' | 'writer'
     raw_value: str
     canonical_value: str
 
@@ -182,8 +207,8 @@ async def upsert_alias(
     kind = body.kind.strip().lower()
     raw = body.raw_value.strip()
     canonical = body.canonical_value.strip()
-    if kind not in ("client", "editor") or not raw or not canonical:
-        return {"ok": False, "error": "kind must be client|editor; raw/canonical required"}
+    if kind not in ("client", "editor", "writer") or not raw or not canonical:
+        return {"ok": False, "error": "kind must be client|editor|writer; raw/canonical required"}
 
     existing = await db.execute(
         select(ArticleNameAlias).where(

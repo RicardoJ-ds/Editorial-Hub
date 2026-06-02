@@ -4990,6 +4990,14 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         .scalars()
         .all()
     }
+    writer_alias = {
+        a.raw_value.strip().lower(): a.canonical_value
+        for a in session.execute(
+            select(ArticleNameAlias).where(ArticleNameAlias.kind == "writer")
+        )
+        .scalars()
+        .all()
+    }
 
     # 2. List client tabs.
     try:
@@ -5080,6 +5088,11 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             editors = _split_editors(editor_raw)
             collab = len(editors) > 1
             writer_raw = str(cell("WRITER")).strip() or None
+            writer_name = (
+                writer_alias.get(writer_raw.strip().lower(), _clean_editor(writer_raw))
+                if writer_raw
+                else None
+            )
             title = str(cell("TITLE")).strip() or None
             link = str(cell("LINK")).strip() or None
             words = _article_parse_int(cell("WORDS"))
@@ -5094,7 +5107,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                         "editor_name": editor_alias.get(ed.strip().lower(), _clean_editor(ed)),
                         "editor_raw": editor_raw,
                         "collaboration": collab,
-                        "writer_name": writer_raw,
+                        "writer_name": writer_name,
                         "writer_raw": writer_raw,
                         "editorial_pod": pod,
                         "article_title": title,
