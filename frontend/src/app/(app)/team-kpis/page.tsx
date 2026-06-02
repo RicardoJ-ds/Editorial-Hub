@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
+import { MonthlyArticlesTab } from "@/components/dashboard/MonthlyArticlesTab";
 import { SyncControls } from "@/components/layout/SyncControls";
 import { TooltipBody } from "@/components/dashboard/shared-helpers";
 import { useSectionDwellById } from "@/lib/useSectionDwell";
@@ -436,6 +437,12 @@ export default function TeamKpisPage() {
             >
               AI Compliance
             </TabsTrigger>
+            <TabsTrigger
+              value="monthly-articles"
+              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+            >
+              Monthly Articles
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -469,6 +476,10 @@ export default function TeamKpisPage() {
               <AIComplianceTab />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="monthly-articles">
+          <MonthlyArticlesTab filters={filters} clients={clients} />
         </TabsContent>
       </Tabs>
     </div>
