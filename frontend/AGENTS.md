@@ -10,7 +10,7 @@ training data. Before writing new framework code, skim the relevant guide in
 
 - **Routes + folder structure**: `README.md`
 - **Auth flow**: `src/lib/auth.ts`, `src/lib/session.ts`, `proxy.ts`
-- **API client**: `src/lib/api.ts` (`apiGet`/`apiPost` against `NEXT_PUBLIC_API_URL`)
+- **API client**: `src/lib/api.ts` (`apiGet`/`apiPost` against `NEXT_PUBLIC_API_URL`). `getEmail()` bootstraps by fetching `/api/me` (Next.js route that decodes the httpOnly session cookie) — wrapped in a 10s `AbortController` so a hung response (e.g. an aggressive privacy extension blocking the path) doesn't permanently stall every API call. Failed lookups are NOT cached (`lookupFailed` flag): the next call retries instead of being stuck on `null`. `apiGet` has its own 45s timeout that throws a typed `API timeout after Ns: <path>` error on abort. **Note: `apiPost` / `apiPut` / `apiPatch` / `apiDelete` don't yet share this timeout treatment** — if you add one, mirror the `apiGet` pattern.
 - **Shared types**: `src/lib/types.ts` — mirror of `backend/app/schemas.py`. When you add or rename a field in either place, update both.
 - **Store pattern (CP v2)**: `src/app/(app)/capacity-planning/_store.tsx` is a React context backed by `localStorage`. Every CP v2 page reads + writes through this store. When the backend ships `/api/cp2/*` endpoints, swap `localStorage` calls for `apiGet`/`apiPost`; UI stays the same.
 - **Filter bar**: `src/components/dashboard/FilterBar.tsx` fans out filtered client list + date range via `onFilterChange` + `onDateRangeChange`. Dashboards that want time-aware charts must consume both. Status options: `All` / `Active` / `Soon to be active` (`SOON_TO_BE_ACTIVE`) / `Inactive/Completed`.

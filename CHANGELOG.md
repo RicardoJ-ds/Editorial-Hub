@@ -18,6 +18,28 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.20 — June 1
+
+**Overview page no longer hangs forever when something blocks the bootstrap fetch (e.g. a privacy extension intercepting `/api/me`). Every backend GET now times out at 45s, the email-lookup at 10s, and a clear "Overview unavailable" message renders if the page can't bootstrap — instead of an indefinite spinner.**
+
+### Overview — load resilience
+
+- **Hung loads now surface as an error** — when the critical clients fetch fails or times out, the page renders a clear "Overview unavailable. Refresh or check the API logs." panel instead of staying on "Loading overview…" forever.
+- **Data load gated on resolved access** — the page now waits for the user's access profile to land before firing the data fetch, so the access check + the data fetch don't race each other on slow networks.
+- **Faster paint when ready** — the required clients data loads first; the heavier secondary data (deliverables, cumulative pipeline, production trend, per-client production, goals) loads in parallel after, instead of blocking the first paint.
+
+### Across the Hub — network resilience
+
+- **Email lookup has a 10-second timeout** — the `/api/me` bootstrap call (which decodes your session cookie) used to wait forever if a browser extension or proxy blocked it; now it gives up after 10s. Failed lookups aren't cached, so the next API call retries.
+- **Every backend GET has a 45-second timeout** — any backend request that stalls longer than that throws an explicit error, instead of leaving pages stuck on a spinner.
+- **Sidebar nav waits for the access profile** — previously every link briefly flashed in before being hidden if the user didn't have access; now permission-gated sections only appear once the access profile loads.
+
+### Known follow-ups
+
+- The same timeout treatment hasn't been applied to `apiPost` / `apiPut` / `apiPatch` / `apiDelete` yet — a hung write (e.g. a comment post, an analytics flush) can still stall. Same with the error UI pattern, which currently only lives on the Overview page; the other dashboards will get matching error states in a follow-up.
+
+---
+
 ## 0.3.19 — May 29
 
 **Pod Snapshot Current Q row redesigned so the End-of-Q tier card sits adjacent to the progress bars it explains, with brighter column dividers and bigger numbers across every bar. New `BUSINESS_RULES.md` doc consolidates the Goals vs Delivery ingestion + display rules (including the upcoming Glossary content type from June) into one place.**
