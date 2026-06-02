@@ -100,6 +100,7 @@ const IMPORTABLE_EXACT = [
   "Notion Database",
   "Growth Pods",
   "ET CP Pod History",
+  "Monthly Article Count",
 ];
 
 /** Sheets that stay importable but are UNCHECKED by default. One-time
@@ -144,6 +145,7 @@ function getSheetGroup(name: string): string | null {
   if (name.startsWith("Master Tracker")) return "Master Tracker";
   if (name === "Notion Database") return "Master Tracker";
   if (name === "Growth Pods") return "BigQuery";
+  if (name === "Monthly Article Count") return "Monthly Article Count";
   return null;
 }
 

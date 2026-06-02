@@ -60,6 +60,7 @@ const IMPORTABLE_EXACT = new Set([
   "Master Tracker - Goals vs Delivery",
   "Notion Database",
   "Growth Pods",
+  "Monthly Article Count",
 ]);
 const IMPORTABLE_PREFIXES = [
   "ET CP 2026",

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, ChevronDown, Database, Info, RefreshCcw, Unlink, X } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, ChevronDown, Database, Info, Link2, RefreshCcw, Unlink, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArticleMappingsTab } from "@/components/admin/ArticleMappingsTab";
 import { apiGet, apiPost } from "@/lib/api";
 import {
   ClearFiltersButton,
@@ -1314,6 +1315,13 @@ export default function DataQualityPage() {
                 Pod history
               </TabsTrigger>
               <TabsTrigger
+                value="article_mappings"
+                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+              >
+                <Link2 className="mr-2 inline-block h-3.5 w-3.5" />
+                Article mappings
+              </TabsTrigger>
+              <TabsTrigger
                 value="modeling"
                 className="data-active:border-b-2 data-active:border-[#F5BC4E] data-active:text-white text-[#606060]"
               >
@@ -1333,6 +1341,9 @@ export default function DataQualityPage() {
             </TabsContent>
             <TabsContent value="pod_history" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <PodHistoryTab rows={podHistory} />
+            </TabsContent>
+            <TabsContent value="article_mappings" className="mt-3 flex-1 min-h-0 overflow-hidden">
+              <ArticleMappingsTab />
             </TabsContent>
             <TabsContent value="modeling" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <KnownLimitationsTab />
