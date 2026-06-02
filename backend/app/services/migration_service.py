@@ -16,6 +16,9 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import (
     AIMonitoringRecord,
+    ArticleNameAlias,
+    ArticleRecord,
+    ArticleUnmappedName,
     AuditLog,
     CapacityProjection,
     Client,
@@ -43,6 +46,7 @@ SPREADSHEET_ID = settings.spreadsheet_id
 MASTER_TRACKER_ID = settings.master_tracker_id
 AI_MONITORING_ID = settings.ai_monitoring_id
 TEAM_PODS_ID = settings.team_pods_id
+ARTICLE_COUNT_ID = settings.article_count_id
 
 # Human-readable descriptions for known sheets
 SHEET_DESCRIPTIONS: dict[str, str] = {
@@ -64,6 +68,7 @@ SHEET_DESCRIPTIONS: dict[str, str] = {
     "Notion Database": "Article workflow tracking from Notion export — 13K+ records with statuses, dates, assignments",
     "Monthly KPI Scores": "Manual KPI scores entered by SEs — Internal Quality, External Quality, Mentorship, Feedback Adoption",
     "Growth Pods": "Growth team → client mapping from BigQuery (team_pod_assignments ⋈ salesforce_int_Account). Updates clients.growth_pod.",
+    "Monthly Article Count": "Per-editor delivered-article log — one tab per client in the [Internal] Monthly Article Count/Revenue sheet. Drives the Team KPIs → Monthly Articles tab.",
 }
 
 # Map of importable sheet names to their import functions (populated below)
@@ -86,6 +91,7 @@ IMPORT_DISPATCH: dict[str, str] = {
     "Monthly KPI Scores": "import_monthly_kpi_scores",
     "Growth Pods": "import_growth_pods",
     "ET CP Pod History": "import_et_cp_pod_history",
+    "Monthly Article Count": "import_monthly_article_count",
 }
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
@@ -544,6 +550,18 @@ def list_available_sheets() -> list[dict]:
         }
     )
 
+    # Monthly Article Count lives in its own spreadsheet with ~94 client tabs.
+    # Surface it as a single synthetic source (the importer fans out across
+    # every client tab internally) rather than listing all 94 tabs.
+    sheets_info.append(
+        {
+            "name": "Monthly Article Count",
+            "row_count": _last_imported_row_count("Monthly Article Count") or 0,
+            "description": SHEET_DESCRIPTIONS.get("Monthly Article Count", ""),
+            "source": "Monthly Article Count",
+        }
+    )
+
     return sheets_info
 
 
@@ -632,6 +650,8 @@ def preview_sheet(sheet_name: str, max_rows: int = 20) -> dict:
         return _preview_growth_pods(max_rows)
     if sheet_name == "ET CP Pod History":
         return _preview_et_cp_pod_history(max_rows)
+    if sheet_name == "Monthly Article Count":
+        return _preview_monthly_article_count(max_rows)
 
     # Individual ET CP version tab — e.g. "ET CP 2026 [V11 Mar 2026]".
     # Each historical version is its own tab inside the Editorial Capacity
@@ -4744,3 +4764,410 @@ def import_all(session: Session, sheet_names: list[str]) -> list[ImportResult]:
         logger.exception("Failed to write migration audit log entry")
 
     return results
+
+
+# ===========================================================================
+# Monthly Article Count — per-editor delivered-article log
+# ---------------------------------------------------------------------------
+# One tab per client (~94 tabs) in the "[Internal] Monthly Article Count/
+# Revenue" sheet. We stack every client tab into article_records, exploding
+# slash-pair editors so each gets +1 credit, and denormalize each article's
+# pod from its resolved client's CURRENT/last editorial pod.
+#
+# Parsing is ported verbatim from the battle-tested standalone ETL
+# (~/python/editorial/editorial_dashboard/extract.py): header aliasing,
+# YYMMDD-in-copy-name date parsing with date-text / m-d-yyyy / Excel-serial
+# fallbacks, and chunked batchGet + backoff retry (the fix for the historical
+# preview/import API errors on this many-tab sheet).
+# ===========================================================================
+
+# Tabs that are NOT per-client article logs.
+_ARTICLE_NON_CLIENT_TABS = frozenset(
+    {
+        "MONTHLY_ARTICLES_COUNT",
+        "[Compare] MONTHLY ARTICLES COUNT",
+        "TEMPLATE",
+        "Word Counts November",
+    }
+)
+
+# Editor cell values that mean "no editor assigned".
+_ARTICLE_EDITOR_BLANKS = frozenset(
+    {"", "-", "—", "N/A", "NA", "TBD", "PENDING", "ENDED", "PAUSED", "PAUSE", "EDITOR"}
+)
+
+# Per-tab header strings → canonical key (row 2 is the header row).
+_ARTICLE_HDR_ALIASES = {
+    "EDITOR": "EDITOR",
+    "WRITER": "WRITER",
+    "ARTICLE TITLE": "TITLE",
+    "TITLE": "TITLE",
+    "DATE SUBMITTED": "DATE",
+    "SUBMISSION DATE": "DATE",
+    "SUBMITTED": "DATE",
+    "DUE DATE": "DATE",
+    "DATE": "DATE",
+    "WORD COUNT": "WORDS",
+    "WORDS": "WORDS",
+    "COPY NAME": "COPY",
+    "RENAMED": "COPY",
+    "LINK": "LINK",
+    "TASK ID": "TASK_ID",
+    "REVISED": "REVISED",
+}
+
+_ARTICLE_DATE_SUFFIX_RE = re.compile(r"\b(\d{6})\b")  # YYMMDD in copy name
+_ARTICLE_MONTH_NAMES = {
+    "JAN": 1, "JANUARY": 1, "FEB": 2, "FEBRUARY": 2, "MAR": 3, "MARCH": 3,
+    "APR": 4, "APRIL": 4, "MAY": 5, "JUN": 6, "JUNE": 6, "JUL": 7, "JULY": 7,
+    "AUG": 8, "AUGUST": 8, "SEP": 9, "SEPT": 9, "SEPTEMBER": 9, "OCT": 10,
+    "OCTOBER": 10, "NOV": 11, "NOVEMBER": 11, "DEC": 12, "DECEMBER": 12,
+}
+_ARTICLE_MONTH_WORD_RE = re.compile(
+    r"\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|"
+    r"JUL(?:Y)?|AUG(?:UST)?|SEPT?(?:EMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|"
+    r"DEC(?:EMBER)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _article_retry(fn, attempts: int = 4, base_delay: float = 2.0):
+    """Retry transient Sheets API errors (500/503/timeout) with backoff."""
+    import time
+
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001 — transient; re-raised on final attempt
+            if i == attempts - 1:
+                raise
+            time.sleep(base_delay * (2**i))
+    return None  # unreachable
+
+
+def _article_two_digit_year(yy: int) -> int | None:
+    """Bounded 2-digit-year → full year (drops typos like 290101)."""
+    return 2000 + yy if 18 <= yy <= 27 else None
+
+
+def _article_parse_int(v) -> int | None:
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return int(v)
+    try:
+        return int(float(str(v).replace(",", "").strip()))
+    except ValueError:
+        return None
+
+
+def _article_parse_excel_serial(text_val: str) -> tuple[int | None, int | None]:
+    """Sheets sometimes returns dates as serial numbers (days since 1899-12-30)."""
+    from datetime import timedelta
+
+    try:
+        n = float(str(text_val).strip())
+    except (ValueError, TypeError):
+        return None, None
+    if not (43101 <= n <= 47848):  # 2018-01-01 → 2030-12-31
+        return None, None
+    try:
+        dt = datetime(1899, 12, 30) + timedelta(days=n)
+        return dt.year, dt.month
+    except (OverflowError, ValueError):
+        return None, None
+
+
+def _article_parse_year_month(copy_name: str, date_text: str) -> tuple[int | None, int | None]:
+    """Best-effort (year, month): copy-name YYMMDD → month-word → m/d/yyyy → serial."""
+    m = _ARTICLE_DATE_SUFFIX_RE.search(str(copy_name))
+    if m:
+        s = m.group(1)
+        yr = _article_two_digit_year(int(s[:2]))
+        mm = int(s[2:4])
+        if yr and 1 <= mm <= 12:
+            return yr, mm
+    txt = str(date_text)
+    mword = _ARTICLE_MONTH_WORD_RE.search(txt)
+    if mword:
+        mm = _ARTICLE_MONTH_NAMES[mword.group(1).upper()]
+        yr_m = re.search(r"\b(20\d{2})\b", txt)
+        return (int(yr_m.group(1)), mm) if yr_m else (None, mm)
+    slash = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b", txt)
+    if slash:
+        return int(slash.group(3)), int(slash.group(1))
+    return _article_parse_excel_serial(txt)
+
+
+def _article_row_scan_year_month(row: list) -> tuple[int, int] | None:
+    """Last-resort: scan every cell for a plausible YYMMDD token."""
+    for cell_val in row:
+        if cell_val is None:
+            continue
+        for m in _ARTICLE_DATE_SUFFIX_RE.finditer(str(cell_val)):
+            tok = m.group(1)
+            yr = _article_two_digit_year(int(tok[:2]))
+            mm = int(tok[2:4])
+            if yr and 1 <= mm <= 12:
+                return yr, mm
+    return None
+
+
+def _article_build_header_map(header_row: list) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for idx, raw in enumerate(header_row):
+        key = str(raw).strip().upper()
+        if key in _ARTICLE_HDR_ALIASES:
+            out.setdefault(_ARTICLE_HDR_ALIASES[key], idx)
+    return out
+
+
+def _split_editors(editor_raw: str) -> list[str]:
+    """'Shelby/Maggie' → ['Shelby', 'Maggie']. Splits on / & , and 'and'."""
+    parts = re.split(r"[/&,]| and ", editor_raw, flags=re.IGNORECASE)
+    return [p.strip() for p in parts if p.strip() and p.strip().upper() not in _ARTICLE_EDITOR_BLANKS]
+
+
+def _clean_editor(name: str) -> str:
+    return re.sub(r"\s+", " ", str(name)).strip()
+
+
+def _reconcile_article_unmapped(session: Session, unresolved: dict[str, int]) -> None:
+    """Upsert this run's unresolved client tab names and self-heal the rest
+    (mirrors the PodImportIssue pattern). `unresolved` maps raw name → row count."""
+    existing = {
+        u.raw_value: u
+        for u in session.execute(
+            select(ArticleUnmappedName).where(ArticleUnmappedName.kind == "client")
+        )
+        .scalars()
+        .all()
+    }
+    now = datetime.utcnow()
+    for raw, count in unresolved.items():
+        row = existing.get(raw)
+        if row is None:
+            session.add(
+                ArticleUnmappedName(
+                    kind="client", raw_value=raw, occurrences=count, sample_tab=raw
+                )
+            )
+        else:
+            row.occurrences = count
+            row.last_seen_at = now
+            row.resolved_at = None
+    for raw, row in existing.items():
+        if raw not in unresolved and row.resolved_at is None:
+            row.resolved_at = now
+
+
+def import_monthly_article_count(session: Session) -> ImportResult:
+    """Stack every client tab of the Monthly Article Count sheet into
+    article_records (one row per article-editor; full rebuild each run)."""
+    import hashlib
+
+    from sqlalchemy import delete
+
+    result = ImportResult(sheet="Monthly Article Count")
+    service = get_sheets_client()
+
+    # 1. Fuzzy client lookup + DB-stored aliases (admin-added) merged in.
+    clients = session.execute(select(Client)).scalars().all()
+    lookup = _build_client_name_lookup(clients)
+    for a in (
+        session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "client"))
+        .scalars()
+        .all()
+    ):
+        canon = _resolve_client(lookup, a.canonical_value)
+        if canon is not None:
+            lookup.setdefault(a.raw_value.strip().lower(), canon)
+    editor_alias = {
+        a.raw_value.strip().lower(): a.canonical_value
+        for a in session.execute(
+            select(ArticleNameAlias).where(ArticleNameAlias.kind == "editor")
+        )
+        .scalars()
+        .all()
+    }
+
+    # 2. List client tabs.
+    try:
+        meta = _article_retry(
+            lambda: service.spreadsheets()
+            .get(
+                spreadsheetId=ARTICLE_COUNT_ID,
+                fields="sheets.properties(title,hidden,gridProperties(rowCount))",
+            )
+            .execute()
+        )
+    except Exception as exc:  # noqa: BLE001
+        result.success = False
+        result.errors.append(f"Could not read Monthly Article Count metadata: {exc}")
+        return result
+
+    # Include hidden tabs: paused/ended clients are hidden in the sheet UI but
+    # their article history is still wanted. Only NON_CLIENT_TABS are skipped.
+    tabs = [
+        s["properties"]["title"]
+        for s in meta.get("sheets", [])
+        if s["properties"]["title"] not in _ARTICLE_NON_CLIENT_TABS
+    ]
+
+    # 3. Chunked batchGet (25 ranges/call) + retry.
+    value_ranges: list[dict] = []
+    chunk = 25
+    for i in range(0, len(tabs), chunk):
+        chunk_tabs = tabs[i : i + chunk]
+        ranges = [f"'{t}'!A1:AT" for t in chunk_tabs]
+        try:
+            resp = _article_retry(
+                lambda r=ranges: service.spreadsheets()
+                .values()
+                .batchGet(
+                    spreadsheetId=ARTICLE_COUNT_ID,
+                    ranges=r,
+                    valueRenderOption="FORMATTED_VALUE",
+                )
+                .execute()
+            )
+            value_ranges.extend(resp.get("valueRanges", []))
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(
+                f"batchGet failed for tabs {chunk_tabs[0]}…{chunk_tabs[-1]}: {exc}"
+            )
+
+    # 4. Parse rows → exploded per-editor mappings.
+    records: list[dict] = []
+    unresolved: dict[str, int] = {}
+    parsed = 0
+    for tab, vr in zip(tabs, value_ranges):
+        values = vr.get("values", [])
+        if len(values) < 3:
+            continue
+        hmap = _article_build_header_map(values[1])
+        if "EDITOR" not in hmap:
+            continue
+        client_obj = _resolve_client(lookup, tab)
+        if client_obj is not None:
+            client_name, client_id = client_obj.name, client_obj.id
+            pod = _normalize_editorial_pod(client_obj.editorial_pod)
+        else:
+            client_name, client_id, pod = tab.strip(), None, None
+
+        for r_idx, row in enumerate(values[2:], start=3):
+            if not row:
+                continue
+
+            def cell(canon, _row=row, _hmap=hmap):
+                idx = _hmap.get(canon)
+                return _row[idx] if idx is not None and idx < len(_row) else ""
+
+            editor_raw = str(cell("EDITOR")).strip()
+            if editor_raw.upper() in _ARTICLE_EDITOR_BLANKS:
+                continue
+            parsed += 1
+            copy_name = str(cell("COPY"))
+            date_text = str(cell("DATE"))
+            year, month = _article_parse_year_month(copy_name, date_text)
+            if year is None or month is None:
+                scan = _article_row_scan_year_month(row)
+                if scan:
+                    year, month = scan
+            month_year = f"{year:04d}-{month:02d}" if year and month else None
+            # Non-cryptographic content fingerprint (stable per physical row).
+            uid = hashlib.sha256(f"{tab}|{r_idx}".encode()).hexdigest()[:16]
+            editors = _split_editors(editor_raw)
+            collab = len(editors) > 1
+            writer_raw = str(cell("WRITER")).strip() or None
+            title = str(cell("TITLE")).strip() or None
+            link = str(cell("LINK")).strip() or None
+            words = _article_parse_int(cell("WORDS"))
+            revised = str(cell("REVISED")).strip() or None
+            for ed in editors:
+                records.append(
+                    {
+                        "article_uid": uid,
+                        "client_name": client_name,
+                        "client_id": client_id,
+                        "source_tab": tab,
+                        "editor_name": editor_alias.get(ed.strip().lower(), _clean_editor(ed)),
+                        "editor_raw": editor_raw,
+                        "collaboration": collab,
+                        "writer_name": writer_raw,
+                        "writer_raw": writer_raw,
+                        "editorial_pod": pod,
+                        "article_title": title,
+                        "copy_name": copy_name or None,
+                        "link": link,
+                        "word_count": words,
+                        "date_submitted_raw": date_text or None,
+                        "year": year,
+                        "month": month,
+                        "month_year": month_year,
+                        "revised_raw": revised,
+                        "source_row": r_idx,
+                    }
+                )
+                if client_id is None:
+                    unresolved[client_name] = unresolved.get(client_name, 0) + 1
+
+    # 5. Full rebuild — the source has no reliable row key.
+    session.execute(delete(ArticleRecord))
+    session.flush()
+    if records:
+        session.bulk_insert_mappings(ArticleRecord, records)
+
+    # 6. Self-heal the unmapped-client audit.
+    _reconcile_article_unmapped(session, unresolved)
+    session.commit()
+
+    result.rows_parsed = parsed
+    result.rows_imported = len(records)
+    if unresolved:
+        sample = ", ".join(sorted(unresolved)[:10])
+        result.errors.append(
+            f"{len(unresolved)} client tab(s) unresolved to a Hub client (no pod): {sample}"
+            + ("…" if len(unresolved) > 10 else "")
+        )
+    return result
+
+
+def _preview_monthly_article_count(max_rows: int = 20) -> dict:
+    """Preview the first client tab (header on row 2) + a sample of its rows."""
+    service = get_sheets_client()
+    meta = (
+        service.spreadsheets()
+        .get(
+            spreadsheetId=ARTICLE_COUNT_ID,
+            fields="sheets.properties(title,hidden)",
+        )
+        .execute()
+    )
+    # Count every client tab (hidden included — the importer reads them all);
+    # but display the first VISIBLE tab so the sample is an active client.
+    props = [s["properties"] for s in meta.get("sheets", [])]
+    client_tabs = [p["title"] for p in props if p["title"] not in _ARTICLE_NON_CLIENT_TABS]
+    visible_tabs = [
+        p["title"]
+        for p in props
+        if not p.get("hidden") and p["title"] not in _ARTICLE_NON_CLIENT_TABS
+    ]
+    if not client_tabs:
+        return {"sheet_name": "Monthly Article Count", "headers": [], "rows": [], "total_rows": 0}
+    first = (visible_tabs or client_tabs)[0]
+    resp = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=ARTICLE_COUNT_ID, range=f"'{first}'!1:{max_rows + 2}")
+        .execute()
+    )
+    values = resp.get("values", [])
+    header = values[1] if len(values) >= 2 else (values[0] if values else [])
+    data = values[2:] if len(values) > 2 else []
+    return {
+        "sheet_name": f"Monthly Article Count · {first} (1 of {len(client_tabs)} client tabs)",
+        "headers": [str(h) for h in header],
+        "rows": [[str(c) if c is not None else "" for c in r] for r in data[:max_rows]],
+        "total_rows": len(client_tabs),
+    }

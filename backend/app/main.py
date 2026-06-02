@@ -13,6 +13,7 @@ from app.routers import (
     admin,
     ai_monitoring,
     analytics,
+    articles,
     capacity,
     client_delivery,
     clients,
@@ -270,6 +271,7 @@ app.include_router(
 )
 app.include_router(notion_articles.router, prefix="/api/notion-articles", tags=["notion-articles"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
+app.include_router(articles.router, prefix="/api/articles", tags=["articles"])
 
 
 @app.get("/api/health")

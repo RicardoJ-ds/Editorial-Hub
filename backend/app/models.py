@@ -753,6 +753,107 @@ class IncompleteClient(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class ArticleRecord(Base):
+    """One row per (delivered article, editor) from the Monthly Article Count
+    sheet. Pair-edited articles (e.g. "Shelby/Maggie") are exploded into one
+    row per editor so per-editor counts are a trivial GROUP BY; `article_uid`
+    is shared across an article's exploded rows so client-level distinct-article
+    counts use COUNT(DISTINCT article_uid).
+
+    `editorial_pod` is denormalized from the resolved client's CURRENT/last pod
+    at import time (Editorial pod is assigned per-client, not per-editor). It is
+    NULL when the source tab can't be resolved to a known client. Per-month pod
+    accuracy is a known pending follow-up — see
+    memory/project_monthly_article_count.md.
+
+    Rebuilt wholesale on every import (the source has no reliable row key), so
+    this table is never upserted in place.
+    """
+
+    __tablename__ = "article_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # Stable per-physical-article key (sha1 of source_tab|source_row), shared
+    # across the exploded per-editor rows.
+    article_uid: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    client_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("clients.id"), nullable=True, index=True
+    )
+    source_tab: Mapped[str] = mapped_column(String(255), nullable=False)
+    editor_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    editor_raw: Mapped[str | None] = mapped_column(String(255))
+    collaboration: Mapped[bool] = mapped_column(Boolean, default=False)
+    writer_name: Mapped[str | None] = mapped_column(String(255))
+    writer_raw: Mapped[str | None] = mapped_column(String(255))
+    editorial_pod: Mapped[str | None] = mapped_column(String(50), index=True)
+    article_title: Mapped[str | None] = mapped_column(Text)
+    copy_name: Mapped[str | None] = mapped_column(Text)
+    link: Mapped[str | None] = mapped_column(Text)
+    word_count: Mapped[int | None] = mapped_column(Integer)
+    date_submitted_raw: Mapped[str | None] = mapped_column(String(255))
+    year: Mapped[int | None] = mapped_column(Integer)
+    month: Mapped[int | None] = mapped_column(Integer)
+    month_year: Mapped[str | None] = mapped_column(String(7), index=True)  # "YYYY-MM"
+    # Raw REVISED cell, unparsed — reserved for the Revision Rate metric.
+    revised_raw: Mapped[str | None] = mapped_column(String(255))
+    source_row: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_article_records_pod_month", "editorial_pod", "month_year"),
+        Index("ix_article_records_editor_month", "editor_name", "month_year"),
+    )
+
+
+class ArticleNameAlias(Base):
+    """Manual / seeded name-canonicalization for the Monthly Article Count
+    importer. `kind='client'` maps a raw source-tab name to a canonical Hub
+    client name (merged into the fuzzy client lookup); `kind='editor'` merges
+    editor-name variants. Posted from the admin "Unmapped names" review screen;
+    self-heals the next import.
+    """
+
+    __tablename__ = "article_name_aliases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # 'client' | 'editor'
+    raw_value: Mapped[str] = mapped_column(String(255), nullable=False)
+    canonical_value: Mapped[str] = mapped_column(String(255), nullable=False)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    created_by: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("kind", "raw_value", name="uq_article_name_alias"),)
+
+
+class ArticleUnmappedName(Base):
+    """Source-tab client names the Monthly Article Count importer could not
+    resolve to a Hub client (so their articles carry no pod). Surfaced in the
+    admin review screen; `resolved_at` is set once a later import resolves the
+    name (via a new alias or a new SOW client). Mirrors PodImportIssue /
+    IncompleteClient.
+    """
+
+    __tablename__ = "article_unmapped_names"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="client")
+    raw_value: Mapped[str] = mapped_column(String(255), nullable=False)
+    occurrences: Mapped[int] = mapped_column(Integer, default=0)
+    sample_tab: Mapped[str | None] = mapped_column(String(255))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (UniqueConstraint("kind", "raw_value", name="uq_article_unmapped_name"),)
+
+
 class UsageEvent(Base):
     """Append-only stream of in-app user actions for the Admin Analytics
     dashboard. One row per user-visible event:
