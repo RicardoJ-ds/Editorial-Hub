@@ -230,6 +230,12 @@ async def _run_data_migrations(conn) -> None:
         await conn.execute(
             text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS notion_matched BOOLEAN NOT NULL DEFAULT FALSE")
         )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS growth_pod VARCHAR(50)")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_revisions ADD COLUMN IF NOT EXISTS growth_pod VARCHAR(50)")
+        )
     except Exception:
         logger.exception("article_records revision/published columns migration failed (continuing)")
 

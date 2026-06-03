@@ -787,6 +787,7 @@ class ArticleRecord(Base):
     writer_name: Mapped[str | None] = mapped_column(String(255))
     writer_raw: Mapped[str | None] = mapped_column(String(255))
     editorial_pod: Mapped[str | None] = mapped_column(String(50), index=True)
+    growth_pod: Mapped[str | None] = mapped_column(String(50), index=True)
     article_title: Mapped[str | None] = mapped_column(Text)
     copy_name: Mapped[str | None] = mapped_column(Text)
     link: Mapped[str | None] = mapped_column(Text)
@@ -843,6 +844,7 @@ class ArticleRevision(Base):
     editor_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     writer_name: Mapped[str | None] = mapped_column(String(255))
     editorial_pod: Mapped[str | None] = mapped_column(String(50), index=True)
+    growth_pod: Mapped[str | None] = mapped_column(String(50), index=True)
     revision_date: Mapped[date] = mapped_column(Date, nullable=False)
     month_year: Mapped[str | None] = mapped_column(String(7), index=True)  # editorial month of the revision
 

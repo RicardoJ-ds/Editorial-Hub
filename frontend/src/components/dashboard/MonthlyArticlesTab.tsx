@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { POD_HEX_COLORS, displayPod } from "./shared-helpers";
 import type { DateRange } from "./DateRangeFilter";
+import { useCurrentPodAxis } from "@/lib/podAxisClient";
+
+type PodAxis = "editorial" | "growth";
 
 // ---------------------------------------------------------------------------
 // Types + constants
@@ -90,8 +93,8 @@ function seriesColor(mode: ViewMode, key: string, idx: number): string {
   if (mode === "pod") return POD_HEX_COLORS[key] ?? OTHER_COLOR;
   return SERIES_PALETTE[idx % SERIES_PALETTE.length];
 }
-function seriesLabel(mode: Dim, key: string): string {
-  return mode === "pod" ? displayPod(key, "editorial") : key;
+function seriesLabel(mode: Dim, key: string, axis: PodAxis): string {
+  return mode === "pod" ? displayPod(key, axis) : key;
 }
 
 // ----- metric value math (num/den so rates aggregate correctly) -----
@@ -378,17 +381,24 @@ export function MonthlyArticlesTab({
   const [secondaryDim, setSecondaryDim] = useState<Dim | "none">("editor");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  // Group/label by the active pod axis (Editorial / Growth), same as the other
+  // dashboards. article_records carries both editorial_pod + growth_pod.
+  const { axis } = useCurrentPodAxis();
+  const podAxis: PodAxis = axis === "growth" ? "growth" : "editorial";
+
   // Derive the API filters from the shared FilterBar output (article history
   // spans all statuses, so we intentionally ignore the status filter):
-  //  • one shared editorial pod across the filtered clients → pod filter
+  //  • one shared pod (on the active axis) across the filtered clients → pod
   //  • exactly one filtered client → that client's name
   //  • otherwise unscoped (date-bounded only).
   const podParam = useMemo(() => {
     const pods = new Set(
-      filteredClients.map((c) => c.editorial_pod).filter((p): p is string => !!p),
+      filteredClients
+        .map((c) => (podAxis === "growth" ? c.growth_pod : c.editorial_pod))
+        .filter((p): p is string => !!p),
     );
     return pods.size === 1 ? [...pods][0] : null;
-  }, [filteredClients]);
+  }, [filteredClients, podAxis]);
 
   const clientName = useMemo(
     () => (filteredClients.length === 1 ? filteredClients[0].name : null),
@@ -414,6 +424,7 @@ export function MonthlyArticlesTab({
     const qs = new URLSearchParams();
     if (dateParams.date_from) qs.set("date_from", dateParams.date_from);
     if (dateParams.date_to) qs.set("date_to", dateParams.date_to);
+    qs.set("pod_axis", podAxis);
     if (podParam) qs.set("pod", podParam);
     if (clientName) qs.set("clients", clientName);
     if (selectedEditors.size > 0) qs.set("editors", Array.from(selectedEditors).join(","));
@@ -430,7 +441,7 @@ export function MonthlyArticlesTab({
     return () => {
       cancelled = true;
     };
-  }, [dateParams, podParam, clientName, selectedEditors]);
+  }, [dateParams, podParam, podAxis, clientName, selectedEditors]);
 
   const isRevisions = metric === "revisions";
   // Active rows projected to a uniform {month, pod, client, editor, num, den}
@@ -514,11 +525,11 @@ export function MonthlyArticlesTab({
       chartData: chartRows,
       series: seriesKeys.map((k, i) => ({
         key: k,
-        label: k === "Other" ? "Other" : seriesLabel(viewMode, k),
+        label: k === "Other" ? "Other" : seriesLabel(viewMode, k, podAxis),
         color: seriesColor(viewMode, k, i),
       })),
     };
-  }, [rows, months, viewMode, metric]);
+  }, [rows, months, viewMode, metric, podAxis]);
 
   // ----- matrix (configurable 1–2 level pivot) -----
   type MNode = { key: string; byMonth: Map<string, Acc>; total: Acc };
@@ -779,7 +790,7 @@ export function MonthlyArticlesTab({
                 matrix.primaries.map((p) => (
                   <MatrixGroup
                     key={p.key}
-                    primaryLabel={seriesLabel(primaryDim, p.key)}
+                    primaryLabel={seriesLabel(primaryDim, p.key, podAxis)}
                     node={p}
                     months={months}
                     metric={metric}
@@ -787,6 +798,7 @@ export function MonthlyArticlesTab({
                     hasChildren={secondaryDim !== "none" && p.children.size > 0}
                     onToggle={() => toggleRow(p.key)}
                     secondaryDim={secondaryDim}
+                    podAxis={podAxis}
                   />
                 ))
               )}
@@ -828,6 +840,7 @@ function MatrixGroup({
   hasChildren,
   onToggle,
   secondaryDim,
+  podAxis,
 }: {
   primaryLabel: string;
   node: {
@@ -841,6 +854,7 @@ function MatrixGroup({
   hasChildren: boolean;
   onToggle: () => void;
   secondaryDim: Dim | "none";
+  podAxis: PodAxis;
 }) {
   const weight = (a: Acc) => (metric === "rate" ? a.den : a.num);
   const children = useMemo(
@@ -884,7 +898,7 @@ function MatrixGroup({
         children.map((c) => (
           <tr key={c.key} className="border-t border-[#1f1f1f] bg-[#0f0f0f]">
             <td className="sticky left-0 z-10 bg-[#0f0f0f] py-1.5 pl-9 pr-3 text-[#909090] whitespace-nowrap">
-              {secondaryDim === "pod" ? displayPod(c.key, "editorial") : c.key}
+              {secondaryDim === "pod" ? displayPod(c.key, podAxis) : c.key}
             </td>
             {months.map((m) => (
               <td key={m} className="px-2 py-1.5 text-right font-mono text-[#909090]">

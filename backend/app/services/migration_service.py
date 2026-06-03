@@ -5242,8 +5242,9 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         if client_obj is not None:
             client_name, client_id = client_obj.name, client_obj.id
             pod = _normalize_editorial_pod(client_obj.editorial_pod)
+            gpod = _normalize_editorial_pod(client_obj.growth_pod)
         else:
-            client_name, client_id, pod = tab.strip(), None, None
+            client_name, client_id, pod, gpod = tab.strip(), None, None, None
 
         for r_idx, row in enumerate(values[2:], start=3):
             if not row:
@@ -5300,6 +5301,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                         "writer_name": writer_name,
                         "writer_raw": writer_raw,
                         "editorial_pod": pod,
+                        "growth_pod": gpod,
                         "article_title": title,
                         "copy_name": copy_name or None,
                         "link": link,
@@ -5326,6 +5328,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                             "editor_name": editor_name,
                             "writer_name": writer_name,
                             "editorial_pod": pod,
+                            "growth_pod": gpod,
                             "revision_date": rd,
                             "month_year": rmy,
                         }

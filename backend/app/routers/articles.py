@@ -52,10 +52,10 @@ def _normalize_pod(raw: str) -> str:
     return f"Pod {int(digits)}" if digits else t
 
 
-def _apply_article_filters(stmt, model, date_from, date_to, pod, client_list, editor_list):
+def _apply_article_filters(stmt, model, pod_col, date_from, date_to, pod, client_list, editor_list):
     """Apply the shared pod/client/editor/date filters to a query over `model`
-    (ArticleRecord or ArticleRevision — both expose month_year/editorial_pod/
-    client_name/editor_name)."""
+    (ArticleRecord or ArticleRevision). `pod_col` is the editorial_pod or
+    growth_pod column to filter on, chosen by the active pod axis."""
     stmt = stmt.where(model.month_year.is_not(None))
     if date_from:
         stmt = stmt.where(model.month_year >= date_from)
@@ -63,9 +63,9 @@ def _apply_article_filters(stmt, model, date_from, date_to, pod, client_list, ed
         stmt = stmt.where(model.month_year <= date_to)
     if pod and pod.lower() != "all":
         if pod.lower() in ("unassigned", "(none)", "none"):
-            stmt = stmt.where(model.editorial_pod.is_(None))
+            stmt = stmt.where(pod_col.is_(None))
         else:
-            stmt = stmt.where(model.editorial_pod == _normalize_pod(pod))
+            stmt = stmt.where(pod_col == _normalize_pod(pod))
     if client_list:
         stmt = stmt.where(model.client_name.in_(client_list))
     if editor_list:
@@ -78,6 +78,7 @@ async def monthly_article_counts(
     date_from: str | None = Query(None, description="Inclusive lower bound, 'YYYY-MM'"),
     date_to: str | None = Query(None, description="Inclusive upper bound, 'YYYY-MM'"),
     pod: str | None = Query(None, description="'Pod N', 'Unassigned', or 'All'/None"),
+    pod_axis: str = Query("editorial", description="'editorial' or 'growth' — which pod to group by"),
     clients: str | None = Query(None, description="CSV of canonical client names"),
     editors: str | None = Query(None, description="CSV of canonical editor names"),
     db: AsyncSession = Depends(get_db),
@@ -89,14 +90,19 @@ async def monthly_article_counts(
       Drives the Articles metric, Revision rate %, and the published reference.
     - `revisions`: per (month, pod, client, editor) bucketed by each REVISION's
       own month (from article_revisions). Drives the Revisions metric.
+
+    `pod` is grouped/filtered on the editorial or growth pod per `pod_axis`.
     """
     client_list = _csv(clients)
     editor_list = _csv(editors)
+    growth = pod_axis == "growth"
+    cre_pod = ArticleRecord.growth_pod if growth else ArticleRecord.editorial_pod
+    rev_pod = ArticleRevision.growth_pod if growth else ArticleRevision.editorial_pod
 
     creation_stmt = _apply_article_filters(
         select(
             ArticleRecord.month_year,
-            ArticleRecord.editorial_pod,
+            cre_pod.label("pod"),
             ArticleRecord.client_name,
             ArticleRecord.editor_name,
             func.count().label("count"),
@@ -108,11 +114,12 @@ async def monthly_article_counts(
             func.count().filter(ArticleRecord.notion_matched.is_(True)).label("matched"),
         ).group_by(
             ArticleRecord.month_year,
-            ArticleRecord.editorial_pod,
+            cre_pod,
             ArticleRecord.client_name,
             ArticleRecord.editor_name,
         ),
         ArticleRecord,
+        cre_pod,
         date_from,
         date_to,
         pod,
@@ -122,17 +129,18 @@ async def monthly_article_counts(
     revision_stmt = _apply_article_filters(
         select(
             ArticleRevision.month_year,
-            ArticleRevision.editorial_pod,
+            rev_pod.label("pod"),
             ArticleRevision.client_name,
             ArticleRevision.editor_name,
             func.count().label("revisions"),
         ).group_by(
             ArticleRevision.month_year,
-            ArticleRevision.editorial_pod,
+            rev_pod,
             ArticleRevision.client_name,
             ArticleRevision.editor_name,
         ),
         ArticleRevision,
+        rev_pod,
         date_from,
         date_to,
         pod,
@@ -144,7 +152,7 @@ async def monthly_article_counts(
     creation = [
         {
             "month_year": r.month_year,
-            "pod": r.editorial_pod or "Unassigned",
+            "pod": r.pod or "Unassigned",
             "client_name": r.client_name,
             "editor_name": r.editor_name,
             "count": r.count,
@@ -159,7 +167,7 @@ async def monthly_article_counts(
     revisions = [
         {
             "month_year": r.month_year,
-            "pod": r.editorial_pod or "Unassigned",
+            "pod": r.pod or "Unassigned",
             "client_name": r.client_name,
             "editor_name": r.editor_name,
             "revisions": r.revisions,
