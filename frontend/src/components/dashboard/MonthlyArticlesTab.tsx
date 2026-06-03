@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
   Line,
@@ -21,16 +21,29 @@ import type { TeamKpiFilters } from "./TeamKpiFilterBar";
 // Types + constants
 // ---------------------------------------------------------------------------
 
-interface ArticleRow {
-  month_year: string; // "YYYY-MM"
-  pod: string; // "Pod 3" | "Unassigned"
+// Per (month, pod, client, editor), bucketed by the article's CREATION month.
+interface CreationRow {
+  month_year: string;
+  pod: string;
   client_name: string;
   editor_name: string;
-  count: number;
+  count: number; // articles (editor-credits)
+  revised: number; // articles with ≥1 revision
+  published: number; // matched + published (Notion)
+  published_revised: number;
+  matched: number; // matched to a Notion row at all
+}
+// Per (month, pod, client, editor), bucketed by each REVISION's own month.
+interface RevisionRow {
+  month_year: string;
+  pod: string;
+  client_name: string;
+  editor_name: string;
+  revisions: number;
 }
 interface MonthlyResp {
-  rows: ArticleRow[];
-  months: string[];
+  creation: CreationRow[];
+  revisions: RevisionRow[];
 }
 interface EditorOpt {
   name: string;
@@ -39,6 +52,7 @@ interface EditorOpt {
 
 type Dim = "pod" | "client" | "editor";
 type ViewMode = Dim;
+type Metric = "articles" | "rate" | "revisions";
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "pod", label: "Per Pod" },
@@ -46,42 +60,61 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "editor", label: "Per Editor" },
 ];
 
+const METRICS: { key: Metric; label: string }[] = [
+  { key: "articles", label: "Articles" },
+  { key: "rate", label: "Revision rate %" },
+  { key: "revisions", label: "Revisions" },
+];
+
 const DIM_LABEL: Record<Dim, string> = { pod: "Pod", client: "Client", editor: "Editor" };
 
-// Series cap for client/editor views so the chart stays legible; the rest fold
-// into "Other". Pod view never caps (there are only a handful of pods).
 const SERIES_CAP = 12;
-
-// DS-aligned categorical palette for client/editor series (charts need hex,
-// not Tailwind classes). Greens lead, then complementary hues.
 const SERIES_PALETTE = [
   "#42CA80", "#8FB5D9", "#F5C542", "#F28D59", "#ED6958", "#CEBCF4",
   "#7FE8D6", "#F472B6", "#A78BFA", "#FDBA74", "#6EE7B7", "#93C5FD",
 ];
 const OTHER_COLOR = "#606060";
-
 const MONTH_SHORT = [
   "", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 function fmtMonth(ym: string): string {
   const [y, m] = ym.split("-");
-  const mi = parseInt(m, 10);
-  return `${MONTH_SHORT[mi] ?? m} ${String(y).slice(2)}`;
+  return `${MONTH_SHORT[parseInt(m, 10)] ?? m} ${String(y).slice(2)}`;
 }
-
 function monthKeyFromDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function seriesColor(mode: ViewMode, key: string, idx: number): string {
   if (key === "Other") return OTHER_COLOR;
   if (mode === "pod") return POD_HEX_COLORS[key] ?? OTHER_COLOR;
   return SERIES_PALETTE[idx % SERIES_PALETTE.length];
 }
-
 function seriesLabel(mode: Dim, key: string): string {
   return mode === "pod" ? displayPod(key, "editorial") : key;
+}
+
+// ----- metric value math (num/den so rates aggregate correctly) -----
+interface Acc {
+  num: number;
+  den: number;
+}
+const emptyAcc = (): Acc => ({ num: 0, den: 0 });
+function addAcc(a: Acc, num: number, den: number) {
+  a.num += num;
+  a.den += den;
+}
+// Resolve an accumulator to a display number. Rate = num/den*100 (null when no
+// denominator); sum metrics = num. Computing from summed num/den means
+// subtotals are a true pooled rate, not an average of rates.
+function finalize(acc: Acc | undefined, metric: Metric): number | null {
+  if (!acc) return metric === "rate" ? null : 0;
+  if (metric === "rate") return acc.den > 0 ? (acc.num / acc.den) * 100 : null;
+  return acc.num;
+}
+function fmtValue(v: number | null, metric: Metric): string {
+  if (v === null || v === undefined) return "";
+  return metric === "rate" ? `${Math.round(v)}%` : String(v);
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +180,7 @@ function EditorMultiSelect({
         </button>
       )}
       {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 w-[240px] rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl">
+        <div className="absolute top-full right-0 z-50 mt-1 w-[240px] rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl">
           <div className="relative border-b border-[#1f1f1f] p-2">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-3 w-3 -translate-y-1/2 text-[#606060]" />
             <input
@@ -185,9 +218,7 @@ function EditorMultiSelect({
                 </button>
               );
             })}
-            {visible.length === 0 && (
-              <p className="px-3 py-2 text-xs text-[#606060]">No matches.</p>
-            )}
+            {visible.length === 0 && <p className="px-3 py-2 text-xs text-[#606060]">No matches.</p>}
           </div>
         </div>
       )}
@@ -263,7 +294,8 @@ function DimSelect({
 }
 
 // ---------------------------------------------------------------------------
-// Chart tooltip (dark, on-brand)
+// Chart tooltip (dark, on-brand) — shows the metric value per series + a
+// published reference (creation-based metrics only).
 // ---------------------------------------------------------------------------
 
 interface TooltipPayloadItem {
@@ -271,22 +303,33 @@ interface TooltipPayloadItem {
   value: number;
   color: string;
 }
+interface MonthMeta {
+  count: number;
+  revised: number;
+  published: number;
+}
 function ChartTooltip({
   active,
   payload,
   label,
+  metric,
+  metaByMonth,
 }: {
   active?: boolean;
   payload?: TooltipPayloadItem[];
   label?: string;
+  metric: Metric;
+  metaByMonth: Map<string, MonthMeta>;
 }) {
   if (!active || !payload || payload.length === 0) return null;
-  const items = [...payload].filter((p) => p.value > 0).sort((a, b) => b.value - a.value);
-  const total = items.reduce((s, p) => s + (p.value ?? 0), 0);
+  const items = [...payload]
+    .filter((p) => p.value !== null && p.value !== undefined)
+    .sort((a, b) => b.value - a.value);
+  const meta = label ? metaByMonth.get(label) : undefined;
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 shadow-xl">
       <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-white">
-        {label} · {total} articles
+        {label}
       </p>
       <div className="space-y-0.5">
         {items.slice(0, 14).map((p) => (
@@ -295,13 +338,18 @@ function ChartTooltip({
               <span className="h-2 w-2 rounded-[2px]" style={{ background: p.color }} />
               {p.name}
             </span>
-            <span className="font-mono text-white">{p.value}</span>
+            <span className="font-mono text-white">{fmtValue(p.value, metric)}</span>
           </div>
         ))}
         {items.length > 14 && (
           <p className="pt-0.5 text-[10px] text-[#606060]">+{items.length - 14} more…</p>
         )}
       </div>
+      {meta && metric !== "revisions" && (
+        <p className="mt-1.5 border-t border-[#1f1f1f] pt-1 font-mono text-[10px] text-[#606060]">
+          {meta.revised}/{meta.count} revised · Published (Notion): {meta.published}
+        </p>
+      )}
     </div>
   );
 }
@@ -317,21 +365,18 @@ export function MonthlyArticlesTab({
   filters: TeamKpiFilters;
   clients: Client[];
 }) {
-  const [data, setData] = useState<MonthlyResp>({ rows: [], months: [] });
+  const [data, setData] = useState<MonthlyResp>({ creation: [], revisions: [] });
   const [editorOptions, setEditorOptions] = useState<EditorOpt[]>([]);
   const [selectedEditors, setSelectedEditors] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [metric, setMetric] = useState<Metric>("articles");
   const [viewMode, setViewMode] = useState<ViewMode>("pod");
   const [primaryDim, setPrimaryDim] = useState<Dim>("client");
   const [secondaryDim, setSecondaryDim] = useState<Dim | "none">("editor");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Map the shared filter bar's clientId → canonical client name (the API
-  // filters by name). The page-scoped editor multi-select drives editor
-  // filtering; the shared "Member" filter is a team-roster control and does
-  // not apply on this tab.
   const clientName = useMemo(() => {
     if (filters.clientId === "All") return null;
     return clients.find((c) => String(c.id) === filters.clientId)?.name ?? null;
@@ -343,7 +388,6 @@ export function MonthlyArticlesTab({
     return { date_from: monthKeyFromDate(filters.dateRange.from), date_to: monthKeyFromDate(to) };
   }, [filters.dateRange]);
 
-  // Editor option list (independent of filters) for the multi-select.
   useEffect(() => {
     apiGet<EditorOpt[]>("/api/articles/editors")
       .then(setEditorOptions)
@@ -365,7 +409,7 @@ export function MonthlyArticlesTab({
         if (!cancelled) setData(resp);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load article counts");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load article data");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -375,80 +419,137 @@ export function MonthlyArticlesTab({
     };
   }, [dateParams, filters.pod, clientName, selectedEditors]);
 
-  const months = data.months;
+  const isRevisions = metric === "revisions";
+  // Active rows projected to a uniform {month, pod, client, editor, num, den}
+  // shape so the chart + matrix share one aggregation path.
+  const rows = useMemo(() => {
+    if (isRevisions) {
+      return data.revisions.map((r) => ({
+        month_year: r.month_year,
+        pod: r.pod,
+        client_name: r.client_name,
+        editor_name: r.editor_name,
+        num: r.revisions,
+        den: 0,
+      }));
+    }
+    return data.creation.map((r) => ({
+      month_year: r.month_year,
+      pod: r.pod,
+      client_name: r.client_name,
+      editor_name: r.editor_name,
+      num: metric === "rate" ? r.revised : r.count,
+      den: metric === "rate" ? r.count : 0,
+    }));
+  }, [data, metric, isRevisions]);
 
-  // ----- chart series (top-N by total + Other) -----
+  const months = useMemo(
+    () => [...new Set(rows.map((r) => r.month_year))].sort(),
+    [rows],
+  );
+
+  // Per-month published reference for the chart tooltip (creation data only).
+  const metaByMonth = useMemo(() => {
+    const m = new Map<string, MonthMeta>();
+    for (const r of data.creation) {
+      const key = fmtMonth(r.month_year);
+      const cur = m.get(key) ?? { count: 0, revised: 0, published: 0 };
+      cur.count += r.count;
+      cur.revised += r.revised;
+      cur.published += r.published;
+      m.set(key, cur);
+    }
+    return m;
+  }, [data.creation]);
+
+  // ----- chart series (top-N by volume + Other) -----
   const { chartData, series } = useMemo(() => {
-    const keyOf = (r: ArticleRow) =>
+    const keyOf = (r: (typeof rows)[number]) =>
       viewMode === "pod" ? r.pod : viewMode === "client" ? r.client_name : r.editor_name;
-    const totals = new Map<string, number>();
-    for (const r of data.rows) totals.set(keyOf(r), (totals.get(keyOf(r)) ?? 0) + r.count);
-    const ranked = [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    // rank series by volume (denominator for rate, else the value)
+    const weights = new Map<string, number>();
+    for (const r of rows) {
+      weights.set(keyOf(r), (weights.get(keyOf(r)) ?? 0) + (metric === "rate" ? r.den : r.num));
+    }
+    const ranked = [...weights.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
     const cap = viewMode === "pod" ? ranked.length : SERIES_CAP;
     const top = ranked.slice(0, cap);
     const topSet = new Set(top);
     const hasOther = ranked.length > top.length;
 
-    const byMonth = new Map<string, Record<string, number>>();
-    for (const m of months) byMonth.set(m, {});
-    for (const r of data.rows) {
+    const byMonth = new Map<string, Map<string, Acc>>();
+    for (const m of months) byMonth.set(m, new Map());
+    for (const r of rows) {
       const bucket = byMonth.get(r.month_year);
       if (!bucket) continue;
       const k = topSet.has(keyOf(r)) ? keyOf(r) : "Other";
-      bucket[k] = (bucket[k] ?? 0) + r.count;
+      let acc = bucket.get(k);
+      if (!acc) {
+        acc = emptyAcc();
+        bucket.set(k, acc);
+      }
+      addAcc(acc, r.num, r.den);
     }
     const seriesKeys = hasOther ? [...top, "Other"] : top;
-    const rows = months.map((m) => {
-      const bucket = byMonth.get(m) ?? {};
-      const obj: Record<string, number | string> = { month: fmtMonth(m) };
-      for (const s of seriesKeys) obj[s] = bucket[s] ?? 0;
+    const chartRows = months.map((m) => {
+      const bucket = byMonth.get(m) ?? new Map();
+      const obj: Record<string, number | string | null> = { month: fmtMonth(m) };
+      for (const s of seriesKeys) obj[s] = finalize(bucket.get(s), metric);
       return obj;
     });
     return {
-      chartData: rows,
+      chartData: chartRows,
       series: seriesKeys.map((k, i) => ({
         key: k,
         label: k === "Other" ? "Other" : seriesLabel(viewMode, k),
         color: seriesColor(viewMode, k, i),
       })),
     };
-  }, [data.rows, months, viewMode]);
+  }, [rows, months, viewMode, metric]);
 
   // ----- matrix (configurable 1–2 level pivot) -----
+  type MNode = { key: string; byMonth: Map<string, Acc>; total: Acc };
   const matrix = useMemo(() => {
-    const dimVal = (r: ArticleRow, d: Dim) =>
+    const dimVal = (r: (typeof rows)[number], d: Dim) =>
       d === "pod" ? r.pod : d === "client" ? r.client_name : r.editor_name;
+    const primary = new Map<string, MNode & { children: Map<string, MNode> }>();
+    const grand = emptyAcc();
+    const grandByMonth = new Map<string, Acc>();
+    const bump = (map: Map<string, Acc>, key: string, num: number, den: number) => {
+      let a = map.get(key);
+      if (!a) {
+        a = emptyAcc();
+        map.set(key, a);
+      }
+      addAcc(a, num, den);
+    };
 
-    type Node = { key: string; byMonth: Map<string, number>; total: number };
-    const primary = new Map<string, Node & { children: Map<string, Node> }>();
-    let grand = 0;
-    const grandByMonth = new Map<string, number>();
-
-    for (const r of data.rows) {
+    for (const r of rows) {
       const pKey = dimVal(r, primaryDim);
       let p = primary.get(pKey);
       if (!p) {
-        p = { key: pKey, byMonth: new Map(), total: 0, children: new Map() };
+        p = { key: pKey, byMonth: new Map(), total: emptyAcc(), children: new Map() };
         primary.set(pKey, p);
       }
-      p.total += r.count;
-      p.byMonth.set(r.month_year, (p.byMonth.get(r.month_year) ?? 0) + r.count);
+      addAcc(p.total, r.num, r.den);
+      bump(p.byMonth, r.month_year, r.num, r.den);
       if (secondaryDim !== "none") {
         const sKey = dimVal(r, secondaryDim);
         let c = p.children.get(sKey);
         if (!c) {
-          c = { key: sKey, byMonth: new Map(), total: 0 };
+          c = { key: sKey, byMonth: new Map(), total: emptyAcc() };
           p.children.set(sKey, c);
         }
-        c.total += r.count;
-        c.byMonth.set(r.month_year, (c.byMonth.get(r.month_year) ?? 0) + r.count);
+        addAcc(c.total, r.num, r.den);
+        bump(c.byMonth, r.month_year, r.num, r.den);
       }
-      grand += r.count;
-      grandByMonth.set(r.month_year, (grandByMonth.get(r.month_year) ?? 0) + r.count);
+      addAcc(grand, r.num, r.den);
+      bump(grandByMonth, r.month_year, r.num, r.den);
     }
-    const primaries = [...primary.values()].sort((a, b) => b.total - a.total);
+    const weight = (a: Acc) => (metric === "rate" ? a.den : a.num);
+    const primaries = [...primary.values()].sort((a, b) => weight(b.total) - weight(a.total));
     return { primaries, grand, grandByMonth };
-  }, [data.rows, primaryDim, secondaryDim]);
+  }, [rows, primaryDim, secondaryDim, metric]);
 
   const toggleRow = (key: string) => {
     setExpanded((prev) => {
@@ -459,27 +560,44 @@ export function MonthlyArticlesTab({
     });
   };
 
-  const totalArticles = useMemo(() => data.rows.reduce((s, r) => s + r.count, 0), [data.rows]);
-  const distinctEditors = useMemo(
-    () => new Set(data.rows.map((r) => r.editor_name)).size,
-    [data.rows],
+  // headline stats (always from creation — the article universe)
+  const totalArticles = useMemo(
+    () => data.creation.reduce((s, r) => s + r.count, 0),
+    [data.creation],
   );
+  const totalRevised = useMemo(
+    () => data.creation.reduce((s, r) => s + r.revised, 0),
+    [data.creation],
+  );
+  const totalPublished = useMemo(
+    () => data.creation.reduce((s, r) => s + r.published, 0),
+    [data.creation],
+  );
+  const overallRate = totalArticles > 0 ? Math.round((totalRevised / totalArticles) * 100) : 0;
+
+  const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? "Articles";
+  const pivotNote = isRevisions
+    ? "by revision month (when the rework happened)"
+    : "by article creation month";
 
   return (
     <div className="mt-3 space-y-6">
-      {/* Summary + page-scoped editor multi-select */}
+      {/* Top controls: metric selector + headline + editor multi-select */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-5 font-mono text-xs text-[#C4BCAA]">
-          <span>
-            <span className="font-semibold text-white">{totalArticles.toLocaleString()}</span> article
-            credits
-          </span>
-          <span>
-            <span className="font-semibold text-white">{distinctEditors}</span> editors
-          </span>
-          <span>
-            <span className="font-semibold text-white">{months.length}</span> months
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#606060]">Metric</span>
+          <Segmented options={METRICS} value={metric} onChange={setMetric} />
+          <div className="flex items-center gap-4 pl-1 font-mono text-xs text-[#C4BCAA]">
+            <span>
+              <span className="font-semibold text-white">{totalArticles.toLocaleString()}</span> articles
+            </span>
+            <span>
+              <span className="font-semibold text-white">{overallRate}%</span> revised
+            </span>
+            <span>
+              <span className="font-semibold text-white">{totalPublished.toLocaleString()}</span> published
+            </span>
+          </div>
         </div>
         <EditorMultiSelect
           options={editorOptions}
@@ -498,13 +616,14 @@ export function MonthlyArticlesTab({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Articles Over Time
+            {metricLabel} Over Time
           </h3>
           <Segmented options={VIEW_MODES} value={viewMode} onChange={setViewMode} />
         </div>
         <p className="-mt-1 font-mono text-[10px] text-[#606060]">
-          Article count per {DIM_LABEL[viewMode].toLowerCase()} per month. Pod / Client / Date filters
-          above + the Editors selector narrow it. Tip: pick a pod, then switch to Per Editor to drill in.
+          {metricLabel} per {DIM_LABEL[viewMode].toLowerCase()} per month, {pivotNote}. Pod / Client /
+          Date filters + the Editors selector narrow it.
+          {metric === "rate" && " Rate = articles with ≥1 revision ÷ articles (all articles)."}
           {viewMode !== "pod" && ` Top ${SERIES_CAP} shown; the rest fold into "Other".`}
         </p>
         <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
@@ -514,7 +633,7 @@ export function MonthlyArticlesTab({
             </div>
           ) : chartData.length === 0 ? (
             <div className="flex h-[320px] items-center justify-center text-sm text-[#606060]">
-              No articles match the current filters.
+              No data matches the current filters.
             </div>
           ) : (
             <>
@@ -523,8 +642,19 @@ export function MonthlyArticlesTab({
                   <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
                     <XAxis dataKey="month" tick={{ fill: "#606060", fontSize: 11 }} tickLine={false} />
-                    <YAxis tick={{ fill: "#606060", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#2a2a2a" }} isAnimationActive={false} />
+                    <YAxis
+                      tick={{ fill: "#606060", fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                      domain={metric === "rate" ? [0, 100] : undefined}
+                      tickFormatter={metric === "rate" ? (v: number) => `${v}%` : undefined}
+                    />
+                    <Tooltip
+                      content={<ChartTooltip metric={metric} metaByMonth={metaByMonth} />}
+                      cursor={{ stroke: "#2a2a2a" }}
+                      isAnimationActive={false}
+                    />
                     {series.map((s) => (
                       <Line
                         key={s.key}
@@ -535,13 +665,13 @@ export function MonthlyArticlesTab({
                         strokeWidth={2}
                         dot={false}
                         activeDot={{ r: 3 }}
+                        connectNulls
                         isAnimationActive={false}
                       />
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              {/* Manual legend (on-brand, wraps) */}
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
                 {series.map((s) => (
                   <span key={s.key} className="flex items-center gap-1.5 text-[11px] text-[#C4BCAA]">
@@ -559,7 +689,7 @@ export function MonthlyArticlesTab({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Article Matrix
+            {metricLabel} Matrix
           </h3>
           <div className="flex flex-wrap items-center gap-3">
             <DimSelect
@@ -598,9 +728,10 @@ export function MonthlyArticlesTab({
           </div>
         </div>
         <p className="-mt-1 font-mono text-[10px] text-[#606060]">
+          {metricLabel}, {pivotNote}.{" "}
           {secondaryDim === "none"
             ? `One row per ${DIM_LABEL[primaryDim].toLowerCase()}.`
-            : `Grouped ${DIM_LABEL[primaryDim].toLowerCase()} ▸ ${DIM_LABEL[secondaryDim].toLowerCase()} — click a row to expand. Subtotals per group, grand total at the bottom.`}
+            : `Grouped ${DIM_LABEL[primaryDim].toLowerCase()} ▸ ${DIM_LABEL[secondaryDim].toLowerCase()} — click a row to expand. Subtotals + grand total ${metric === "rate" ? "are pooled rates (not averages)" : "sum up"}.`}
         </p>
         <div className="overflow-x-auto rounded-xl border border-[#2a2a2a] bg-[#161616]">
           <table className="w-full border-collapse text-xs">
@@ -619,7 +750,7 @@ export function MonthlyArticlesTab({
                   </th>
                 ))}
                 <th className="bg-[#1F1F1F] px-3 py-2 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-[#C4BCAA]">
-                  Total
+                  {metric === "rate" ? "Overall" : "Total"}
                 </th>
               </tr>
             </thead>
@@ -627,42 +758,38 @@ export function MonthlyArticlesTab({
               {matrix.primaries.length === 0 ? (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-6 text-center text-[#606060]">
-                    No articles match the current filters.
+                    No data matches the current filters.
                   </td>
                 </tr>
               ) : (
-                matrix.primaries.map((p) => {
-                  const isOpen = expanded.has(p.key);
-                  const hasChildren = secondaryDim !== "none" && p.children.size > 0;
-                  const pLabel = seriesLabel(primaryDim, p.key);
-                  return (
-                    <MatrixGroup
-                      key={p.key}
-                      primaryLabel={pLabel}
-                      node={p}
-                      months={months}
-                      open={isOpen}
-                      hasChildren={hasChildren}
-                      onToggle={() => toggleRow(p.key)}
-                      secondaryDim={secondaryDim}
-                    />
-                  );
-                })
+                matrix.primaries.map((p) => (
+                  <MatrixGroup
+                    key={p.key}
+                    primaryLabel={seriesLabel(primaryDim, p.key)}
+                    node={p}
+                    months={months}
+                    metric={metric}
+                    open={expanded.has(p.key)}
+                    hasChildren={secondaryDim !== "none" && p.children.size > 0}
+                    onToggle={() => toggleRow(p.key)}
+                    secondaryDim={secondaryDim}
+                  />
+                ))
               )}
             </tbody>
             {matrix.primaries.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-[#2a2a2a] bg-[#1a1a1a]">
                   <td className="sticky left-0 z-10 bg-[#1a1a1a] px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-wider text-white">
-                    Grand total
+                    {metric === "rate" ? "Overall" : "Grand total"}
                   </td>
                   {months.map((m) => (
                     <td key={m} className="px-2 py-2 text-right font-mono text-[11px] font-bold text-white">
-                      {matrix.grandByMonth.get(m) || ""}
+                      {fmtValue(finalize(matrix.grandByMonth.get(m), metric), metric)}
                     </td>
                   ))}
                   <td className="px-3 py-2 text-right font-mono text-[11px] font-bold text-[#42CA80]">
-                    {matrix.grand}
+                    {fmtValue(finalize(matrix.grand, metric), metric)}
                   </td>
                 </tr>
               </tfoot>
@@ -682,6 +809,7 @@ function MatrixGroup({
   primaryLabel,
   node,
   months,
+  metric,
   open,
   hasChildren,
   onToggle,
@@ -689,19 +817,21 @@ function MatrixGroup({
 }: {
   primaryLabel: string;
   node: {
-    byMonth: Map<string, number>;
-    total: number;
-    children: Map<string, { key: string; byMonth: Map<string, number>; total: number }>;
+    byMonth: Map<string, Acc>;
+    total: Acc;
+    children: Map<string, { key: string; byMonth: Map<string, Acc>; total: Acc }>;
   };
   months: string[];
+  metric: Metric;
   open: boolean;
   hasChildren: boolean;
   onToggle: () => void;
   secondaryDim: Dim | "none";
 }) {
+  const weight = (a: Acc) => (metric === "rate" ? a.den : a.num);
   const children = useMemo(
-    () => [...node.children.values()].sort((a, b) => b.total - a.total),
-    [node.children],
+    () => [...node.children.values()].sort((a, b) => weight(b.total) - weight(a.total)),
+    [node.children, metric],
   );
   return (
     <>
@@ -728,10 +858,12 @@ function MatrixGroup({
         </td>
         {months.map((m) => (
           <td key={m} className="px-2 py-2 text-right font-mono text-[#C4BCAA]">
-            {node.byMonth.get(m) || ""}
+            {fmtValue(finalize(node.byMonth.get(m), metric), metric)}
           </td>
         ))}
-        <td className="px-3 py-2 text-right font-mono font-semibold text-white">{node.total}</td>
+        <td className="px-3 py-2 text-right font-mono font-semibold text-white">
+          {fmtValue(finalize(node.total, metric), metric)}
+        </td>
       </tr>
       {open &&
         secondaryDim !== "none" &&
@@ -742,10 +874,12 @@ function MatrixGroup({
             </td>
             {months.map((m) => (
               <td key={m} className="px-2 py-1.5 text-right font-mono text-[#909090]">
-                {c.byMonth.get(m) || ""}
+                {fmtValue(finalize(c.byMonth.get(m), metric), metric)}
               </td>
             ))}
-            <td className="px-3 py-1.5 text-right font-mono text-[#C4BCAA]">{c.total}</td>
+            <td className="px-3 py-1.5 text-right font-mono text-[#C4BCAA]">
+              {fmtValue(finalize(c.total, metric), metric)}
+            </td>
           </tr>
         ))}
     </>

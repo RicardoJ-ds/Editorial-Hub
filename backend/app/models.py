@@ -801,8 +801,20 @@ class ArticleRecord(Base):
     year: Mapped[int | None] = mapped_column(Integer)
     month: Mapped[int | None] = mapped_column(Integer)
     month_year: Mapped[str | None] = mapped_column(String(7), index=True)  # "YYYY-MM"
-    # Raw REVISED cell, unparsed — reserved for the Revision Rate metric.
+    # Raw REVISED cell + parsed revision events. revision_count = number of
+    # revision dates found; revision_dates = parsed ISO dates. The Revision rate
+    # metric pivots on the article's creation month (this row); revision VOLUME
+    # pivots on each revision's own date — see ArticleRevision.
     revised_raw: Mapped[str | None] = mapped_column(String(255))
+    revision_count: Mapped[int] = mapped_column(Integer, default=0)
+    revision_dates: Mapped[list | None] = mapped_column(JSONB)
+    task_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    # Published status from the Notion Content Machine DB, matched by TASK ID
+    # then normalized title. notion_matched distinguishes "not published" from
+    # "no Notion match" (unknown). Shown as a reference; not a metric basis.
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    published_url: Mapped[str | None] = mapped_column(Text)
+    notion_matched: Mapped[bool] = mapped_column(Boolean, default=False)
     source_row: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -812,6 +824,31 @@ class ArticleRecord(Base):
     __table_args__ = (
         Index("ix_article_records_pod_month", "editorial_pod", "month_year"),
         Index("ix_article_records_editor_month", "editor_name", "month_year"),
+    )
+
+
+class ArticleRevision(Base):
+    """One row per (article, editor, revision event), exploded from the REVISED
+    cell. Lets the Revisions metric aggregate by the revision's OWN editorial
+    month (capacity lands when the rework happens) — distinct from the parent
+    ArticleRecord, whose month_year is the article's creation month. Rebuilt
+    wholesale alongside article_records on every Monthly Article Count sync.
+    """
+
+    __tablename__ = "article_revisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    article_uid: Mapped[str] = mapped_column(String(64), index=True)
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    editor_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    writer_name: Mapped[str | None] = mapped_column(String(255))
+    editorial_pod: Mapped[str | None] = mapped_column(String(50), index=True)
+    revision_date: Mapped[date] = mapped_column(Date, nullable=False)
+    month_year: Mapped[str | None] = mapped_column(String(7), index=True)  # editorial month of the revision
+
+    __table_args__ = (
+        Index("ix_article_revisions_pod_month", "editorial_pod", "month_year"),
+        Index("ix_article_revisions_editor_month", "editor_name", "month_year"),
     )
 
 

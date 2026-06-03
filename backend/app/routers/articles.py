@@ -22,12 +22,18 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_deps import require_access_editor
 from app.database import get_db
-from app.models import ArticleNameAlias, ArticleRecord, ArticleUnmappedName, Client
+from app.models import (
+    ArticleNameAlias,
+    ArticleRecord,
+    ArticleRevision,
+    ArticleUnmappedName,
+    Client,
+)
 
 router = APIRouter()
 
@@ -46,6 +52,27 @@ def _normalize_pod(raw: str) -> str:
     return f"Pod {int(digits)}" if digits else t
 
 
+def _apply_article_filters(stmt, model, date_from, date_to, pod, client_list, editor_list):
+    """Apply the shared pod/client/editor/date filters to a query over `model`
+    (ArticleRecord or ArticleRevision — both expose month_year/editorial_pod/
+    client_name/editor_name)."""
+    stmt = stmt.where(model.month_year.is_not(None))
+    if date_from:
+        stmt = stmt.where(model.month_year >= date_from)
+    if date_to:
+        stmt = stmt.where(model.month_year <= date_to)
+    if pod and pod.lower() != "all":
+        if pod.lower() in ("unassigned", "(none)", "none"):
+            stmt = stmt.where(model.editorial_pod.is_(None))
+        else:
+            stmt = stmt.where(model.editorial_pod == _normalize_pod(pod))
+    if client_list:
+        stmt = stmt.where(model.client_name.in_(client_list))
+    if editor_list:
+        stmt = stmt.where(model.editor_name.in_(editor_list))
+    return stmt
+
+
 @router.get("/monthly")
 async def monthly_article_counts(
     date_from: str | None = Query(None, description="Inclusive lower bound, 'YYYY-MM'"),
@@ -55,53 +82,91 @@ async def monthly_article_counts(
     editors: str | None = Query(None, description="CSV of canonical editor names"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Granular monthly article counts, filtered, for the chart + matrix."""
-    stmt = (
+    """Two filtered, granular aggregates for the chart + matrix:
+
+    - `creation`: per (month, pod, client, editor) bucketed by the article's
+      CREATION month — count + revised (≥1 revision) + published + matched.
+      Drives the Articles metric, Revision rate %, and the published reference.
+    - `revisions`: per (month, pod, client, editor) bucketed by each REVISION's
+      own month (from article_revisions). Drives the Revisions metric.
+    """
+    client_list = _csv(clients)
+    editor_list = _csv(editors)
+
+    creation_stmt = _apply_article_filters(
         select(
             ArticleRecord.month_year,
             ArticleRecord.editorial_pod,
             ArticleRecord.client_name,
             ArticleRecord.editor_name,
             func.count().label("count"),
-        )
-        .where(ArticleRecord.month_year.is_not(None))
-        .group_by(
+            func.count().filter(ArticleRecord.revision_count > 0).label("revised"),
+            func.count().filter(ArticleRecord.is_published.is_(True)).label("published"),
+            func.count()
+            .filter(and_(ArticleRecord.is_published.is_(True), ArticleRecord.revision_count > 0))
+            .label("published_revised"),
+            func.count().filter(ArticleRecord.notion_matched.is_(True)).label("matched"),
+        ).group_by(
             ArticleRecord.month_year,
             ArticleRecord.editorial_pod,
             ArticleRecord.client_name,
             ArticleRecord.editor_name,
-        )
+        ),
+        ArticleRecord,
+        date_from,
+        date_to,
+        pod,
+        client_list,
+        editor_list,
+    )
+    revision_stmt = _apply_article_filters(
+        select(
+            ArticleRevision.month_year,
+            ArticleRevision.editorial_pod,
+            ArticleRevision.client_name,
+            ArticleRevision.editor_name,
+            func.count().label("revisions"),
+        ).group_by(
+            ArticleRevision.month_year,
+            ArticleRevision.editorial_pod,
+            ArticleRevision.client_name,
+            ArticleRevision.editor_name,
+        ),
+        ArticleRevision,
+        date_from,
+        date_to,
+        pod,
+        client_list,
+        editor_list,
     )
 
-    if date_from:
-        stmt = stmt.where(ArticleRecord.month_year >= date_from)
-    if date_to:
-        stmt = stmt.where(ArticleRecord.month_year <= date_to)
-    if pod and pod.lower() != "all":
-        if pod.lower() in ("unassigned", "(none)", "none"):
-            stmt = stmt.where(ArticleRecord.editorial_pod.is_(None))
-        else:
-            stmt = stmt.where(ArticleRecord.editorial_pod == _normalize_pod(pod))
-    client_list = _csv(clients)
-    if client_list:
-        stmt = stmt.where(ArticleRecord.client_name.in_(client_list))
-    editor_list = _csv(editors)
-    if editor_list:
-        stmt = stmt.where(ArticleRecord.editor_name.in_(editor_list))
-
-    result = await db.execute(stmt)
-    rows = [
+    creation_res = await db.execute(creation_stmt)
+    creation = [
         {
             "month_year": r.month_year,
             "pod": r.editorial_pod or "Unassigned",
             "client_name": r.client_name,
             "editor_name": r.editor_name,
             "count": r.count,
+            "revised": r.revised,
+            "published": r.published,
+            "published_revised": r.published_revised,
+            "matched": r.matched,
         }
-        for r in result
+        for r in creation_res
     ]
-    months = sorted({row["month_year"] for row in rows})
-    return {"rows": rows, "months": months}
+    revision_res = await db.execute(revision_stmt)
+    revisions = [
+        {
+            "month_year": r.month_year,
+            "pod": r.editorial_pod or "Unassigned",
+            "client_name": r.client_name,
+            "editor_name": r.editor_name,
+            "revisions": r.revisions,
+        }
+        for r in revision_res
+    ]
+    return {"creation": creation, "revisions": revisions}
 
 
 @router.get("/editors")

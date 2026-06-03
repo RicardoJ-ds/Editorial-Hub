@@ -18,6 +18,7 @@ from app.models import (
     AIMonitoringRecord,
     ArticleNameAlias,
     ArticleRecord,
+    ArticleRevision,
     ArticleUnmappedName,
     AuditLog,
     CapacityProjection,
@@ -5041,6 +5042,104 @@ def _reconcile_article_unmapped(session: Session, unresolved: dict[str, int]) ->
             row.resolved_at = now
 
 
+def _parse_revisions(
+    revised_raw: str | None, submit_date: date | None, weeks: list[tuple[date, date, int, int]]
+) -> tuple[int, list[tuple[date, str]]]:
+    """Parse the REVISED cell (often a comma-list of dates) into a revision
+    count + resolved (date, editorial-month) events. The cell rarely carries a
+    year, so the year is inferred from the article's submitted date (same year,
+    or +1 when the revision month is earlier than the submit month → wrapped into
+    the next year). count includes every date-like token; events only those we
+    could place on a calendar."""
+    if not revised_raw:
+        return 0, []
+    count = 0
+    events: list[tuple[date, str]] = []
+    for token in str(revised_raw).split(","):
+        token = token.strip()
+        if not token:
+            continue
+        mword = _ARTICLE_MONTH_WORD_RE.search(token)
+        slash = re.search(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](20\d{2}))?\b", token)
+        if mword:
+            mm = _ARTICLE_MONTH_NAMES[mword.group(1).upper()]
+            dmatch = re.search(r"\b(\d{1,2})\b", token[mword.end() :])
+            dd = int(dmatch.group(1)) if dmatch else 1
+            yr: int | None = None
+        elif slash:
+            mm, dd = int(slash.group(1)), int(slash.group(2))
+            yr = int(slash.group(3)) if slash.group(3) else None
+        else:
+            continue  # not date-like
+        if not (1 <= mm <= 12 and 1 <= dd <= 31):
+            continue
+        count += 1
+        if yr is None:
+            if submit_date is None:
+                continue  # counted, but can't place without a year
+            yr = submit_date.year + (1 if mm < submit_date.month else 0)
+        rd = _safe_article_date(yr, mm, dd)
+        if rd is None:
+            continue
+        em = _editorial_month_for(rd, weeks)
+        my = f"{em[0]:04d}-{em[1]:02d}" if em else f"{yr:04d}-{mm:02d}"
+        events.append((rd, my))
+    return count, events
+
+
+def _apply_notion_published(session: Session, records: list[dict]) -> tuple[int, int]:
+    """Flag each record's is_published / published_url / notion_matched from the
+    Notion Content Machine DB. Match by TASK ID (case_id) first, then a unique
+    normalized-title fallback. Returns (matched, published) row counts."""
+    notion = session.execute(
+        select(
+            NotionArticle.case_id,
+            NotionArticle.title,
+            NotionArticle.cms_status,
+            NotionArticle.published_url,
+        )
+    ).all()
+
+    def _published(cms_status, url) -> bool:
+        return bool(url) or (cms_status or "").startswith("Published")
+
+    by_id: dict[str, tuple[bool, str | None]] = {}
+    title_counts: dict[str, int] = {}
+    by_title_tmp: dict[str, tuple[bool, str | None]] = {}
+    for case_id, title, cms_status, url in notion:
+        info = (_published(cms_status, url), url)
+        if case_id:
+            by_id[case_id] = info
+        if title:
+            key = _name_key(title)
+            if key:
+                title_counts[key] = title_counts.get(key, 0) + 1
+                by_title_tmp[key] = info
+    # Keep only unambiguous titles (one Notion row).
+    by_title = {k: v for k, v in by_title_tmp.items() if title_counts.get(k) == 1}
+
+    matched = published = 0
+    for r in records:
+        info = None
+        tid = (r.get("task_id") or "").strip()
+        if tid and tid.upper().startswith("ID-") and tid in by_id:
+            info = by_id[tid]
+        elif r.get("article_title"):
+            info = by_title.get(_name_key(r["article_title"]))
+        if info is not None:
+            r["notion_matched"] = True
+            r["is_published"] = info[0]
+            r["published_url"] = info[1]
+            matched += 1
+            if info[0]:
+                published += 1
+        else:
+            r["notion_matched"] = False
+            r["is_published"] = False
+            r["published_url"] = None
+    return matched, published
+
+
 def import_monthly_article_count(session: Session) -> ImportResult:
     """Stack every client tab of the Monthly Article Count sheet into
     article_records (one row per article-editor; full rebuild each run)."""
@@ -5129,6 +5228,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
 
     # 4. Parse rows → exploded per-editor mappings.
     records: list[dict] = []
+    revision_rows: list[dict] = []
     unresolved: dict[str, int] = {}
     parsed = 0
     for tab, vr in zip(tabs, value_ranges):
@@ -5183,14 +5283,18 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             link = str(cell("LINK")).strip() or None
             words = _article_parse_int(cell("WORDS"))
             revised = str(cell("REVISED")).strip() or None
+            task_id = str(cell("TASK_ID")).strip() or None
+            rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
+            rev_dates_iso = [d.isoformat() for d, _ in rev_events]
             for ed in editors:
+                editor_name = editor_alias.get(ed.strip().lower(), _clean_editor(ed))
                 records.append(
                     {
                         "article_uid": uid,
                         "client_name": client_name,
                         "client_id": client_id,
                         "source_tab": tab,
-                        "editor_name": editor_alias.get(ed.strip().lower(), _clean_editor(ed)),
+                        "editor_name": editor_name,
                         "editor_raw": editor_raw,
                         "collaboration": collab,
                         "writer_name": writer_name,
@@ -5206,19 +5310,42 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                         "month": month,
                         "month_year": month_year,
                         "revised_raw": revised,
+                        "revision_count": rev_count,
+                        "revision_dates": rev_dates_iso or None,
+                        "task_id": task_id,
                         "source_row": r_idx,
                     }
                 )
+                # Revision VOLUME rows — one per (editor, revision event), bucketed
+                # by the revision's own editorial month.
+                for rd, rmy in rev_events:
+                    revision_rows.append(
+                        {
+                            "article_uid": uid,
+                            "client_name": client_name,
+                            "editor_name": editor_name,
+                            "writer_name": writer_name,
+                            "editorial_pod": pod,
+                            "revision_date": rd,
+                            "month_year": rmy,
+                        }
+                    )
                 if client_id is None:
                     unresolved[client_name] = unresolved.get(client_name, 0) + 1
 
-    # 5. Full rebuild — the source has no reliable row key.
+    # 5. Notion published match (TASK ID → unique-title fallback).
+    matched, published = _apply_notion_published(session, records)
+
+    # 6. Full rebuild — the source has no reliable row key.
+    session.execute(delete(ArticleRevision))
     session.execute(delete(ArticleRecord))
     session.flush()
     if records:
         session.bulk_insert_mappings(ArticleRecord, records)
+    if revision_rows:
+        session.bulk_insert_mappings(ArticleRevision, revision_rows)
 
-    # 6. Self-heal the unmapped-client audit.
+    # 7. Self-heal the unmapped-client audit.
     _reconcile_article_unmapped(session, unresolved)
     session.commit()
 

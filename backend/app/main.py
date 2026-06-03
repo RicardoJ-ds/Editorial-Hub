@@ -208,6 +208,31 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("article_records.submitted_date migration failed (continuing)")
 
+    # 10. article_records revision + Notion-published columns (added after the
+    #     table shipped). Populated on the next Monthly Article Count sync;
+    #     article_revisions is a new table created by create_all.
+    try:
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS revision_count INTEGER NOT NULL DEFAULT 0")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS revision_dates JSONB")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS task_id VARCHAR(64)")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS published_url TEXT")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS notion_matched BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+    except Exception:
+        logger.exception("article_records revision/published columns migration failed (continuing)")
+
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model
     #    itself is created by Base.metadata.create_all; this DELETE
