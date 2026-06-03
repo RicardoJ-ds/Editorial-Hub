@@ -38,7 +38,7 @@ import RecommendationChart from "@/components/charts/RecommendationChart";
 import { cn } from "@/lib/utils";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
-import { TeamKpiFilterBar, type TeamKpiFilters } from "@/components/dashboard/TeamKpiFilterBar";
+import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
 import { MonthlyArticlesTab } from "@/components/dashboard/MonthlyArticlesTab";
 import { SyncControls } from "@/components/layout/SyncControls";
 import { TooltipBody } from "@/components/dashboard/shared-helpers";
@@ -201,6 +201,19 @@ const POD_COLORS: Record<string, string> = {
   "Pod 5": "bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30",
 };
 
+/** Collapse pod variants ("1" / "pod 1" / "Pod 1") to canonical "Pod N".
+ *  Mirrors FilterBar.normalizePod so client-pod and member-pod values match. */
+function normalizePod(raw: string | null | undefined): string {
+  if (raw == null) return "";
+  const t = String(raw).trim();
+  if (!t || t === "-" || t === "—") return "";
+  const n = t.match(/^(\d+)$/);
+  if (n) return `Pod ${n[1]}`;
+  const p = t.match(/^p(?:od)?\s*(\d+)$/i);
+  if (p) return `Pod ${p[1]}`;
+  return t;
+}
+
 /** KPI types where lower is better */
 const LOWER_IS_BETTER = new Set(["revision_rate", "turnaround_time"]);
 
@@ -249,25 +262,15 @@ export default function TeamKpisPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Unified filter state — date-range-driven (matches D1's FilterBar UX).
-  // Default: current month → +6 months out (mirrors what D1 picks on load).
-  const [filters, setFilters] = useState<TeamKpiFilters>(() => {
+  // Canonical header — `FilterBar` (same as Overview / Editorial Clients) emits
+  // the filtered client list + date range. Member + Capacity tabs filter by the
+  // pods present in those clients; KPI scores filter by their client ids.
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
     const start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      pod: "All",
-      growthPod: "All",
-      memberId: "All",
-      clientId: "All",
-      dateRange: { type: "range", from: start, to: end },
-    };
+    const end = new Date(now.getFullYear(), now.getMonth() + 7, 0);
+    return { type: "range", from: start, to: end };
   });
-
-  // Backwards-compat aliases for existing code
-  const selectedPod = filters.pod;
-  const selectedMember = filters.memberId;
-  const selectedClient = filters.clientId;
-  const dateRange = filters.dateRange;
 
   // Translate the active date range into year_from/month_from/year_to/
   // month_to pairs for the kpis API. When the range is "all" we omit them
@@ -306,7 +309,7 @@ export default function TeamKpisPage() {
         apiGet<TeamMember[]>("/api/team-members/?limit=200"),
         apiGet<KpiScore[]>(`/api/kpis/?${kpiQs.toString()}`),
         apiGet<CapacityProjection[]>("/api/capacity/?limit=200"),
-        apiGet<Client[]>("/api/clients/?status=ACTIVE&limit=100"),
+        apiGet<Client[]>("/api/clients/?limit=500"),
       ]);
       setTeamMembers(members);
       setKpiScores(kpis);
@@ -337,42 +340,30 @@ export default function TeamKpisPage() {
     return map;
   }, [clients]);
 
-  // Filter members by pod and member selection. The combobox already
-  // surfaces typeahead inside the dropdown, so there's no separate search
-  // text input to apply at the page level.
-  const filteredMembers = useMemo(() => {
-    let result = teamMembers;
-    if (selectedPod !== "All") {
-      result = result.filter((m) => m.pod === selectedPod);
-    }
-    if (selectedMember !== "All") {
-      result = result.filter((m) => String(m.id) === selectedMember);
-    }
-    return result;
-  }, [teamMembers, selectedPod, selectedMember]);
+  // Everything flows from the FilterBar client output (the Overview model):
+  // the set of editorial pods present + the client ids in scope.
+  const activePods = useMemo(
+    () => new Set(filteredClients.map((c) => normalizePod(c.editorial_pod)).filter(Boolean)),
+    [filteredClients],
+  );
+  const clientIds = useMemo(
+    () => new Set(filteredClients.map((c) => c.id)),
+    [filteredClients],
+  );
 
-  // Filter KPI scores by selected client (and by Growth Pod when set — any
-  // KPI row attributed to a client outside the selected growth pod is hidden).
-  const filteredScores = useMemo(() => {
-    let result = kpiScores;
-    if (filters.growthPod !== "All") {
-      const allowed = new Set(
-        clients.filter((c) => c.growth_pod === filters.growthPod).map((c) => c.id),
-      );
-      result = result.filter((s) => s.client_id === null || allowed.has(s.client_id));
-    }
-    if (selectedClient !== "All") {
-      const clientId = Number(selectedClient);
-      result = result.filter((s) => s.client_id === clientId);
-    }
-    return result;
-  }, [kpiScores, clients, filters.growthPod, selectedClient]);
-
-  // Filter capacity by pod
-  const filteredCapacity = useMemo(() => {
-    if (selectedPod === "All") return capacityData;
-    return capacityData.filter((c) => c.pod === selectedPod);
-  }, [capacityData, selectedPod]);
+  const filteredMembers = useMemo(
+    () => teamMembers.filter((m) => m.pod && activePods.has(normalizePod(m.pod))),
+    [teamMembers, activePods],
+  );
+  // Scores attributed to an in-scope client (or unattributed nulls).
+  const filteredScores = useMemo(
+    () => kpiScores.filter((s) => s.client_id === null || clientIds.has(s.client_id)),
+    [kpiScores, clientIds],
+  );
+  const filteredCapacity = useMemo(
+    () => capacityData.filter((c) => activePods.has(normalizePod(c.pod))),
+    [capacityData, activePods],
+  );
 
   // (Year-options dropdown removed — replaced by DateRangeFilter.)
 
@@ -408,11 +399,10 @@ export default function TeamKpisPage() {
             <h1 className="font-mono text-base font-bold uppercase tracking-[0.18em] text-white whitespace-nowrap shrink-0">
               Team KPIs
             </h1>
-            <TeamKpiFilterBar
-              teamMembers={teamMembers}
+            <FilterBar
               clients={clients}
-              filters={filters}
-              onFiltersChange={setFilters}
+              onFilterChange={setFilteredClients}
+              onDateRangeChange={setDateRange}
             />
             <div className="ml-auto shrink-0">
               <SyncControls />
@@ -447,31 +437,33 @@ export default function TeamKpisPage() {
         </div>
 
         <TabsContent value="kpi-performance">
-          {selectedClient !== "All" && filteredScores.length === 0 ? (
-            <div className="mt-4">
-              <p className="text-center text-sm text-[#606060]">
-                No data for this client.
-              </p>
+          <div className="flex gap-6">
+            <SectionIndex sections={KPI_PERFORMANCE_SECTIONS} topOffset={140} />
+            <div className="flex-1 min-w-0">
+              <KpiPerformanceTab
+                members={filteredMembers}
+                scores={filteredScores}
+                allScores={kpiScores}
+                month={selectedMonth}
+                year={selectedYear}
+                clientMap={clientMap}
+              />
             </div>
-          ) : (
-            <KpiPerformanceTab
-              members={filteredMembers}
-              scores={filteredScores}
-              allScores={kpiScores}
-              month={selectedMonth}
-              year={selectedYear}
-              clientMap={clientMap}
-            />
-          )}
+          </div>
         </TabsContent>
 
         <TabsContent value="capacity-projections">
-          <CapacityProjectionsTab capacity={filteredCapacity} />
+          <div className="flex gap-6">
+            <SectionIndex sections={CAPACITY_SECTIONS} topOffset={140} />
+            <div className="flex-1 min-w-0">
+              <CapacityProjectionsTab capacity={filteredCapacity} />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="ai-compliance">
           <div className="flex gap-6">
-            <SectionIndex sections={AI_COMPLIANCE_SECTIONS} />
+            <SectionIndex sections={AI_COMPLIANCE_SECTIONS} topOffset={140} />
             <div className="flex-1 min-w-0">
               <AIComplianceTab />
             </div>
@@ -479,7 +471,12 @@ export default function TeamKpisPage() {
         </TabsContent>
 
         <TabsContent value="monthly-articles">
-          <MonthlyArticlesTab filters={filters} clients={clients} />
+          <div className="flex gap-6">
+            <SectionIndex sections={MONTHLY_ARTICLES_SECTIONS} topOffset={140} />
+            <div className="flex-1 min-w-0">
+              <MonthlyArticlesTab filteredClients={filteredClients} dateRange={dateRange} />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -512,6 +509,20 @@ const AI_COMPLIANCE_SECTIONS = [
   { id: "ai-flagged", label: "Flagged Articles" },
   { id: "ai-rewrites", label: "Rewrites" },
   { id: "ai-surfer", label: "Surfer API" },
+];
+
+const KPI_PERFORMANCE_SECTIONS = [
+  { id: "kpi-overview", label: "KPI Overview" },
+  { id: "kpi-pods", label: "Pod Detail" },
+];
+const CAPACITY_SECTIONS = [
+  { id: "capacity-summary", label: "Summary" },
+  { id: "capacity-chart", label: "Utilization" },
+  { id: "capacity-detail", label: "Detail" },
+];
+const MONTHLY_ARTICLES_SECTIONS = [
+  { id: "articles-chart", label: "Over Time" },
+  { id: "articles-matrix", label: "Matrix" },
 ];
 
 function AIComplianceTab() {
@@ -1012,7 +1023,7 @@ function KpiPerformanceTab({
   return (
     <div className="mt-3 space-y-5">
       {/* KPI Overview Heatmap */}
-      <section className="space-y-3">
+      <section id="kpi-overview" className="scroll-mt-[140px] space-y-3">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
           KPI Overview <DataSourceBadge type="live" source="Revision Rate / Turnaround / Second Reviews from Notion. Quality + Mentorship use scored sheets." />
         </h3>
@@ -1115,6 +1126,7 @@ function KpiPerformanceTab({
       </section>
 
       {/* Pod groups with KPI Cards */}
+      <div id="kpi-pods" className="scroll-mt-[140px] space-y-5">
       {grouped.map(([pod, podMembers]) => {
         const stats = podStats.get(pod);
         const podColor =
@@ -1173,6 +1185,7 @@ function KpiPerformanceTab({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -1248,7 +1261,7 @@ function CapacityProjectionsTab({
   return (
     <div className="mt-3 space-y-5">
       {/* Summary Row */}
-      <div className="mb-1">
+      <div id="capacity-summary" className="mb-1 scroll-mt-[140px]">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Capacity Summary</span>
           <DataSourceBadge type="live" source="Pod-level monthly capacity projections + utilization." />
@@ -1294,7 +1307,7 @@ function CapacityProjectionsTab({
       </div>
 
       {/* Capacity Chart */}
-      <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
+      <div id="capacity-chart" className="scroll-mt-[140px] rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
         <div className="mb-4">
           <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
             Utilization by Pod <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections and utilization." />
@@ -1307,7 +1320,7 @@ function CapacityProjectionsTab({
       </div>
 
       {/* Capacity Table */}
-      <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+      <h3 id="capacity-detail" className="scroll-mt-[140px] font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
         Capacity Detail <DataSourceBadge type="live" source="Per-pod monthly capacity, projected vs. actual usage." />
       </h3>
       <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">

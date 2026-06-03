@@ -15,7 +15,7 @@ import { apiGet } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 import { POD_HEX_COLORS, displayPod } from "./shared-helpers";
-import type { TeamKpiFilters } from "./TeamKpiFilterBar";
+import type { DateRange } from "./DateRangeFilter";
 
 // ---------------------------------------------------------------------------
 // Types + constants
@@ -347,7 +347,8 @@ function ChartTooltip({
       </div>
       {meta && metric !== "revisions" && (
         <p className="mt-1.5 border-t border-[#1f1f1f] pt-1 font-mono text-[10px] text-[#606060]">
-          {meta.revised}/{meta.count} revised · Published (Notion): {meta.published}
+          <span className="block">Revised: {meta.revised} of {meta.count} articles</span>
+          <span className="block">Published (Notion-matched): {meta.published}</span>
         </p>
       )}
     </div>
@@ -359,11 +360,11 @@ function ChartTooltip({
 // ---------------------------------------------------------------------------
 
 export function MonthlyArticlesTab({
-  filters,
-  clients,
+  filteredClients,
+  dateRange,
 }: {
-  filters: TeamKpiFilters;
-  clients: Client[];
+  filteredClients: Client[];
+  dateRange: DateRange;
 }) {
   const [data, setData] = useState<MonthlyResp>({ creation: [], revisions: [] });
   const [editorOptions, setEditorOptions] = useState<EditorOpt[]>([]);
@@ -377,16 +378,28 @@ export function MonthlyArticlesTab({
   const [secondaryDim, setSecondaryDim] = useState<Dim | "none">("editor");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const clientName = useMemo(() => {
-    if (filters.clientId === "All") return null;
-    return clients.find((c) => String(c.id) === filters.clientId)?.name ?? null;
-  }, [filters.clientId, clients]);
+  // Derive the API filters from the shared FilterBar output (article history
+  // spans all statuses, so we intentionally ignore the status filter):
+  //  • one shared editorial pod across the filtered clients → pod filter
+  //  • exactly one filtered client → that client's name
+  //  • otherwise unscoped (date-bounded only).
+  const podParam = useMemo(() => {
+    const pods = new Set(
+      filteredClients.map((c) => c.editorial_pod).filter((p): p is string => !!p),
+    );
+    return pods.size === 1 ? [...pods][0] : null;
+  }, [filteredClients]);
+
+  const clientName = useMemo(
+    () => (filteredClients.length === 1 ? filteredClients[0].name : null),
+    [filteredClients],
+  );
 
   const dateParams = useMemo(() => {
-    if (filters.dateRange.type !== "range" || !filters.dateRange.from) return {};
-    const to = filters.dateRange.to ?? filters.dateRange.from;
-    return { date_from: monthKeyFromDate(filters.dateRange.from), date_to: monthKeyFromDate(to) };
-  }, [filters.dateRange]);
+    if (dateRange.type !== "range" || !dateRange.from) return {};
+    const to = dateRange.to ?? dateRange.from;
+    return { date_from: monthKeyFromDate(dateRange.from), date_to: monthKeyFromDate(to) };
+  }, [dateRange]);
 
   useEffect(() => {
     apiGet<EditorOpt[]>("/api/articles/editors")
@@ -401,7 +414,7 @@ export function MonthlyArticlesTab({
     const qs = new URLSearchParams();
     if (dateParams.date_from) qs.set("date_from", dateParams.date_from);
     if (dateParams.date_to) qs.set("date_to", dateParams.date_to);
-    if (filters.pod !== "All") qs.set("pod", filters.pod);
+    if (podParam) qs.set("pod", podParam);
     if (clientName) qs.set("clients", clientName);
     if (selectedEditors.size > 0) qs.set("editors", Array.from(selectedEditors).join(","));
     apiGet<MonthlyResp>(`/api/articles/monthly?${qs.toString()}`)
@@ -417,7 +430,7 @@ export function MonthlyArticlesTab({
     return () => {
       cancelled = true;
     };
-  }, [dateParams, filters.pod, clientName, selectedEditors]);
+  }, [dateParams, podParam, clientName, selectedEditors]);
 
   const isRevisions = metric === "revisions";
   // Active rows projected to a uniform {month, pod, client, editor, num, den}
@@ -613,7 +626,7 @@ export function MonthlyArticlesTab({
       )}
 
       {/* Timeline chart */}
-      <section className="space-y-3">
+      <section id="articles-chart" className="scroll-mt-[140px] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
             {metricLabel} Over Time
@@ -623,7 +636,8 @@ export function MonthlyArticlesTab({
         <p className="-mt-1 font-mono text-[10px] text-[#606060]">
           {metricLabel} per {DIM_LABEL[viewMode].toLowerCase()} per month, {pivotNote}. Pod / Client /
           Date filters + the Editors selector narrow it.
-          {metric === "rate" && " Rate = articles with ≥1 revision ÷ articles (all articles)."}
+          {metric === "rate" &&
+            " Rate = articles with ≥1 revision ÷ ALL articles (not published). “Published (Notion-matched)” in the tooltip is a partial (~40%) reference, not the denominator."}
           {viewMode !== "pod" && ` Top ${SERIES_CAP} shown; the rest fold into "Other".`}
         </p>
         <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
@@ -686,7 +700,7 @@ export function MonthlyArticlesTab({
       </section>
 
       {/* Pivot matrix */}
-      <section className="space-y-3">
+      <section id="articles-matrix" className="scroll-mt-[140px] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
             {metricLabel} Matrix
