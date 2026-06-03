@@ -338,7 +338,7 @@ function ChartTooltip({
         {items.slice(0, 14).map((p) => (
           <div key={p.name} className="flex items-center justify-between gap-3 text-[11px]">
             <span className="flex items-center gap-1.5 text-[#C4BCAA]">
-              <span className="h-2 w-2 rounded-[2px]" style={{ background: p.color }} />
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: p.color }} />
               {p.name}
             </span>
             <span className="font-mono text-white">{fmtValue(p.value, metric)}</span>
@@ -697,10 +697,19 @@ export function MonthlyArticlesTab({
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+              {/* Legend — matches the Overview / Editorial Clients pod legend:
+                  round swatch + mono uppercase label colored to the series. */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 {series.map((s) => (
-                  <span key={s.key} className="flex items-center gap-1.5 text-[11px] text-[#C4BCAA]">
-                    <span className="h-2 w-2 rounded-[2px]" style={{ background: s.color }} />
+                  <span
+                    key={s.key}
+                    className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider"
+                    style={{ color: s.color }}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: s.color }}
+                    />
                     {s.label}
                   </span>
                 ))}
