@@ -122,23 +122,51 @@ async def list_unmapped(
     _profile=Depends(require_access_editor),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Admin review payload: client tab names the importer could not resolve
-    (so their articles carry no pod) + distinct editor names (to spot variants
-    like 'NIcholas' vs 'Nicholas' for merging) + the Hub client list for the
-    mapping dropdown."""
-    unmapped = await db.execute(
-        select(ArticleUnmappedName)
-        .where(ArticleUnmappedName.kind == "client", ArticleUnmappedName.resolved_at.is_(None))
-        .order_by(ArticleUnmappedName.occurrences.desc())
-    )
-    clients_unmapped = [
-        {
-            "raw_value": u.raw_value,
-            "occurrences": u.occurrences,
-            "last_seen_at": u.last_seen_at.isoformat() if u.last_seen_at else None,
-        }
-        for u in unmapped.scalars()
+    """Admin review payload for the Monthly Article Count normalization tab.
+
+    Returns EVERY client tab (not just unresolved ones) with its resolution
+    status, so mapped/canonical clients stay visible; plus every distinct editor
+    + writer name with origin tabs; plus the Hub client list + active aliases."""
+    aliases_res = await db.execute(select(ArticleNameAlias).order_by(ArticleNameAlias.kind))
+    aliases = [
+        {"kind": a.kind, "raw_value": a.raw_value, "canonical_value": a.canonical_value}
+        for a in aliases_res.scalars()
     ]
+    client_alias_map = {a["raw_value"]: a["canonical_value"] for a in aliases if a["kind"] == "client"}
+
+    # Every client tab that produced articles, with status + article date span.
+    # status: "alias" (a saved alias re-routes it — applies next sync) >
+    #         "canonical" (resolves to a Hub client naturally) > "unmapped".
+    tab_res = await db.execute(
+        select(
+            ArticleRecord.source_tab,
+            func.count().label("c"),
+            func.min(ArticleRecord.month_year).label("min_my"),
+            func.max(ArticleRecord.month_year).label("max_my"),
+            func.max(ArticleRecord.client_id).label("cid"),
+            func.max(ArticleRecord.client_name).label("cname"),
+        ).group_by(ArticleRecord.source_tab)
+    )
+    clients = []
+    for tab, c, min_my, max_my, cid, cname in tab_res:
+        if tab in client_alias_map:
+            status, target = "alias", client_alias_map[tab]
+        elif cid is not None:
+            status, target = "canonical", cname
+        else:
+            status, target = "unmapped", None
+        clients.append(
+            {
+                "raw_value": tab,
+                "occurrences": c,
+                "status": status,
+                "resolved_to": target,
+                "first_month": min_my,
+                "last_month": max_my,
+            }
+        )
+    # Unmapped first (by volume), then the resolved set alphabetically.
+    clients.sort(key=lambda r: (r["status"] != "unmapped", -r["occurrences"] if r["status"] == "unmapped" else 0, r["raw_value"].lower()))
 
     # Editors + writers: distinct names with total credits AND their origin
     # tabs (which client sheets a name appears in) so the value can be fixed at
@@ -174,14 +202,8 @@ async def list_unmapped(
     client_names_res = await db.execute(select(Client.name).order_by(Client.name))
     client_options = [r[0] for r in client_names_res]
 
-    aliases_res = await db.execute(select(ArticleNameAlias).order_by(ArticleNameAlias.kind))
-    aliases = [
-        {"kind": a.kind, "raw_value": a.raw_value, "canonical_value": a.canonical_value}
-        for a in aliases_res.scalars()
-    ]
-
     return {
-        "clients": clients_unmapped,
+        "clients": clients,
         "editors": editors,
         "writers": writers,
         "client_options": client_options,

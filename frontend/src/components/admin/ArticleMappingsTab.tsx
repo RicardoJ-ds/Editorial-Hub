@@ -1,21 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Check, Loader2, Search, X } from "lucide-react";
 
 // Data Quality → "Article mappings": normalization review for the Monthly
 // Article Count importer. Three columns — Clients · Editors · Writers.
-// Unresolved client tabs (their articles carry no pod) map to a Hub client;
-// editor/writer name variants merge into a canonical name. Each posts an alias
-// that self-heals on the next sync. Every value shows its origin tab(s) so it
-// can also be fixed at the source sheet.
+// Shows EVERY value (mapped, canonical, and unmapped) with a per-column filter,
+// so nothing disappears after you map it — merges/maps stay visible as a
+// running normalization log. Each value shows its origin/status so it can also
+// be fixed at the source sheet. Every change posts an alias that self-heals on
+// the next sync (the variant's rows take the canonical name, so the list
+// naturally reduces over time).
 
-interface UnmappedClient {
+interface ClientRow {
   raw_value: string;
   occurrences: number;
-  last_seen_at: string | null;
+  status: "unmapped" | "canonical" | "alias";
+  resolved_to: string | null;
+  first_month: string | null;
+  last_month: string | null;
 }
 interface NameRow {
   name: string;
@@ -29,11 +34,18 @@ interface AliasRow {
   canonical_value: string;
 }
 interface UnmappedResp {
-  clients: UnmappedClient[];
+  clients: ClientRow[];
   editors: NameRow[];
   writers: NameRow[];
   client_options: string[];
   aliases: AliasRow[];
+}
+
+type ColFilter = "all" | "unmapped" | "mapped";
+
+function fmtSpan(a: string | null, b: string | null): string | null {
+  if (!a && !b) return null;
+  return a === b ? a : `${a ?? "?"} → ${b ?? "?"}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,16 +143,43 @@ function SearchableSelect({
   );
 }
 
+// Small segmented filter (All / Unmapped / Mapped).
+function Seg({
+  options,
+  value,
+  onChange,
+}: {
+  options: { key: ColFilter; label: string }[];
+  value: ColFilter;
+  onChange: (v: ColFilter) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          onClick={() => onChange(o.key)}
+          className={cn(
+            "rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors",
+            value === o.key ? "bg-[#42CA80]/15 text-[#42CA80]" : "text-[#606060] hover:text-[#C4BCAA]",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// One mapping row (a value + its origin tabs + a target picker + action).
+// One mapping row (a value + a status/origin subline + target picker + action).
 // ---------------------------------------------------------------------------
 
 function MappingRow({
   label,
   count,
-  origins,
-  tabCount,
-  existing,
+  subline,
   options,
   draft,
   onDraft,
@@ -151,9 +190,7 @@ function MappingRow({
 }: {
   label: string;
   count: number;
-  origins?: string[];
-  tabCount?: number;
-  existing?: string;
+  subline?: ReactNode;
   options: string[];
   draft: string;
   onDraft: (v: string) => void;
@@ -167,16 +204,10 @@ function MappingRow({
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-xs font-semibold text-white" title={label}>
           {label}
-          {existing && <span className="ml-2 font-mono text-[10px] text-[#42CA80]">→ {existing}</span>}
         </span>
         <span className="shrink-0 font-mono text-[10px] text-[#606060]">{count}</span>
       </div>
-      {origins && origins.length > 0 && (
-        <p className="mt-0.5 truncate font-mono text-[10px] text-[#606060]" title={origins.join(", ")}>
-          in {origins.slice(0, 3).join(", ")}
-          {tabCount && tabCount > 3 ? ` +${tabCount - 3}` : ""}
-        </p>
-      )}
+      {subline && <div className="mt-0.5 truncate font-mono text-[10px]">{subline}</div>}
       <div className="mt-1.5 flex items-center gap-1.5">
         <SearchableSelect options={options} value={draft} onChange={onDraft} placeholder={pickerPlaceholder} />
         <button
@@ -196,16 +227,21 @@ function MappingRow({
 function MappingColumn({
   title,
   subtitle,
+  filter,
   children,
 }: {
   title: string;
   subtitle: string;
-  children: React.ReactNode;
+  filter: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-col rounded-xl border border-[#2a2a2a] bg-[#161616]">
       <div className="shrink-0 border-b border-[#2a2a2a] px-3 py-2">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">{title}</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#C4BCAA]">{title}</h3>
+          {filter}
+        </div>
         <p className="mt-0.5 font-mono text-[10px] text-[#606060]">{subtitle}</p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
@@ -223,6 +259,9 @@ export function ArticleMappingsTab() {
   const [error, setError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [clientFilter, setClientFilter] = useState<ColFilter>("all");
+  const [editorFilter, setEditorFilter] = useState<ColFilter>("all");
+  const [writerFilter, setWriterFilter] = useState<ColFilter>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -286,15 +325,70 @@ export function ArticleMappingsTab() {
   const draftOf = (key: string) => drafts[key] ?? "";
   const setDraft = (key: string, v: string) => setDrafts((p) => ({ ...p, [key]: v }));
 
+  // ----- counts + filtered views -----
+  const clientUnmapped = data.clients.filter((c) => c.status === "unmapped").length;
+  const editorMerged = data.editors.filter((e) => aliasByKey.has(`editor:${e.name}`)).length;
+  const writerMerged = data.writers.filter((w) => aliasByKey.has(`writer:${w.name}`)).length;
+
+  const shownClients = data.clients.filter((c) =>
+    clientFilter === "all"
+      ? true
+      : clientFilter === "unmapped"
+        ? c.status === "unmapped"
+        : c.status !== "unmapped",
+  );
+  const filterNames = (rows: NameRow[], kind: "editor" | "writer", f: ColFilter) =>
+    rows.filter((r) => {
+      const mapped = aliasByKey.has(`${kind}:${r.name}`);
+      return f === "all" ? true : f === "mapped" ? mapped : !mapped;
+    });
+  const shownEditors = filterNames(data.editors, "editor", editorFilter);
+  const shownWriters = filterNames(data.writers, "writer", writerFilter);
+
+  const clientFilterOpts: { key: ColFilter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "unmapped", label: "To map" },
+    { key: "mapped", label: "Mapped" },
+  ];
+  const mergeFilterOpts: { key: ColFilter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "mapped", label: "Merged" },
+  ];
+
+  const clientSubline = (c: ClientRow): ReactNode => {
+    const span = fmtSpan(c.first_month, c.last_month);
+    const spanText = span ? <span className="text-[#606060]"> · {span}</span> : null;
+    if (c.status === "unmapped")
+      return (
+        <span className="text-[#ED6958]">
+          Unmapped{spanText}
+        </span>
+      );
+    if (c.status === "alias")
+      return (
+        <span className="text-[#42CA80]">
+          → {c.resolved_to} <span className="text-[#606060]">(alias · next sync)</span>
+          {spanText}
+        </span>
+      );
+    return (
+      <span className="text-[#42CA80]">
+        resolves to {c.resolved_to}
+        {spanText}
+      </span>
+    );
+  };
+
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="shrink-0 space-y-1">
         <p className="font-mono text-[11px] leading-relaxed text-[#606060]">
           Normalization for the Monthly Article Count source. Mapping a name writes an alias that
           takes effect on the <span className="text-[#C4BCAA]">next sync</span> — or fix it at the
-          source sheet using the origin tab shown under each value. Client aliases re-route the tab to
-          a Hub client (its articles inherit that client&apos;s pod); editor/writer aliases merge name
-          variants.
+          source sheet using the origin tab shown under each value. Mapped values stay listed (filter
+          per column) as a running normalization log; merges consolidate on the next sync. Client
+          aliases re-route the tab to a Hub client (its articles inherit that client&apos;s pod);
+          editor/writer aliases merge name variants.
         </p>
         {error && (
           <div className="rounded-md border border-[#ED6958]/40 bg-[#ED6958]/10 px-3 py-2 font-mono text-[11px] text-[#ED6958]">
@@ -306,29 +400,27 @@ export function ArticleMappingsTab() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-3">
         {/* Clients */}
         <MappingColumn
-          title={`Unmapped clients (${data.clients.length})`}
-          subtitle="Sheet tabs with no Hub client → articles show Unassigned. Map to a Hub client."
+          title={`Clients (${data.clients.length})`}
+          subtitle={`${clientUnmapped} to map · ${data.clients.length - clientUnmapped} resolved. Map a tab to a Hub client.`}
+          filter={<Seg options={clientFilterOpts} value={clientFilter} onChange={setClientFilter} />}
         >
-          {data.clients.length === 0 ? (
-            <p className="px-3 py-6 text-center font-mono text-xs text-[#42CA80]">
-              All client tabs resolve.
-            </p>
+          {shownClients.length === 0 ? (
+            <p className="px-3 py-6 text-center font-mono text-xs text-[#606060]">Nothing here.</p>
           ) : (
-            data.clients.map((c) => {
+            shownClients.map((c) => {
               const key = `client:${c.raw_value}`;
               return (
                 <MappingRow
                   key={c.raw_value}
                   label={c.raw_value}
                   count={c.occurrences}
-                  origins={[c.raw_value]}
-                  tabCount={1}
+                  subline={clientSubline(c)}
                   options={data.client_options}
                   draft={draftOf(key)}
                   onDraft={(v) => setDraft(key, v)}
                   onApply={() => saveAlias("client", c.raw_value, draftOf(key))}
                   saving={savingKey === key}
-                  actionLabel="Map"
+                  actionLabel={c.status === "unmapped" ? "Map" : "Remap"}
                   pickerPlaceholder="Hub client…"
                 />
               );
@@ -339,18 +431,26 @@ export function ArticleMappingsTab() {
         {/* Editors */}
         <MappingColumn
           title={`Editors (${data.editors.length})`}
-          subtitle="Merge a typo / variant into its canonical editor name."
+          subtitle={`${editorMerged} merged. Merge a typo / variant into its canonical name.`}
+          filter={<Seg options={mergeFilterOpts} value={editorFilter} onChange={setEditorFilter} />}
         >
-          {data.editors.map((ed) => {
+          {shownEditors.map((ed) => {
             const key = `editor:${ed.name}`;
+            const existing = aliasByKey.get(key);
             return (
               <MappingRow
                 key={ed.name}
                 label={ed.name}
                 count={ed.count}
-                origins={ed.tabs}
-                tabCount={ed.tab_count}
-                existing={aliasByKey.get(key)}
+                subline={
+                  <>
+                    {existing && <span className="text-[#42CA80]">→ {existing} · </span>}
+                    <span className="text-[#606060]">
+                      in {ed.tabs.slice(0, 3).join(", ")}
+                      {ed.tab_count > 3 ? ` +${ed.tab_count - 3}` : ""}
+                    </span>
+                  </>
+                }
                 options={editorNames.filter((n) => n !== ed.name)}
                 draft={draftOf(key)}
                 onDraft={(v) => setDraft(key, v)}
@@ -366,18 +466,26 @@ export function ArticleMappingsTab() {
         {/* Writers */}
         <MappingColumn
           title={`Writers (${data.writers.length})`}
-          subtitle="Merge a typo / variant into its canonical writer name."
+          subtitle={`${writerMerged} merged. Merge a typo / variant into its canonical name.`}
+          filter={<Seg options={mergeFilterOpts} value={writerFilter} onChange={setWriterFilter} />}
         >
-          {data.writers.map((w) => {
+          {shownWriters.map((w) => {
             const key = `writer:${w.name}`;
+            const existing = aliasByKey.get(key);
             return (
               <MappingRow
                 key={w.name}
                 label={w.name}
                 count={w.count}
-                origins={w.tabs}
-                tabCount={w.tab_count}
-                existing={aliasByKey.get(key)}
+                subline={
+                  <>
+                    {existing && <span className="text-[#42CA80]">→ {existing} · </span>}
+                    <span className="text-[#606060]">
+                      in {w.tabs.slice(0, 3).join(", ")}
+                      {w.tab_count > 3 ? ` +${w.tab_count - 3}` : ""}
+                    </span>
+                  </>
+                }
                 options={writerNames.filter((n) => n !== w.name)}
                 draft={draftOf(key)}
                 onDraft={(v) => setDraft(key, v)}
