@@ -792,6 +792,12 @@ class ArticleRecord(Base):
     link: Mapped[str | None] = mapped_column(Text)
     word_count: Mapped[int | None] = mapped_column(Integer)
     date_submitted_raw: Mapped[str | None] = mapped_column(String(255))
+    # Parsed calendar date of the article (day precision when available).
+    submitted_date: Mapped[date | None] = mapped_column(Date)
+    # year / month / month_year hold the EDITORIAL month — submitted_date is
+    # mapped through the editorial week distribution (editorial_weeks) so a date
+    # near a month boundary lands in the right editorial month. Falls back to the
+    # calendar month when the date predates week-distribution coverage.
     year: Mapped[int | None] = mapped_column(Integer)
     month: Mapped[int | None] = mapped_column(Integer)
     month_year: Mapped[str | None] = mapped_column(String(7), index=True)  # "YYYY-MM"

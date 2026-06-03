@@ -4932,6 +4932,86 @@ def _clean_editor(name: str) -> str:
     return re.sub(r"\s+", " ", str(name)).strip()
 
 
+def _safe_article_date(y: int, m: int, d: int) -> date | None:
+    try:
+        return date(y, m, d)
+    except ValueError:
+        return None
+
+
+def _excel_serial_to_date(text_val: str) -> date | None:
+    from datetime import timedelta
+
+    try:
+        n = float(str(text_val).strip())
+    except (ValueError, TypeError):
+        return None
+    if not (43101 <= n <= 47848):  # 2018-01-01 → 2030-12-31
+        return None
+    try:
+        return (datetime(1899, 12, 30) + timedelta(days=n)).date()
+    except (OverflowError, ValueError):
+        return None
+
+
+def _article_parse_full(copy_name: str, date_text: str) -> tuple[date | None, int | None, int | None]:
+    """Parse (full_date, year, month). full_date is set only when the day is
+    known (copy-name YYMMDD, m/d/yyyy, month-word + day + year, or Excel serial).
+    year/month are the best-effort calendar fallback used when no full date."""
+    # 1. Copy-name YYMMDD suffix — most reliable (year + month + day).
+    m = _ARTICLE_DATE_SUFFIX_RE.search(str(copy_name))
+    if m:
+        s = m.group(1)
+        yy, mm, dd = int(s[:2]), int(s[2:4]), int(s[4:6])
+        yr = _article_two_digit_year(yy)
+        if yr and 1 <= mm <= 12:
+            return _safe_article_date(yr, mm, dd), yr, mm
+    txt = str(date_text)
+    # 2. m/d/yyyy or m-d-yyyy.
+    slash = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b", txt)
+    if slash:
+        mm, dd, yr = int(slash.group(1)), int(slash.group(2)), int(slash.group(3))
+        return _safe_article_date(yr, mm, dd), yr, mm
+    # 3. Month word (+ optional day) (+ optional 4-digit year).
+    mword = _ARTICLE_MONTH_WORD_RE.search(txt)
+    if mword:
+        mm = _ARTICLE_MONTH_NAMES[mword.group(1).upper()]
+        yr_match = re.search(r"\b(20\d{2})\b", txt)
+        yr = int(yr_match.group(1)) if yr_match else None
+        day_match = re.search(r"\b(\d{1,2})\b", txt[mword.end() :])
+        dd = int(day_match.group(1)) if day_match else None
+        if yr and dd:
+            return _safe_article_date(yr, mm, dd), yr, mm
+        return None, yr, mm
+    # 4. Excel/Sheets serial number.
+    d = _excel_serial_to_date(txt)
+    if d:
+        return d, d.year, d.month
+    return None, None, None
+
+
+def _build_editorial_weeks(session: Session) -> list[tuple[date, date, int, int]]:
+    """Sorted (start_date, end_date, editorial_year, editorial_month) ranges."""
+    rows = session.execute(select(EditorialWeek)).scalars().all()
+    return sorted((w.start_date, w.end_date, w.year, w.month) for w in rows)
+
+
+def _editorial_month_for(
+    d: date | None, weeks: list[tuple[date, date, int, int]]
+) -> tuple[int, int] | None:
+    """Map a calendar date to its editorial (year, month) via the week
+    distribution. Returns None when there's no covering week (e.g. the date
+    predates coverage) so callers fall back to the calendar month."""
+    if d is None or not weeks:
+        return None
+    if d < weeks[0][0] or d > weeks[-1][1]:
+        return None
+    for start, end, y, m in weeks:
+        if start <= d <= end:
+            return (y, m)
+    return None
+
+
 def _reconcile_article_unmapped(session: Session, unresolved: dict[str, int]) -> None:
     """Upsert this run's unresolved client tab names and self-heal the rest
     (mirrors the PodImportIssue pattern). `unresolved` maps raw name → row count."""
@@ -4998,6 +5078,8 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         .scalars()
         .all()
     }
+    # Editorial week distribution — maps each article date to its editorial month.
+    editorial_weeks = _build_editorial_weeks(session)
 
     # 2. List client tabs.
     try:
@@ -5077,11 +5159,15 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             parsed += 1
             copy_name = str(cell("COPY"))
             date_text = str(cell("DATE"))
-            year, month = _article_parse_year_month(copy_name, date_text)
-            if year is None or month is None:
+            sub_date, cal_year, cal_month = _article_parse_full(copy_name, date_text)
+            if cal_year is None or cal_month is None:
                 scan = _article_row_scan_year_month(row)
                 if scan:
-                    year, month = scan
+                    cal_year, cal_month = scan
+            # Map to the editorial month via the week distribution; fall back to
+            # the calendar month when the date predates week coverage.
+            em = _editorial_month_for(sub_date, editorial_weeks)
+            year, month = em if em else (cal_year, cal_month)
             month_year = f"{year:04d}-{month:02d}" if year and month else None
             # Non-cryptographic content fingerprint (stable per physical row).
             uid = hashlib.sha256(f"{tab}|{r_idx}".encode()).hexdigest()[:16]
@@ -5115,6 +5201,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                         "link": link,
                         "word_count": words,
                         "date_submitted_raw": date_text or None,
+                        "submitted_date": sub_date,
                         "year": year,
                         "month": month,
                         "month_year": month_year,

@@ -197,6 +197,17 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("usage_events.props json→jsonb migration failed (continuing)")
 
+    # 9. article_records.submitted_date — parsed calendar date used to map each
+    #    article to its editorial month via editorial_weeks. Added after the
+    #    table shipped, so ALTER it in for existing prod DBs. Populated on the
+    #    next Monthly Article Count sync.
+    try:
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS submitted_date DATE")
+        )
+    except Exception:
+        logger.exception("article_records.submitted_date migration failed (continuing)")
+
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model
     #    itself is created by Base.metadata.create_all; this DELETE
