@@ -239,6 +239,17 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("article_records revision/published columns migration failed (continuing)")
 
+    # 11. production_history.projected_original — the ET CP client-block original
+    #     projection per client/month (added after the table shipped). Populated
+    #     on the next ET CP capacity-plan sync. editorial_member_capacity is a new
+    #     table created by create_all.
+    try:
+        await conn.execute(
+            text("ALTER TABLE production_history ADD COLUMN IF NOT EXISTS projected_original INTEGER")
+        )
+    except Exception:
+        logger.exception("production_history.projected_original migration failed (continuing)")
+
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model
     #    itself is created by Base.metadata.create_all; this DELETE

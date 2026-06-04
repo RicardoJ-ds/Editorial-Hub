@@ -133,6 +133,38 @@ class CapacityProjection(Base):
     updated_by: Mapped[str | None] = mapped_column(String(255))
 
 
+class EditorialMemberCapacity(Base):
+    """Per-(month, pod, role-slot) editorial team-member capacity, parsed from the
+    ET CP "EDITORIAL TEAM CAPACITY" block. The block has a variable number of pods
+    and role rows per pod, so we key on a `slot` ordinal (position of the role row
+    within the pod group) rather than assuming a fixed Senior Editor + Editor 1-3
+    layout. `member_breakdown` splits combined cells (e.g. "Lauren K (28) +
+    Anabelle (15)") into [{name, capacity}] best-effort. Pod-level totals stay in
+    capacity_projections. Foundation for a future %-utilization-per-editor metric.
+    """
+
+    __tablename__ = "editorial_member_capacity"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    pod: Mapped[str] = mapped_column(String(50), nullable=False)
+    slot: Mapped[int] = mapped_column(Integer, nullable=False)  # ordinal within the pod group
+    role: Mapped[str | None] = mapped_column(String(100))
+    member_raw: Mapped[str | None] = mapped_column(String(255))
+    member_breakdown: Mapped[list | None] = mapped_column(JSONB)
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    source_version: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("year", "month", "pod", "slot", name="uq_member_capacity_ymps"),
+    )
+
+
 class KpiScore(Base):
     __tablename__ = "kpi_scores"
 
@@ -200,6 +232,12 @@ class ProductionHistory(Base):
     month: Mapped[int] = mapped_column(Integer, nullable=False)
     articles_actual: Mapped[int | None] = mapped_column(Integer)
     articles_projected: Mapped[int | None] = mapped_column(Integer)
+    # The ORIGINAL projection for this client+month, from the ET CP per-month
+    # client block's "Projected" column — kept for ALL months (for past/actual
+    # months it's the projection that existed before the month closed; for
+    # future months it mirrors the live projection). Separate from
+    # articles_actual / articles_projected, which keep their existing behavior.
+    projected_original: Mapped[int | None] = mapped_column(Integer)
     is_actual: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[str] = mapped_column(String(50), default="operating_model")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

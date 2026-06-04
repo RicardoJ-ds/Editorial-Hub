@@ -26,6 +26,7 @@ from app.models import (
     CumulativeMetric,
     DeliverableMonthly,
     DeliveryTemplate,
+    EditorialMemberCapacity,
     EditorialWeek,
     EngagementRule,
     GoalsVsDelivery,
@@ -1051,6 +1052,275 @@ def _detect_capacity_sheet_name(service) -> str | None:
     return candidates[-1]
 
 
+def _parse_et_cp_month_header(cell: str) -> tuple[int, int] | None:
+    """'January 2026' → (2026, 1). None when the cell isn't a month header."""
+    m = re.match(r"^\s*([A-Za-z]+)\s+(\d{4})\s*$", str(cell or ""))
+    if not m:
+        return None
+    mm = _ARTICLE_MONTH_NAMES.get(m.group(1).upper())
+    return (int(m.group(2)), mm) if mm else None
+
+
+def _parse_member_breakdown(raw: str | None, total_cap: int | None) -> list[dict]:
+    """Split a Team cell into [{name, capacity}]. Handles combined cells like
+    'Lauren K (28) + Anabelle (15)'; a lone name with no parens inherits the
+    slot's total capacity."""
+    raw = (raw or "").strip()
+    if not raw or raw in ("-", "—", "N/A"):
+        return []
+    out: list[dict] = []
+    for part in re.split(r"\s*\+\s*", raw):
+        part = part.strip()
+        if not part:
+            continue
+        m = re.match(r"^(.*?)\s*\((\d+)\)\s*$", part)
+        if m:
+            out.append({"name": m.group(1).strip(), "capacity": int(m.group(2))})
+        else:
+            out.append({"name": part, "capacity": None})
+    if len(out) == 1 and out[0]["capacity"] is None:
+        out[0]["capacity"] = total_cap
+    return out
+
+
+def _ingest_et_cp_year(
+    session: Session,
+    service,
+    tab_title: str,
+    sheet_year: int,
+    all_rows: list | None = None,
+) -> dict:
+    """Read ONE ET CP version tab and write the per-member capacity + client-block
+    original projection for every month of `sheet_year`. Month↔column is derived
+    from the header rows (not a fixed offset), so the layout can shift safely.
+
+    Writes:
+      • editorial_member_capacity — per (year, month, pod, slot) from the
+        "EDITORIAL TEAM CAPACITY" block (variable pod / role counts).
+      • capacity_projections — pod-level Total/Projected/Actual used (same block).
+      • production_history.projected_original — from the per-month client block's
+        "Projected" column (resolved clients only; never touches other columns).
+    Returns counts for logging.
+    """
+    if all_rows is None:
+        all_rows = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=f"'{tab_title}'")
+            .execute()
+            .get("values", [])
+        )
+    version_match = re.search(r"\[(.*?)\]", tab_title)
+    version = version_match.group(1) if version_match else tab_title
+    counts = {"members": 0, "capacity_pods": 0, "projected": 0}
+
+    # ---- 1. Team-capacity block ------------------------------------------------
+    # The label "EDITORIAL TEAM CAPACITY" appears twice — once on a hiring/roster
+    # summary (no month headers) and once on the real monthly block. Require the
+    # row to ALSO carry month headers so we land on the monthly block.
+    cap_hdr_idx = next(
+        (
+            i
+            for i, row in enumerate(all_rows)
+            if any("editorial team capacity" in _cell(row, c).strip().lower() for c in range(6))
+            and any(_parse_et_cp_month_header(cell) for cell in row)
+        ),
+        None,
+    )
+    if cap_hdr_idx is not None:
+        cap_months = [
+            (col, *ym)
+            for col, cell in enumerate(all_rows[cap_hdr_idx])
+            if (ym := _parse_et_cp_month_header(cell))
+        ]
+        # Clear this version's pod-level rows + the year's member rows so a
+        # shrunk roster / corrected month mapping never leaves stale rows behind.
+        from sqlalchemy import delete
+
+        session.execute(delete(CapacityProjection).where(CapacityProjection.version == version))
+        session.execute(
+            delete(EditorialMemberCapacity).where(EditorialMemberCapacity.year == sheet_year)
+        )
+        session.flush()
+        # Sub-header row carrying "Role" + "Team" within a few rows below.
+        sub_idx = next(
+            (
+                i
+                for i in range(cap_hdr_idx + 1, min(cap_hdr_idx + 5, len(all_rows)))
+                if any(_cell(all_rows[i], c).strip().lower() == "role" for c in range(len(all_rows[i])))
+            ),
+            cap_hdr_idx + 2,
+        )
+        # Bound the walk to the capacity block — it ends at the block's grand
+        # "totals" row, before the per-month CLIENT block further down (whose
+        # rows are ALSO "Pod N" with Status/Category and would otherwise be
+        # mis-parsed as members). Cap at the client header as a backstop.
+        client_hdr_for_bound = next(
+            (
+                i
+                for i in range(cap_hdr_idx + 1, len(all_rows))
+                if any(
+                    _cell(all_rows[i], c).strip().lower() == "client"
+                    for c in range(min(8, len(all_rows[i])))
+                )
+            ),
+            min(len(all_rows), cap_hdr_idx + 70),
+        )
+        current_pod: dict[int, str | None] = {}
+        slot: dict[int, int] = {}
+        for row_idx in range(sub_idx + 1, client_hdr_for_bound):
+            row = all_rows[row_idx]
+            c_label = _cell(row, 2).strip().lower()
+            if c_label == "totals":
+                break  # capacity block grand-total row → end of block
+            is_total_row = c_label.startswith("total projects")
+            for col, year, month in cap_months:
+                if is_total_row:
+                    current_pod[col] = None
+                    continue
+                pod_cell = _cell(row, col).strip()
+                role_cell = _cell(row, col + 1).strip()
+                team_cell = _cell(row, col + 2).strip()
+                cap = safe_int(_cell(row, col + 4))
+                if pod_cell.startswith("Pod"):
+                    pod = _normalize_editorial_pod(pod_cell)
+                    current_pod[col] = pod
+                    slot[col] = 0
+                    # Pod-level totals live on this (Senior Editor) row.
+                    total_cap = safe_int(_cell(row, col + 5))
+                    projected = safe_int(_cell(row, col + 6))
+                    actual = safe_int(_cell(row, col + 7))
+                    existing = (
+                        session.execute(
+                            select(CapacityProjection).where(
+                                CapacityProjection.pod == pod,
+                                CapacityProjection.year == year,
+                                CapacityProjection.month == month,
+                                CapacityProjection.version == version,
+                            )
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if existing:
+                        existing.total_capacity = total_cap
+                        existing.projected_used_capacity = projected
+                        existing.actual_used_capacity = actual
+                        existing.updated_by = "sheets_migration"
+                    else:
+                        session.add(
+                            CapacityProjection(
+                                pod=pod,
+                                year=year,
+                                month=month,
+                                total_capacity=total_cap,
+                                projected_used_capacity=projected,
+                                actual_used_capacity=actual,
+                                version=version,
+                                updated_by="sheets_migration",
+                            )
+                        )
+                    counts["capacity_pods"] += 1
+                pod = current_pod.get(col)
+                if not pod:
+                    continue
+                if not role_cell and (not team_cell or team_cell in ("-", "—")):
+                    continue  # empty slot row
+                s = slot.get(col, 0)
+                member_existing = (
+                    session.execute(
+                        select(EditorialMemberCapacity).where(
+                            EditorialMemberCapacity.year == year,
+                            EditorialMemberCapacity.month == month,
+                            EditorialMemberCapacity.pod == pod,
+                            EditorialMemberCapacity.slot == s,
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+                fields = dict(
+                    role=role_cell or None,
+                    member_raw=team_cell or None,
+                    member_breakdown=_parse_member_breakdown(team_cell, cap) or None,
+                    capacity=cap,
+                    source_version=version,
+                )
+                if member_existing:
+                    for k, v in fields.items():
+                        setattr(member_existing, k, v)
+                else:
+                    session.add(
+                        EditorialMemberCapacity(year=year, month=month, pod=pod, slot=s, **fields)
+                    )
+                slot[col] = s + 1
+                counts["members"] += 1
+
+    # ---- 2. Client block → production_history.projected_original ---------------
+    client_hdr_idx = None
+    pod_cols: list[int] = []
+    for idx, row in enumerate(all_rows):
+        if any(_cell(row, c).strip().lower() == "client" for c in range(min(8, len(row)))):
+            pc = [c for c in range(len(row)) if _cell(row, c).strip().lower() == "pod"]
+            if pc:
+                client_hdr_idx = idx
+                pod_cols = pc
+                break
+    if client_hdr_idx is not None and client_hdr_idx > 0:
+        month_hdr = all_rows[client_hdr_idx - 1]
+        # Map each per-month Pod column → (year, month) via the header above it.
+        col_month = {}
+        for pc in pod_cols:
+            ym = _parse_et_cp_month_header(_cell(month_hdr, pc))
+            if ym:
+                col_month[pc] = ym
+        client_col = next(
+            (c for c in range(min(8, len(all_rows[client_hdr_idx]))) if _cell(all_rows[client_hdr_idx], c).strip().lower() == "client"),
+            2,
+        )
+        lookup = _build_client_name_lookup(session.execute(select(Client)).scalars().all())
+        for row_idx in range(client_hdr_idx + 1, len(all_rows)):
+            row = all_rows[row_idx]
+            if not row:
+                continue
+            name = _cell(row, client_col).strip()
+            if not name or any(k in name.lower() for k in ("total", "median", "average", "production")):
+                continue
+            c = _resolve_client(lookup, name)
+            if c is None:
+                continue
+            for pc, (year, month) in col_month.items():
+                projected = safe_int(_cell(row, pc + 4))
+                if projected is None:
+                    continue
+                ph = (
+                    session.execute(
+                        select(ProductionHistory).where(
+                            ProductionHistory.client_id == c.id,
+                            ProductionHistory.year == year,
+                            ProductionHistory.month == month,
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+                if ph:
+                    ph.projected_original = projected
+                else:
+                    session.add(
+                        ProductionHistory(
+                            client_id=c.id,
+                            year=year,
+                            month=month,
+                            projected_original=projected,
+                            is_actual=False,
+                            source="et_cp_projection",
+                        )
+                    )
+                counts["projected"] += 1
+    return counts
+
+
 def import_capacity_plan(session: Session) -> ImportResult:
     """Import the capacity-plan sheet into team_members + capacity_projections.
 
@@ -1263,84 +1533,27 @@ def import_capacity_plan(session: Session) -> ImportResult:
         )
 
         # ------------------------------------------------------------------
-        # Capacity projections: parse from the CAPACITY section (~row 79+)
+        # Capacity projections (pod-level) + per-member capacity + client-block
+        # original projection. Month↔column is derived from the sheet header rows
+        # inside _ingest_et_cp_year (the old hardcoded month offset mis-aligned
+        # the V13 layout, where the capacity block starts at January, not Dec).
         # ------------------------------------------------------------------
-        months = [
-            (2025, 12),
-            (2026, 1),
-            (2026, 2),
-            (2026, 3),
-            (2026, 4),
-            (2026, 5),
-            (2026, 6),
-            (2026, 7),
-            (2026, 8),
-            (2026, 9),
-            (2026, 10),
-            (2026, 11),
-            (2026, 12),
-        ]
+        sheet_year_match = re.search(r"ET CP (\d{4})", sheet_name)
+        sheet_year = int(sheet_year_match.group(1)) if sheet_year_match else 2026
+        et_counts = _ingest_et_cp_year(
+            session, service, sheet_name, sheet_year, all_rows=all_rows
+        )
 
-        # Extract version from sheet name
-        version_match = re.search(r"\[(.*?)\]", sheet_name)
-        version = version_match.group(1) if version_match else sheet_name
-
-        capacity_count = 0
-
-        for row_idx in range(75, min(len(all_rows), 120)):
-            row = all_rows[row_idx]
-            col3_val = _cell(row, 3)
-            col4_val = _cell(row, 4)
-
-            if col3_val.startswith("Pod") and col4_val == "Senior Editor":
-                pod_name = col3_val
-
-                for month_idx, (year, month) in enumerate(months):
-                    base_col = 3 + (month_idx * 8)
-                    total_cap_col = base_col + 5
-                    projected_col = base_col + 6
-                    actual_col = base_col + 7
-
-                    total_cap = safe_int(_cell(row, total_cap_col))
-                    projected = safe_int(_cell(row, projected_col))
-                    actual = safe_int(_cell(row, actual_col))
-
-                    # Upsert
-                    existing = (
-                        session.execute(
-                            select(CapacityProjection).where(
-                                CapacityProjection.pod == pod_name,
-                                CapacityProjection.year == year,
-                                CapacityProjection.month == month,
-                                CapacityProjection.version == version,
-                            )
-                        )
-                        .scalars()
-                        .first()
-                    )
-
-                    if existing:
-                        existing.total_capacity = total_cap
-                        existing.projected_used_capacity = projected
-                        existing.actual_used_capacity = actual
-                        existing.updated_by = "sheets_migration"
-                    else:
-                        session.add(
-                            CapacityProjection(
-                                pod=pod_name,
-                                year=year,
-                                month=month,
-                                total_capacity=total_cap,
-                                projected_used_capacity=projected,
-                                actual_used_capacity=actual,
-                                version=version,
-                                updated_by="sheets_migration",
-                            )
-                        )
-                    capacity_count += 1
-
-        result.rows_parsed = members_imported + capacity_count
-        result.rows_imported = members_imported + capacity_count
+        result.rows_parsed = members_imported + et_counts["capacity_pods"]
+        result.rows_imported = members_imported + et_counts["capacity_pods"]
+        result.details.append(
+            TabImportDetail(
+                tab_name=sheet_name,
+                month_year=str(sheet_year),
+                rows_imported=et_counts["members"] + et_counts["projected"],
+                status="imported",
+            )
+        )
 
         session.commit()
         result.success = True
@@ -4479,6 +4692,23 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     preview_key=tab_name,
                 )
             )
+
+        # Whole-year backfill: for each year, use that year's LATEST version tab
+        # (the most complete snapshot) to fill per-member capacity +
+        # production_history.projected_original for the whole year. Pod history
+        # above stays per-tab-month; this adds the capacity/projection data the
+        # SYNC button pulls for the current year, but for past years too.
+        latest_by_year: dict[int, tuple[str, int]] = {}
+        for t_name, t_version, t_sheet_year, _ty, _tm in tabs:
+            cur = latest_by_year.get(t_sheet_year)
+            if cur is None or t_version > cur[1]:
+                latest_by_year[t_sheet_year] = (t_name, t_version)
+        for t_sheet_year, (t_name, _v) in latest_by_year.items():
+            try:
+                ec = _ingest_et_cp_year(session, service, t_name, t_sheet_year)
+                result.rows_imported += ec["members"] + ec["projected"]
+            except Exception:
+                logger.exception("ET CP year ingest failed for %s (continuing)", t_name)
 
         session.commit()
         result.success = True
