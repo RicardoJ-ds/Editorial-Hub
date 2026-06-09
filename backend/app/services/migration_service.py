@@ -23,6 +23,7 @@ from app.models import (
     AuditLog,
     CapacityProjection,
     Client,
+    ClientPodHistory,
     CumulativeMetric,
     DeliverableMonthly,
     DeliveryTemplate,
@@ -145,6 +146,41 @@ class ImportResult:
 # ---------------------------------------------------------------------------
 # Helper functions (adapted from seed_data.py for raw list-of-lists input)
 # ---------------------------------------------------------------------------
+
+
+def _record_incomplete_client(session: Session, name_raw: str, sheet_name: str) -> None:
+    """Register a client name that appears in a source sheet but has no row in
+    the `clients` table (so its data is dropped). Persists it to
+    `incomplete_clients` — with the source tab — so Data Quality can list it
+    and tell the user where to fix it (add the client to the SOW Overview).
+
+    Upserts on `name_raw` (the column is globally unique); updates
+    `last_seen_tab` to the most recent source. A row already marked
+    `resolved_at` (matched later, or dismissed as noise) is left untouched so
+    dismissed names stay dismissed.
+    """
+    from app.models import IncompleteClient
+
+    existing = (
+        session.execute(select(IncompleteClient).where(IncompleteClient.name_raw == name_raw))
+        .scalars()
+        .first()
+    )
+    if existing is None:
+        session.add(
+            IncompleteClient(
+                name_raw=name_raw,
+                first_seen_tab=sheet_name,
+                last_seen_tab=sheet_name,
+                first_seen_year=0,
+                first_seen_month=0,
+                last_seen_year=0,
+                last_seen_month=0,
+                known_pods=None,
+            )
+        )
+    elif existing.resolved_at is None:
+        existing.last_seen_tab = sheet_name
 
 
 def _is_empty(val) -> bool:
@@ -885,6 +921,8 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
         name_lookup: dict[str, int] = {}
         for c in clients:
             name_lookup[c.name.lower().strip()] = c.id
+        # User-confirmed client aliases (Data Quality → Missing from Hub).
+        _add_user_client_aliases(session, name_lookup)
 
         # Common aliases
         alias_map = {
@@ -940,6 +978,7 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
 
             if client_id is None:
                 result.errors.append(f"Client '{client_name}' not found in DB, skipping")
+                _record_incomplete_client(session, client_name, sheet_name)
                 row_idx += 6
                 continue
 
@@ -1147,7 +1186,9 @@ def _ingest_et_cp_year(
             (
                 i
                 for i in range(cap_hdr_idx + 1, min(cap_hdr_idx + 5, len(all_rows)))
-                if any(_cell(all_rows[i], c).strip().lower() == "role" for c in range(len(all_rows[i])))
+                if any(
+                    _cell(all_rows[i], c).strip().lower() == "role" for c in range(len(all_rows[i]))
+                )
             ),
             cap_hdr_idx + 2,
         )
@@ -1275,7 +1316,11 @@ def _ingest_et_cp_year(
             if ym:
                 col_month[pc] = ym
         client_col = next(
-            (c for c in range(min(8, len(all_rows[client_hdr_idx]))) if _cell(all_rows[client_hdr_idx], c).strip().lower() == "client"),
+            (
+                c
+                for c in range(min(8, len(all_rows[client_hdr_idx])))
+                if _cell(all_rows[client_hdr_idx], c).strip().lower() == "client"
+            ),
             2,
         )
         lookup = _build_client_name_lookup(session.execute(select(Client)).scalars().all())
@@ -1284,7 +1329,9 @@ def _ingest_et_cp_year(
             if not row:
                 continue
             name = _cell(row, client_col).strip()
-            if not name or any(k in name.lower() for k in ("total", "median", "average", "production")):
+            if not name or any(
+                k in name.lower() for k in ("total", "median", "average", "production")
+            ):
                 continue
             c = _resolve_client(lookup, name)
             if c is None:
@@ -1540,9 +1587,7 @@ def import_capacity_plan(session: Session) -> ImportResult:
         # ------------------------------------------------------------------
         sheet_year_match = re.search(r"ET CP (\d{4})", sheet_name)
         sheet_year = int(sheet_year_match.group(1)) if sheet_year_match else 2026
-        et_counts = _ingest_et_cp_year(
-            session, service, sheet_name, sheet_year, all_rows=all_rows
-        )
+        et_counts = _ingest_et_cp_year(session, service, sheet_name, sheet_year, all_rows=all_rows)
 
         result.rows_parsed = members_imported + et_counts["capacity_pods"]
         result.rows_imported = members_imported + et_counts["capacity_pods"]
@@ -1745,8 +1790,6 @@ def import_operating_model(session: Session) -> ImportResult:
     result = ImportResult(sheet=sheet_name)
 
     try:
-        from app.models import IncompleteClient
-
         service = get_sheets_client()
         resp = (
             service.spreadsheets()
@@ -1789,7 +1832,7 @@ def import_operating_model(session: Session) -> ImportResult:
         # Plan, etc.). The helper returns Client objects; we project
         # down to id since the rest of this importer keys by id.
         clients = session.execute(select(Client)).scalars().all()
-        client_lookup = _build_client_name_lookup(clients)
+        client_lookup = _build_client_name_lookup(clients, session)
         name_lookup: dict[str, int] = {k: v.id for k, v in client_lookup.items()}
 
         # Pre-load every existing ProductionHistory row into an in-memory
@@ -1829,27 +1872,8 @@ def import_operating_model(session: Session) -> ImportResult:
 
             if client_id is None:
                 result.errors.append(f"Client '{client_name}' not found in DB, skipping")
-                # Track in incomplete_clients so Data Quality surfaces it.
-                existing_ic = (
-                    session.execute(
-                        select(IncompleteClient).where(IncompleteClient.name_raw == client_name)
-                    )
-                    .scalars()
-                    .first()
-                )
-                if existing_ic is None:
-                    session.add(
-                        IncompleteClient(
-                            name_raw=client_name,
-                            first_seen_tab=sheet_name,
-                            last_seen_tab=sheet_name,
-                            first_seen_year=0,
-                            first_seen_month=0,
-                            last_seen_year=0,
-                            last_seen_month=0,
-                            known_pods=None,
-                        )
-                    )
+                # Track in incomplete_clients so Data Quality surfaces it + where to fix.
+                _record_incomplete_client(session, client_name, sheet_name)
                 continue
 
             for col_idx, (year, month) in month_map.items():
@@ -2166,6 +2190,8 @@ def import_meta_deliveries(session: Session) -> ImportResult:
         name_lookup: dict[str, int] = {}
         for c in clients:
             name_lookup[c.name.lower().strip()] = c.id
+        # User-confirmed client aliases (Data Quality → Missing from Hub).
+        _add_user_client_aliases(session, name_lookup)
 
         # Client data rows at indices 2-5
         client_rows = [
@@ -2197,6 +2223,7 @@ def import_meta_deliveries(session: Session) -> ImportResult:
 
             if client_id is None:
                 result.errors.append(f"Client '{client_name}' not found in DB, skipping")
+                _record_incomplete_client(session, client_name, sheet_name)
                 continue
 
             for col_idx, (year, month) in month_map.items():
@@ -4009,6 +4036,18 @@ def _normalize_growth_pod(raw: str | None) -> str | None:
 _normalize_editorial_pod = _normalize_growth_pod
 
 
+def _normalize_category(raw: str | None) -> str | None:
+    """ET CP client-block category cell → canonical 'standard' / 'specialized',
+    or None when blank/unrecognized. Drives the specialized ×1.4 used-capacity
+    weighting; tolerant of casing and minor variants."""
+    t = str(raw or "").strip().lower()
+    if t.startswith("special"):
+        return "specialized"
+    if t.startswith("standard"):
+        return "standard"
+    return None
+
+
 # Client-name drift between the sheets we ingest and the canonical
 # `clients.name` column. Keep this in lock-step with what import_sow_overview
 # seeds (the source of truth for client names). Each entry is
@@ -4025,15 +4064,36 @@ _CLIENT_NAME_ALIASES: dict[str, str] = {
 }
 
 
-def _build_client_name_lookup(clients: list[Client]) -> dict[str, Client]:
+def _add_user_client_aliases(session: Session, lookup: dict) -> None:
+    """Fold the user-editable `client_name_aliases` table into a lowercased-name
+    lookup. Works whether the dict's values are Client objects or client_ids —
+    it just points each alias key at whatever the canonical name already maps
+    to. Source: the Data Quality → Missing from Hub "Map to client" action."""
+    from app.models import ClientNameAlias
+
+    for a in session.execute(select(ClientNameAlias)).scalars():
+        raw = a.raw_name.strip().lower()
+        canon = a.client_name.strip().lower()
+        if canon in lookup and raw not in lookup:
+            lookup[raw] = lookup[canon]
+
+
+def _build_client_name_lookup(
+    clients: list[Client], session: Session | None = None
+) -> dict[str, Client]:
     """Build a `lowercased_name → Client` map enriched with `_CLIENT_NAME_ALIASES`.
     Pass in every Client from the DB; the alias entries map known sheet-side
     drift back to the canonical row. Centralizing this keeps every importer
-    (Operating Model, Capacity Plan, …) matching client names the same way."""
+    (Operating Model, Capacity Plan, …) matching client names the same way.
+
+    Pass `session` to also fold in the user-editable `client_name_aliases`
+    table (mappings confirmed from Data Quality → Missing from Hub)."""
     lookup: dict[str, Client] = {c.name.lower().strip(): c for c in clients}
     for alias, canonical in _CLIENT_NAME_ALIASES.items():
         if canonical in lookup and alias not in lookup:
             lookup[alias] = lookup[canonical]
+    if session is not None:
+        _add_user_client_aliases(session, lookup)
     return lookup
 
 
@@ -4383,15 +4443,6 @@ _ET_CP_TAB_RE = re.compile(
 )
 
 
-def _et_cp_sheet_months(sheet_year: int) -> list[tuple[int, int]]:
-    """Return the standard 13-month column layout for an ET CP sheet.
-
-    Every year's sheet covers Dec(year-1) through Dec(year) — 13 months.
-    The N-th 'Pod' column always maps to _et_cp_sheet_months(sheet_year)[N].
-    """
-    return [(sheet_year - 1, 12)] + [(sheet_year, m) for m in range(1, 13)]
-
-
 def import_et_cp_pod_history(session: Session) -> ImportResult:
     """Build client_pod_history from all historical ET CP version tabs.
 
@@ -4405,7 +4456,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
     are written with client_id=NULL and back-filled on a later sync when
     _resolve_client() starts matching.
     """
-    from app.models import ClientPodHistory, IncompleteClient
+    from app.models import IncompleteClient
 
     service = get_sheets_client()
     result = ImportResult(sheet="ET CP Pod History")
@@ -4445,11 +4496,11 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
         tabs.sort(key=lambda x: (x[2], x[1]))
 
         all_clients = session.execute(select(Client)).scalars().all()
-        client_lookup = _build_client_name_lookup(all_clients)
+        client_lookup = _build_client_name_lookup(all_clients, session)
 
         skip_keywords = ("total", "median", "average", "production")
 
-        for tab_name, _version, sheet_year, year, month in tabs:
+        for tab_name, _version, _sheet_year, year, month in tabs:
             # Per-tab counters — captured into a TabImportDetail at the end of
             # the loop so the Re-sync UI can show a dropdown per ET CP version
             # tab (mirrors the Goals vs Delivery month-tab pattern).
@@ -4457,31 +4508,6 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
             tab_imported = 0
             tab_skipped_reason: str | None = None
             tab_status = "imported"
-            # Every ET CP sheet covers Dec(sheet_year-1) through Dec(sheet_year).
-            # The N-th "Pod" column in the header row maps to that N-th month.
-            sheet_months = _et_cp_sheet_months(sheet_year)
-            try:
-                month_idx = sheet_months.index((year, month))
-            except ValueError:
-                logger.warning(
-                    "ET CP pod history: tab '%s' month (%d, %d) not in sheet_year=%d layout — skipping",
-                    tab_name,
-                    year,
-                    month,
-                    sheet_year,
-                )
-                result.details.append(
-                    TabImportDetail(
-                        tab_name=tab_name,
-                        month_year=f"{_MONTH_ABBR_REV.get(month, '???')} {year}",
-                        rows_parsed=0,
-                        rows_imported=0,
-                        status="skipped",
-                        skipped_reason=f"Month not in sheet_year={sheet_year} layout",
-                        preview_key=tab_name,
-                    )
-                )
-                continue
 
             resp = (
                 service.spreadsheets()
@@ -4532,12 +4558,27 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     )
                 )
                 continue
-            if month_idx >= len(pod_col_indices):
+            # Pick this tab's OWN month column by matching the month-header row
+            # ABOVE the client header (e.g. "May 2026") — NOT a positional index.
+            # The client block is laid out Jan→Dec (12 cols); the old positional
+            # index assumed a 13-month Dec→Dec layout and so read the NEXT month's
+            # pod column (e.g. May → June), mis-assigning any client that changed
+            # pods between adjacent months. Mirrors _ingest_et_cp_year's logic.
+            month_hdr = all_rows[header_row_idx - 1] if header_row_idx > 0 else []
+            target_pod_col = next(
+                (
+                    c
+                    for c in pod_col_indices
+                    if _parse_et_cp_month_header(_cell(month_hdr, c)) == (year, month)
+                ),
+                None,
+            )
+            if target_pod_col is None:
                 logger.warning(
-                    "ET CP pod history: tab '%s' has %d pod cols but need index %d — skipping",
+                    "ET CP pod history: tab '%s' — no %d-%02d column in header row — skipping",
                     tab_name,
-                    len(pod_col_indices),
-                    month_idx,
+                    year,
+                    month,
                 )
                 result.details.append(
                     TabImportDetail(
@@ -4546,15 +4587,11 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                         rows_parsed=0,
                         rows_imported=0,
                         status="skipped",
-                        skipped_reason=(
-                            f"Only {len(pod_col_indices)} pod cols, need index {month_idx}"
-                        ),
+                        skipped_reason=f"No {year}-{month:02d} column found in header row",
                         preview_key=tab_name,
                     )
                 )
                 continue
-
-            target_pod_col = pod_col_indices[month_idx]
 
             for row in all_rows[header_row_idx + 1 :]:
                 if not row:
@@ -4571,6 +4608,9 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                 normalized_pod = _normalize_editorial_pod(pod_raw)
                 if not normalized_pod:
                     continue
+                # Category (standard/specialized) sits two columns right of the
+                # month's Pod column in the same client-block row.
+                category = _normalize_category(_cell(row, target_pod_col + 2))
 
                 result.rows_parsed += 1
                 tab_parsed += 1
@@ -4591,6 +4631,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     if existing:
                         existing.client_id = c.id
                         existing.editorial_pod = normalized_pod
+                        existing.category = category
                         existing.source_tab = tab_name
                     else:
                         session.add(
@@ -4600,6 +4641,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                                 year=year,
                                 month=month,
                                 editorial_pod=normalized_pod,
+                                category=category,
                                 source_tab=tab_name,
                             )
                         )
@@ -4662,6 +4704,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                     )
                     if existing:
                         existing.editorial_pod = normalized_pod
+                        existing.category = category
                         existing.source_tab = tab_name
                     else:
                         session.add(
@@ -4671,6 +4714,7 @@ def import_et_cp_pod_history(session: Session) -> ImportResult:
                                 year=year,
                                 month=month,
                                 editorial_pod=normalized_pod,
+                                category=category,
                                 source_tab=tab_name,
                             )
                         )
@@ -4997,6 +5041,67 @@ def import_all(session: Session, sheet_names: list[str]) -> list[ImportResult]:
     return results
 
 
+def refresh_computed_kpis(session: Session) -> dict:
+    """Recompute the Notion-derived KPIs (revision_rate, turnaround_time,
+    second_reviews, capacity_utilization) for every (year, month) that has
+    source data in `notion_articles` or `capacity_projections`, capped at 36
+    months back.
+
+    Extracted from the `/migrate/refresh-kpis` endpoint so it's callable from
+    one place — the endpoint AND the sync manifest's synthetic refresh step
+    both run this, instead of duplicating the month-discovery + refresh loop.
+    Returns `{months_processed, scores_updated, months}`.
+    """
+    from datetime import date
+
+    from sqlalchemy import distinct, extract
+
+    from app.models import CapacityProjection
+    from app.services.notion_kpi_service import refresh_notion_kpis
+
+    months: set[tuple[int, int]] = set()
+
+    stmt_notion = (
+        select(
+            distinct(extract("year", NotionArticle.created_date)).label("y"),
+            extract("month", NotionArticle.created_date).label("m"),
+        )
+        .where(NotionArticle.created_date.isnot(None))
+        .group_by("y", "m")
+    )
+    for y, m in session.execute(stmt_notion).all():
+        if y is not None and m is not None:
+            months.add((int(y), int(m)))
+
+    stmt_cap = select(
+        distinct(CapacityProjection.year).label("y"),
+        CapacityProjection.month.label("m"),
+    ).group_by("y", "m")
+    for y, m in session.execute(stmt_cap).all():
+        if y is not None and m is not None:
+            months.add((int(y), int(m)))
+
+    today = date.today()
+    cutoff = today.year * 12 + today.month - 36
+    months = {(y, m) for (y, m) in months if (y * 12 + m) >= cutoff}
+
+    sorted_months = sorted(months)
+    total_updated = 0
+    for y, m in sorted_months:
+        try:
+            res = refresh_notion_kpis(session, y, m)
+            total_updated += int(res.get("updated", 0))
+        except Exception:
+            logger.exception("refresh_notion_kpis failed for %d-%02d (continuing)", y, m)
+
+    session.commit()
+    return {
+        "months_processed": len(sorted_months),
+        "scores_updated": total_updated,
+        "months": [f"{y}-{m:02d}" for y, m in sorted_months],
+    }
+
+
 # ===========================================================================
 # Monthly Article Count — per-editor delivered-article log
 # ---------------------------------------------------------------------------
@@ -5049,10 +5154,30 @@ _ARTICLE_HDR_ALIASES = {
 
 _ARTICLE_DATE_SUFFIX_RE = re.compile(r"\b(\d{6})\b")  # YYMMDD in copy name
 _ARTICLE_MONTH_NAMES = {
-    "JAN": 1, "JANUARY": 1, "FEB": 2, "FEBRUARY": 2, "MAR": 3, "MARCH": 3,
-    "APR": 4, "APRIL": 4, "MAY": 5, "JUN": 6, "JUNE": 6, "JUL": 7, "JULY": 7,
-    "AUG": 8, "AUGUST": 8, "SEP": 9, "SEPT": 9, "SEPTEMBER": 9, "OCT": 10,
-    "OCTOBER": 10, "NOV": 11, "NOVEMBER": 11, "DEC": 12, "DECEMBER": 12,
+    "JAN": 1,
+    "JANUARY": 1,
+    "FEB": 2,
+    "FEBRUARY": 2,
+    "MAR": 3,
+    "MARCH": 3,
+    "APR": 4,
+    "APRIL": 4,
+    "MAY": 5,
+    "JUN": 6,
+    "JUNE": 6,
+    "JUL": 7,
+    "JULY": 7,
+    "AUG": 8,
+    "AUGUST": 8,
+    "SEP": 9,
+    "SEPT": 9,
+    "SEPTEMBER": 9,
+    "OCT": 10,
+    "OCTOBER": 10,
+    "NOV": 11,
+    "NOVEMBER": 11,
+    "DEC": 12,
+    "DECEMBER": 12,
 }
 _ARTICLE_MONTH_WORD_RE = re.compile(
     r"\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|"
@@ -5156,7 +5281,9 @@ def _article_build_header_map(header_row: list) -> dict[str, int]:
 def _split_editors(editor_raw: str) -> list[str]:
     """'Shelby/Maggie' → ['Shelby', 'Maggie']. Splits on / & , and 'and'."""
     parts = re.split(r"[/&,]| and ", editor_raw, flags=re.IGNORECASE)
-    return [p.strip() for p in parts if p.strip() and p.strip().upper() not in _ARTICLE_EDITOR_BLANKS]
+    return [
+        p.strip() for p in parts if p.strip() and p.strip().upper() not in _ARTICLE_EDITOR_BLANKS
+    ]
 
 
 def _clean_editor(name: str) -> str:
@@ -5185,7 +5312,9 @@ def _excel_serial_to_date(text_val: str) -> date | None:
         return None
 
 
-def _article_parse_full(copy_name: str, date_text: str) -> tuple[date | None, int | None, int | None]:
+def _article_parse_full(
+    copy_name: str, date_text: str
+) -> tuple[date | None, int | None, int | None]:
     """Parse (full_date, year, month). full_date is set only when the day is
     known (copy-name YYMMDD, m/d/yyyy, month-word + day + year, or Excel serial).
     year/month are the best-effort calendar fallback used when no full date."""
@@ -5259,9 +5388,7 @@ def _reconcile_article_unmapped(session: Session, unresolved: dict[str, int]) ->
         row = existing.get(raw)
         if row is None:
             session.add(
-                ArticleUnmappedName(
-                    kind="client", raw_value=raw, occurrences=count, sample_tab=raw
-                )
+                ArticleUnmappedName(kind="client", raw_value=raw, occurrences=count, sample_tab=raw)
             )
         else:
             row.occurrences = count
@@ -5393,17 +5520,13 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             lookup.setdefault(a.raw_value.strip().lower(), canon)
     editor_alias = {
         a.raw_value.strip().lower(): a.canonical_value
-        for a in session.execute(
-            select(ArticleNameAlias).where(ArticleNameAlias.kind == "editor")
-        )
+        for a in session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "editor"))
         .scalars()
         .all()
     }
     writer_alias = {
         a.raw_value.strip().lower(): a.canonical_value
-        for a in session.execute(
-            select(ArticleNameAlias).where(ArticleNameAlias.kind == "writer")
-        )
+        for a in session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "writer"))
         .scalars()
         .all()
     }
@@ -5413,12 +5536,14 @@ def import_monthly_article_count(session: Session) -> ImportResult:
     # 2. List client tabs.
     try:
         meta = _article_retry(
-            lambda: service.spreadsheets()
-            .get(
-                spreadsheetId=ARTICLE_COUNT_ID,
-                fields="sheets.properties(title,hidden,gridProperties(rowCount))",
+            lambda: (
+                service.spreadsheets()
+                .get(
+                    spreadsheetId=ARTICLE_COUNT_ID,
+                    fields="sheets.properties(title,hidden,gridProperties(rowCount))",
+                )
+                .execute()
             )
-            .execute()
         )
     except Exception as exc:  # noqa: BLE001
         result.success = False
@@ -5441,14 +5566,16 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         ranges = [f"'{t}'!A1:AT" for t in chunk_tabs]
         try:
             resp = _article_retry(
-                lambda r=ranges: service.spreadsheets()
-                .values()
-                .batchGet(
-                    spreadsheetId=ARTICLE_COUNT_ID,
-                    ranges=r,
-                    valueRenderOption="FORMATTED_VALUE",
+                lambda r=ranges: (
+                    service.spreadsheets()
+                    .values()
+                    .batchGet(
+                        spreadsheetId=ARTICLE_COUNT_ID,
+                        ranges=r,
+                        valueRenderOption="FORMATTED_VALUE",
+                    )
+                    .execute()
                 )
-                .execute()
             )
             value_ranges.extend(resp.get("valueRanges", []))
         except Exception as exc:  # noqa: BLE001
@@ -5461,6 +5588,17 @@ def import_monthly_article_count(session: Session) -> ImportResult:
     revision_rows: list[dict] = []
     unresolved: dict[str, int] = {}
     parsed = 0
+    # Per-(client, month) editorial pod from ClientPodHistory — the pod AS-OF the
+    # article's editorial month. Articles bucket by THIS, not the client's current
+    # pod, so historical months attribute to the pod that actually did the work.
+    # Months with no ET CP coverage (and unresolved clients) get no pod →
+    # "Unassigned". No fallback by design — the gap is surfaced in Data Quality.
+    pod_by_cm: dict[tuple[int, int, int], str | None] = {
+        (cph.client_id, cph.year, cph.month): cph.editorial_pod
+        for cph in session.execute(
+            select(ClientPodHistory).where(ClientPodHistory.client_id.isnot(None))
+        ).scalars()
+    }
     for tab, vr in zip(tabs, value_ranges):
         values = vr.get("values", [])
         if len(values) < 3:
@@ -5471,10 +5609,12 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         client_obj = _resolve_client(lookup, tab)
         if client_obj is not None:
             client_name, client_id = client_obj.name, client_obj.id
-            pod = _normalize_editorial_pod(client_obj.editorial_pod)
+            # growth_pod has no per-month source (ET CP is editorial-only), so it
+            # stays the client's current growth pod. editorial_pod is resolved
+            # per-article below from pod_by_cm.
             gpod = _normalize_editorial_pod(client_obj.growth_pod)
         else:
-            client_name, client_id, pod, gpod = tab.strip(), None, None, None
+            client_name, client_id, gpod = tab.strip(), None, None
 
         for r_idx, row in enumerate(values[2:], start=3):
             if not row:
@@ -5500,6 +5640,10 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             em = _editorial_month_for(sub_date, editorial_weeks)
             year, month = em if em else (cal_year, cal_month)
             month_year = f"{year:04d}-{month:02d}" if year and month else None
+            # As-of-month editorial pod (no fallback — absent → None/Unassigned).
+            eff_pod = (
+                pod_by_cm.get((client_id, year, month)) if client_id and year and month else None
+            )
             # Non-cryptographic content fingerprint (stable per physical row).
             uid = hashlib.sha256(f"{tab}|{r_idx}".encode()).hexdigest()[:16]
             editors = _split_editors(editor_raw)
@@ -5530,7 +5674,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                         "collaboration": collab,
                         "writer_name": writer_name,
                         "writer_raw": writer_raw,
-                        "editorial_pod": pod,
+                        "editorial_pod": eff_pod,
                         "growth_pod": gpod,
                         "article_title": title,
                         "copy_name": copy_name or None,
@@ -5549,15 +5693,21 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                     }
                 )
                 # Revision VOLUME rows — one per (editor, revision event), bucketed
-                # by the revision's own editorial month.
+                # by the revision's own editorial month. Pod is resolved as-of the
+                # revision's month (rework capacity lands when it happens).
                 for rd, rmy in rev_events:
+                    rev_pod = (
+                        pod_by_cm.get((client_id, int(rmy[:4]), int(rmy[5:7])))
+                        if client_id and rmy and len(rmy) == 7
+                        else None
+                    )
                     revision_rows.append(
                         {
                             "article_uid": uid,
                             "client_name": client_name,
                             "editor_name": editor_name,
                             "writer_name": writer_name,
-                            "editorial_pod": pod,
+                            "editorial_pod": rev_pod,
                             "growth_pod": gpod,
                             "revision_date": rd,
                             "month_year": rmy,

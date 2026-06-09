@@ -564,30 +564,15 @@ export function TimeToTrendChart({
           <Select value={metricKey} onValueChange={(v) => v && setMetricKey(v)}>
             <SelectTrigger size="sm" className="w-[300px]">
             <SelectValue>
-              <span className="text-xs">
-                {(() => {
-                  const p = milestonePairPrefix(metric.from, metric.to);
-                  return p ? `${p} · ${metric.label}` : metric.label;
-                })()}
-              </span>
+              <span className="text-xs">{metric.label}</span>
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {METRIC_DEFS.map((m) => {
-              const p = milestonePairPrefix(m.from, m.to);
-              return (
-                <SelectItem key={m.key} value={m.key}>
-                  <span className="text-xs font-medium">
-                    {p && (
-                      <span className="mr-1.5 inline-block rounded-sm bg-[#1a1a1a] px-1 py-px font-mono text-[10px] text-[#909090] tabular-nums">
-                        {p}
-                      </span>
-                    )}
-                    {m.label}
-                  </span>
-                </SelectItem>
-              );
-            })}
+            {METRIC_DEFS.map((m) => (
+              <SelectItem key={m.key} value={m.key}>
+                <span className="text-xs font-medium">{m.label}</span>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         </div>

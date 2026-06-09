@@ -1082,10 +1082,11 @@ function formatRelative(iso: string): string {
   if (sameYesterday) return "Yesterday";
 
   // Within the same calendar year → "May 8". Older → "May 8, 2024".
+  // en-US so timestamps stay English regardless of browser locale.
   if (d.getFullYear() === nowDate.getFullYear()) {
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

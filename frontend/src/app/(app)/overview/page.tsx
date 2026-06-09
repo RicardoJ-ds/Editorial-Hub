@@ -185,7 +185,7 @@ export default function OverviewPage() {
             <Section
               id="period-snapshot"
               title="Pod Snapshot"
-              subtitle="Per-pod delivery + milestone pace · Goals scope is section-local"
+              subtitle="How each pod is delivering this quarter, with goals and contract progress"
               titleChip={
                 <AsOfBadge
                   label={overviewAsOf.label}
@@ -212,7 +212,7 @@ export default function OverviewPage() {
             <Section
               id="production-history"
               title="Production History"
-              subtitle="Monthly actuals + projection trajectory across the filtered clients"
+              subtitle="Articles delivered each month, with the projected trend ahead"
               titleChip={
                 <AsOfBadge
                   label={overviewAsOf.label}
@@ -238,7 +238,7 @@ export default function OverviewPage() {
             <Section
               id="pod-pace"
               title="Time to Milestones"
-              subtitle="Pod timelines · time-to-metrics · per-client days"
+              subtitle="How fast each pod moves a client from kickoff to first published article"
               titleChip={
                 <AsOfBadge
                   label={overviewAsOf.label}

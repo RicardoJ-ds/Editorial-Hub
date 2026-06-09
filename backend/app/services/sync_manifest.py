@@ -1,0 +1,297 @@
+"""Sync Manifest — the single source of truth for *what gets synced*.
+
+Every sync trigger reads its step list from here:
+  • the SYNC button (scope="current"),
+  • Re-sync Past Months (scope="past"),
+  • the month-rollover auto-resync + a future cron (scope="full"),
+  • any manual API/agent call.
+
+Add a new importer in ONE place — declare a `ManifestStep` with its scope —
+and it automatically flows into all of the above and into the progress UIs
+(which render from `GET /api/migrate/sync-plan`). No more keeping a frontend
+`IMPORTABLE_EXACT` / `RESYNC_STEPS` list in sync with the backend by hand.
+
+Scopes:
+  • "current" — refreshed on every SYNC (this month's live sheets).
+  • "past"    — the heavier "Re-sync Past Months" pass: re-reads closed-month
+                tabs + annual config the regular SYNC freezes.
+  • "full"    — current ++ past, i.e. exactly "click SYNC then Re-sync Past
+                Months". Used by the month-rollover trigger and cron.
+
+Execution reuses `migration_service.import_all` (which writes the audit-log
+"synced" row) and the existing importer fns — this module declares the plan,
+it does not reimplement importing.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from datetime import date, datetime
+from typing import Callable
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models import EditorialWeek, SheetSyncHistory
+from app.services.migration_service import (
+    ImportResult,
+    backfill_editorial_pod_from_history,
+    import_all,
+    import_et_cp_pod_history,
+    import_goals_vs_delivery,
+    import_team_pods,
+    import_week_distribution,
+    list_available_sheets,
+    refresh_computed_kpis,
+)
+
+logger = logging.getLogger(__name__)
+
+# Sheet whose per-month `synced_at` tells us if a past-resync has run since the
+# current editorial month began (drives the month-rollover due-check).
+GOALS_SHEET_NAME = "Master Tracker - Goals vs Delivery"
+
+REFRESH_KPIS_KEY = "@refresh-kpis"
+REFRESH_KPIS_LABEL = "Refresh computed KPIs"
+
+_MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+]
+
+Runner = Callable[[Session], "list[ImportResult]"]
+
+
+@dataclass(frozen=True)
+class ManifestStep:
+    """One declared unit of sync work.
+
+    `run` executes it and returns the ImportResults. `dynamic_prefix` marks a
+    placeholder that the planner expands into one concrete step per matching
+    live sheet (e.g. the versioned "ET CP 2026 [V14 …]" tab) — those have no
+    `run` of their own; they're imported by sheet name via `run_step`.
+    """
+
+    key: str
+    label: str
+    scope: str  # "current" | "past"
+    run: Runner | None = None
+    dynamic_prefix: str | None = None
+    description: str | None = None  # optional UI gloss (shown in the Re-sync card)
+
+
+def _sheet(name: str) -> ManifestStep:
+    """A current-scope step that imports a single named sheet through
+    `import_all` (so it's audit-logged like every other sheet import)."""
+
+    def run(session: Session) -> list[ImportResult]:
+        return import_all(session, [name])
+
+    return ManifestStep(
+        key=name,
+        label=name,
+        scope="current",
+        run=run,
+    )
+
+
+def _refresh_kpis_run(session: Session) -> list[ImportResult]:
+    info = refresh_computed_kpis(session)
+    return [
+        ImportResult(
+            sheet=REFRESH_KPIS_LABEL,
+            rows_parsed=int(info.get("months_processed", 0)),
+            rows_imported=int(info.get("scores_updated", 0)),
+            success=True,
+        )
+    ]
+
+
+# ── current scope — what SYNC refreshes on every click ──────────────────────
+# Mirrors what the frontend used to hardcode in IMPORTABLE_EXACT/PREFIXES, now
+# owned here. The two dynamic-prefix entries expand to the live versioned tabs.
+CURRENT_STEPS: list[ManifestStep] = [
+    _sheet("Editorial SOW overview"),
+    _sheet("Delivered vs Invoiced v2"),
+    _sheet("Editorial Operating Model"),
+    _sheet("AI Monitoring - Data"),
+    _sheet("AI Monitoring - Rewrites"),
+    _sheet("AI Monitoring - Flags"),
+    _sheet("AI Monitoring - Surfer Usage"),
+    _sheet("Master Tracker - Cumulative"),
+    _sheet("Master Tracker - Goals vs Delivery"),  # current month (default mode)
+    _sheet("Notion Database"),
+    _sheet("Growth Pods"),
+    _sheet("Monthly Article Count"),
+    ManifestStep("@et-cp", "ET CP 2026 (current version)", "current", dynamic_prefix="ET CP 2026"),
+    ManifestStep(
+        "@kpi-scores", "Monthly KPI Scores", "current", dynamic_prefix="Monthly KPI Scores"
+    ),
+    ManifestStep(
+        "@kpi-scores-mock",
+        "Monthly KPI Scores",
+        "current",
+        dynamic_prefix="[Mock] Monthly KPI Scores",
+    ),
+    ManifestStep(REFRESH_KPIS_KEY, REFRESH_KPIS_LABEL, "current", run=_refresh_kpis_run),
+]
+
+# ── past scope — the "Re-sync Past Months" pass ─────────────────────────────
+PAST_STEPS: list[ManifestStep] = [
+    ManifestStep(
+        "goals-vs-delivery",
+        "Master Tracker - Goals vs Delivery",
+        "past",
+        run=lambda s: [import_goals_vs_delivery(s, mode="all")],
+        description="Every [Month Year] Goals vs Delivery monthly tab",
+    ),
+    ManifestStep(
+        "week-distribution",
+        "Master Tracker - Week Distribution",
+        "past",
+        run=lambda s: [import_week_distribution(s)],
+        description="<YYYY> Week Distribution — drives the 'As Of' badge",
+    ),
+    ManifestStep(
+        "team-pods",
+        "Team Pods - Editorial + Growth",
+        "past",
+        run=lambda s: [import_team_pods(s)],
+        description="RBAC group auto-membership",
+    ),
+    ManifestStep(
+        "et-cp-history",
+        "ET CP Pod History",
+        "past",
+        run=lambda s: [import_et_cp_pod_history(s)],
+        description="Every historical ET CP version tab — confirmed pod history",
+    ),
+    ManifestStep(
+        "backfill-editorial-pod",
+        "Backfill Editorial Pod from history",
+        "past",
+        run=lambda s: [backfill_editorial_pod_from_history(s)],
+        description="Fills clients.editorial_pod from the most recent confirmed history",
+    ),
+]
+
+ALL_STEPS = CURRENT_STEPS + PAST_STEPS
+_FIXED_BY_KEY: dict[str, ManifestStep] = {st.key: st for st in ALL_STEPS if st.run is not None}
+
+
+def steps_for_scope(scope: str) -> list[ManifestStep]:
+    if scope == "current":
+        return list(CURRENT_STEPS)
+    if scope == "past":
+        return list(PAST_STEPS)
+    if scope == "full":
+        # full == click SYNC, then Re-sync Past Months (current then past).
+        return CURRENT_STEPS + PAST_STEPS
+    raise ValueError(f"Unknown sync scope '{scope}' (expected current|past|full)")
+
+
+def resolve_plan(scope: str, available: list[dict] | None = None) -> list[dict]:
+    """Resolve a scope into the ordered, concrete step list the UI renders +
+    drives. Dynamic-prefix steps expand into one entry per matching live sheet.
+    `available` is the output of `list_available_sheets()`; fetched lazily only
+    when an expansion is actually needed.
+    """
+    steps = steps_for_scope(scope)
+    if any(st.dynamic_prefix for st in steps) and available is None:
+        try:
+            available = list_available_sheets()
+        except Exception:
+            logger.warning("sync-plan: could not list sheets to expand dynamic steps")
+            available = []
+    names = [s["name"] for s in (available or [])]
+
+    plan: list[dict] = []
+    for st in steps:
+        if st.dynamic_prefix:
+            for n in names:
+                if n.startswith(st.dynamic_prefix):
+                    plan.append(
+                        {"key": n, "label": n, "scope": st.scope, "description": st.description}
+                    )
+        else:
+            plan.append(
+                {"key": st.key, "label": st.label, "scope": st.scope, "description": st.description}
+            )
+    return plan
+
+
+def run_step(session: Session, key: str) -> list[ImportResult]:
+    """Execute a single step by key. Fixed steps run their declared `run`;
+    any other key is treated as a live sheet name (a dynamic-prefix expansion)
+    and imported via `import_all`."""
+    st = _FIXED_BY_KEY.get(key)
+    if st is not None and st.run is not None:
+        return st.run(session)
+    return import_all(session, [key])
+
+
+# ── month-rollover due-check ────────────────────────────────────────────────
+
+
+def current_editorial_month(
+    session: Session, today: date | None = None
+) -> tuple[int, int, date] | None:
+    """Latest editorial month whose Week 1 started on or before `today`.
+    Returns (year, month, week1_start) or None when weeks aren't loaded or
+    today precedes every known Week 1. Mirrors the frontend's
+    `currentEditorialMonth` so server + client agree."""
+    today = today or date.today()
+    rows = (
+        session.execute(select(EditorialWeek).where(EditorialWeek.week_number == 1)).scalars().all()
+    )
+    best: tuple[int, int, date] | None = None
+    for w in rows:
+        if w.start_date and w.start_date <= today:
+            if best is None or w.start_date > best[2]:
+                best = (w.year, w.month, w.start_date)
+    return best
+
+
+def monthly_resync_due(session: Session, today: date | None = None) -> dict:
+    """Whether the past-months resync hasn't run since the current editorial
+    month began — i.e. a new month rolled over and last month's final numbers
+    haven't been pulled yet. Compares the latest Goals-tab `synced_at` against
+    the current editorial month's Week-1 start."""
+    today = today or date.today()
+    cur = current_editorial_month(session, today)
+    last_goals: datetime | None = session.execute(
+        select(SheetSyncHistory.synced_at)
+        .where(SheetSyncHistory.sheet_name == GOALS_SHEET_NAME)
+        .order_by(SheetSyncHistory.synced_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    last_iso = last_goals.isoformat() if last_goals else None
+
+    if cur is None:
+        # Can't pin the editorial month → don't force a heavy resync.
+        return {
+            "due": False,
+            "current_month": None,
+            "month_start": None,
+            "last_goals_sync": last_iso,
+        }
+
+    year, month, start = cur
+    due = last_goals is None or last_goals.date() < start
+    return {
+        "due": due,
+        "current_month": f"{_MONTHS[month - 1]} {year}",
+        "month_start": start.isoformat(),
+        "last_goals_sync": last_iso,
+    }

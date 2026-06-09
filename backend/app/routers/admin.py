@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models import (
+    ArticleRecord,
     AuditLog,
     Client,
     ClientPodHistory,
@@ -142,12 +143,57 @@ class PodImportIssueItem(BaseModel):
     pod_label: str | None
     first_seen_at: datetime
     last_seen_at: datetime
+    # Lifecycle so mapped rows stay visible instead of vanishing:
+    #   open     — still unmatched, needs an override
+    #   mapped   — an override exists but the next SYNC hasn't applied it yet
+    #   resolved — matched on a later sync (via override or fuzzy self-heal)
+    status: str = "open"
+    mapped_to: str | None = None  # target client name when an override exists
+
+
+class UnassignedArticlePodItem(BaseModel):
+    """An article-month with NO as-of editorial pod (client_pod_history had no row
+    for that client+month). Surfaces the coverage gap created by per-month pod
+    attribution so ops can decide to fix it at the source ET CP sheet or accept it."""
+
+    client_name: str
+    client_id: int | None
+    year: int
+    month: int
+    article_count: int  # distinct articles affected
+    # "missing_month" = client has ET CP pod history for OTHER months but not this
+    # one; "never_in_et_cp" = client never appears in client_pod_history (or its
+    # source tab is unresolved). Separates a one-month gap from an unmapped client.
+    hint: str
+
+
+class MissingClientItem(BaseModel):
+    """A client name found in a source sheet (Editorial Operating Model,
+    Delivered vs Invoiced, Meta Deliveries, or ET CP) but with no row in the
+    Hub's `clients` table — so all of its data is silently dropped from the
+    dashboards. `*_seen_tab` tells the user which source sheet flagged it so
+    they know where to add it. Self-heals once the client is added to the SOW
+    Overview and re-synced."""
+
+    id: int
+    name_raw: str
+    first_seen_tab: str
+    last_seen_tab: str
+    # Lifecycle so the row stays visible after the operator acts on it:
+    #   open      — unmatched, still dropping data
+    #   mapped    — aliased to a Hub client (resolves on next SYNC)
+    #   dismissed — flagged as noise (header / placeholder), not a real client
+    #   resolved  — added to SOW Overview since it was flagged (self-healed)
+    status: str = "open"
+    mapped_to: str | None = None  # target client name when status == "mapped"
 
 
 class DiscrepanciesResponse(BaseModel):
     end_date_mismatches: list[EndDateDiscrepancy]
     delivered_drift: list[DeliveredDriftDiscrepancy]
     pod_import_issues: list[PodImportIssueItem]
+    unassigned_article_pods: list[UnassignedArticlePodItem]
+    missing_clients: list[MissingClientItem]
     generated_at: datetime
     as_of_label: str  # editorial "as of" month used for source-B and source-C sums
 
@@ -335,30 +381,269 @@ async def list_discrepancies(
     drift.sort(key=lambda d: (d.status != "ACTIVE", -d.span))
 
     # ── Pod import issues (unmatched BQ client names) ────────────────────
-    pod_issues_result = await db.execute(
-        select(PodImportIssue)
-        .where(PodImportIssue.resolved_at.is_(None))
-        .order_by(PodImportIssue.last_seen_at.desc())
-    )
-    pod_issues = [
-        PodImportIssueItem(
-            id=row.id,
-            raw_name=row.raw_name,
-            pod_kind=row.pod_kind,
-            pod_label=row.pod_label,
-            first_seen_at=row.first_seen_at,
-            last_seen_at=row.last_seen_at,
+    # Return ALL rows (not just unresolved) so a name the operator already
+    # mapped stays visible with its status — the frontend filters by status.
+    from app.models import PodNameOverride
+
+    override_rows = await db.execute(
+        select(PodNameOverride.raw_name, PodNameOverride.pod_kind, Client.name).join(
+            Client, PodNameOverride.client_id == Client.id
         )
-        for row in pod_issues_result.scalars()
+    )
+    override_map = {(r.raw_name, r.pod_kind): r.name for r in override_rows.all()}
+
+    pod_issues_result = await db.execute(
+        select(PodImportIssue).order_by(PodImportIssue.last_seen_at.desc())
+    )
+    pod_issues: list[PodImportIssueItem] = []
+    for row in pod_issues_result.scalars():
+        mapped_to = override_map.get((row.raw_name, row.pod_kind))
+        if row.resolved_at is not None:
+            status = "resolved"
+        elif mapped_to is not None:
+            status = "mapped"
+        else:
+            status = "open"
+        pod_issues.append(
+            PodImportIssueItem(
+                id=row.id,
+                raw_name=row.raw_name,
+                pod_kind=row.pod_kind,
+                pod_label=row.pod_label,
+                first_seen_at=row.first_seen_at,
+                last_seen_at=row.last_seen_at,
+                status=status,
+                mapped_to=mapped_to,
+            )
+        )
+    # Open first, then mapped (pending sync), then resolved; newest within each.
+    _pod_rank = {"open": 0, "mapped": 1, "resolved": 2}
+    pod_issues.sort(key=lambda p: (_pod_rank.get(p.status, 0), -p.last_seen_at.timestamp()))
+
+    # ── Unassigned article pods (per-month pod coverage gaps) ────────────
+    # Articles whose editorial month had no client_pod_history row → no as-of
+    # pod → they fall into "Unassigned" on Monthly Articles. Group by client+month
+    # so ops can see exactly where the source ET CP sheet is missing the client.
+    cph_client_ids = set(
+        (
+            await db.execute(
+                select(ClientPodHistory.client_id)
+                .where(ClientPodHistory.client_id.is_not(None))
+                .distinct()
+            )
+        ).scalars()
+    )
+    unassigned_result = await db.execute(
+        select(
+            ArticleRecord.client_name,
+            ArticleRecord.client_id,
+            ArticleRecord.year,
+            ArticleRecord.month,
+            func.count(func.distinct(ArticleRecord.article_uid)).label("article_count"),
+        )
+        .where(ArticleRecord.editorial_pod.is_(None))
+        .where(ArticleRecord.year.is_not(None))
+        .where(ArticleRecord.month.is_not(None))
+        .group_by(
+            ArticleRecord.client_name,
+            ArticleRecord.client_id,
+            ArticleRecord.year,
+            ArticleRecord.month,
+        )
+        .order_by(ArticleRecord.year.desc(), ArticleRecord.month.desc())
+    )
+    unassigned_article_pods = [
+        UnassignedArticlePodItem(
+            client_name=row.client_name,
+            client_id=row.client_id,
+            year=row.year,
+            month=row.month,
+            article_count=row.article_count,
+            hint=(
+                "missing_month"
+                if row.client_id is not None and row.client_id in cph_client_ids
+                else "never_in_et_cp"
+            ),
+        )
+        for row in unassigned_result
     ]
+    unassigned_article_pods.sort(key=lambda u: (-(u.year * 12 + u.month), -u.article_count))
+
+    # ── Missing clients — in a source sheet but not in the Hub ──────────────
+    # `incomplete_clients` is populated by the production importers (Operating
+    # Model / Delivered vs Invoiced / Meta) + ET CP history with the source tab.
+    # Return ALL of them tagged with a status (the read-only self-heal becomes a
+    # "resolved" tag rather than a hide) so the operator keeps a running log of
+    # what was mapped / dismissed vs what's still open — the frontend filters.
+    from app.models import ClientNameAlias, IncompleteClient
+
+    def _norm_name(s: str) -> str:
+        return "".join(ch for ch in s.lower() if ch.isalnum())
+
+    name_rows = await db.execute(select(Client.name))
+    live_norm = {_norm_name(n) for (n,) in name_rows.all() if n}
+
+    alias_rows = await db.execute(select(ClientNameAlias.raw_name, ClientNameAlias.client_name))
+    alias_map = {r.raw_name: r.client_name for r in alias_rows.all()}
+
+    ic_rows = await db.execute(select(IncompleteClient))
+    missing_clients: list[MissingClientItem] = []
+    for ic in ic_rows.scalars():
+        mapped_to = alias_map.get(ic.name_raw)
+        if mapped_to is not None:
+            status = "mapped"
+        elif ic.resolved_at is not None:
+            status = "dismissed"
+        elif _norm_name(ic.name_raw) in live_norm:
+            status = "resolved"  # added to SOW Overview since flagged
+        else:
+            status = "open"
+        missing_clients.append(
+            MissingClientItem(
+                id=ic.id,
+                name_raw=ic.name_raw,
+                first_seen_tab=ic.first_seen_tab,
+                last_seen_tab=ic.last_seen_tab,
+                status=status,
+                mapped_to=mapped_to,
+            )
+        )
+    # Open first (still needs action), then the resolved kinds; alpha within.
+    _mc_rank = {"open": 0, "mapped": 1, "resolved": 1, "dismissed": 2}
+    missing_clients.sort(key=lambda m: (_mc_rank.get(m.status, 0), m.name_raw.lower()))
 
     return DiscrepanciesResponse(
         end_date_mismatches=end_mismatches,
         delivered_drift=drift,
         pod_import_issues=pod_issues,
+        unassigned_article_pods=unassigned_article_pods,
+        missing_clients=missing_clients,
         generated_at=datetime.utcnow(),
         as_of_label=as_of_label,
     )
+
+
+@router.post("/missing-clients/{item_id}/dismiss")
+async def dismiss_missing_client(item_id: int, db: AsyncSession = Depends(get_db)):
+    """Dismiss a 'missing client' row — for noise rows that aren't real clients
+    (e.g. 'Sales', 'New clients', section headers). Sets `resolved_at` so it
+    drops off the Data Quality list and won't be re-flagged on the next sync
+    (the importers skip names already resolved)."""
+    from app.models import IncompleteClient
+
+    ic = (
+        (await db.execute(select(IncompleteClient).where(IncompleteClient.id == item_id)))
+        .scalars()
+        .first()
+    )
+    if ic is None:
+        raise HTTPException(status_code=404, detail="Missing-client row not found")
+    if ic.resolved_at is None:
+        ic.resolved_at = datetime.utcnow()
+        await db.commit()
+    return {"dismissed": True, "id": item_id}
+
+
+class MapMissingClientRequest(BaseModel):
+    client_id: int
+
+
+@router.post("/missing-clients/{item_id}/map")
+async def map_missing_client(
+    item_id: int, body: MapMissingClientRequest, db: AsyncSession = Depends(get_db)
+):
+    """Map a 'missing client' row to an existing Hub client — for sheet names
+    that are a variant/acronym of a real client the fuzzy matcher can't catch
+    (e.g. 'WL/SG support (Feb)' → 'Workleap+Sharegate'). Writes a
+    `client_name_aliases` row so the SOW-client resolution picks it up on the
+    next sync, and resolves the flag now so it drops off the list."""
+    from app.models import ClientNameAlias, IncompleteClient
+
+    ic = (
+        (await db.execute(select(IncompleteClient).where(IncompleteClient.id == item_id)))
+        .scalars()
+        .first()
+    )
+    if ic is None:
+        raise HTTPException(status_code=404, detail="Missing-client row not found")
+
+    client = (await db.execute(select(Client).where(Client.id == body.client_id))).scalars().first()
+    if client is None:
+        raise HTTPException(status_code=404, detail="Target client not found")
+
+    existing = (
+        (await db.execute(select(ClientNameAlias).where(ClientNameAlias.raw_name == ic.name_raw)))
+        .scalars()
+        .first()
+    )
+    if existing is None:
+        db.add(ClientNameAlias(raw_name=ic.name_raw, client_name=client.name))
+    else:
+        existing.client_name = client.name
+    # Clear the flag now; it stays cleared because the alias resolves the name
+    # on the next sync.
+    ic.resolved_at = datetime.utcnow()
+    await db.commit()
+    return {"mapped": True, "raw_name": ic.name_raw, "client": client.name}
+
+
+@router.post("/missing-clients/{item_id}/reopen")
+async def reopen_missing_client(item_id: int, db: AsyncSession = Depends(get_db)):
+    """Undo a map/dismiss — drops any alias for the name and clears `resolved_at`
+    so the row returns to 'open'. Lets the operator correct a wrong mapping."""
+    from app.models import ClientNameAlias, IncompleteClient
+
+    ic = (
+        (await db.execute(select(IncompleteClient).where(IncompleteClient.id == item_id)))
+        .scalars()
+        .first()
+    )
+    if ic is None:
+        raise HTTPException(status_code=404, detail="Missing-client row not found")
+
+    aliases = (
+        (await db.execute(select(ClientNameAlias).where(ClientNameAlias.raw_name == ic.name_raw)))
+        .scalars()
+        .all()
+    )
+    for a in aliases:
+        await db.delete(a)
+    ic.resolved_at = None
+    await db.commit()
+    return {"reopened": True, "id": item_id}
+
+
+@router.post("/pod-import-issues/{item_id}/reopen")
+async def reopen_pod_import_issue(item_id: int, db: AsyncSession = Depends(get_db)):
+    """Undo a pod-name override — drops the override for this (raw_name, pod_kind)
+    and clears `resolved_at` so the row returns to 'open'."""
+    from app.models import PodNameOverride
+
+    issue = (
+        (await db.execute(select(PodImportIssue).where(PodImportIssue.id == item_id)))
+        .scalars()
+        .first()
+    )
+    if issue is None:
+        raise HTTPException(status_code=404, detail="Pod-import-issue row not found")
+
+    overrides = (
+        (
+            await db.execute(
+                select(PodNameOverride).where(
+                    PodNameOverride.raw_name == issue.raw_name,
+                    PodNameOverride.pod_kind == issue.pod_kind,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for o in overrides:
+        await db.delete(o)
+    issue.resolved_at = None
+    await db.commit()
+    return {"reopened": True, "id": item_id}
 
 
 # ---------------------------------------------------------------------------
@@ -437,7 +722,9 @@ async def create_pod_name_override(
         )
         db.add(row)
 
-    await db.flush()
+    # NOTE: get_db() does not auto-commit — must commit explicitly or the row
+    # rolls back on session close (this silently broke override persistence).
+    await db.commit()
     await db.refresh(row)
 
     return PodNameOverrideItem(
@@ -459,6 +746,7 @@ async def delete_pod_name_override(override_id: int, db: AsyncSession = Depends(
     if row is None:
         raise HTTPException(status_code=404, detail="Override not found")
     await db.delete(row)
+    await db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +767,9 @@ class PodHistoryEntry(BaseModel):
     year: int
     month: int
     editorial_pod: str | None
+    # standard / specialized tag for this client-month (drives the ×1.4
+    # used-capacity weighting). None when the source cell was blank/unrecognized.
+    category: str | None
     source_tab: str
     # SOW completeness — same shape as `/incomplete-clients`. Empty when the
     # client is fully populated. For unmatched names (client_id is None) this
@@ -530,6 +821,7 @@ async def list_pod_history(db: AsyncSession = Depends(get_db)):
             year=row.year,
             month=row.month,
             editorial_pod=row.editorial_pod,
+            category=row.category,
             source_tab=row.source_tab,
             missing_fields=_client_missing_fields(row.client),
         )

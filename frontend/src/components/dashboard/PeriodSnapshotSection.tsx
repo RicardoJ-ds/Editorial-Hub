@@ -23,8 +23,9 @@ import {
   contentTypeRatio,
   displayPod,
   MILESTONE_NUM_BY_FIELD,
-  milestonePairPrefix,
   TooltipBody,
+  varianceTier,
+  varianceSubline,
 } from "@/components/dashboard/shared-helpers";
 import {
   Tooltip,
@@ -39,6 +40,7 @@ import {
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { TimeToTrendChart } from "@/components/dashboard/TimeToMetrics";
 import { trackEvent } from "@/lib/analyticsClient";
+import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Period Snapshot — top of /overview.
@@ -673,13 +675,13 @@ function PodDeliveryProgressCard({
           <span />
           <span />
           <GoalsHeaderWithSelector
-            sub={`CBs + articles · ${period.label}`}
+            sub={`CBs + Articles vs monthly goal · ${period.label}`}
             help={{
               title: "Goals",
               bullets: [
-                "CBs + articles, counted separately.",
+                "Content Briefs and Articles, counted separately.",
                 "Numbers = delivered / monthly goal.",
-                "Scope picked via the dropdown — section-local.",
+                "Time range set by the dropdown above.",
               ],
             }}
             selector={
@@ -695,37 +697,39 @@ function PodDeliveryProgressCard({
             }
           />
           <ColumnHeader
-            title="Current Q"
-            sub="Q delivered · invoiced"
+            title="Current Quarter"
+            sub="Delivered against Invoiced"
             align="center"
             help={{
-              title: "Current Q",
+              title: "Current Quarter",
               bullets: [
-                "Delivered = Q delivered ÷ Q invoiced.",
-                "Invoiced = Q invoiced ÷ SOW.",
-                "Chip = end-of-Q variance + tier.",
+                "Top bar: articles delivered vs invoiced this quarter.",
+                "Bottom bar: invoiced this quarter vs the full contract (SOW).",
+                "Chip: projected delivered vs invoiced by quarter's end.",
               ],
             }}
           />
           <ColumnHeader
-            title="%SOW"
-            sub="delivered vs SOW"
+            title="% of SOW"
+            sub="delivered vs full contract"
             align="center"
             help={{
-              title: "%SOW",
+              title: "% of SOW",
               bullets: [
-                "% = delivered ÷ contracted SOW.",
+                "Share of the full contract delivered so far.",
+                "SOW = the total articles the contract covers.",
               ],
             }}
           />
           <ColumnHeader
-            title="%Published"
-            sub="published vs SOW"
+            title="% Published"
+            sub="published vs full contract"
             align="center"
             help={{
-              title: "%Published",
+              title: "% Published",
               bullets: [
-                "% = published-live ÷ contracted SOW.",
+                "Share of the full contract already published live.",
+                "SOW = the total articles the contract covers.",
               ],
             }}
           />
@@ -1432,31 +1436,26 @@ function QTile({
   }
   // Tier drives the End-of-Q chip's colour. When `muted`, every shade
   // collapses to mid-grey so Last Q stays calm against Current Q.
-  const tier = muted
-    ? { color: "#909090", label: variance >= 0 ? "On Track" : variance >= -5 ? "Within Limit" : "Behind Plan" }
-    : variance >= 0
-      ? { color: "#42CA80", label: "On Track" }
-      : variance >= -5
-      ? { color: "#F5C542", label: "Within Limit" }
-      : { color: "#ED6958", label: "Behind Plan" };
+  const base = varianceTier(variance);
+  const tier = muted ? { color: "#909090", label: base.label } : base;
   const barColor = muted ? "#909090" : "#42CA80";
   return (
     <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
       {/* LEFT: the two progress bars take the lion's share of the cell. */}
       <div className="flex-1 min-w-0 space-y-1.5 text-left">
         <LifetimeBar
-          label="Q delivered"
+          label="Delivered"
           num={delivered}
-          numUnit="del"
+          numUnit="delivered"
           denom={invoiced}
-          denomUnit="inv"
+          denomUnit="invoiced"
           color={barColor}
           muted={muted}
         />
         <LifetimeBar
           label="Invoiced"
           num={invoiced}
-          numUnit="inv"
+          numUnit="invoiced"
           denom={sow}
           denomUnit="SOW"
           color={barColor}
@@ -1470,7 +1469,7 @@ function QTile({
         qLabel=""
         variance={variance}
         tier={tier}
-        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
+        chipLabel={kind === "current" ? "End of quarter" : "Last quarter"}
         muted={muted}
       />
     </div>
@@ -1798,38 +1797,27 @@ function ClientQCell({
   }
   // 1st-Q new clients keep the blue chip; Current Q uses full tier
   // palette; Last Q renders in mid-grey (driven by `muted`).
-  const color = isNew
-    ? "#8FB5D9"
-    : muted
-      ? "#909090"
-      : q.variance >= 0 ? "#42CA80"
-      : q.variance >= -5 ? "#F5C542"
-      : "#ED6958";
-  const tierLabel = isNew
-    ? "1st Q"
-    : q.variance >= 0
-      ? "On Track"
-      : q.variance >= -5
-        ? "Within Limit"
-        : "Behind Plan";
+  const base = varianceTier(q.variance, isNew);
+  const color = muted && !isNew ? "#909090" : base.color;
+  const tierLabel = base.label;
   const barColor = muted ? "#909090" : "#42CA80";
   return (
     <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
       {/* LEFT: the two progress bars take the lion's share. */}
       <div className="flex-1 min-w-0 space-y-1.5 text-left">
         <LifetimeBar
-          label="Q delivered"
+          label="Delivered"
           num={q.delivered}
-          numUnit="del"
+          numUnit="delivered"
           denom={q.invoiced}
-          denomUnit="inv"
+          denomUnit="invoiced"
           color={barColor}
           muted={muted}
         />
         <LifetimeBar
           label="Invoiced"
           num={q.invoiced}
-          numUnit="inv"
+          numUnit="invoiced"
           denom={sow}
           denomUnit="SOW"
           color={barColor}
@@ -1842,7 +1830,7 @@ function ClientQCell({
         qLabel={label}
         variance={q.variance}
         tier={{ color, label: tierLabel }}
-        chipLabel={kind === "current" ? "End-of-Q" : "Last Close"}
+        chipLabel={kind === "current" ? "End of quarter" : "Last quarter"}
         muted={muted}
       />
     </div>
@@ -1855,7 +1843,7 @@ function ClientQCell({
  *  data now reads top-to-bottom in this block:
  *    1) Q label  (e.g. "Q1", "Q2 Y2")
  *    2) Variance (e.g. "−15")
- *    3) Tier     (e.g. "Behind Plan")
+ *    3) Tier     (e.g. "Behind", "Ahead", "Within limit")
  *  Tier colour drives all three lines (muted grey for Last Q). */
 function QInfoBlock({
   qLabel,
@@ -1867,11 +1855,35 @@ function QInfoBlock({
   qLabel: string;
   variance: number;
   tier: { color: string; label: string };
-  chipLabel: "End-of-Q" | "Last Close";
+  chipLabel: "End of quarter" | "Last quarter";
   muted?: boolean;
 }) {
   const sign = variance > 0 ? "+" : "";
   const labelColor = muted ? "#707070" : tier.color;
+  // Plain-language gloss under the number — replaces the old uppercase tier
+  // word ("WITHIN LIMIT") so non-editorial readers know what the number means.
+  // 1st-Q clients carry the blue "1st Q" tier, so detect them off the label.
+  const isNew = tier.label === "1st Q";
+  const subline = varianceSubline(variance, isNew);
+  // As-of month comes from the Editorial week distribution (NOT the calendar).
+  const asOf = useEditorialAsOf();
+  const isCurrent = chipLabel === "End of quarter";
+  // The tier rule, stated correctly: 0 is on track, anything within ±5 (either
+  // direction) is within limit, only beyond ±5 is flagged behind/ahead. 1st-Q
+  // clients are exempt while they ramp, so swap in a note instead of the rule.
+  const ruleBullet = isNew
+    ? "1st contract quarter — still ramping, so not flagged."
+    : "0 on track · within ±5 within limit · beyond ±5 behind/ahead.";
+  const tipBullets = isCurrent
+    ? [
+        "Articles delivered − invoiced, projected to the quarter's end.",
+        ruleBullet,
+        `As of ${asOf.label}${asOf.isFallback ? " (calendar)" : ""}.`,
+      ]
+    : [
+        "Articles delivered − invoiced at the last quarter's close.",
+        ruleBullet,
+      ];
   return (
     <div className="shrink-0 w-[5.5rem] flex flex-col items-stretch gap-1 font-mono tabular-nums">
       {qLabel && (
@@ -1884,36 +1896,47 @@ function QInfoBlock({
       )}
       {/* Variance enclosure — tier-coloured border + faint tint so the
           variance reads as a self-contained badge attached to the bars
-          on its left. Variance NUMBER is the focal element (xl), with
-          the chip label above and the tier label below in compact
-          uppercase text. */}
-      <div
-        className="w-full rounded-md border px-2 py-1.5 flex flex-col items-center gap-0.5"
-        style={{
-          borderColor: `${labelColor}66`,
-          backgroundColor: `${labelColor}12`,
-        }}
-      >
-        <span
-          className="text-[9px] uppercase tracking-wider leading-tight text-center"
-          style={{ color: muted ? "#606060" : "#909090" }}
-        >
-          {chipLabel}
-        </span>
-        <span
-          className="text-xl font-bold leading-none tabular-nums"
-          style={{ color: labelColor }}
-        >
-          {sign}
-          {Math.round(variance)}
-        </span>
-        <span
-          className="text-[9px] font-semibold uppercase tracking-wider leading-tight text-center"
-          style={{ color: labelColor }}
-        >
-          {tier.label}
-        </span>
-      </div>
+          on its left. Variance NUMBER is the focal element (xl), the chip
+          label above it, and a plain-language gloss below it. Hover for the
+          short explanation of what end-of-quarter variance means. */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div
+                className="w-full rounded-md border px-2 py-1.5 flex flex-col items-center gap-0.5 cursor-help"
+                style={{
+                  borderColor: `${labelColor}66`,
+                  backgroundColor: `${labelColor}12`,
+                }}
+              />
+            }
+          >
+            <span
+              className="text-[9px] uppercase tracking-wider leading-tight text-center"
+              style={{ color: muted ? "#606060" : "#909090" }}
+            >
+              {chipLabel}
+            </span>
+            <span
+              className="text-xl font-bold leading-none tabular-nums"
+              style={{ color: labelColor }}
+            >
+              {sign}
+              {Math.round(variance)}
+            </span>
+            <span
+              className="text-[8px] leading-tight text-center"
+              style={{ color: muted ? "#606060" : "#909090" }}
+            >
+              {subline}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-[16rem] text-xs leading-relaxed">
+            <TooltipBody title={chipLabel} bullets={tipBullets} />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }
@@ -2122,7 +2145,6 @@ function TTMStatCard({
   onHideTip: () => void;
   podAxis: "editorial" | "growth";
 }) {
-  const pairPrefix = milestonePairPrefix(stat.from, stat.to);
   const fromField = stat.from ?? "consulting_ko_date";
   // Card is "matched" when the active hover refers to this transition,
   // OR (for milestone hover) when this card has that milestone as either
@@ -2164,11 +2186,6 @@ function TTMStatCard({
       }}
     >
       <p className="font-mono text-[9px] uppercase tracking-wider text-[#606060] truncate" title={stat.subtitle}>
-        {pairPrefix && (
-          <span className="mr-1 inline-block rounded-sm bg-[#1a1a1a] px-1 py-px text-[#909090] tabular-nums">
-            {pairPrefix}
-          </span>
-        )}
         {stat.short}
       </p>
       {/* Avg on the LEFT, range + count stacked on the RIGHT — the
@@ -2572,7 +2589,9 @@ function fmtTipDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
+  // Force en-US so milestone dates render "9 Jan 2026", not the browser's
+  // locale (e.g. Spanish "9 ene 2026"). The Hub is English-only.
+  return d.toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
 }
@@ -2611,11 +2630,6 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
               style={{ backgroundColor: tip.color }}
             />
             <span className="font-mono text-[11px] uppercase tracking-wider text-[#C4BCAA] truncate">
-              {tip.field && MILESTONE_NUM_BY_FIELD[tip.field] != null && (
-                <span className="text-[#909090] mr-1">
-                  {MILESTONE_NUM_BY_FIELD[tip.field]}
-                </span>
-              )}
               {tip.label}
             </span>
           </div>
@@ -2624,11 +2638,7 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
               {tip.days}d
             </span>
             <span className="ml-1.5 text-[11px] text-[#909090]">
-              from{" "}
-              <span className="text-[#C4BCAA]">
-                {MILESTONE_NUM_BY_FIELD.consulting_ko_date}
-              </span>{" "}
-              Consulting KO
+              from <span className="text-[#C4BCAA]">Consulting KO</span>
             </span>
           </p>
         </div>
@@ -2643,10 +2653,6 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
             </p>
             <div className="space-y-1">
               {tip.previousLegs.map((leg) => {
-                const legNum =
-                  leg.field != null
-                    ? MILESTONE_NUM_BY_FIELD[leg.field]
-                    : undefined;
                 return (
                   <div
                     key={leg.label}
@@ -2660,13 +2666,7 @@ function JourneyTooltip({ tip }: { tip: JourneyTip }) {
                         className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: leg.color }}
                       />
-                      <span className="truncate">
-                        after{" "}
-                        {legNum != null && (
-                          <span className="text-[#909090]">{legNum}</span>
-                        )}{" "}
-                        {leg.label}
-                      </span>
+                      <span className="truncate">after {leg.label}</span>
                     </span>
                   </div>
                 );
@@ -2702,7 +2702,6 @@ function TTMContributorsTooltip({
   podAxis: "editorial" | "growth";
 }) {
   const { stat } = tip;
-  const pairPrefix = milestonePairPrefix(stat.from, stat.to);
   const byPod = new Map<string, TTMContributor[]>();
   for (const c of stat.contributors) {
     const arr = byPod.get(c.pod) ?? [];
@@ -2721,11 +2720,6 @@ function TTMContributorsTooltip({
       <div className="flex max-h-[360px] w-[380px] flex-col overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl shadow-black/60">
         <div className="border-b border-[#2a2a2a] px-3 py-2">
           <p className="font-mono text-[11px] font-semibold text-white">
-            {pairPrefix && (
-              <span className="mr-1.5 inline-block rounded-sm bg-[#1a1a1a] px-1 py-px text-[#909090] tabular-nums">
-                {pairPrefix}
-              </span>
-            )}
             {stat.short}
           </p>
           <p className="mt-0.5 font-mono text-[10px] text-[#606060]">

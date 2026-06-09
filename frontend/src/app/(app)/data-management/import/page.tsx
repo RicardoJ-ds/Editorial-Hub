@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -942,69 +942,68 @@ function StepComplete({
 // Historical resync card (Advanced)
 // ---------------------------------------------------------------------------
 
-// Re-sync steps, in execution order. Keep in sync with the backend's
-// _resync_step_registry() in migration.py — the `key` matches the URL
-// segment, the `label` is what shows in the UI.
-const RESYNC_STEPS = [
-  {
-    key: "goals-vs-delivery",
-    label: "Master Tracker - Goals vs Delivery",
-    description: "Every [Month Year] Goals vs Delivery monthly tab",
-  },
-  {
-    key: "week-distribution",
-    label: "Master Tracker - Week Distribution",
-    description: "<YYYY> Week Distribution — drives the 'As Of' badge",
-  },
-  {
-    key: "team-pods",
-    label: "Team Pods - Editorial + Growth",
-    description: "RBAC group auto-membership",
-  },
-  {
-    key: "et-cp-history",
-    label: "ET CP Pod History",
-    description: "Every historical ET CP version tab — confirmed pod history",
-  },
-  {
-    key: "backfill-editorial-pod",
-    label: "Backfill Editorial Pod from history",
-    description: "Fills clients.editorial_pod from the most recent confirmed history",
-  },
-] as const;
-
-type ResyncStepKey = (typeof RESYNC_STEPS)[number]["key"];
+// Re-sync steps come from the backend sync manifest
+// (GET /api/migrate/sync-plan?scope=past) — the single source of truth. No
+// hardcoded list to keep in sync: a new past-months importer added to the
+// manifest shows up here automatically. Execution runs through /sync-step.
+interface PastStep {
+  key: string;
+  label: string;
+  description?: string | null;
+}
 
 function HistoricalResyncTab() {
+  // Step list is fetched from the manifest (scope=past) — see PastStep above.
+  const [steps, setSteps] = useState<PastStep[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [stepStatuses, setStepStatuses] = useState<
-    Record<ResyncStepKey, "pending" | "importing" | "done" | "error" | "skipped">
-  >(() =>
-    Object.fromEntries(
-      RESYNC_STEPS.map((s) => [s.key, "pending"]),
-    ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error" | "skipped">,
-  );
-  const [stepResults, setStepResults] = useState<Record<ResyncStepKey, ImportResultItem>>(
-    () => ({}) as Record<ResyncStepKey, ImportResultItem>,
-  );
+    Record<string, "pending" | "importing" | "done" | "error" | "skipped">
+  >({});
+  const [stepResults, setStepResults] = useState<Record<string, ImportResultItem>>({});
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<"idle" | "running" | "complete">("idle");
   // Selective re-sync — users running a quick targeted re-import (e.g.
   // just Goals vs Delivery for a fixed month) don't need to wait for
   // every step. Default = all selected to preserve the original
   // "run everything" behaviour.
-  const [selected, setSelected] = useState<Set<ResyncStepKey>>(
-    () => new Set(RESYNC_STEPS.map((s) => s.key)),
-  );
-  const toggle = (key: ResyncStepKey) =>
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Load the canonical "past" plan once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await apiGet<{ steps: PastStep[] }>(
+          "/api/migrate/sync-plan?scope=past",
+        );
+        if (cancelled) return;
+        const loaded = resp.steps ?? [];
+        setSteps(loaded);
+        setSelected(new Set(loaded.map((s) => s.key)));
+        setStepStatuses(
+          Object.fromEntries(loaded.map((s) => [s.key, "pending"])),
+        );
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : "Failed to load resync steps");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggle = (key: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  const allSelected = selected.size === RESYNC_STEPS.length;
+  const allSelected = steps.length > 0 && selected.size === steps.length;
   const noneSelected = selected.size === 0;
-  const selectedSteps = RESYNC_STEPS.filter((s) => selected.has(s.key));
+  const selectedSteps = steps.filter((s) => selected.has(s.key));
 
   const run = useCallback(async () => {
     if (selected.size === 0) return;
@@ -1012,28 +1011,34 @@ function HistoricalResyncTab() {
     setProgress(0);
     setStepStatuses(
       Object.fromEntries(
-        RESYNC_STEPS.map((s) => [s.key, selected.has(s.key) ? "pending" : "skipped"]),
-      ) as Record<ResyncStepKey, "pending" | "importing" | "done" | "error" | "skipped">,
+        steps.map((s) => [s.key, selected.has(s.key) ? "pending" : "skipped"]),
+      ),
     );
-    setStepResults({} as Record<ResyncStepKey, ImportResultItem>);
+    setStepResults({});
 
-    // Fire only the SELECTED steps sequentially — each is independent
-    // on the backend and uses its own DB session, so a failure in one
+    // Fire only the SELECTED steps sequentially via the manifest's executor —
+    // each is independent on the backend (own DB session), so one failure
     // doesn't block the next.
-    const stepsToRun = RESYNC_STEPS.filter((s) => selected.has(s.key));
+    const stepsToRun = steps.filter((s) => selected.has(s.key));
     for (let i = 0; i < stepsToRun.length; i++) {
       const step = stepsToRun[i];
       setStepStatuses((prev) => ({ ...prev, [step.key]: "importing" }));
 
       try {
-        const result = await apiPost<ImportResultItem>(
-          `/api/migrate/resync/${step.key}`,
-          {},
-        );
+        const resp = await apiPost<ImportResponse>("/api/migrate/sync-step", {
+          key: step.key,
+        });
+        const result: ImportResultItem = resp.results[0] ?? {
+          sheet: step.label,
+          rows_parsed: 0,
+          rows_imported: 0,
+          success: resp.all_ok,
+          errors: [],
+        };
         setStepResults((prev) => ({ ...prev, [step.key]: result }));
         setStepStatuses((prev) => ({
           ...prev,
-          [step.key]: result.success ? "done" : "error",
+          [step.key]: resp.all_ok ? "done" : "error",
         }));
       } catch (err) {
         const errorResult: ImportResultItem = {
@@ -1051,15 +1056,15 @@ function HistoricalResyncTab() {
     }
 
     setPhase("complete");
-  }, [selected]);
+  }, [selected, steps]);
 
-  // Ordered result list for the summary card — same order as RESYNC_STEPS.
+  // Ordered result list for the summary card — manifest order.
   const orderedResults = useMemo(
     () =>
-      RESYNC_STEPS.map((s) => stepResults[s.key]).filter(
+      steps.map((s) => stepResults[s.key]).filter(
         (r): r is ImportResultItem => Boolean(r),
       ),
-    [stepResults],
+    [stepResults, steps],
   );
   const allOk =
     orderedResults.length === selectedSteps.length &&
@@ -1083,17 +1088,29 @@ function HistoricalResyncTab() {
           </p>
         </div>
 
+        {loadError && (
+          <p className="mt-4 font-mono text-[11px] text-[#ED6958]">
+            Couldn&apos;t load the re-sync steps: {loadError}
+          </p>
+        )}
+        {!loadError && steps.length === 0 && (
+          <p className="mt-4 flex items-center gap-2 font-mono text-[11px] text-[#606060]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading steps…
+          </p>
+        )}
+
         {/* Step selector */}
+        {steps.length > 0 && (
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-[#606060]">
             <span>
-              Steps to run · {selected.size} of {RESYNC_STEPS.length} selected
+              Steps to run · {selected.size} of {steps.length} selected
             </span>
             <button
               type="button"
               onClick={() =>
                 setSelected(
-                  allSelected ? new Set() : new Set(RESYNC_STEPS.map((s) => s.key)),
+                  allSelected ? new Set() : new Set(steps.map((s) => s.key)),
                 )
               }
               disabled={phase === "running"}
@@ -1103,7 +1120,7 @@ function HistoricalResyncTab() {
             </button>
           </div>
           <div className="space-y-1 rounded-md border border-[#1f1f1f] bg-[#0d0d0d] p-2">
-            {RESYNC_STEPS.map((step) => {
+            {steps.map((step) => {
               const isChecked = selected.has(step.key);
               return (
                 <label
@@ -1130,6 +1147,7 @@ function HistoricalResyncTab() {
             })}
           </div>
         </div>
+        )}
 
         <div className="mt-4 flex justify-end">
           <Button
@@ -1187,7 +1205,7 @@ function HistoricalResyncTab() {
               Skipped (unchecked) steps stay out of the way so the user
               focuses on what's actually running. */}
           <div className="space-y-2">
-            {RESYNC_STEPS.filter((s) => stepStatuses[s.key] !== "skipped").map((step) => {
+            {steps.filter((s) => stepStatuses[s.key] !== "skipped").map((step) => {
               const status = stepStatuses[step.key];
               const result = stepResults[step.key];
               return (

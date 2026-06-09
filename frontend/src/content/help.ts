@@ -101,15 +101,15 @@ Five seeded groups. Click **Admin → Access Control** to see the full matrix.
 
 The **Delivery Overview** section (Deliverables vs SOW tab) leads with two summary cards that adapt to scope:
 
-- **Projected Q Variance** — per-pod end-of-Q variance bars + tier chip (*On Track / Within Limit / Behind*). Filter to a single pod → the card swaps to a per-client breakdown of that pod. Same tiers + math as Pod Snapshot on Overview.
+- **Projected Q Variance** — per-pod end-of-Q variance bars + tier chip (*On track / Within limit / Behind / Ahead*). Filter to a single pod → the card swaps to a per-client breakdown of that pod. Same tiers + math as Pod Snapshot on Overview.
 - **Pod Progress** — per-pod *%SOW* (lifetime delivered ÷ contracted SOW) + *%Published* (published_live ÷ SOW) side-by-side bars with raw counts beneath. Falls back to "no published count" when cumulative pipeline data isn't loaded for a client. Filter to a single pod → switches to a per-client breakdown.
 
 Each per-client card below the summary shows:
 
-- **Tier badge** (next to the name) — at-a-glance status: _On Track_ (green), _Within Limit_ (amber), _Behind Plan_ (red), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
+- **Tier badge** (next to the name) — at-a-glance status: _On track_ (green, exactly on target), _Within limit_ (amber, ±1–5 either way), _Behind_ or _Ahead_ (red, more than ±5 off), or _1st Q_ (blue) for brand-new contracts. Same thresholds as Pod Snapshot on Overview.
 - **Last Q** — cumulative *delivered / invoiced* through the end of the last full contract quarter, with the variance + tier label below the bar.
 - **Current Q** — bar shows *actual delivered to date* over *invoiced through end of Q* (the bar is real progress, not a projection). The variance number + tier label describe the projected end-of-Q outcome.
-- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. Tiers: _On Track_ (≥ 0), _Within Limit_ (−5 to 0), _Behind Plan_ (below −5). New 1st-Q contracts get a calm _1st Q_ chip instead of an alarm.
+- **End-of-Q variance** — projected *delivered − invoiced* through end of current quarter. Tiers: _On track_ (exactly 0), _Within limit_ (±1–5 either way), _Behind_ (below −5) or _Ahead_ (above +5) — being far ahead is flagged too, since over-delivered work isn't billed yet. New 1st-Q contracts get a calm _1st Q_ chip instead of an alarm.
 - **Lifetime · SOW** — Delivered / Invoiced / SOW for the full relationship.
 
 ---

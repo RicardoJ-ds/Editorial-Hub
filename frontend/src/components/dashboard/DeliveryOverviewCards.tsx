@@ -13,6 +13,8 @@ import {
   elapsedContractPct,
   healthOf,
   pacingColor,
+  varianceTier,
+  varianceTierColor,
   type Health,
   type HealthInput,
 } from "./shared-helpers";
@@ -519,10 +521,9 @@ function CurrentQRow({
   variance: number;
 }) {
   const pct = invoiced > 0 ? Math.min(100, (delivered / invoiced) * 100) : 0;
-  const color = signedVarianceColor(variance);
-  const tier = signedVarianceHealth(variance);
-  const tierLabel =
-    tier === "healthy" ? "On Track" : tier === "watch" ? "Within Limit" : "Behind";
+  const tierInfo = varianceTier(variance);
+  const color = tierInfo.color;
+  const tierLabel = tierInfo.label;
   const dotColor = accentColor ?? "#606060";
   return (
     <div className="grid grid-cols-[minmax(9rem,12rem)_minmax(0,1fr)_auto] items-center gap-3 py-1.5 transition-colors hover:bg-[#1a1a1a]/40">
@@ -1008,26 +1009,29 @@ function lastQHealth(row: SummaryRow): Health | null {
   return "behind";
 }
 
-/** Signed variance bucket used by the Overview Triage cards. Over-
- *  delivery is healthy by definition — only *under*-delivery counts
- *  against a client for triage purposes.
- *    v ≥ 0          → healthy ("on target or ahead")
- *    -5 ≤ v < 0     → watch   ("within limit" — small under-delivery)
- *    v < -5         → behind  ("significant under-delivery")
- *  Magnitude-based bucketing (D1's per-period chip color) is a
- *  different concept and intentionally not used here. */
+/** Signed variance bucket used by the Overview Triage cards. SYMMETRIC and
+ *  magnitude-based: a client far AHEAD of contracted invoicing needs attention
+ *  just like one far behind (over-delivered work isn't billed yet).
+ *    v = 0          → healthy ("on track")
+ *    1 ≤ |v| ≤ 5    → watch   ("within limit", either direction)
+ *    |v| > 5        → behind  ("off target" — surfaced for attention either way)
+ *  NB: the "behind" key name is historical; it now means off-target in EITHER
+ *  direction. It drives the Needs Attention + Pod Attention selection. */
 function signedVarianceHealth(v: number): Health {
-  if (v >= 0) return "healthy";
-  if (v >= -5) return "watch";
+  // Derive from the canonical classifier so triage counts can never drift
+  // from the per-row tier colors. Only called for non-1st-Q clients
+  // (clientCurrentQTier short-circuits "new" first), so ahead|behind both
+  // fold into the off-target "behind" bucket.
+  const key = varianceTier(v).key;
+  if (key === "onTrack") return "healthy";
+  if (key === "withinLimit") return "watch";
   return "behind";
 }
 
-/** Per-card variance color, signed. Over-delivery reads as the same
- *  green as on-target — the triage cards reward catch-up. */
+/** Per-card variance color, signed — the canonical symmetric classifier
+ *  (0 green · ±1–5 amber · beyond ±5 red, behind OR ahead). */
 function signedVarianceColor(v: number): string {
-  if (v >= 0) return "#42CA80";
-  if (v >= -5) return "#F5BC4E";
-  return "#ED6958";
+  return varianceTierColor(v);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1142,9 +1146,9 @@ const CURRENT_Q_TIER_ORDER: CurrentQTier[] = [
 ];
 
 const CURRENT_Q_TIER_LABEL: Record<CurrentQTier, string> = {
-  healthy: "Healthy",
+  healthy: "On track",
   watch: "Within limit",
-  behind: "Behind",
+  behind: "Off target",
   new: "New (1st Q)",
 };
 
@@ -1213,11 +1217,17 @@ export function DeliveryMixCard({
       totalInvoiced += currentQ.invoiced;
     }
   }
+  // Off-target ("behind") + within-limit ("watch") now span both directions —
+  // sort by magnitude so the worst offenders (ahead OR behind) lead.
   tierItems.behind.sort(
-    (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+    (a, b) =>
+      Math.abs(b.currentQ.projectedVariance) -
+      Math.abs(a.currentQ.projectedVariance),
   );
   tierItems.watch.sort(
-    (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+    (a, b) =>
+      Math.abs(b.currentQ.projectedVariance) -
+      Math.abs(a.currentQ.projectedVariance),
   );
   tierItems.healthy.sort(
     (a, b) => b.currentQ.projectedVariance - a.currentQ.projectedVariance,
@@ -1244,7 +1254,7 @@ export function DeliveryMixCard({
             title: "Delivery Progress",
             bullets: [
               "Headline = sum of (delivered − invoiced) projected through end of current Q across all scored clients.",
-              "Healthy: variance ≥ 0 · Within limit: −5 ≤ variance < 0 · Behind: variance < −5.",
+              "On track: variance = 0 · Within limit: ±1–5 · Off target: beyond ±5 (behind or ahead).",
               "Over-delivery this quarter cancels earlier deficits.",
               "Click a client row to jump to Client Delivery At a Glance.",
             ],
@@ -1277,7 +1287,7 @@ export function DeliveryMixCard({
               All clear
             </p>
             <p className="mt-1 font-mono text-[11px] text-[#606060]">
-              Every scored client&apos;s projected end-of-Q variance is ≥ −5
+              Every scored client&apos;s projected end-of-Q variance is within ±5
             </p>
           </>
         ) : (
@@ -1821,8 +1831,10 @@ export function MostBehindCard({
   clients: Client[];
 }) {
   // Two buckets:
-  //   • allBehind — current Q projected variance < −5 (signed) AND
-  //                 NOT a 1st-Q client. Worst-first.
+  //   • allBehind — current Q projected variance MORE than ±5 off target
+  //                 (behind OR ahead) AND NOT a 1st-Q client. Worst-first
+  //                 by magnitude, so the biggest miss in either direction
+  //                 leads regardless of sign.
   //   • newClients — clients in their first contract Q (separate tier
   //                  per spec; surfaced in the popover so the operator
   //                  can drill in but they don't pollute the headline).
@@ -1843,7 +1855,9 @@ export function MostBehindCard({
       else behind.push(item);
     }
     behind.sort(
-      (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+      (a, b) =>
+        Math.abs(b.currentQ.projectedVariance) -
+        Math.abs(a.currentQ.projectedVariance),
     );
     ramping.sort((a, b) => a.client.name.localeCompare(b.client.name));
     return { allBehind: behind, newClients: ramping };
@@ -1851,8 +1865,13 @@ export function MostBehindCard({
 
   const list = allBehind.slice(0, 3);
   const overflow = allBehind.length - list.length;
-  const projectedGap = allBehind.reduce(
-    (acc, x) => acc + x.currentQ.projectedVariance,
+  // Worst single miss by magnitude (signed) — a netted sum would cancel
+  // ahead against behind and read falsely calm, so we surface the extreme.
+  const worstMiss = allBehind.reduce(
+    (acc, x) =>
+      Math.abs(x.currentQ.projectedVariance) > Math.abs(acc)
+        ? x.currentQ.projectedVariance
+        : acc,
     0,
   );
 
@@ -1860,11 +1879,11 @@ export function MostBehindCard({
     <Card className="h-full border-[#2a2a2a] bg-[#161616]">
       <CardContent className="flex h-full flex-col pt-0">
         <CardTitleWithTooltip
-          label="Most Behind"
+          label="Needs Attention"
           body={{
-            title: "Most Behind",
+            title: "Needs Attention",
             bullets: [
-              "Clients whose projected end-of-current-Q variance (delivered − invoiced) is below −5.",
+              "Clients projected to close current Q more than ±5 off target — behind OR ahead.",
               "Each row shows last quarter's close and this quarter's plan.",
               "Over-delivery this quarter cancels earlier deficits.",
               "Click a row to jump to the client.",
@@ -1878,7 +1897,7 @@ export function MostBehindCard({
           <>
             <p className="mt-1.5 font-mono text-2xl font-bold text-[#42CA80]">All clear</p>
             <p className="mt-1 font-mono text-[11px] text-[#606060]">
-              Every client&apos;s projected end-of-Q variance is ≥ −5
+              Every client&apos;s projected end-of-Q variance is within ±5
             </p>
           </>
         ) : (
@@ -1898,12 +1917,9 @@ export function MostBehindCard({
         >
           {list.length > 0 ? (
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
-              <span className="text-[#ED6958]">
-                {projectedGap > 0
-                  ? `+${projectedGap}`
-                  : projectedGap.toLocaleString()}
-              </span>
-              {" "}projected variance · {allBehind.length} flagged
+              <span className="text-[#ED6958]">{allBehind.length} flagged</span>
+              {" "}· worst{" "}
+              {worstMiss > 0 ? `+${worstMiss}` : worstMiss.toLocaleString()}
             </span>
           ) : (
             <span />
@@ -1916,7 +1932,7 @@ export function MostBehindCard({
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 rounded-sm border border-[#8FB5D9]/40 bg-[#8FB5D9]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#8FB5D9] hover:bg-[#8FB5D9]/15"
-                      title="Clients in their first contract Q — excluded from the Behind list."
+                      title="Clients in their first contract Q — excepted from the attention list."
                     />
                   }
                 >
@@ -1932,7 +1948,7 @@ export function MostBehindCard({
                       New clients · 1st contract Q
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
-                      Excluded from Behind triage — ramping in their first
+                      Excepted from attention triage — ramping in their first
                       Q, contracted invoicing not yet meaningful.
                     </p>
                   </div>
@@ -1964,7 +1980,7 @@ export function MostBehindCard({
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      Most behind · projected end-of-current-Q variance
+                      Needs attention · projected end-of-current-Q variance
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       {allBehind.length} clients · click a row to jump
@@ -2038,7 +2054,7 @@ function BehindRow({
               <span
                 className="ml-1.5 rounded-sm border border-[#8FB5D9]/40 bg-[#8FB5D9]/10 px-1 py-px font-mono text-[9px] uppercase tracking-wider"
                 style={{ color: CURRENT_Q_TIER_COLOR.new }}
-                title="1st contract Q — excluded from Behind triage."
+                title="1st contract Q — excepted from attention triage."
               >
                 1st Q
               </span>
@@ -2427,10 +2443,10 @@ export function PodAttentionCard({
   rows: SummaryRow[];
   clients: Client[];
 }) {
-  // Same lens as Delivery Progress + Most Behind: classify each client
-  // by current-Q projected variance (|v| > 5 = behind), then surface
-  // the pod carrying the most behind clients PLUS those clients (Most
-  // Behind row format) so the user can drill straight in. Catch-up
+  // Same lens as Delivery Progress + Needs Attention: classify each client
+  // by current-Q projected variance (|v| > 5 off target = "behind" bucket,
+  // EITHER direction), then surface the pod carrying the most off-target
+  // clients PLUS those clients so the user can drill straight in. Catch-up
   // baked into projections is honored — a pod with last-Q misses that
   // are projected to recover this Q reads "all clear".
   const { axis: podAxis } = useCurrentPodAxis();
@@ -2479,11 +2495,13 @@ export function PodAttentionCard({
       }
       byPod[pod] = slot;
     }
-    // Sort each pod's behind list worst-first (most negative projected
-    // variance).
+    // Sort each pod's off-target list worst-first by MAGNITUDE so the
+    // biggest miss (ahead or behind) leads.
     for (const pod of Object.keys(behindByPod)) {
       behindByPod[pod].sort(
-        (a, b) => a.currentQ.projectedVariance - b.currentQ.projectedVariance,
+        (a, b) =>
+          Math.abs(b.currentQ.projectedVariance) -
+          Math.abs(a.currentQ.projectedVariance),
       );
     }
     for (const pod of Object.keys(newByPod)) {
@@ -2509,7 +2527,7 @@ export function PodAttentionCard({
             body={{
               title: "Pod Attention",
               bullets: [
-                "Pods ranked by how many clients have projected end-of-current-Q variance below −5.",
+                "Pods ranked by how many clients are projected more than ±5 off target — behind or ahead.",
                 "Variance = delivered − invoiced through end of current Q.",
                 "Brand-new clients (1st quarter) are kept out — they ramp slowly.",
                 "Click a pod or row to jump.",
@@ -2523,7 +2541,7 @@ export function PodAttentionCard({
             All clear
           </p>
           <p className="mt-1 font-mono text-[11px] text-[#606060]">
-            Every pod&apos;s clients have projected end-of-Q variance ≥ −5
+            Every pod&apos;s clients have projected end-of-Q variance within ±5
           </p>
           <p className="mt-auto pt-2 font-mono text-[10px] uppercase tracking-wider text-[#606060]">
             {sorted.length} {sorted.length === 1 ? "pod" : "pods"} · {totalWithQ} with current Q
@@ -2548,14 +2566,14 @@ export function PodAttentionCard({
           body={{
             title: "Pod Attention",
             bullets: [
-              "Pods ranked by how many clients will close > 5 behind this quarter.",
+              "Pods ranked by how many clients will close more than ±5 off target — behind or ahead.",
               "Brand-new clients (1st quarter) are kept out — they ramp slowly.",
               "Click a pod or row to jump.",
             ],
           }}
         />
         <p className="mt-0.5 text-[11px] leading-snug text-[#909090]">
-          Pod with most behind clients · projected end-of-current-Q variance
+          Pod with most off-target clients · projected end-of-current-Q variance
         </p>
         {/* Top pod headline — clickable scrolls to that pod's group */}
         <button
@@ -2571,7 +2589,7 @@ export function PodAttentionCard({
             {displayPod(topPod, podAxis)}
           </span>
           <span className="font-mono text-[11px] text-[#ED6958] tabular-nums">
-            {behind}/{withQ} behind
+            {behind}/{withQ} off target
           </span>
         </button>
 
@@ -2596,7 +2614,7 @@ export function PodAttentionCard({
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 rounded-sm border border-[#8FB5D9]/40 bg-[#8FB5D9]/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-[#8FB5D9] hover:bg-[#8FB5D9]/15"
-                      title="Clients in their 1st contract Q across all pods — excluded from Behind triage."
+                      title="Clients in their 1st contract Q across all pods — excepted from attention triage."
                     />
                   }
                 >
@@ -2613,7 +2631,7 @@ export function PodAttentionCard({
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       Grouped by {podAxis === "growth" ? "growth" : "editorial"} pod.
-                      Excluded from Behind triage.
+                      Excepted from attention triage.
                     </p>
                   </div>
                   <ul className="max-h-[360px] overflow-y-auto p-1">
@@ -2653,7 +2671,7 @@ export function PodAttentionCard({
                 >
                   <div className="border-b border-[#2a2a2a] px-3 py-2">
                     <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      Behind clients · {displayPod(topPod, podAxis)}
+                      Off-target clients · {displayPod(topPod, podAxis)}
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] text-[#606060]">
                       {topPodBehind.length} clients · click a row to jump to its card
@@ -2726,7 +2744,7 @@ export function PodAttentionCard({
           </div>
           <span className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
             <span className="font-semibold text-[#ED6958]">{totalBehind}</span>
-            {" "}of {totalWithQ} behind · {sorted.length}{" "}
+            {" "}of {totalWithQ} off target · {sorted.length}{" "}
             {sorted.length === 1 ? "pod" : "pods"}
           </span>
         </div>

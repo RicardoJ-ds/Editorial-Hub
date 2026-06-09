@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, ChevronDown, Database, Info, Link2, RefreshCcw, Unlink, X } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, ChevronDown, Database, ExternalLink, Info, Link2, RefreshCcw, Unlink, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArticleMappingsTab } from "@/components/admin/ArticleMappingsTab";
 import { apiGet, apiPost } from "@/lib/api";
@@ -65,6 +65,7 @@ interface PodHistoryEntry {
   year: number;
   month: number;
   editorial_pod: string | null;
+  category: string | null;
   source_tab: string;
   missing_fields: string[];
 }
@@ -76,12 +77,34 @@ interface PodImportIssueItem {
   pod_label: string | null;
   first_seen_at: string;
   last_seen_at: string;
+  status: "open" | "mapped" | "resolved" | string;
+  mapped_to: string | null;
+}
+
+interface UnassignedArticlePod {
+  client_name: string;
+  client_id: number | null;
+  year: number;
+  month: number;
+  article_count: number;
+  hint: "missing_month" | "never_in_et_cp" | string;
+}
+
+interface MissingClient {
+  id: number;
+  name_raw: string;
+  first_seen_tab: string;
+  last_seen_tab: string;
+  status: "open" | "mapped" | "dismissed" | "resolved" | string;
+  mapped_to: string | null;
 }
 
 interface DiscrepanciesResponse {
   end_date_mismatches: EndDateDiscrepancy[];
   delivered_drift: DeliveredDriftDiscrepancy[];
   pod_import_issues: PodImportIssueItem[];
+  unassigned_article_pods: UnassignedArticlePod[];
+  missing_clients: MissingClient[];
   generated_at: string;
   as_of_label: string;
 }
@@ -223,12 +246,13 @@ function EndDateDiscrepancyTab({ rows }: { rows: EndDateDiscrepancy[] }) {
               <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">
                 <FilterableHeader label="Direction" filterKey="direction" def={{ kind: "select", options: directionOptions }} filters={colFilters} setFilters={setColFilters} />
               </th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">How to fix</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-[#606060]">
+                <td colSpan={7} className="px-3 py-6 text-center text-[#606060]">
                   No discrepancies match this filter.
                 </td>
               </tr>
@@ -259,6 +283,11 @@ function EndDateDiscrepancyTab({ rows }: { rows: EndDateDiscrepancy[] }) {
                       {d.direction === "ops_after_sow" ? "Ops after SOW" : "Ops before SOW"}
                     </span>
                   </td>
+                  <td className="px-3 py-1.5 text-[#909090]">
+                    {d.direction === "ops_after_sow"
+                      ? "Renewal signed? Update the SOW Overview end date."
+                      : "Confirm churn, or extend projections in the Operating Model."}
+                  </td>
                 </tr>
               ))
             )}
@@ -276,6 +305,305 @@ function sourceColor(value: number, minVal: number, maxVal: number, isNull: bool
   if (value === maxVal && maxVal - minVal > 5) return "#ED6958";
   if (value === minVal && maxVal - minVal > 5) return "#F5C542";
   return "#C4BCAA";
+}
+
+// Where each data source lives, so users know exactly which spreadsheet + tab
+// to open to fix a discrepancy. Both books live in Google Sheets (IDs from the
+// project links). Plain-language descriptions — no DB-column jargon.
+const DQ_SHEET_LINKS = {
+  capacity: "https://docs.google.com/spreadsheets/d/1I6fNQMjs2y4l6IyOxd9QL-QBjB2zGi0mcoV840JDmkI",
+  masterTracker: "https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY",
+  // Monthly Article Count sheet (Spreadsheet 5) — source of the delivered-article rows.
+  articleCount: "https://docs.google.com/spreadsheets/d/1FWykZmeG2jznUYn-ng6glN4wjvc1Swb6hHmSHzGZ7dU",
+} as const;
+
+// Maps a source-sheet tab (incomplete_clients.last_seen_tab) to WHERE it lives
+// (spreadsheet) and WHICH dashboard the dropped data would have appeared in —
+// so the Missing-from-Hub tab can tell the user where the problem hits and
+// where to go fix it.
+function sourceMeta(tab: string): { book: string; href: string; affects: string } {
+  const t = (tab || "").toLowerCase();
+  if (t.includes("operating model"))
+    return { book: "Editorial Capacity Planning", href: DQ_SHEET_LINKS.capacity, affects: "Overview → Production History · Editorial Clients delivery" };
+  if (t.includes("delivered vs invoiced"))
+    return { book: "Editorial Capacity Planning", href: DQ_SHEET_LINKS.capacity, affects: "Editorial Clients → Deliverables vs SOW" };
+  if (t.includes("meta"))
+    return { book: "Editorial Capacity Planning", href: DQ_SHEET_LINKS.capacity, affects: "Editorial Clients → Meta deliveries" };
+  if (t.includes("et cp"))
+    return { book: "Editorial Capacity Planning", href: DQ_SHEET_LINKS.capacity, affects: "Team KPIs → Capacity · pod assignment" };
+  if (t.includes("cumulative"))
+    return { book: "Master Tracker", href: DQ_SHEET_LINKS.masterTracker, affects: "Editorial Clients → Cumulative Pipeline" };
+  return { book: "—", href: DQ_SHEET_LINKS.capacity, affects: "—" };
+}
+
+// Per-row recommended fix. Heuristic: names with test/placeholder/support
+// markers are almost certainly NOT real clients → suggest Dismiss; everything
+// else is probably a client missing from the SOW Overview → suggest Add. It's
+// only a hint — the operator still chooses.
+function suggestFix(name: string): { kind: "add" | "dismiss"; text: string } {
+  const n = (name || "").toLowerCase();
+  const looksLikeNoise =
+    /\[test\]|\[new client\]|\bko\s*#|\bsales\b|\bnew clients\b|\(support\)|\(test\)|\btest\b|ai articles/.test(n);
+  return looksLikeNoise
+    ? { kind: "dismiss", text: "Looks like a non-client → Dismiss" }
+    : { kind: "add", text: "Add to SOW Overview, then SYNC" };
+}
+
+// Lifecycle badge shared by the two mapping tabs (Missing from Hub, Pod issues)
+// so a resolved row stays visible with what happened to it instead of vanishing.
+function MapStatusBadge({ status, mappedTo }: { status: string; mappedTo: string | null }) {
+  if (status === "mapped")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm bg-[#42CA80]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[#42CA80]">
+        <Check className="h-3 w-3 shrink-0" />
+        Mapped{mappedTo ? ` → ${mappedTo}` : ""}
+      </span>
+    );
+  if (status === "dismissed")
+    return (
+      <span className="inline-flex items-center rounded-sm bg-[#2a2a2a] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[#707070]">
+        Dismissed
+      </span>
+    );
+  if (status === "resolved")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm bg-[#42CA80]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[#42CA80]">
+        <Check className="h-3 w-3 shrink-0" />
+        Added to Hub
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[#F5BC4E]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#F5BC4E]" />
+      Open
+    </span>
+  );
+}
+
+// Short, direct reminder: a map only writes a rule — it links the sheet name to a
+// Hub client and the data flows in on the NEXT SYNC (nothing changes until then).
+function SyncHint({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={"inline-flex items-center gap-1.5 font-mono text-[10px] text-[#707070] " + className}
+      title="A map links the sheet name to a Hub client. Its data is re-imported (and reaches the dashboards) on the next SYNC."
+    >
+      <RefreshCcw className="h-3 w-3 shrink-0 text-[#42CA80]" />
+      Maps link the name to a Hub client — applied on the next SYNC
+    </span>
+  );
+}
+
+// Dedicated tab: clients that appear in a source sheet but have NO record in
+// the Hub, so the importer drops all their rows. Each row states the problem,
+// where the source data lives (tab + spreadsheet, linked), and which dashboard
+// it hits. Resolved rows (mapped / dismissed / added) stay visible — filter by
+// To-do / Resolved — with an Undo to correct a mistake.
+function MissingFromHubTab({
+  rows,
+  onRefresh,
+}: {
+  rows: MissingClient[];
+  onRefresh: () => void;
+}) {
+  const [dismissing, setDismissing] = useState<number | null>(null);
+  const [reopening, setReopening] = useState<number | null>(null);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [view, setView] = useState<"all" | "todo" | "resolved">("all");
+
+  useEffect(() => {
+    apiGet<ClientOption[]>("/api/clients/?limit=500")
+      .then((r) => setClients(r ?? []))
+      .catch(() => {});
+  }, []);
+
+  const dismiss = async (id: number) => {
+    setDismissing(id);
+    try {
+      await apiPost(`/api/admin/missing-clients/${id}/dismiss`, {});
+      onRefresh();
+    } finally {
+      setDismissing(null);
+    }
+  };
+
+  const reopen = async (id: number) => {
+    setReopening(id);
+    try {
+      await apiPost(`/api/admin/missing-clients/${id}/reopen`, {});
+      onRefresh();
+    } finally {
+      setReopening(null);
+    }
+  };
+
+  const openCount = rows.filter((r) => r.status === "open").length;
+  const resolvedCount = rows.length - openCount;
+  const shown = rows.filter((r) =>
+    view === "all" ? true : view === "todo" ? r.status === "open" : r.status !== "open",
+  );
+
+  return (
+    <div className="flex h-full flex-col gap-2">
+      <div className="shrink-0 space-y-0.5 font-mono text-[11px]">
+        <p className="text-[#606060]">
+          <span className="text-[#C4BCAA] font-semibold">What&apos;s flagged:</span>{" "}
+          a client name appears in a source sheet but has{" "}
+          <span className="text-[#ED6958]">no matching client in the Hub</span> — so the importer
+          drops all of its rows, and its delivery never reaches the dashboards.
+        </p>
+        <p className="text-[#606060]">
+          <span className="text-[#C4BCAA] font-semibold">How to fix:</span>{" "}
+          <span className="text-[#C4BCAA]">Map</span> it to an existing Hub client if it&apos;s just a
+          name variant — Hub clients are the rows in the{" "}
+          <a href={DQ_SHEET_LINKS.capacity} target="_blank" rel="noopener noreferrer" className="text-[#42CA80] hover:underline">
+            SOW Overview
+          </a>{" "}
+          sheet, so the picker lists exactly those (writes an alias — resolves on next SYNC). Or add a
+          genuinely new client to SOW Overview then SYNC; or <span className="text-[#C4BCAA]">Dismiss</span>{" "}
+          a row that isn&apos;t a real client (a header / total / placeholder like &quot;New clients&quot;).
+        </p>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-6 text-center font-mono text-[12px] text-[#42CA80]">
+          Nothing flagged — every name in the source sheets maps to a Hub client.
+        </div>
+      ) : (
+        <>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            <FilterChip label={`All · ${rows.length}`} active={view === "all"} onClick={() => setView("all")} />
+            <FilterChip label={`To do · ${openCount}`} active={view === "todo"} onClick={() => setView("todo")} />
+            <FilterChip label={`Resolved · ${resolvedCount}`} active={view === "resolved"} onClick={() => setView("resolved")} />
+            <SyncHint className="ml-auto" />
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+            <table className="w-full border-collapse font-mono text-[12px]">
+              <thead className="sticky top-0 z-10 bg-[#161616] text-[#606060]">
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Name in sheet</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Problem</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">How to fix</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Where it hits</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Source (tab · spreadsheet)</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((m) => {
+                  const meta = sourceMeta(m.last_seen_tab);
+                  const fix = suggestFix(m.name_raw);
+                  const isOpen = m.status === "open";
+                  return (
+                    <tr key={m.id} className="border-t border-[#1a1a1a] align-top hover:bg-[#161616]">
+                      <td className="px-3 py-1.5 text-white">{m.name_raw}</td>
+                      <td className="px-3 py-1.5">
+                        <span
+                          className={
+                            "rounded-sm px-1.5 py-0.5 text-[10px] uppercase tracking-wider " +
+                            (isOpen ? "bg-[#ED6958]/15 text-[#ED6958]" : "bg-[#2a2a2a] text-[#707070]")
+                          }
+                        >
+                          Unknown client name
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5" style={{ color: !isOpen ? "#606060" : fix.kind === "add" ? "#42CA80" : "#F5BC4E" }}>
+                        {fix.text}
+                      </td>
+                      <td className="px-3 py-1.5 text-[#909090]">{meta.affects}</td>
+                      <td className="px-3 py-1.5">
+                        <a href={meta.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#42CA80] hover:underline">
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="text-[#C4BCAA]">{m.last_seen_tab}</span>
+                        </a>
+                        <span className="text-[#606060]"> · {meta.book}</span>
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <div className="flex items-center justify-end gap-3">
+                          {isOpen ? (
+                            <>
+                              <AssignDropdown
+                                rawName={m.name_raw}
+                                clients={clients}
+                                suggestion={null}
+                                triggerLabel="Map to client"
+                                onConfirm={(c) =>
+                                  apiPost(`/api/admin/missing-clients/${m.id}/map`, { client_id: c.id })
+                                }
+                                onAssigned={onRefresh}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => dismiss(m.id)}
+                                disabled={dismissing === m.id}
+                                title="Not a real client (header / placeholder) — hide it"
+                                className="font-mono text-[10px] uppercase tracking-wider text-[#505050] hover:text-[#909090] disabled:opacity-40"
+                              >
+                                {dismissing === m.id ? "…" : "Dismiss"}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <MapStatusBadge status={m.status} mappedTo={m.mapped_to} />
+                              <button
+                                type="button"
+                                onClick={() => reopen(m.id)}
+                                disabled={reopening === m.id}
+                                title="Undo — reopen this row"
+                                className="font-mono text-[10px] uppercase tracking-wider text-[#505050] hover:text-[#909090] disabled:opacity-40"
+                              >
+                                {reopening === m.id ? "…" : "Undo"}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {shown.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-6 text-center text-[#606060]">
+                      No rows in this view.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Which dashboard reads each delivered-count source — so a drift row can say
+// where the disagreement actually shows up for an end user.
+const DRIFT_SRC_DASHBOARD: Record<string, string> = {
+  ops: "Production History",
+  dvi: "Deliverables",
+  cumul: "Cumulative Pipeline",
+  sow: "SOW totals",
+};
+
+// Name the high vs low source for a drift row + the dashboards they feed.
+function driftDiagnosis(d: DeliveredDriftDiscrepancy): { problem: string; where: string } {
+  const srcs = (
+    [
+      { key: "ops", label: "Ops Model", val: d.ops_delivered },
+      { key: "dvi", label: "Del vs Invoiced", val: d.dvi_delivered },
+      { key: "cumul", label: "Cumul.", val: d.cumul_delivered },
+      { key: "sow", label: "SOW", val: d.sow_delivered },
+    ] as { key: string; label: string; val: number | null | undefined }[]
+  ).filter((s): s is { key: string; label: string; val: number } => s.val != null);
+  if (srcs.length < 2) return { problem: "Only one source has data.", where: "—" };
+  const hi = srcs.reduce((a, b) => (b.val > a.val ? b : a));
+  const lo = srcs.reduce((a, b) => (b.val < a.val ? b : a));
+  if (hi.val === lo.val) return { problem: "All sources agree.", where: "—" };
+  return {
+    problem: `${hi.label} ${hi.val.toLocaleString()} vs ${lo.label} ${lo.val.toLocaleString()}`,
+    where: `${DRIFT_SRC_DASHBOARD[hi.key]} / ${DRIFT_SRC_DASHBOARD[lo.key]}`,
+  };
 }
 
 function DeliveredDriftTab({ rows, asOfLabel }: { rows: DeliveredDriftDiscrepancy[]; asOfLabel: string }) {
@@ -356,12 +684,14 @@ function DeliveredDriftTab({ rows, asOfLabel }: { rows: DeliveredDriftDiscrepanc
               <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">
                 <FilterableHeader label="Span" filterKey="span" def={{ kind: "range" }} filters={colFilters} setFilters={setColFilters} />
               </th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider" title="The two sources that disagree most">Problem</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider" title="Dashboards reading the high vs low source">Where it hits</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-[#606060]">
+                <td colSpan={9} className="px-3 py-6 text-center text-[#606060]">
                   No discrepancies match this filter.
                 </td>
               </tr>
@@ -376,6 +706,7 @@ function DeliveredDriftTab({ rows, asOfLabel }: { rows: DeliveredDriftDiscrepanc
                 );
                 const minV = nonNullVals.length ? Math.min(...nonNullVals) : 0;
                 const maxV = nonNullVals.length ? Math.max(...nonNullVals) : 0;
+                const diag = driftDiagnosis(d);
                 return (
                   <tr key={d.client_id} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
                     <td className="px-3 py-1.5 text-white">{d.client_name}</td>
@@ -398,6 +729,8 @@ function DeliveredDriftTab({ rows, asOfLabel }: { rows: DeliveredDriftDiscrepanc
                     >
                       ±{span.toLocaleString()}
                     </td>
+                    <td className="px-3 py-1.5 text-[#909090]">{diag.problem}</td>
+                    <td className="px-3 py-1.5 text-[#909090]">{diag.where}</td>
                   </tr>
                 );
               })
@@ -461,16 +794,19 @@ function suggestClient(rawName: string, clients: ClientOption[]): ClientOption |
 
 function AssignDropdown({
   rawName,
-  podKind,
   clients,
   suggestion,
+  onConfirm,
   onAssigned,
+  triggerLabel = "Assign client",
 }: {
   rawName: string;
-  podKind: string;
   clients: ClientOption[];
   suggestion: ClientOption | null;
+  /** Persist the chosen mapping (the caller hits its own endpoint). */
+  onConfirm: (client: ClientOption) => Promise<void>;
   onAssigned: (rawName: string, clientName: string) => void;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -536,11 +872,7 @@ function AssignDropdown({
     if (!selected) return;
     setSaving(true);
     try {
-      await apiPost("/api/admin/pod-name-overrides", {
-        raw_name: rawName,
-        pod_kind: podKind,
-        client_id: selected.id,
-      });
+      await onConfirm(selected);
       setSaved(true);
       setOpen(false);
       onAssigned(rawName, selected.name);
@@ -634,7 +966,7 @@ function AssignDropdown({
             : "border-[#2a2a2a] bg-[#161616] text-[#909090]")
         }
       >
-        {selected ? selected.name : "Assign client"}
+        {selected ? selected.name : triggerLabel}
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
 
@@ -657,11 +989,26 @@ function AssignDropdown({
 function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; onRefresh: () => void }) {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [pending, setPending] = useState<Record<string, string>>({});
+  const [reopening, setReopening] = useState<number | null>(null);
+  const [view, setView] = useState<"all" | "todo" | "resolved">("all");
   const [colFilters, setColFilters] = useState<Record<string, ColumnFilterValue>>({});
 
   useEffect(() => {
     apiGet<ClientOption[]>("/api/clients/?limit=500").then((r) => setClients(r ?? []));
   }, []);
+
+  const reopen = async (id: number) => {
+    setReopening(id);
+    try {
+      await apiPost(`/api/admin/pod-import-issues/${id}/reopen`, {});
+      onRefresh();
+    } finally {
+      setReopening(null);
+    }
+  };
+
+  const openCount = rows.filter((r) => r.status === "open").length;
+  const resolvedCount = rows.length - openCount;
 
   const suggestions = useMemo(
     () => Object.fromEntries(rows.map((r) => [r.raw_name, suggestClient(r.raw_name, clients)])),
@@ -678,7 +1025,7 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
   );
 
   function formatDate(iso: string) {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString("en-US", {
       month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
     });
   }
@@ -694,13 +1041,15 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
+      if (view === "todo" && r.status !== "open") return false;
+      if (view === "resolved" && r.status === "open") return false;
       if (colFilters.raw_name && !matchesFilter(r.raw_name, colFilters.raw_name)) return false;
       if (colFilters.pod_label && !matchesFilter(r.pod_label ?? "", colFilters.pod_label)) return false;
       if (colFilters.first_seen && !matchesFilter(isoDate(r.first_seen_at), colFilters.first_seen)) return false;
       if (colFilters.last_seen && !matchesFilter(isoDate(r.last_seen_at), colFilters.last_seen)) return false;
       return true;
     });
-  }, [rows, colFilters]);
+  }, [rows, colFilters, view]);
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -717,8 +1066,14 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
           Close names self-heal automatically — only assign when fuzzy-match won&apos;t catch it. Run SYNC after saving.
         </p>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <ClearFiltersButton filters={colFilters} setFilters={setColFilters} />
+      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+        <FilterChip label={`All · ${rows.length}`} active={view === "all"} onClick={() => setView("all")} />
+        <FilterChip label={`To do · ${openCount}`} active={view === "todo"} onClick={() => setView("todo")} />
+        <FilterChip label={`Resolved · ${resolvedCount}`} active={view === "resolved"} onClick={() => setView("resolved")} />
+        <div className="ml-auto flex items-center gap-3">
+          <SyncHint />
+          <ClearFiltersButton filters={colFilters} setFilters={setColFilters} />
+        </div>
       </div>
       {filteredRows.length === 0 ? (
         <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-6 text-center font-mono text-[12px] text-[#42CA80]">
@@ -752,13 +1107,34 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
                 <td className="px-3 py-1.5 text-[#606060]">{formatDate(r.first_seen_at)}</td>
                 <td className="px-3 py-1.5 text-[#606060]">{formatDate(r.last_seen_at)}</td>
                 <td className="px-3 py-1.5">
-                  <AssignDropdown
-                    rawName={r.raw_name}
-                    podKind={r.pod_kind}
-                    clients={clients}
-                    suggestion={suggestions[r.raw_name] ?? null}
-                    onAssigned={handleAssigned}
-                  />
+                  {r.status === "open" ? (
+                    <AssignDropdown
+                      rawName={r.raw_name}
+                      clients={clients}
+                      suggestion={suggestions[r.raw_name] ?? null}
+                      onConfirm={(c) =>
+                        apiPost("/api/admin/pod-name-overrides", {
+                          raw_name: r.raw_name,
+                          pod_kind: r.pod_kind,
+                          client_id: c.id,
+                        })
+                      }
+                      onAssigned={handleAssigned}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <MapStatusBadge status={r.status} mappedTo={r.mapped_to} />
+                      <button
+                        type="button"
+                        onClick={() => reopen(r.id)}
+                        disabled={reopening === r.id}
+                        title="Undo — drop the override and reopen this row"
+                        className="font-mono text-[10px] uppercase tracking-wider text-[#505050] hover:text-[#909090] disabled:opacity-40"
+                      >
+                        {reopening === r.id ? "…" : "Undo"}
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -829,6 +1205,14 @@ function PodHistoryTab({ rows }: { rows: PodHistoryEntry[] }) {
       return "drift";
     }
     return "resolved";
+  };
+
+  // Per-bucket remediation, so each row says how to clear its status.
+  const FIX_BY_BUCKET: Record<Bucket, string> = {
+    resolved: "Linked + complete — no action.",
+    drift: "Pod changed — set the latest pod in ET CP, then re-sync.",
+    incomplete_sow: "Fill the missing SOW fields in SOW Overview, then SYNC.",
+    no_match: "Add the client to SOW Overview, then SYNC.",
   };
 
   const counts = useMemo(() => {
@@ -1006,6 +1390,7 @@ function PodHistoryTab({ rows }: { rows: PodHistoryEntry[] }) {
                     setFilters={setColFilters}
                   />
                 </th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">How to fix</th>
               </tr>
             </thead>
             <tbody>
@@ -1085,11 +1470,16 @@ function PodHistoryTab({ rows }: { rows: PodHistoryEntry[] }) {
                         {entries.map((e) => (
                           <span
                             key={`${e.year}-${e.month}`}
-                            title={`Source: ${e.source_tab}`}
+                            title={`Source: ${e.source_tab}${e.category ? ` · ${e.category}` : ""}`}
                             className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-px text-[9px] text-[#909090]"
                           >
                             {fmtYM(e.year, e.month)}&nbsp;
                             <span className="text-[#42CA80]">{e.editorial_pod ?? "—"}</span>
+                            {e.category && (
+                              <span className={e.category === "specialized" ? "text-[#DDCFAC]" : "text-[#606060]"}>
+                                &nbsp;· {e.category === "specialized" ? "spec" : "std"}
+                              </span>
+                            )}
                           </span>
                         ))}
                       </div>
@@ -1100,6 +1490,14 @@ function PodHistoryTab({ rows }: { rows: PodHistoryEntry[] }) {
                     >
                       {latestEntry?.source_tab ?? "—"}
                     </td>
+                    <td
+                      className={
+                        "px-3 py-2 align-top " +
+                        (bucket === "resolved" ? "text-[#606060]" : "text-[#909090]")
+                      }
+                    >
+                      {FIX_BY_BUCKET[bucket]}
+                    </td>
                   </tr>
                 );
               })}
@@ -1107,6 +1505,131 @@ function PodHistoryTab({ rows }: { rows: PodHistoryEntry[] }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function UnassignedPodsTab({ rows }: { rows: UnassignedArticlePod[] }) {
+  const [hintFilter, setHintFilter] = useState<"all" | "missing_month" | "never_in_et_cp">("all");
+  const [colFilters, setColFilters] = useState<Record<string, ColumnFilterValue>>({});
+
+  const hintLabel = (h: string) =>
+    h === "missing_month" ? "Missing this month" : h === "never_in_et_cp" ? "Never in ET CP" : h;
+
+  const clientOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.client_name))).sort(),
+    [rows],
+  );
+  const monthOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => fmtYM(r.year, r.month)))).sort().reverse(),
+    [rows],
+  );
+
+  const filtered = useMemo(() => {
+    let r = rows;
+    if (hintFilter !== "all") r = r.filter((u) => u.hint === hintFilter);
+    return r.filter((u) => {
+      if (colFilters.client && !matchesFilter(u.client_name, colFilters.client)) return false;
+      if (colFilters.month && !matchesFilter(fmtYM(u.year, u.month), colFilters.month)) return false;
+      if (colFilters.count && !matchesFilter(u.article_count, colFilters.count)) return false;
+      if (colFilters.hint && !matchesFilter(hintLabel(u.hint), colFilters.hint)) return false;
+      return true;
+    });
+  }, [rows, hintFilter, colFilters]);
+
+  const totalArticles = useMemo(() => filtered.reduce((s, u) => s + u.article_count, 0), [filtered]);
+  const missingMonthCount = useMemo(() => rows.filter((u) => u.hint === "missing_month").length, [rows]);
+  const neverCount = useMemo(() => rows.filter((u) => u.hint === "never_in_et_cp").length, [rows]);
+
+  return (
+    <div className="flex h-full flex-col gap-2">
+      <div className="space-y-0.5 font-mono text-[11px] shrink-0">
+        <p className="text-[#606060]">
+          Each row is a client that <span className="text-[#C4BCAA]">delivered articles</span> that month (counted from the{" "}
+          <a href={DQ_SHEET_LINKS.articleCount} target="_blank" rel="noopener noreferrer" className="text-[#42CA80] hover:underline">
+            Monthly Article Count
+          </a>{" "}
+          sheet) but has <span className="text-[#ED6958] font-semibold">no editorial pod</span> for it. The per-month pod comes only from the{" "}
+          <a href={DQ_SHEET_LINKS.capacity} target="_blank" rel="noopener noreferrer" className="text-[#42CA80] hover:underline">
+            ET CP
+          </a>{" "}
+          sheet&apos;s Editorial Team Capacity block — with no entry there, the articles can&apos;t be attributed to a pod and fall into <span className="text-[#C4BCAA]">Unassigned</span> on Team KPIs → Monthly Articles.
+        </p>
+        <p className="text-[#606060]">
+          <span className="text-[#F5BC4E] font-semibold">Missing this month</span> = the client IS in ET CP for other months → add it to that month&apos;s block.{" "}
+          <span className="text-[#ED6958] font-semibold">Never in ET CP</span> = the client never appears in ET CP at all → add it. Fix in the ET CP sheet, then re-sync.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <FilterChip label={`All · ${rows.length}`} active={hintFilter === "all"} onClick={() => setHintFilter("all")} />
+        <FilterChip label={`Missing this month · ${missingMonthCount}`} active={hintFilter === "missing_month"} onClick={() => setHintFilter("missing_month")} />
+        <FilterChip label={`Never in ET CP · ${neverCount}`} active={hintFilter === "never_in_et_cp"} onClick={() => setHintFilter("never_in_et_cp")} />
+        <span className="ml-2 font-mono text-[11px] text-[#606060]">
+          {filtered.length.toLocaleString()} rows · {totalArticles.toLocaleString()} articles
+        </span>
+        <div className="ml-auto">
+          <ClearFiltersButton filters={colFilters} setFilters={setColFilters} />
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+        <table className="w-full border-collapse font-mono text-[12px]">
+          <thead className="sticky top-0 z-10 bg-[#161616] text-[#606060]">
+            <tr>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">
+                <FilterableHeader label="Client" filterKey="client" def={{ kind: "combobox", options: clientOptions }} filters={colFilters} setFilters={setColFilters} />
+              </th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">
+                <FilterableHeader label="Month" filterKey="month" def={{ kind: "combobox", options: monthOptions }} filters={colFilters} setFilters={setColFilters} />
+              </th>
+              <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">
+                <FilterableHeader label="Articles" filterKey="count" def={{ kind: "range" }} filters={colFilters} setFilters={setColFilters} />
+              </th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">
+                <FilterableHeader label="Status" filterKey="hint" def={{ kind: "select", options: ["Missing this month", "Never in ET CP"] }} filters={colFilters} setFilters={setColFilters} />
+              </th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider" title="Where it hits: Monthly Articles → Unassigned">How to fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-[#606060]">
+                  No unassigned-pod articles — full per-month coverage.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((u) => (
+                <tr key={`${u.client_name}-${u.year}-${u.month}`} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
+                  <td className="px-3 py-1.5 text-white">{u.client_name}</td>
+                  <td className="px-3 py-1.5 text-[#909090]">{fmtYM(u.year, u.month)}</td>
+                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-[#C4BCAA]">
+                    {u.article_count.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <span
+                      className={
+                        "rounded-sm px-1.5 py-px text-[9px] font-semibold " +
+                        (u.hint === "missing_month"
+                          ? "bg-[#F5BC4E]/10 text-[#F5BC4E]"
+                          : "bg-[#ED6958]/10 text-[#ED6958]")
+                      }
+                    >
+                      {hintLabel(u.hint)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-1.5 text-[#909090]">
+                    {u.hint === "missing_month"
+                      ? "Add this client to that month's ET CP block, then re-sync."
+                      : "Add the client to ET CP, then re-sync."}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1139,11 +1662,63 @@ function FilterChip({
   );
 }
 
+// ── Dashboard lens ──────────────────────────────────────────────────────────
+// Scope the tabs by the dashboard a problem shows up on. Membership is
+// many-to-many — a tab appears under every lens it feeds. Delivery & Contracts
+// merges Overview + Editorial Clients (they share the same source data + tabs).
+type LensKey = "all" | "delivery" | "team_kpis" | "platform";
+
+const LENS_DEFS: { key: LensKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "delivery", label: "Delivery & Contracts" },
+  { key: "team_kpis", label: "Team KPIs" },
+  { key: "platform", label: "Platform" },
+];
+
+// Tab value → the lenses it belongs to.
+const TAB_LENSES: Record<string, LensKey[]> = {
+  end_date: ["delivery"],
+  delivered: ["delivery"],
+  missing_from_hub: ["delivery", "team_kpis"],
+  pod_issues: ["team_kpis", "platform"],
+  pod_history: ["team_kpis"],
+  article_mappings: ["team_kpis"],
+  pod_coverage: ["team_kpis"],
+  modeling: ["platform"],
+};
+
+// Canonical left-to-right tab order (used to pick the first tab in a lens).
+const TAB_ORDER = [
+  "end_date",
+  "delivered",
+  "missing_from_hub",
+  "pod_issues",
+  "pod_history",
+  "article_mappings",
+  "pod_coverage",
+  "modeling",
+];
+
+function tabInLens(tab: string, lens: LensKey): boolean {
+  return lens === "all" || (TAB_LENSES[tab] ?? []).includes(lens);
+}
+
 export default function DataQualityPage() {
   const [data, setData] = useState<DiscrepanciesResponse | null>(null);
   const [podHistory, setPodHistory] = useState<PodHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lens, setLens] = useState<LensKey>("all");
+  const [activeTab, setActiveTab] = useState("end_date");
+
+  // Switch lens; if the open tab isn't in the new lens, jump to the first that is.
+  const selectLens = (l: LensKey) => {
+    setLens(l);
+    if (!tabInLens(activeTab, l)) {
+      const first = TAB_ORDER.find((t) => tabInLens(t, l));
+      if (first) setActiveTab(first);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -1211,7 +1786,7 @@ export default function DataQualityPage() {
   }, [data, podHistoryCounts]);
 
   const generatedAt = data?.generated_at
-    ? new Date(data.generated_at).toLocaleString(undefined, {
+    ? new Date(data.generated_at).toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         hour: "numeric",
@@ -1284,50 +1859,87 @@ export default function DataQualityPage() {
             />
           </div>
 
-          <Tabs defaultValue="end_date" className="flex flex-1 min-h-0 flex-col">
+          <div className="shrink-0 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 font-mono text-[10px] uppercase tracking-wider text-[#606060]">View</span>
+            {LENS_DEFS.map((l) => (
+              <FilterChip key={l.key} label={l.label} active={lens === l.key} onClick={() => selectLens(l.key)} />
+            ))}
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 min-h-0 flex-col">
             <TabsList variant="line" className="shrink-0">
-              <TabsTrigger
-                value="end_date"
-                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-              >
-                <CalendarClock className="mr-2 inline-block h-3.5 w-3.5" />
-                End-date mismatch ({data.end_date_mismatches.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="delivered"
-                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-              >
-                <Database className="mr-2 inline-block h-3.5 w-3.5" />
-                Delivered drift ({data.delivered_drift.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="pod_issues"
-                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-              >
-                <Unlink className="mr-2 inline-block h-3.5 w-3.5" />
-                Pod assignment issues ({data.pod_import_issues.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="pod_history"
-                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-              >
-                <CalendarClock className="mr-2 inline-block h-3.5 w-3.5" />
-                Pod history
-              </TabsTrigger>
-              <TabsTrigger
-                value="article_mappings"
-                className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-              >
-                <Link2 className="mr-2 inline-block h-3.5 w-3.5" />
-                Article mappings
-              </TabsTrigger>
-              <TabsTrigger
-                value="modeling"
-                className="data-active:border-b-2 data-active:border-[#F5BC4E] data-active:text-white text-[#606060]"
-              >
-                <Info className="mr-2 inline-block h-3.5 w-3.5" />
-                Modeling notes ({KNOWN_ITEMS.length})
-              </TabsTrigger>
+              {tabInLens("end_date", lens) && (
+                <TabsTrigger
+                  value="end_date"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <CalendarClock className="mr-2 inline-block h-3.5 w-3.5" />
+                  End-date mismatch ({data.end_date_mismatches.length})
+                </TabsTrigger>
+              )}
+              {tabInLens("delivered", lens) && (
+                <TabsTrigger
+                  value="delivered"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <Database className="mr-2 inline-block h-3.5 w-3.5" />
+                  Delivered drift ({data.delivered_drift.length})
+                </TabsTrigger>
+              )}
+              {tabInLens("missing_from_hub", lens) && (
+                <TabsTrigger
+                  value="missing_from_hub"
+                  className="data-active:border-b-2 data-active:border-[#ED6958] data-active:text-white text-[#ED6958]/80"
+                >
+                  <AlertTriangle className="mr-2 inline-block h-3.5 w-3.5" />
+                  Missing from Hub ({data.missing_clients?.length ?? 0})
+                </TabsTrigger>
+              )}
+              {tabInLens("pod_issues", lens) && (
+                <TabsTrigger
+                  value="pod_issues"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <Unlink className="mr-2 inline-block h-3.5 w-3.5" />
+                  Pod assignment issues ({data.pod_import_issues.length})
+                </TabsTrigger>
+              )}
+              {tabInLens("pod_history", lens) && (
+                <TabsTrigger
+                  value="pod_history"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <CalendarClock className="mr-2 inline-block h-3.5 w-3.5" />
+                  Pod history
+                </TabsTrigger>
+              )}
+              {tabInLens("article_mappings", lens) && (
+                <TabsTrigger
+                  value="article_mappings"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <Link2 className="mr-2 inline-block h-3.5 w-3.5" />
+                  Article mappings
+                </TabsTrigger>
+              )}
+              {tabInLens("pod_coverage", lens) && (
+                <TabsTrigger
+                  value="pod_coverage"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <AlertTriangle className="mr-2 inline-block h-3.5 w-3.5" />
+                  Pod coverage ({data.unassigned_article_pods.length})
+                </TabsTrigger>
+              )}
+              {tabInLens("modeling", lens) && (
+                <TabsTrigger
+                  value="modeling"
+                  className="data-active:border-b-2 data-active:border-[#F5BC4E] data-active:text-white text-[#606060]"
+                >
+                  <Info className="mr-2 inline-block h-3.5 w-3.5" />
+                  Modeling notes ({KNOWN_ITEMS.length})
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="end_date" className="mt-3 flex-1 min-h-0 overflow-hidden">
@@ -1335,6 +1947,9 @@ export default function DataQualityPage() {
             </TabsContent>
             <TabsContent value="delivered" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <DeliveredDriftTab rows={data.delivered_drift} asOfLabel={data.as_of_label} />
+            </TabsContent>
+            <TabsContent value="missing_from_hub" className="mt-3 flex-1 min-h-0 overflow-hidden">
+              <MissingFromHubTab rows={data.missing_clients ?? []} onRefresh={load} />
             </TabsContent>
             <TabsContent value="pod_issues" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <PodImportIssuesTab rows={data.pod_import_issues} onRefresh={load} />
@@ -1344,6 +1959,9 @@ export default function DataQualityPage() {
             </TabsContent>
             <TabsContent value="article_mappings" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <ArticleMappingsTab />
+            </TabsContent>
+            <TabsContent value="pod_coverage" className="mt-3 flex-1 min-h-0 overflow-hidden">
+              <UnassignedPodsTab rows={data.unassigned_article_pods} />
             </TabsContent>
             <TabsContent value="modeling" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <KnownLimitationsTab />

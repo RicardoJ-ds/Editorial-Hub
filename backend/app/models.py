@@ -754,6 +754,11 @@ class ClientPodHistory(Base):
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)
     editorial_pod: Mapped[str | None] = mapped_column(String(100))
+    # Per-(client, month) standard/specialized tag read from the same ET CP
+    # client-block row as the pod (column pod_col+2). Drives the sheet's
+    # specialized ×1.4 used-capacity weighting. NULL when the source cell is
+    # blank or unrecognized.
+    category: Mapped[str | None] = mapped_column(String(50))
     source_tab: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -884,7 +889,9 @@ class ArticleRevision(Base):
     editorial_pod: Mapped[str | None] = mapped_column(String(50), index=True)
     growth_pod: Mapped[str | None] = mapped_column(String(50), index=True)
     revision_date: Mapped[date] = mapped_column(Date, nullable=False)
-    month_year: Mapped[str | None] = mapped_column(String(7), index=True)  # editorial month of the revision
+    month_year: Mapped[str | None] = mapped_column(
+        String(7), index=True
+    )  # editorial month of the revision
 
     __table_args__ = (
         Index("ix_article_revisions_pod_month", "editorial_pod", "month_year"),
@@ -911,6 +918,24 @@ class ArticleNameAlias(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     __table_args__ = (UniqueConstraint("kind", "raw_value", name="uq_article_name_alias"),)
+
+
+class ClientNameAlias(Base):
+    """User-confirmed mapping from a source-sheet client name → a canonical Hub
+    client name, for the SOW-client resolution shared by the Operating Model /
+    Delivered vs Invoiced / Meta / ET CP importers. Complements the static
+    `_CLIENT_NAME_ALIASES` with variants the fuzzy matcher can't catch
+    (acronyms, rebrands) — e.g. 'WL/SG support (Feb)' → 'Workleap+Sharegate'.
+    Written from the Data Quality → Missing from Hub tab; self-heals on the
+    next sync (the name then resolves and stops being flagged)."""
+
+    __tablename__ = "client_name_aliases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    raw_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ArticleUnmappedName(Base):

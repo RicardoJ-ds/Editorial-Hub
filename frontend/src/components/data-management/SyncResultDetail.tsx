@@ -438,8 +438,11 @@ export function SyncResultDetail({
       </div>
 
       <div className="space-y-2">
-        {results.map((r) => (
-          <SheetResultRow key={r.sheet} result={r} defaultOpen={autoOpen} />
+        {results.map((r, i) => (
+          // Index-suffixed: a full-scope sync legitimately lists a sheet twice
+          // (e.g. Goals vs Delivery runs as both the current-month step and the
+          // all-months past step), so `r.sheet` alone isn't unique.
+          <SheetResultRow key={`${r.sheet}-${i}`} result={r} defaultOpen={autoOpen} />
         ))}
       </div>
     </div>

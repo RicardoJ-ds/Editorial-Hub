@@ -56,14 +56,14 @@ function LastSyncBadge() {
     } else {
       const isoUtc = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}Z`;
       const date = new Date(isoUtc);
-      const formatted = date.toLocaleString(undefined, {
+      const formatted = date.toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
       });
       label = `Synced ${formatted}`;
-      title = `Last sync: ${date.toLocaleString()}`;
+      title = `Last sync: ${date.toLocaleString("en-US")}`;
     }
   }
 

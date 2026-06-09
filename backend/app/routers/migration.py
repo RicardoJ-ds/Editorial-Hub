@@ -17,17 +17,14 @@ from app.config import settings
 from app.database import get_db, prepare_sync_url
 from app.models import AuditLog, EditorialWeek
 from app.schemas import EditorialWeekResponse
+from app.services import sync_manifest
 from app.services.migration_service import (
     CAPACITY_PLAN_PREFIX,
     IMPORT_DISPATCH,
-    backfill_editorial_pod_from_history,
     import_all,
-    import_et_cp_pod_history,
-    import_goals_vs_delivery,
-    import_team_pods,
-    import_week_distribution,
     list_available_sheets,
     preview_sheet,
+    refresh_computed_kpis,
 )
 
 logger = logging.getLogger(__name__)
@@ -319,27 +316,21 @@ async def resync_historical_goals():
     new calendar year once the next-year week distribution is locked in.
     """
 
-    steps = [
-        ("Goals vs Delivery (all months)", lambda s: import_goals_vs_delivery(s, mode="all")),
-        ("Master Tracker - Week Distribution", import_week_distribution),
-        ("Team Pods - Editorial + Growth", import_team_pods),
-        ("ET CP Pod History (all months)", import_et_cp_pod_history),
-        ("Backfill Editorial Pod from history", backfill_editorial_pod_from_history),
-    ]
-
+    # Steps come from the manifest's "past" scope — the single source of truth
+    # (no separate hardcoded list to keep in sync). Equivalent to /sync-run?scope=past.
     def _run():
         results: list = []
-        for label, fn in steps:
+        for st in sync_manifest.PAST_STEPS:
             session = _get_sync_session()
             try:
-                results.append(fn(session))
+                results.extend(sync_manifest.run_step(session, st.key))
             except Exception as exc:
-                logger.exception("%s failed during historical resync", label)
+                logger.exception("%s failed during historical resync", st.label)
                 from app.services.migration_service import ImportResult as _IR
 
                 results.append(
                     _IR(
-                        sheet=label,
+                        sheet=st.label,
                         success=False,
                         errors=[f"{type(exc).__name__}: {exc}"],
                     )
@@ -347,7 +338,7 @@ async def resync_historical_goals():
                 try:
                     session.rollback()
                 except Exception:
-                    logger.warning("Rollback failed for %s (continuing)", label)
+                    logger.warning("Rollback failed for %s (continuing)", st.label)
             finally:
                 session.close()
         return results
@@ -379,92 +370,22 @@ async def resync_historical_goals():
 
 
 # ---------------------------------------------------------------------------
-# Per-step resync — same 5 steps as /goals-historical-resync, exposed
-# individually so the frontend can show per-step progress (mirrors the
-# Import Wizard's StepImporting flow). Each call is independent and
-# self-contained — no cross-step state.
+# Sync Manifest endpoints — the canonical "what gets synced" surface. Every
+# trigger (SYNC button, Re-sync Past Months, month-rollover, cron, agent)
+# reads its plan from /sync-plan and executes via /sync-step or /sync-run, all
+# backed by the single declaration in services/sync_manifest.py. Add an
+# importer there once (tagged current/past) and it flows into all of these.
 # ---------------------------------------------------------------------------
 
 
-def _resync_step_registry():
-    """Return ordered list of (key, label, fn) tuples for the 5 resync steps.
-
-    Kept inline (not module-level) so the importers resolve lazily — avoids
-    circular-import risk if migration_service grows new dependencies.
-    """
-    return [
-        (
-            "goals-vs-delivery",
-            "Master Tracker - Goals vs Delivery",
-            lambda s: import_goals_vs_delivery(s, mode="all"),
-        ),
-        (
-            "week-distribution",
-            "Master Tracker - Week Distribution",
-            import_week_distribution,
-        ),
-        (
-            "team-pods",
-            "Team Pods - Editorial + Growth",
-            import_team_pods,
-        ),
-        (
-            "et-cp-history",
-            "ET CP Pod History",
-            import_et_cp_pod_history,
-        ),
-        (
-            "backfill-editorial-pod",
-            "Backfill Editorial Pod from history",
-            backfill_editorial_pod_from_history,
-        ),
-    ]
-
-
-@router.post("/resync/{step}", response_model=ImportResultResponse)
-async def resync_single_step(step: str):
-    """Run a single past-months resync step. Frontend fans these out
-    sequentially so each step shows live progress, instead of waiting for all
-    five to finish on one endpoint."""
-    registry = _resync_step_registry()
-    entry = next(((k, label, fn) for k, label, fn in registry if k == step), None)
-    if entry is None:
-        valid = ", ".join(k for k, _, _ in registry)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown resync step '{step}'. Valid: {valid}",
-        )
-
-    _, label, fn = entry
-
-    def _run():
-        session = _get_sync_session()
-        try:
-            return fn(session)
-        except Exception as exc:
-            logger.exception("%s failed during single-step resync", label)
-            from app.services.migration_service import ImportResult as _IR
-
-            try:
-                session.rollback()
-            except Exception:
-                logger.warning("Rollback failed for %s (continuing)", label)
-            return _IR(
-                sheet=label,
-                success=False,
-                errors=[f"{type(exc).__name__}: {exc}"],
-            )
-        finally:
-            session.close()
-
-    result = await asyncio.to_thread(_run)
-
+def _to_response(r) -> ImportResultResponse:
+    """Map an ImportResult → its API response shape (used by every sync path)."""
     return ImportResultResponse(
-        sheet=result.sheet,
-        rows_parsed=result.rows_parsed,
-        rows_imported=result.rows_imported,
-        success=result.success,
-        errors=result.errors,
+        sheet=r.sheet,
+        rows_parsed=r.rows_parsed,
+        rows_imported=r.rows_imported,
+        success=r.success,
+        errors=r.errors,
         details=[
             TabDetailResponse(
                 tab_name=d.tab_name,
@@ -475,9 +396,179 @@ async def resync_single_step(step: str):
                 skipped_reason=d.skipped_reason,
                 preview_key=d.preview_key,
             )
-            for d in result.details
+            for d in r.details
         ],
     )
+
+
+class SyncPlanStep(BaseModel):
+    key: str
+    label: str
+    scope: str
+    description: str | None = None
+
+
+class SyncPlanResponse(BaseModel):
+    scope: str
+    steps: list[SyncPlanStep]
+
+
+class SyncStepRequest(BaseModel):
+    key: str
+
+
+class MonthlyResyncStatusResponse(BaseModel):
+    due: bool
+    current_month: str | None = None
+    month_start: str | None = None
+    last_goals_sync: str | None = None
+
+
+_VALID_SCOPES = {"current", "past", "full"}
+
+
+@router.get("/sync-plan", response_model=SyncPlanResponse)
+async def get_sync_plan(scope: str = "current"):
+    """Ordered step list for a scope — the single source the SYNC modal and
+    Re-sync Past Months UI render from (no more hardcoded frontend lists).
+    Dynamic tabs (ET CP version, KPI scores) expand against the live sheets."""
+    if scope not in _VALID_SCOPES:
+        raise HTTPException(status_code=400, detail=f"Invalid scope '{scope}' (current|past|full)")
+    try:
+        steps = await asyncio.to_thread(sync_manifest.resolve_plan, scope)
+    except Exception as exc:
+        logger.exception("sync-plan failed")
+        raise HTTPException(status_code=500, detail=f"Failed to build sync plan: {exc}") from exc
+    return SyncPlanResponse(scope=scope, steps=[SyncPlanStep(**s) for s in steps])
+
+
+@router.post("/sync-step", response_model=ImportResponse)
+async def run_sync_step(body: SyncStepRequest):
+    """Run a single manifest step by key (a sheet name, or a fixed step id like
+    `goals-vs-delivery` / `@refresh-kpis`). Drives per-step progress in the
+    SYNC + Re-sync UIs. Errors come back as a failed result so one bad step
+    doesn't abort the run."""
+    key = body.key
+
+    def _run():
+        session = _get_sync_session()
+        try:
+            return sync_manifest.run_step(session, key)
+        except Exception as exc:
+            logger.exception("sync-step '%s' failed", key)
+            from app.services.migration_service import ImportResult as _IR
+
+            try:
+                session.rollback()
+            except Exception:
+                logger.warning("Rollback failed for sync-step %s (continuing)", key)
+            return [_IR(sheet=key, success=False, errors=[f"{type(exc).__name__}: {exc}"])]
+        finally:
+            session.close()
+
+    results = await asyncio.to_thread(_run)
+    return ImportResponse(
+        results=[_to_response(r) for r in results],
+        total_imported=sum(r.rows_imported for r in results),
+        all_ok=all(r.success for r in results),
+    )
+
+
+@router.post("/sync-run", response_model=ImportResponse)
+async def run_sync_scope(scope: str = "full"):
+    """Run an ENTIRE scope server-side in one call — for cron / agent / headless
+    triggers that want 'do everything' without orchestrating per-step from a
+    client. `scope=full` == click SYNC then Re-sync Past Months. Each step is
+    guarded so one failure doesn't abort the rest."""
+    if scope not in _VALID_SCOPES:
+        raise HTTPException(status_code=400, detail=f"Invalid scope '{scope}' (current|past|full)")
+
+    def _run():
+        plan = sync_manifest.resolve_plan(scope)
+        results: list = []
+        for step in plan:
+            session = _get_sync_session()
+            try:
+                results.extend(sync_manifest.run_step(session, step["key"]))
+            except Exception as exc:
+                logger.exception("sync-run step '%s' failed (continuing)", step["key"])
+                from app.services.migration_service import ImportResult as _IR
+
+                try:
+                    session.rollback()
+                except Exception:
+                    logger.warning("Rollback failed for sync-run %s", step["key"])
+                results.append(
+                    _IR(sheet=step["label"], success=False, errors=[f"{type(exc).__name__}: {exc}"])
+                )
+            finally:
+                session.close()
+        return results
+
+    try:
+        results = await asyncio.to_thread(_run)
+    except Exception as exc:
+        logger.exception("sync-run failed")
+        raise HTTPException(status_code=500, detail=f"Sync run failed: {exc}") from exc
+    return ImportResponse(
+        results=[_to_response(r) for r in results],
+        total_imported=sum(r.rows_imported for r in results),
+        all_ok=all(r.success for r in results),
+    )
+
+
+@router.get("/monthly-resync-status", response_model=MonthlyResyncStatusResponse)
+async def get_monthly_resync_status():
+    """Whether the past-months resync is 'due' — a new editorial month began
+    and last month's final numbers haven't been pulled yet. The SYNC modal
+    uses this to run scope=full on the first sync of a new month."""
+
+    def _check():
+        session = _get_sync_session()
+        try:
+            return sync_manifest.monthly_resync_due(session)
+        finally:
+            session.close()
+
+    status = await asyncio.to_thread(_check)
+    return MonthlyResyncStatusResponse(**status)
+
+
+@router.post("/resync/{step}", response_model=ImportResultResponse)
+async def resync_single_step(step: str):
+    """Back-compat per-step resync — now delegates to the manifest's `run_step`
+    (the single source of truth). Past-step keys are unchanged. New callers
+    should use /sync-step."""
+    valid = [s.key for s in sync_manifest.PAST_STEPS]
+    if step not in valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown resync step '{step}'. Valid: {', '.join(valid)}",
+        )
+
+    def _run():
+        session = _get_sync_session()
+        try:
+            res = sync_manifest.run_step(session, step)
+            return res[0] if res else None
+        except Exception as exc:
+            logger.exception("%s failed during single-step resync", step)
+            from app.services.migration_service import ImportResult as _IR
+
+            try:
+                session.rollback()
+            except Exception:
+                logger.warning("Rollback failed for %s (continuing)", step)
+            return _IR(sheet=step, success=False, errors=[f"{type(exc).__name__}: {exc}"])
+        finally:
+            session.close()
+
+    result = await asyncio.to_thread(_run)
+    if result is None:
+        from app.services.migration_service import ImportResult as _IR
+
+        result = _IR(sheet=step, success=True)
+    return _to_response(result)
 
 
 @router.get("/editorial-weeks", response_model=list[EditorialWeekResponse])
@@ -521,65 +612,9 @@ async def refresh_kpis():
     """
 
     def _run():
-        from datetime import date
-
-        from sqlalchemy import distinct, extract
-
-        from app.models import CapacityProjection, NotionArticle
-        from app.services.notion_kpi_service import refresh_notion_kpis
-
         session = _get_sync_session()
         try:
-            # Discover months with source data — union of every distinct
-            # (year, month) on either Notion articles (created_date) or
-            # capacity projections. Either source alone is enough to
-            # materialize the four computed KPIs for that month.
-            months: set[tuple[int, int]] = set()
-
-            stmt_notion = (
-                select(
-                    distinct(extract("year", NotionArticle.created_date)).label("y"),
-                    extract("month", NotionArticle.created_date).label("m"),
-                )
-                .where(NotionArticle.created_date.isnot(None))
-                .group_by("y", "m")
-            )
-            for y, m in session.execute(stmt_notion).all():
-                if y is not None and m is not None:
-                    months.add((int(y), int(m)))
-
-            stmt_cap = select(
-                distinct(CapacityProjection.year).label("y"),
-                CapacityProjection.month.label("m"),
-            ).group_by("y", "m")
-            for y, m in session.execute(stmt_cap).all():
-                if y is not None and m is not None:
-                    months.add((int(y), int(m)))
-
-            # Cap at 36 months back from today.
-            today = date.today()
-            cutoff = today.year * 12 + today.month - 36  # months since year 0
-            months = {(y, m) for (y, m) in months if (y * 12 + m) >= cutoff}
-
-            sorted_months = sorted(months)
-            total_updated = 0
-            for y, m in sorted_months:
-                try:
-                    res = refresh_notion_kpis(session, y, m)
-                    total_updated += int(res.get("updated", 0))
-                except Exception:
-                    logger.exception(
-                        "refresh_notion_kpis failed for %d-%02d (continuing)",
-                        y,
-                        m,
-                    )
-
-            session.commit()
-            return {
-                "months_processed": len(sorted_months),
-                "scores_updated": total_updated,
-                "months": [f"{y}-{m:02d}" for y, m in sorted_months],
-            }
+            return refresh_computed_kpis(session)
         except Exception:
             session.rollback()
             raise

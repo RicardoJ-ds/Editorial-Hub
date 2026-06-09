@@ -213,7 +213,9 @@ async def _run_data_migrations(conn) -> None:
     #     article_revisions is a new table created by create_all.
     try:
         await conn.execute(
-            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS revision_count INTEGER NOT NULL DEFAULT 0")
+            text(
+                "ALTER TABLE article_records ADD COLUMN IF NOT EXISTS revision_count INTEGER NOT NULL DEFAULT 0"
+            )
         )
         await conn.execute(
             text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS revision_dates JSONB")
@@ -222,13 +224,17 @@ async def _run_data_migrations(conn) -> None:
             text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS task_id VARCHAR(64)")
         )
         await conn.execute(
-            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT FALSE")
+            text(
+                "ALTER TABLE article_records ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT FALSE"
+            )
         )
         await conn.execute(
             text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS published_url TEXT")
         )
         await conn.execute(
-            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS notion_matched BOOLEAN NOT NULL DEFAULT FALSE")
+            text(
+                "ALTER TABLE article_records ADD COLUMN IF NOT EXISTS notion_matched BOOLEAN NOT NULL DEFAULT FALSE"
+            )
         )
         await conn.execute(
             text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS growth_pod VARCHAR(50)")
@@ -245,10 +251,23 @@ async def _run_data_migrations(conn) -> None:
     #     table created by create_all.
     try:
         await conn.execute(
-            text("ALTER TABLE production_history ADD COLUMN IF NOT EXISTS projected_original INTEGER")
+            text(
+                "ALTER TABLE production_history ADD COLUMN IF NOT EXISTS projected_original INTEGER"
+            )
         )
     except Exception:
         logger.exception("production_history.projected_original migration failed (continuing)")
+
+    # 12. client_pod_history.category — per-(client, month) standard/specialized
+    #     tag from the ET CP client block (column pod_col+2). Populated on the
+    #     next ET CP sync / past-months resync. Drives the specialized ×1.4
+    #     used-capacity weighting.
+    try:
+        await conn.execute(
+            text("ALTER TABLE client_pod_history ADD COLUMN IF NOT EXISTS category VARCHAR(50)")
+        )
+    except Exception:
+        logger.exception("client_pod_history.category migration failed (continuing)")
 
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model

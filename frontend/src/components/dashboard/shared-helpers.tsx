@@ -391,6 +391,100 @@ export function healthOf(row: HealthInput): Health {
 }
 
 // ---------------------------------------------------------------------------
+// End-of-Q variance tier — the canonical signed-variance classifier
+//
+// Symmetric and magnitude-based: being far AHEAD of contracted invoicing is as
+// much a signal as being far behind (over-delivered work isn't billed yet).
+// THIS is the single source of truth — every variance chip / label / cell
+// color on Overview + Editorial Clients routes through it. Don't re-inline the
+// buckets in a component; import this instead.
+//
+//   isNew          → 1st Q        (blue)   first contract Q — never alarms
+//   v = 0          → on track     (green)  exactly on target
+//   1 ≤ |v| ≤ 5    → within limit (amber)  small drift, either direction
+//   v >  5         → ahead        (red)    over-delivered vs invoicing
+//   v < -5         → behind       (red)    under-delivered
+// ---------------------------------------------------------------------------
+
+export const VARIANCE_WITHIN_LIMIT = 5;
+
+export type VarianceTierKey =
+  | "new"
+  | "onTrack"
+  | "withinLimit"
+  | "ahead"
+  | "behind";
+
+export interface VarianceTier {
+  key: VarianceTierKey;
+  color: string;
+  label: string;
+}
+
+export function varianceTier(variance: number, isNew = false): VarianceTier {
+  if (isNew) return { key: "new", color: "#8FB5D9", label: "1st Q" };
+  // Classify on the rounded value so the color always matches the integer the
+  // card displays — articles are whole units, and "shows 0 but colored amber"
+  // would be a confusing seam.
+  const v = Math.round(variance);
+  if (v === 0) return { key: "onTrack", color: "#42CA80", label: "On track" };
+  if (Math.abs(v) <= VARIANCE_WITHIN_LIMIT) {
+    return { key: "withinLimit", color: "#F5BC4E", label: "Within limit" };
+  }
+  return v > 0
+    ? { key: "ahead", color: "#ED6958", label: "Ahead" }
+    : { key: "behind", color: "#ED6958", label: "Behind" };
+}
+
+/** Just the tier color for a variance value. */
+export function varianceTierColor(variance: number, isNew = false): string {
+  return varianceTier(variance, isNew).color;
+}
+
+/** Composite a `#rrggbb` foreground over a solid base at `alpha`, returning an
+ *  OPAQUE `#rrggbb`. */
+function compositeHex(fg: string, alpha: number, base = "#0d0d0d"): string {
+  const ch = (s: string, i: number) => parseInt(s.slice(i, i + 2), 16);
+  const f = [ch(fg, 1), ch(fg, 3), ch(fg, 5)];
+  const b = [ch(base, 1), ch(base, 3), ch(base, 5)];
+  const out = f.map((c, i) => Math.round(c * alpha + b[i] * (1 - alpha)));
+  return "#" + out.map((c) => c.toString(16).padStart(2, "0")).join("");
+}
+
+/** OPAQUE variance-tier cell background, composited over the dark popover base.
+ *  Deliberately NOT translucent: these cells sit on the green "current Q" row
+ *  highlight (`bg-[#42CA80]/8`), and a translucent red tint would blend with it
+ *  and read muddy brown/yellow (the bug this fixes). Opaque keeps the variance
+ *  cell a clean swatch of its own tier color — the strongest signal in the row. */
+export function varianceTierBg(variance: number, isNew = false): string {
+  return compositeHex(varianceTier(variance, isNew).color, 0.16);
+}
+
+/** True when a client is far enough off-target (EITHER direction) to warrant
+ *  triage attention. 1st-contract-Q clients are never flagged. Drives the
+ *  "Needs Attention" + Pod Attention selection on Overview. */
+export function isOffTarget(variance: number, isNew = false): boolean {
+  const k = varianceTier(variance, isNew).key;
+  return k === "ahead" || k === "behind";
+}
+
+/** Plain-language gloss of a variance, for readers who don't live in the
+ *  editorial numbers. Pairs with the big signed number on the end-of-Q chip:
+ *    0   → "matches invoiced"
+ *    +15 → "15 more than invoiced"
+ *    −5  → "5 fewer than invoiced"
+ *  1st-contract-Q clients show "1st contract quarter" instead (their number
+ *  isn't yet meaningful). */
+export function varianceSubline(variance: number, isNew = false): string {
+  if (isNew) return "1st contract quarter";
+  const v = Math.round(variance);
+  if (v === 0) return "matches invoiced";
+  return v > 0
+    ? `${v} more than invoiced`
+    : `${Math.abs(v)} fewer than invoiced`;
+}
+
+// ---------------------------------------------------------------------------
 // Goal status badge
 // ---------------------------------------------------------------------------
 

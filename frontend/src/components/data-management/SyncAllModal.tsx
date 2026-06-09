@@ -16,61 +16,33 @@ import {
   type ImportResultItem as SyncResultItem,
 } from "./SyncResultDetail";
 
-interface SheetInfo {
-  name: string;
-  row_count: number;
-  description: string;
-}
-
 interface ImportResponse {
   results: SyncResultItem[];
   total_imported: number;
   all_ok: boolean;
 }
 
-type SheetStatus = "pending" | "importing" | "done" | "error";
-
-// Synthetic step appended after the per-sheet loop so the user sees the
-// Notion-derived KPI refresh as a discrete "step" in the same UI. The key
-// is namespaced with a "@" so it can never collide with a real sheet name.
-const REFRESH_KPIS_KEY = "@refresh-kpis";
-const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
-
-// Mirrors the wizard's isImportable() so the one-click modal syncs the same
-// sheets the wizard would have auto-selected — nothing more, nothing less.
-// Sheets the SYNC button auto-imports on every click. Intentionally
-// excludes:
-//   • ET CP Pod History — the current ET CP version still imports via
-//     the ET CP 2026 prefix below; the *historical* walk only belongs in
-//     the Re-sync Past Months flow.
-//   • Meta Calendar Month Deliveries, Editorial Engagement Requirements,
-//     Delivery Schedules, Model Assumptions — one-time-seed config that
-//     rarely changes; pulling them on every click is wasted time.
-// All 5 remain available in the Import Wizard (unchecked by default) so
-// they're still on-demand refreshable when needed.
-const IMPORTABLE_EXACT = new Set([
-  "Editorial SOW overview",
-  "Delivered vs Invoiced v2",
-  "Editorial Operating Model",
-  "AI Monitoring - Data",
-  "AI Monitoring - Rewrites",
-  "AI Monitoring - Flags",
-  "AI Monitoring - Surfer Usage",
-  "Master Tracker - Cumulative",
-  "Master Tracker - Goals vs Delivery",
-  "Notion Database",
-  "Growth Pods",
-  "Monthly Article Count",
-]);
-const IMPORTABLE_PREFIXES = [
-  "ET CP 2026",
-  "Monthly KPI Scores",
-  "[Mock] Monthly KPI Scores",
-];
-function isImportable(name: string): boolean {
-  if (IMPORTABLE_EXACT.has(name)) return true;
-  return IMPORTABLE_PREFIXES.some((p) => name.startsWith(p));
+// One step in the canonical sync plan, served by the backend's sync manifest
+// (`GET /api/migrate/sync-plan`). The frontend no longer hardcodes which
+// sheets sync — the backend is the single source of truth, so adding an
+// importer there makes it appear here automatically.
+interface PlanStep {
+  key: string;
+  label: string;
+  scope: string;
 }
+
+interface SyncPlanResponse {
+  scope: string;
+  steps: PlanStep[];
+}
+
+interface MonthlyResyncStatus {
+  due: boolean;
+  current_month: string | null;
+}
+
+type SheetStatus = "pending" | "importing" | "done" | "error";
 
 export function SyncAllModal({
   open,
@@ -84,8 +56,12 @@ export function SyncAllModal({
   const [phase, setPhase] = useState<"loading" | "importing" | "done" | "error">(
     "loading",
   );
-  const [sheets, setSheets] = useState<string[]>([]);
+  const [plan, setPlan] = useState<PlanStep[]>([]);
+  const [scope, setScope] = useState<string>("current");
   const [statuses, setStatuses] = useState<Record<string, SheetStatus>>({});
+  const [stepInfo, setStepInfo] = useState<
+    Record<string, { rows: number; error?: string }>
+  >({});
   const [results, setResults] = useState<SyncResultItem[]>([]);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const runIdRef = useRef(0);
@@ -95,89 +71,79 @@ export function SyncAllModal({
     setPhase("loading");
     setResults([]);
     setStatuses({});
+    setStepInfo({});
     setFatalError(null);
 
-    let importable: string[];
+    // 1. First sync of a new editorial month → run the FULL scope (= SYNC +
+    //    Re-sync Past Months) so the just-closed month's final numbers land.
+    //    Otherwise just the current sheets. Non-fatal if the check fails.
+    let resolvedScope = "current";
     try {
-      const all = await apiGet<SheetInfo[]>("/api/migrate/sheets");
-      importable = all.map((s) => s.name).filter(isImportable);
+      const status = await apiGet<MonthlyResyncStatus>(
+        "/api/migrate/monthly-resync-status",
+      );
+      if (status?.due) resolvedScope = "full";
+    } catch {
+      // ignore — fall back to current-month sync
+    }
+    if (runId !== runIdRef.current) return;
+    setScope(resolvedScope);
+
+    // 2. Pull the plan from the backend (the single source of truth).
+    let steps: PlanStep[];
+    try {
+      const resp = await apiGet<SyncPlanResponse>(
+        `/api/migrate/sync-plan?scope=${resolvedScope}`,
+      );
+      steps = resp.steps ?? [];
     } catch (err) {
       if (runId !== runIdRef.current) return;
-      setFatalError(err instanceof Error ? err.message : "Failed to list sheets");
+      setFatalError(err instanceof Error ? err.message : "Failed to load sync plan");
+      setPhase("error");
+      return;
+    }
+    if (runId !== runIdRef.current) return;
+    if (steps.length === 0) {
+      setFatalError("Sync plan is empty — nothing to sync.");
       setPhase("error");
       return;
     }
 
-    if (runId !== runIdRef.current) return;
-    // Append the synthetic "refresh KPIs" step so it shows up in the
-    // progress UI like any other sheet. The actual fetch fires after the
-    // per-sheet loop finishes.
-    const stepsWithKpis = [...importable, REFRESH_KPIS_KEY];
-    setSheets(stepsWithKpis);
-    setStatuses(Object.fromEntries(stepsWithKpis.map((s) => [s, "pending"])));
+    setPlan(steps);
+    setStatuses(Object.fromEntries(steps.map((s) => [s.key, "pending"])));
     setPhase("importing");
 
+    // 3. Run each step in order via the manifest's executor.
     const acc: SyncResultItem[] = [];
-    for (const sheet of importable) {
+    for (const step of steps) {
       if (runId !== runIdRef.current) return;
-      setStatuses((prev) => ({ ...prev, [sheet]: "importing" }));
+      setStatuses((prev) => ({ ...prev, [step.key]: "importing" }));
       try {
-        const resp = await apiPost<ImportResponse>("/api/migrate/import", {
-          sheets: [sheet],
+        const resp = await apiPost<ImportResponse>("/api/migrate/sync-step", {
+          key: step.key,
         });
-        const r = resp.results[0];
-        acc.push(r);
+        for (const r of resp.results) acc.push(r);
         setResults([...acc]);
+        const rows = resp.results.reduce((a, r) => a + r.rows_imported, 0);
+        const firstErr = resp.results.find((r) => !r.success)?.errors?.[0];
+        setStepInfo((prev) => ({ ...prev, [step.key]: { rows, error: firstErr } }));
         setStatuses((prev) => ({
           ...prev,
-          [sheet]: r.success ? "done" : "error",
+          [step.key]: resp.all_ok ? "done" : "error",
         }));
       } catch (err) {
-        const errResult: SyncResultItem = {
-          sheet,
+        const message = err instanceof Error ? err.message : "Step failed";
+        acc.push({
+          sheet: step.label,
           rows_parsed: 0,
           rows_imported: 0,
           success: false,
-          errors: [err instanceof Error ? err.message : "Import failed"],
-        };
-        acc.push(errResult);
+          errors: [message],
+        });
         setResults([...acc]);
-        setStatuses((prev) => ({ ...prev, [sheet]: "error" }));
+        setStepInfo((prev) => ({ ...prev, [step.key]: { rows: 0, error: message } }));
+        setStatuses((prev) => ({ ...prev, [step.key]: "error" }));
       }
-    }
-
-    if (runId !== runIdRef.current) return;
-
-    // Notion-derived KPI refresh — the four KPIs that aren't on any sheet
-    // (revision_rate, turnaround_time, second_reviews, capacity_utilization)
-    // get computed here. Without this step the heatmap would only update
-    // its sheet-derived columns on every sync.
-    setStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "importing" }));
-    try {
-      const resp = await apiPost<{
-        months_processed: number;
-        scores_updated: number;
-        months: string[];
-      }>("/api/migrate/refresh-kpis", {});
-      acc.push({
-        sheet: REFRESH_KPIS_LABEL,
-        rows_parsed: resp.months_processed,
-        rows_imported: resp.scores_updated,
-        success: true,
-        errors: [],
-      });
-      setResults([...acc]);
-      setStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "done" }));
-    } catch (err) {
-      acc.push({
-        sheet: REFRESH_KPIS_LABEL,
-        rows_parsed: 0,
-        rows_imported: 0,
-        success: false,
-        errors: [err instanceof Error ? err.message : "KPI refresh failed"],
-      });
-      setResults([...acc]);
-      setStatuses((prev) => ({ ...prev, [REFRESH_KPIS_KEY]: "error" }));
     }
 
     if (runId !== runIdRef.current) return;
@@ -203,7 +169,7 @@ export function SyncAllModal({
   const doneCount = Object.values(statuses).filter(
     (s) => s === "done" || s === "error",
   ).length;
-  const progressPct = sheets.length > 0 ? (doneCount / sheets.length) * 100 : 0;
+  const progressPct = plan.length > 0 ? (doneCount / plan.length) * 100 : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -212,12 +178,17 @@ export function SyncAllModal({
           <DialogTitle className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
             {phase === "done" ? "Sync Complete" : "Syncing Google Sheets"}
           </DialogTitle>
+          {scope === "full" && phase !== "error" && (
+            <p className="font-mono text-[11px] text-[#F5BC4E]">
+              New month detected — also refreshing past months (last month&apos;s final numbers).
+            </p>
+          )}
         </DialogHeader>
 
         {phase === "loading" && (
           <div className="flex items-center gap-3 py-8 justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-[#42CA80]" />
-            <span className="text-sm text-[#C4BCAA]">Fetching sheet list…</span>
+            <span className="text-sm text-[#C4BCAA]">Building sync plan…</span>
           </div>
         )}
 
@@ -228,7 +199,7 @@ export function SyncAllModal({
           </div>
         )}
 
-        {(phase === "importing" || phase === "done") && sheets.length > 0 && (
+        {(phase === "importing" || phase === "done") && plan.length > 0 && (
           <div className="space-y-4 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
             {/* Overall progress */}
             <div className="space-y-1.5">
@@ -237,7 +208,7 @@ export function SyncAllModal({
                   Overall Progress
                 </span>
                 <span className="font-mono text-[11px] text-[#C4BCAA]">
-                  {doneCount} of {sheets.length} sheets
+                  {doneCount} of {plan.length} steps
                 </span>
               </div>
               <Progress value={progressPct}>
@@ -245,19 +216,16 @@ export function SyncAllModal({
               </Progress>
             </div>
 
-            {/* Per-sheet status while importing; swap to the rich detail view
-                once every sheet has a result. */}
+            {/* Per-step status while importing; swap to the rich detail view
+                once every step has a result. */}
             {phase === "importing" ? (
               <div className="space-y-1.5">
-                {sheets.map((sheet) => {
-                  const status = statuses[sheet] ?? "pending";
-                  const isKpiStep = sheet === REFRESH_KPIS_KEY;
-                  const result = isKpiStep
-                    ? results.find((r) => r.sheet === REFRESH_KPIS_LABEL)
-                    : results.find((r) => r.sheet === sheet);
+                {plan.map((step) => {
+                  const status = statuses[step.key] ?? "pending";
+                  const info = stepInfo[step.key];
                   return (
                     <div
-                      key={sheet}
+                      key={step.key}
                       className={cn(
                         "flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors",
                         status === "done" && "border-[#42CA80]/30 bg-[#42CA80]/5",
@@ -281,18 +249,21 @@ export function SyncAllModal({
                         )}
                       </div>
                       <span className="flex-1 min-w-0 truncate font-medium text-white text-sm">
-                        {isKpiStep ? REFRESH_KPIS_LABEL : sheet}
+                        {step.label}
+                        {step.scope === "past" && (
+                          <span className="ml-2 rounded-sm bg-[#F5BC4E]/15 px-1 py-px font-mono text-[9px] uppercase tracking-wider text-[#F5BC4E]">
+                            past months
+                          </span>
+                        )}
                       </span>
-                      {result && status === "done" && (
+                      {info && status === "done" && (
                         <span className="shrink-0 font-mono text-[11px] text-[#42CA80] tabular-nums">
-                          {isKpiStep
-                            ? `${result.rows_imported.toLocaleString()} scores · ${result.rows_parsed} mo`
-                            : `${result.rows_imported.toLocaleString()} rows`}
+                          {info.rows.toLocaleString()} rows
                         </span>
                       )}
-                      {result && status === "error" && result.errors[0] && (
+                      {info?.error && status === "error" && (
                         <span className="shrink-0 truncate font-mono text-[11px] text-[#ED6958] max-w-[200px]">
-                          {result.errors[0]}
+                          {info.error}
                         </span>
                       )}
                     </div>

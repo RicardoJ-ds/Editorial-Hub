@@ -16,6 +16,10 @@ import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
 import {
   contentTypeRatio,
   displayPod,
+  varianceTier,
+  varianceTierColor,
+  varianceTierBg,
+  varianceSubline,
 } from "@/components/dashboard/shared-helpers";
 import { DataQualityNote } from "@/components/dashboard/GoalsVsDeliverySection";
 
@@ -76,13 +80,6 @@ function parseMonthYear(s: string): { year: number; month: number } | null {
     "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(monthStr);
   if (idx === -1) return null;
   return { year: parseInt(m[2], 10), month: idx + 1 };
-}
-
-function tierFor(variance: number, isNew = false) {
-  if (isNew) return { color: "#8FB5D9", label: "1st Q" };
-  if (variance >= 0) return { color: "#42CA80", label: "Healthy" };
-  if (variance >= -5) return { color: "#F5C542", label: "Within limit" };
-  return { color: "#ED6958", label: "Behind" };
 }
 
 const KIND_LABELS: Record<DetailKind, string> = {
@@ -760,11 +757,7 @@ function MonthlyBreakdownTable({
   const totalDelivered = cumDelivered;
   const totalInvoiced = cumInvoiced;
   const totalVariance = totalDelivered - totalInvoiced;
-  const totalVarColor = totalVariance >= 0
-    ? "#42CA80"
-    : totalVariance >= -5
-    ? "#F5C542"
-    : "#ED6958";
+  const totalVarColor = varianceTierColor(totalVariance);
 
   return (
     <div className="overflow-hidden rounded-md border border-[#1a1a1a]">
@@ -791,13 +784,7 @@ function MonthlyBreakdownTable({
               return p.rows.map((m, i) => {
                 const isFirst = i === 0;
                 const varColor =
-                  p.variance === null
-                    ? "#606060"
-                    : p.variance >= 0
-                    ? "#42CA80"
-                    : p.variance >= -5
-                    ? "#F5C542"
-                    : "#ED6958";
+                  p.variance === null ? "#606060" : varianceTierColor(p.variance);
                 return (
                   <tr
                     key={`${p.qIdx}-${m.year}-${m.month}`}
@@ -893,11 +880,13 @@ function MonthlyBreakdownTable({
                             // Tint the variance cell with its tier color
                             // so each Q's variance is the strongest signal
                             // in the row — matches the spreadsheet's per-Q
-                            // Variance row visual.
+                            // Variance row visual. OPAQUE (varianceTierBg) so
+                            // it doesn't blend with the green current-Q row
+                            // highlight behind it and read muddy.
                             backgroundColor:
                               p.variance === null
                                 ? "#111"
-                                : `${varColor}1f`,
+                                : varianceTierBg(p.variance),
                           }}
                         >
                           {p.variance === null
@@ -928,7 +917,7 @@ function MonthlyBreakdownTable({
                 className="px-2 py-1.5 text-right tabular-nums font-semibold"
                 style={{
                   color: totalVarColor,
-                  backgroundColor: `${totalVarColor}1f`,
+                  backgroundColor: varianceTierBg(totalVariance),
                 }}
               >
                 {totalVariance > 0 ? `+${totalVariance}` : totalVariance}
@@ -1025,7 +1014,7 @@ function QSummaryBars({
   kind: "last" | "current";
   muted?: boolean;
 }) {
-  const baseTier = tierFor(variance, isNew);
+  const baseTier = varianceTier(variance, isNew);
   // When muted, override the tier colour to grey but keep the label
   // ("On Track" / "Within Limit" / "Behind Plan" / "1st Q") accurate.
   const tier = muted && !isNew
@@ -1053,10 +1042,10 @@ function QSummaryBars({
       </div>
       <div className="space-y-2">
         <PopoverLifetimeBar
-          label="Q delivered"
-          numLabel="del"
+          label="Delivered"
+          numLabel="delivered"
           num={qDelivered}
-          denomLabel="inv"
+          denomLabel="invoiced"
           denom={qInvoiced}
           pct={delPct}
           color={barColor}
@@ -1064,7 +1053,7 @@ function QSummaryBars({
         />
         <PopoverLifetimeBar
           label="Invoiced"
-          numLabel="inv"
+          numLabel="invoiced"
           num={qInvoiced}
           denomLabel="SOW"
           denom={sow}
@@ -1074,17 +1063,17 @@ function QSummaryBars({
         />
       </div>
       <div
-        className="inline-flex items-center gap-2 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wider"
+        className="inline-flex items-center gap-2 rounded-md border px-2 py-1 font-mono text-[10px]"
         style={{ borderColor: `${tier.color}40`, backgroundColor: `${tier.color}12` }}
       >
-        <span className="text-[#909090]">
-          {kind === "current" ? "End-of-Q Variance" : "Last Close Variance"}
+        <span className="uppercase tracking-wider text-[#909090]">
+          {kind === "current" ? "End of quarter" : "Last quarter"}
         </span>
         <span className="tabular-nums font-bold" style={{ color: tier.color }}>
-          {sign}{Math.round(variance)} articles
+          {sign}{Math.round(variance)}
         </span>
         <span className="text-[#606060]">·</span>
-        <span style={{ color: tier.color }}>{tier.label}</span>
+        <span className="text-[#909090]">{varianceSubline(variance, isNew)}</span>
       </div>
     </div>
   );
@@ -1401,7 +1390,7 @@ function ContractMetaBlock({ client }: { client: Client }) {
     if (!iso) return null;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString(undefined, {
+    return d.toLocaleDateString("en-US", {
       month: "short", day: "numeric", year: "numeric",
     });
   };

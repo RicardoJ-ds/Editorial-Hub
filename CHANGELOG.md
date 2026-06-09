@@ -18,6 +18,96 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.24 — June 8
+
+**A Data Quality overhaul: catch clients that were being silently dropped, keep a running log of what you've fixed, and jump straight to the tabs that affect a given dashboard.**
+
+### Missing from Hub
+
+- New **Missing from Hub** tab: clients that appear in a source sheet (Operating Model, Delivered vs Invoiced, Meta Deliveries, or ET CP) but have **no record in the Hub**, so all their data was being silently dropped from every dashboard. Previously these only flashed by in the sync log. Each row spells out **what the problem is**, **where the source data lives** (the sheet tab + spreadsheet, linked), **which dashboard the dropped data would have appeared in**, and a **recommended fix**. Resolve a row by **mapping it to an existing Hub client** (a searchable picker that lists exactly the clients in the *SOW Overview* sheet — writes an alias the importers honor on the next sync), **adding a genuinely new client** to SOW Overview, or **Dismiss** for noise (headers / placeholders).
+- Captured by the production importers (Delivered vs Invoiced + Meta Deliveries now record them too, joining Operating Model + ET CP).
+
+### Mapped rows stay visible
+
+- Both mapping tabs (**Missing from Hub** + **Pod assignment issues**) now **keep every row visible after you act on it** — tagged Open / Mapped → client / Dismissed / Resolved — with **All / To-do / Resolved** filters and a per-row **Undo**. No more rows vanishing the instant you map them: you keep a running log of what's done vs still pending. A short reminder notes that maps apply on the next SYNC.
+- **Fixed:** pod-name overrides were silently failing to save (a missing database commit), so every Pod-assignment mapping rolled back and the issue kept re-appearing. Now persisted.
+
+### Clearer, dashboard-aware tabs
+
+- Context columns added where they help: **How to fix** (End-date mismatch, Pod history, Pod coverage) and **Problem + Where it hits** (Delivered drift) — without dropping each tab's essential columns (Pod history keeps its full month timeline). **Pod coverage** now names both data sources (Monthly Article Count for the articles, ET CP for the pod) so it's clear where the numbers come from and why a missing pod has to be fixed in ET CP.
+- New **View** selector scopes the tabs by dashboard — **All · Delivery & Contracts · Team KPIs · Platform** — so you can focus on just the data-quality issues feeding one dashboard.
+
+---
+
+## 0.3.23 — June 8
+
+**Sync now self-heals when a month rolls over, and "what gets synced" lives in one place.** Last month's final numbers used to go stale because the regular SYNC freezes closed-month tabs — you had to remember to run "Re-sync Past Months". Now the **first SYNC of a new month automatically does both**.
+
+### Self-healing month rollover
+
+- The **first time anyone hits SYNC in a new month**, it automatically also re-syncs past months (so the month that just closed picks up its final, fully-entered numbers). The sync modal shows a "New month detected — also refreshing past months" note. Subsequent syncs that month run at normal speed.
+- The "new month" boundary uses the editorial **week distribution** (same source as the "As of" badge), so it lines up with how the team actually counts months.
+
+### One definition of "everything that gets synced"
+
+- Every importer is now declared once in a backend **sync manifest**, tagged as a current-month or past-months step. The SYNC button, Re-sync Past Months, the rollover trigger, and any future automation all read from that one list — so adding a new data source (like the Monthly Article Count) makes it appear everywhere automatically, with no risk of one screen syncing it and another forgetting to.
+- The Re-sync Past Months screen now builds its step list from that manifest too (no more hand-maintained copy).
+
+### Under the hood
+
+- New `GET /api/migrate/sync-plan`, `POST /api/migrate/sync-step`, `POST /api/migrate/sync-run` (whole-scope, for cron/headless), and `GET /api/migrate/monthly-resync-status`. The KPI-refresh logic is now shared between the endpoint and the manifest instead of duplicated.
+
+---
+
+## 0.3.22 — June 8
+
+**Plain-language pass on the Overview dashboard, so it reads for everyone — not just people who live in the editorial numbers.** Shorthand is spelled out, the end-of-quarter chip explains itself, and the milestone numbers no longer clutter every card.
+
+### Pod Snapshot
+
+- **Column headers** read in full: "Current Quarter" (was "Current Q", subtitle "Delivered against Invoiced"), "% of SOW", "% Published", and the Goals column now says "CBs + Articles vs monthly goal".
+- **Bar labels spelled out** — "delivered / invoiced" instead of "del / inv" (SOW kept, with a tooltip that defines it as the full contracted scope).
+- **The end-of-quarter chip explains itself.** Instead of a bare "−5", it now reads the number plus a plain line: "5 fewer than invoiced" / "15 more than invoiced" / "matches invoiced" (0). The color still flags on-track / within-limit / behind / ahead at a glance, and **hovering the chip** shows a short explanation (delivered − invoiced, projected to the quarter's end, as of the last closed editorial month).
+- Tooltips rewritten without the `÷` math and insider terms.
+
+### Time to Milestones
+
+- **The milestone numbers (1–6) now live in one place — the legend** — instead of being repeated as "1→2 / 4→5" on every card, tooltip, and dropdown. The cards and tooltips just say the readable name ("First Article → First Feedback"), and the numbered key stays available for anyone who wants to map the sequence.
+
+### Section descriptions
+
+- Rewritten in everyday language (e.g. Time to Milestones now reads "How fast each pod moves a client from kickoff to first published article").
+
+### Across the app
+
+- **Dates always render in English** (e.g. "9 Jan 2026"). They were following the browser's language, so a Spanish-set machine showed "9 ene 2026" in the milestone tooltips, drill-down dates, comment timestamps, and the "Synced …" badge.
+
+---
+
+## 0.3.21 — June 8
+
+**Variance colors are now symmetric: green means exactly on target, amber means within ±5 either way, and red now flags clients that are far AHEAD as well as far behind.** Previously any over-delivery read as green "healthy"; now a client projected to finish a quarter well ahead of contracted invoicing is surfaced just like one that's behind — because over-delivered work isn't billed yet.
+
+### Overview + Editorial Clients — how variance reads
+
+- **🟢 On track** — projected end-of-quarter variance is exactly 0.
+- **🟡 Within limit** — within ±5 articles of target, behind or ahead.
+- **🔴 Behind / Ahead** — more than 5 articles off target. The label now says **"Ahead"** when over-delivering and **"Behind"** when under — both in red.
+- **🔵 1st Q** — brand-new contracts in their first quarter stay calm (never alarm), unchanged.
+
+This applies everywhere variance is shown: the Pod Snapshot tiles + per-client cells, the client drill-down popover (chip + the monthly Variance column), and every per-client card on Editorial Clients. In the monthly breakdown table each Variance cell carries a solid tier-colored background, so a far-ahead/far-behind cell reads cleanly red even on the highlighted current-quarter row (it no longer blends to a muddy brown).
+
+### Overview — "Most Behind" is now "Needs Attention"
+
+- The triage card formerly titled **Most Behind** is now **Needs Attention**: it flags clients projected to finish more than ±5 off target in **either** direction, worst miss first.
+- **Pod Attention** follows the same lens — pods are ranked by how many clients are off target (behind or ahead), and its drill-downs read "off-target clients" instead of "behind".
+
+### Under the hood
+
+- All variance tier logic now flows through a single shared classifier, so every surface classifies identically (previously the rule was copy-pasted across five components and had already drifted out of sync in one place).
+
+---
+
 ## 0.3.20 — June 1
 
 **Overview page no longer hangs forever when something blocks the bootstrap fetch (e.g. a privacy extension intercepting `/api/me`). Every backend GET now times out at 45s, the email-lookup at 10s, and a clear "Overview unavailable" message renders if the page can't bootstrap — instead of an indefinite spinner.**

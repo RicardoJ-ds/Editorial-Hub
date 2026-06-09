@@ -23,6 +23,10 @@ import {
   AsOfBadge,
   TooltipBody,
   podBadge,
+  varianceTier,
+  varianceTierColor,
+  varianceTierBg,
+  type VarianceTier,
 } from "./shared-helpers";
 
 export interface ClientDeliveryCardRow {
@@ -107,18 +111,15 @@ const MONTH_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
 // a watch signal, large deltas (over- or under-delivered) are a flag. Magnitude-
 // based on purpose so an over-delivery (+10) reads the same as an under-
 // delivery (−10) at a glance — the sign is right next to the cell anyway.
+// Per-month Variance-column cell color/tint. Delegates to the canonical
+// symmetric classifier so this column, the per-card chip, and the Overview
+// triage all read off one rule (on target = 0 · drift = ±5 · out = beyond ±5).
 function varianceColor(v: number): string {
-  const abs = Math.abs(v);
-  if (abs === 0) return "#42CA80"; // P2 green — on target
-  if (abs <= 5) return "#F5BC4E"; // S6 amber — drifting
-  return "#ED6958"; // S7 red — out of bounds
+  return varianceTierColor(v);
 }
 
 function varianceBg(v: number): string {
-  const abs = Math.abs(v);
-  if (abs === 0) return "rgba(66,202,128,0.10)";
-  if (abs <= 5) return "rgba(245,188,78,0.10)";
-  return "rgba(237,105,88,0.10)";
+  return varianceTierBg(v);
 }
 
 // Shared layout-animation tuning so the cards section feels consistent with
@@ -525,63 +526,37 @@ function DeliveryBar({
 // hides nuance for clients with mixed cadences). Add the helpers back once
 // the new model is decided.
 
-/** Per-client triage tier — matches the Overview Delivery Progress card so
- *  both surfaces classify identically.
- *    healthy:  v ≥  0   (on target or ahead)
- *    watch:   -5 ≤ v < 0 (slipping but within limit)
- *    behind:        v < -5
- *    new:     1st contract Q (excluded from Behind triage)
- *  Returns null when there's no current Q to score. */
-type ClientTier = "healthy" | "watch" | "behind" | "new";
-
+/** Per-client triage tier — the canonical symmetric classifier, so this card,
+ *  the Overview Delivery Progress card, and the drill-down popover all read off
+ *  one rule. Returns null when there's no current Q to score. */
 function computeClientTier(
   currentQ: CurrentQuarter | null,
   isFirstQ: boolean,
-): ClientTier | null {
+): VarianceTier | null {
   if (!currentQ || currentQ.invoiced <= 0) return null;
-  if (isFirstQ) return "new";
-  const v = currentQ.projectedEndCumVariance;
-  if (v >= 0) return "healthy";
-  if (v >= -5) return "watch";
-  return "behind";
+  return varianceTier(currentQ.projectedEndCumVariance, isFirstQ);
 }
 
-const TIER_STYLE: Record<ClientTier, { label: string; color: string; title: string }> = {
-  healthy: {
-    label: "Healthy",
-    color: "#42CA80",
-    title: "Projected to close current Q at or above target.",
-  },
-  watch: {
-    label: "Within limit",
-    color: "#F5BC4E",
-    title: "Slipping — projected up to 5 articles behind by end of Q.",
-  },
-  behind: {
-    label: "Behind",
-    color: "#ED6958",
-    title: "Projected more than 5 articles behind by end of current Q.",
-  },
-  new: {
-    label: "1st Q",
-    color: "#8FB5D9",
-    title: "1st contract Q — excluded from Behind triage.",
-  },
+const TIER_TITLE: Record<VarianceTier["key"], string> = {
+  onTrack: "Projected to close current Q exactly on target.",
+  withinLimit: "Within ±5 articles of target by end of current Q.",
+  ahead: "Projected more than 5 articles ahead by end of current Q.",
+  behind: "Projected more than 5 articles behind by end of current Q.",
+  new: "1st contract Q — excepted from off-target alarms.",
 };
 
-function TierBadge({ tier }: { tier: ClientTier }) {
-  const style = TIER_STYLE[tier];
+function TierBadge({ tier }: { tier: VarianceTier }) {
   return (
     <span
       className="shrink-0 rounded-sm border px-1 py-px font-mono text-[9px] uppercase tracking-wider"
       style={{
-        color: style.color,
-        backgroundColor: `${style.color}1A`,
-        borderColor: `${style.color}66`,
+        color: tier.color,
+        backgroundColor: `${tier.color}1A`,
+        borderColor: `${tier.color}66`,
       }}
-      title={style.title}
+      title={TIER_TITLE[tier.key]}
     >
-      {style.label}
+      {tier.label}
     </span>
   );
 }
@@ -674,7 +649,7 @@ function ClientDeliveryCard({
                 tooltipBullets={[
                   "# = variance = delivered − invoiced (cumulative).",
                   "Numbers = delivered / invoiced.",
-                  "≥ 0 Healthy · −5–0 Within · < −5 Behind.",
+                  "0 on track · ±1–5 within limit · beyond ±5 behind / ahead.",
                 ]}
               />
             )}
@@ -697,7 +672,7 @@ function ClientDeliveryCard({
                 tooltipBullets={[
                   "# = projected variance = delivered − invoiced through end-of-Q.",
                   "Bar = actual delivered (to date) ÷ invoiced (cumulative through end-of-Q).",
-                  "≥ 0 On Track · −5–0 Within Limit · < −5 Behind Plan.",
+                  "0 on track · ±1–5 within limit · beyond ±5 behind / ahead.",
                 ]}
               />
             )}
@@ -801,13 +776,6 @@ function ClientDeliveryCard({
  *  Removed: the QuarterRow now leads with the cumulative variance + tier
  *  inline, so this standalone "End-of-Q variance" line was redundant. */
 
-/** Signed-variance color, matches the Overview Triage cards. */
-function signedVarianceColor(v: number): string {
-  if (v >= 0) return "#42CA80";
-  if (v >= -5) return "#F5BC4E";
-  return "#ED6958";
-}
-
 /** Linear interpolation from beige (`#DDCFAC`, low completion) to the
  *  deep P3 green (`#2E8C59`, full completion) — same green used for
  *  Topics in the Cumulative Pipeline cards, so the two surfaces share
@@ -867,13 +835,13 @@ function QuarterRow({
   // on Current Q (the actionable row). The End-of-Q chip below the two
   // rows carries the variance/tier headline for Current Q.
   const dim = kind === "lastFull";
-  const tier = isFirstQ
-    ? { color: "#8FB5D9", label: "1st Q" }
-    : variance >= 0
-    ? { color: dim ? "#909090" : "#42CA80", label: "On Track" }
-    : variance >= -5
-    ? { color: dim ? "#909090" : "#F5C542", label: "Within Limit" }
-    : { color: dim ? "#909090" : "#ED6958", label: "Behind Plan" };
+  const base = varianceTier(variance, isFirstQ);
+  // Last Q is reference context — wash its color to neutral grey but keep the
+  // label accurate. 1st Q keeps its blue regardless.
+  const tier =
+    dim && base.key !== "new"
+      ? { color: "#909090", label: base.label }
+      : { color: base.color, label: base.label };
 
   const safeTarget = Math.max(1, target);
   const projectedPct = Math.max(0, Math.min(100, (delivered / safeTarget) * 100));
@@ -960,13 +928,7 @@ function EndOfQVarianceChip({
   variance: number;
   isFirstQ: boolean;
 }) {
-  const tier = isFirstQ
-    ? { color: "#8FB5D9", label: "1st Q" }
-    : variance >= 0
-    ? { color: "#42CA80", label: "On Track" }
-    : variance >= -5
-    ? { color: "#F5C542", label: "Within Limit" }
-    : { color: "#ED6958", label: "Behind Plan" };
+  const tier = varianceTier(variance, isFirstQ);
   const sign = variance > 0 ? "+" : "";
   return (
     <div
