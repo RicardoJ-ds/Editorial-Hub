@@ -139,7 +139,7 @@ const CARD_TRANSITION = { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const };
 
 type MonthRow = NonNullable<ClientDeliveryCardRow["monthly_breakdown"]>[number];
 
-interface BillingPeriod {
+export interface BillingPeriod {
   /** Sequential index across all detected periods (0-based). The card and
    *  popover compare against this to mark LAST FULL / IN PROGRESS, so it has
    *  to stay stable between the two. */
@@ -167,7 +167,7 @@ interface BillingPeriod {
   isPostContract: boolean;
 }
 
-function detectBillingPeriods(row: ClientDeliveryCardRow): BillingPeriod[] {
+export function detectBillingPeriods(row: ClientDeliveryCardRow): BillingPeriod[] {
   const monthly = row.monthly_breakdown ?? [];
   if (monthly.length === 0) return [];
   const sorted = [...monthly].sort((a, b) =>
@@ -348,7 +348,7 @@ interface LastFullQuarter {
   /** Cumulative variance = cumDelivered − cumInvoiced. */
   cumVariance: number;
 }
-interface QuarterMeta {
+export interface QuarterMeta {
   currentQ: CurrentQuarter | null;
   lastFullQ: LastFullQuarter | null;
 }
@@ -356,7 +356,7 @@ interface QuarterMeta {
 // "Last full" = latest period whose end month is ≤ last completed calendar
 // month. "Current" = period whose [start, end] window contains today.
 // Preludes are skipped (no Q to attach a chip to).
-function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
+export function quarterMetaFromPeriods(periods: BillingPeriod[]): QuarterMeta {
   if (periods.length === 0) return { currentQ: null, lastFullQ: null };
   const today = new Date();
   const todayY = today.getFullYear();
@@ -529,7 +529,7 @@ function DeliveryBar({
 /** Per-client triage tier — the canonical symmetric classifier, so this card,
  *  the Overview Delivery Progress card, and the drill-down popover all read off
  *  one rule. Returns null when there's no current Q to score. */
-function computeClientTier(
+export function computeClientTier(
   currentQ: CurrentQuarter | null,
   isFirstQ: boolean,
 ): VarianceTier | null {
