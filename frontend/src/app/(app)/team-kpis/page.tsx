@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,7 +41,7 @@ import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
 import { MonthlyArticlesTab } from "@/components/dashboard/MonthlyArticlesTab";
 import { SyncControls } from "@/components/layout/SyncControls";
-import { TooltipBody } from "@/components/dashboard/shared-helpers";
+import { TooltipBody, displayPod } from "@/components/dashboard/shared-helpers";
 import { useSectionDwellById } from "@/lib/useSectionDwell";
 import {
   Tooltip,
@@ -433,6 +433,12 @@ export default function TeamKpisPage() {
             >
               Monthly Articles
             </TabsTrigger>
+            <TabsTrigger
+              value="capacity-by-pod"
+              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+            >
+              Capacity by Pod
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -475,6 +481,15 @@ export default function TeamKpisPage() {
             <SectionIndex sections={MONTHLY_ARTICLES_SECTIONS} topOffset={140} />
             <div className="flex-1 min-w-0">
               <MonthlyArticlesTab filteredClients={filteredClients} dateRange={dateRange} />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="capacity-by-pod">
+          <div className="flex gap-6">
+            <SectionIndex sections={CAPACITY_BY_POD_SECTIONS} topOffset={140} />
+            <div className="flex-1 min-w-0">
+              <CapacityByPodTab />
             </div>
           </div>
         </TabsContent>
@@ -524,6 +539,714 @@ const MONTHLY_ARTICLES_SECTIONS = [
   { id: "articles-chart", label: "Over Time" },
   { id: "articles-matrix", label: "Matrix" },
 ];
+const CAPACITY_BY_POD_SECTIONS = [
+  { id: "capacity-by-pod", label: "Pod Overview" },
+  { id: "member-utilization", label: "Per Editor" },
+  { id: "client-contributions", label: "Client Detail" },
+  { id: "utilization-trend", label: "Trend" },
+];
+
+// ── Capacity by Pod ──────────────────────────────────────────────────────────
+// Simple per-pod matrix: Total capacity (sum of roles) + % Projected + % Actual
+// used, for one month. Reads the latest ET CP version per (pod, month) from
+// /api/capacity/pod-summary. Editorial pods only (capacity is editorial).
+interface CapacityPodRow {
+  year: number;
+  month: number;
+  pod: string;
+  version: string | null;
+  total_capacity: number | null;
+  projected_used_capacity: number | null;
+  actual_used_capacity: number | null;
+}
+
+const CAP_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const capMonthKey = (y: number, m: number) => `${y}-${String(m).padStart(2, "0")}`;
+const capMonthLabel = (y: number, m: number) => `${CAP_MONTH_ABBR[m - 1] ?? m} ${y}`;
+const capPct = (num: number | null, den: number | null) =>
+  den && den > 0 ? `${Math.round((100 * (num ?? 0)) / den)}%` : "—";
+
+function CapacityByPodTab() {
+  const [rows, setRows] = useState<CapacityPodRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string>("");
+
+  useEffect(() => {
+    let alive = true;
+    apiGet<CapacityPodRow[]>("/api/capacity/pod-summary")
+      .then((data) => {
+        if (!alive) return;
+        setRows(data);
+        // Default to the latest month that has any staffed capacity.
+        const withCap = data
+          .filter((r) => (r.total_capacity ?? 0) > 0)
+          .map((r) => capMonthKey(r.year, r.month))
+          .sort();
+        const all = data.map((r) => capMonthKey(r.year, r.month)).sort();
+        setSelected(withCap.at(-1) ?? all.at(-1) ?? "");
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const monthOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => capMonthKey(r.year, r.month)))).sort().reverse(),
+    [rows],
+  );
+
+  const podRows = useMemo(() => {
+    if (!selected) return [];
+    const [y, m] = selected.split("-").map(Number);
+    return rows
+      .filter((r) => r.year === y && r.month === m && (r.total_capacity ?? 0) > 0)
+      .sort((a, b) => a.pod.localeCompare(b.pod, undefined, { numeric: true }));
+  }, [rows, selected]);
+
+  const totals = useMemo(
+    () => ({
+      total: podRows.reduce((s, r) => s + (r.total_capacity ?? 0), 0),
+      proj: podRows.reduce((s, r) => s + (r.projected_used_capacity ?? 0), 0),
+      act: podRows.reduce((s, r) => s + (r.actual_used_capacity ?? 0), 0),
+    }),
+    [podRows],
+  );
+
+  if (loading) return <Skeleton className="h-48 w-full max-w-2xl" />;
+
+  return (
+    <div className="space-y-10">
+    <section id="capacity-by-pod" className="max-w-2xl space-y-3 scroll-mt-[140px]">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Capacity by Pod
+          </h2>
+          <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
+            Total capacity = sum of every role in the pod. % Projected / % Actual = used ÷ total.
+            Latest ET CP version. Actual fills in as the month closes.
+          </p>
+        </div>
+        <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+          <SelectTrigger className="w-[150px] shrink-0">
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {monthOptions.map((mo) => {
+              const [y, m] = mo.split("-").map(Number);
+              return (
+                <SelectItem key={mo} value={mo}>
+                  {capMonthLabel(y, m)}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+        <table className="w-full border-collapse font-mono text-[13px]">
+          <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
+            <tr>
+              <th className="px-4 py-2 text-left font-semibold">Pod</th>
+              <th className="px-4 py-2 text-right font-semibold">Total capacity</th>
+              <th className="px-4 py-2 text-right font-semibold">% Projected</th>
+              <th className="px-4 py-2 text-right font-semibold">% Actual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {podRows.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-[#606060]">
+                  No capacity data for this month.
+                </td>
+              </tr>
+            ) : (
+              podRows.map((r) => (
+                <tr key={r.pod} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
+                  <td className="px-4 py-2 text-white">{displayPod(r.pod, "editorial")}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
+                    {r.total_capacity ?? 0}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
+                    {capPct(r.projected_used_capacity, r.total_capacity)}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
+                    {capPct(r.actual_used_capacity, r.total_capacity)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {podRows.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-[#2a2a2a] bg-[#111111] font-semibold">
+                <td className="px-4 py-2 text-[#C4BCAA]">Totals</td>
+                <td className="px-4 py-2 text-right tabular-nums text-white">{totals.total}</td>
+                <td className="px-4 py-2 text-right tabular-nums text-white">
+                  {capPct(totals.proj, totals.total)}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums text-white">
+                  {capPct(totals.act, totals.total)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </section>
+    {selected && <MemberUtilizationSection monthKey={selected} />}
+    {selected && <ClientContributionsSection monthKey={selected} />}
+    <UtilizationTrendSection />
+    </div>
+  );
+}
+
+// ── Capacity Utilization per Editor ──────────────────────────────────────────
+// Joins-only over 4 origins (no stored/duplicated numbers). Model:
+//   %alloc = capacity ÷ pod cap · articles are a DISTRIBUTION key scaled to the
+//   authoritative pod RAW actual (fallback — the article log under-counts) ·
+//   projected = %alloc × pod raw projected · %Real = actual ÷ capacity ·
+//   %Weighted = actual ÷ projected. Pod-level weighted util shown for reference.
+interface MemberUtilRow {
+  pod: string;
+  role: string | null;
+  member: string;
+  capacity: number | null;
+  matched: boolean;
+  articles: number;
+  pct_allocation: number;
+  pct_distribution: number;
+  projected_used: number;
+  actual_used: number;
+  pct_util_real: number | null;
+  pct_util_weighted: number | null;
+  pod_total_capacity: number;
+  pod_total_articles: number;
+  pod_projected_raw: number;
+  pod_actual_raw: number;
+  pod_projected_weighted: number;
+  pod_actual_weighted: number;
+  pod_util_projected_weighted: number | null;
+  pod_util_actual_weighted: number | null;
+}
+
+const fmtPct = (v: number | null | undefined) =>
+  v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`;
+
+function MemberUtilizationSection({ monthKey }: { monthKey: string }) {
+  const [rows, setRows] = useState<MemberUtilRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!monthKey) return;
+    const [y, m] = monthKey.split("-").map(Number);
+    let alive = true;
+    setLoading(true);
+    apiGet<MemberUtilRow[]>(`/api/capacity/member-utilization?year=${y}&month=${m}`)
+      .then((d) => {
+        if (alive) setRows(d);
+      })
+      .catch(() => {
+        if (alive) setRows([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [monthKey]);
+
+  const pods = useMemo(() => {
+    const map = new Map<string, MemberUtilRow[]>();
+    for (const r of rows) {
+      if (!map.has(r.pod)) map.set(r.pod, []);
+      map.get(r.pod)!.push(r);
+    }
+    return Array.from(map.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0], undefined, { numeric: true }),
+    );
+  }, [rows]);
+
+  const unmatched = rows.filter(
+    (r) => !r.matched && r.member.toLowerCase() !== "support from pod 1",
+  ).length;
+
+  if (loading) return <Skeleton className="h-64 w-full max-w-3xl" />;
+  if (!rows.length) return null;
+
+  return (
+    <section id="member-utilization" className="max-w-3xl space-y-3 scroll-mt-[140px]">
+      <div>
+        <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          Capacity Utilization per Editor
+        </h2>
+        <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-[#606060]">
+          Articles set each editor&apos;s <span className="text-[#909090]">share</span> of the pod&apos;s
+          real used capacity (the log under-counts, so it&apos;s a distribution key, not the total).
+          <span className="text-[#909090]"> %Util Real</span> = actual ÷ capacity ·
+          <span className="text-[#909090]"> %Util Wtd</span> = actual ÷ projected.
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+        <table className="w-full border-collapse font-mono text-[13px]">
+          <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Editor</th>
+              <th className="px-3 py-2 text-right font-semibold">Capacity</th>
+              <th className="px-3 py-2 text-right font-semibold">% Alloc</th>
+              <th className="px-3 py-2 text-right font-semibold">Articles</th>
+              <th className="px-3 py-2 text-right font-semibold">Projected</th>
+              <th className="px-3 py-2 text-right font-semibold">Actual</th>
+              <th className="px-3 py-2 text-right font-semibold">% Util Real</th>
+              <th className="px-3 py-2 text-right font-semibold">% Util Wtd</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pods.map(([pod, members]) => {
+              const b = members[0];
+              return (
+                <Fragment key={pod}>
+                  <tr className="border-t border-[#2a2a2a] bg-[#141414] text-[10px] text-[#909090]">
+                    <td className="px-3 py-1.5 font-semibold uppercase tracking-wider text-[#C4BCAA]">
+                      {displayPod(pod, "editorial")}
+                    </td>
+                    <td className="px-3 py-1.5 text-right">{b.pod_total_capacity}</td>
+                    <td className="px-3 py-1.5 text-right">{b.pod_total_articles} art</td>
+                    <td colSpan={2} className="px-3 py-1.5 text-right">
+                      raw proj {b.pod_projected_raw} / act {b.pod_actual_raw}
+                    </td>
+                    <td colSpan={3} className="px-3 py-1.5 text-right">
+                      pod wtd util: proj {fmtPct(b.pod_util_projected_weighted)} · act{" "}
+                      {fmtPct(b.pod_util_actual_weighted)}
+                    </td>
+                  </tr>
+                  {members.map((r) => (
+                    <tr
+                      key={`${pod}-${r.member}`}
+                      className="border-t border-[#1a1a1a] hover:bg-[#161616]"
+                    >
+                      <td className="px-3 py-2 text-white">
+                        {r.member}
+                        {r.role && <span className="ml-2 text-[10px] text-[#606060]">{r.role}</span>}
+                        {!r.matched && (
+                          <span
+                            className="ml-2 text-[10px] text-[#F5BC4E]"
+                            title="No matching editor in the article log"
+                          >
+                            no match
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#C4BCAA]">
+                        {r.capacity ?? 0}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#606060]">
+                        {fmtPct(r.pct_allocation)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#606060]">{r.articles}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#909090]">
+                        {r.projected_used}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#909090]">
+                        {r.actual_used}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-white">
+                        {fmtPct(r.pct_util_real)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-white">
+                        {fmtPct(r.pct_util_weighted)}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {unmatched > 0 && (
+        <p className="font-mono text-[10px] text-[#606060]">
+          {unmatched} member{unmatched === 1 ? "" : "s"} couldn&apos;t be matched to an editor name —
+          counted as 0 articles (name-matching is a known follow-up).
+        </p>
+      )}
+    </section>
+  );
+}
+
+// ── Client Contributions ─────────────────────────────────────────────────────
+// The intermediate ("processed") table between the raw origins and the pod
+// utilization numbers: one row per client with its projected/actual articles
+// and the specialized ×1.4 weighting. Pod subtotals here ARE the pod raw /
+// weighted totals the per-editor section divides up.
+interface ClientContributionRow {
+  pod: string;
+  client_id: number;
+  client_name: string;
+  category: string | null;
+  weight: number;
+  projected_raw: number;
+  actual_raw: number;
+  projected_weighted: number;
+  actual_weighted: number;
+}
+
+function ClientContributionsSection({ monthKey }: { monthKey: string }) {
+  const [rows, setRows] = useState<ClientContributionRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!monthKey) return;
+    const [y, m] = monthKey.split("-").map(Number);
+    let alive = true;
+    setLoading(true);
+    apiGet<ClientContributionRow[]>(`/api/capacity/client-contributions?year=${y}&month=${m}`)
+      .then((d) => {
+        if (alive) setRows(d);
+      })
+      .catch(() => {
+        if (alive) setRows([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [monthKey]);
+
+  const pods = useMemo(() => {
+    const map = new Map<string, ClientContributionRow[]>();
+    for (const r of rows) {
+      if (!map.has(r.pod)) map.set(r.pod, []);
+      map.get(r.pod)!.push(r);
+    }
+    return Array.from(map.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0], undefined, { numeric: true }),
+    );
+  }, [rows]);
+
+  if (loading) return <Skeleton className="h-64 w-full max-w-3xl" />;
+  if (!rows.length) return null;
+
+  return (
+    <section id="client-contributions" className="max-w-3xl space-y-3 scroll-mt-[140px]">
+      <div>
+        <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          Client Contributions
+        </h2>
+        <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-[#606060]">
+          What each client adds to its pod&apos;s workload this month. Specialized clients
+          weigh <span className="text-[#909090]">×1.4</span>. Pod totals here are exactly the
+          projected / actual numbers the per-editor section splits up.
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+        <table className="w-full border-collapse font-mono text-[13px]">
+          <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Client</th>
+              <th className="px-3 py-2 text-left font-semibold">Category</th>
+              <th className="px-3 py-2 text-right font-semibold">Projected</th>
+              <th className="px-3 py-2 text-right font-semibold">Actual</th>
+              <th className="px-3 py-2 text-right font-semibold">Wtd Projected</th>
+              <th className="px-3 py-2 text-right font-semibold">Wtd Actual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pods.map(([pod, clients]) => {
+              const t = clients.reduce(
+                (s, r) => ({
+                  pr: s.pr + r.projected_raw,
+                  ar: s.ar + r.actual_raw,
+                  pw: s.pw + r.projected_weighted,
+                  aw: s.aw + r.actual_weighted,
+                }),
+                { pr: 0, ar: 0, pw: 0, aw: 0 },
+              );
+              return (
+                <Fragment key={pod}>
+                  <tr className="border-t border-[#2a2a2a] bg-[#141414]">
+                    <td className="px-3 py-1.5 font-semibold uppercase tracking-wider text-[10px] text-[#C4BCAA]">
+                      {displayPod(pod, "editorial")}
+                    </td>
+                    <td className="px-3 py-1.5 text-[10px] text-[#606060]">
+                      {clients.length} client{clients.length === 1 ? "" : "s"}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-white">{t.pr}</td>
+                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-white">{t.ar}</td>
+                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#C4BCAA]">
+                      {t.pw.toFixed(1)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#C4BCAA]">
+                      {t.aw.toFixed(1)}
+                    </td>
+                  </tr>
+                  {clients.map((r) => (
+                    <tr
+                      key={`${pod}-${r.client_id}`}
+                      className="border-t border-[#1a1a1a] hover:bg-[#161616]"
+                    >
+                      <td className="px-3 py-1.5 pl-6 text-[#C4BCAA]">{r.client_name}</td>
+                      <td className="px-3 py-1.5">
+                        {r.category === "specialized" ? (
+                          <span className="rounded bg-[#8FB5D9]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[#8FB5D9]">
+                            Specialized ×1.4
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-wider text-[#606060]">
+                            {r.category ?? "—"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">
+                        {r.projected_raw}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">
+                        {r.actual_raw}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-[#606060]">
+                        {r.projected_weighted.toFixed(1)}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-[#606060]">
+                        {r.actual_weighted.toFixed(1)}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ── Utilization Trend ────────────────────────────────────────────────────────
+// Member × month matrix of the FINAL utilization numbers across every month
+// with staffed capacity. One fetch of /member-utilization-matrix; a metric
+// toggle switches %Util Real / %Util Wtd / Articles.
+interface MemberUtilMatrixRow extends MemberUtilRow {
+  year: number;
+  month: number;
+}
+
+type TrendMetric = "real" | "weighted" | "articles";
+const TREND_METRICS: { key: TrendMetric; label: string }[] = [
+  { key: "real", label: "% Util Real" },
+  { key: "weighted", label: "% Util Wtd" },
+  { key: "articles", label: "Articles" },
+];
+
+// Utilization heat: amber when clearly under, green near plan, red when over.
+function utilCellStyle(v: number | null): React.CSSProperties {
+  if (v === null || v === undefined) return {};
+  const pct = v * 100;
+  if (pct <= 0) return {};
+  if (pct < 85) {
+    const a = Math.min(0.3, 0.08 + ((85 - pct) / 85) * 0.25);
+    return { backgroundColor: `rgba(245, 188, 78, ${a.toFixed(2)})` };
+  }
+  if (pct <= 105) return { backgroundColor: "rgba(66, 202, 128, 0.16)" };
+  const a = Math.min(0.38, 0.12 + ((pct - 105) / 60) * 0.3);
+  return { backgroundColor: `rgba(237, 105, 88, ${a.toFixed(2)})` };
+}
+
+function UtilizationTrendSection() {
+  const [rows, setRows] = useState<MemberUtilMatrixRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [metric, setMetric] = useState<TrendMetric>("real");
+
+  useEffect(() => {
+    let alive = true;
+    apiGet<MemberUtilMatrixRow[]>("/api/capacity/member-utilization-matrix")
+      .then((d) => {
+        if (alive) setRows(d);
+      })
+      .catch(() => {
+        if (alive) setRows([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Only months where some pod has real production (skip empty future months).
+  const months = useMemo(() => {
+    const withData = new Set(
+      rows.filter((r) => r.pod_actual_raw > 0).map((r) => capMonthKey(r.year, r.month)),
+    );
+    return Array.from(withData).sort();
+  }, [rows]);
+
+  const { pods, valueAt } = useMemo(() => {
+    const byCell = new Map<string, MemberUtilMatrixRow>();
+    const members = new Map<string, { pod: string; member: string; role: string | null; maxCap: number }>();
+    for (const r of rows) {
+      const mk = capMonthKey(r.year, r.month);
+      if (!months.includes(mk)) continue;
+      const id = `${r.pod}|${r.member}`;
+      byCell.set(`${id}|${mk}`, r);
+      const cur = members.get(id);
+      if (!cur || (r.capacity ?? 0) > cur.maxCap) {
+        members.set(id, {
+          pod: r.pod,
+          member: r.member,
+          role: r.role,
+          maxCap: r.capacity ?? 0,
+        });
+      }
+    }
+    const podMap = new Map<string, { id: string; member: string; role: string | null; maxCap: number }[]>();
+    for (const [id, m] of members) {
+      if (!podMap.has(m.pod)) podMap.set(m.pod, []);
+      podMap.get(m.pod)!.push({ id, member: m.member, role: m.role, maxCap: m.maxCap });
+    }
+    const pods = Array.from(podMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+      .map(([pod, ms]) => [pod, ms.sort((a, b) => b.maxCap - a.maxCap || a.member.localeCompare(b.member))] as const);
+    const valueAt = (id: string, mk: string): { v: number | null; raw: MemberUtilMatrixRow | undefined } => {
+      const r = byCell.get(`${id}|${mk}`);
+      if (!r) return { v: null, raw: undefined };
+      if (metric === "articles") return { v: r.articles, raw: r };
+      return { v: metric === "real" ? r.pct_util_real : r.pct_util_weighted, raw: r };
+    };
+    return { pods, valueAt };
+  }, [rows, months, metric]);
+
+  if (loading) return <Skeleton className="h-72 w-full" />;
+  if (!rows.length || months.length === 0) return null;
+
+  return (
+    <section id="utilization-trend" className="space-y-3 scroll-mt-[140px]">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Utilization Trend
+          </h2>
+          <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-[#606060]">
+            Final per-editor numbers across every month with staffed capacity and real
+            production. <span className="text-[#F5BC4E]">Amber</span> = under 85% ·{" "}
+            <span className="text-[#42CA80]">green</span> = 85–105% ·{" "}
+            <span className="text-[#ED6958]">red</span> = over.
+          </p>
+        </div>
+        <div className="inline-flex rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
+          {TREND_METRICS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => setMetric(o.key)}
+              className={
+                metric === o.key
+                  ? "rounded bg-[#42CA80]/15 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-[#42CA80]"
+                  : "rounded px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-[#606060] hover:text-[#C4BCAA]"
+              }
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+        <table className="w-full border-collapse font-mono text-xs">
+          <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
+            <tr>
+              <th className="sticky left-0 z-10 min-w-[180px] bg-[#161616] px-3 py-2 text-left font-semibold">
+                Editor
+              </th>
+              {months.map((mk) => {
+                const [y, m] = mk.split("-").map(Number);
+                return (
+                  <th key={mk} className="px-2 py-2 text-right font-semibold whitespace-nowrap">
+                    {capMonthLabel(y, m)}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {pods.map(([pod, members]) => (
+              <Fragment key={pod}>
+                <tr className="border-t border-[#2a2a2a] bg-[#141414]">
+                  <td
+                    className="sticky left-0 z-10 bg-[#141414] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#C4BCAA]"
+                    colSpan={1}
+                  >
+                    {displayPod(pod, "editorial")}
+                  </td>
+                  {months.map((mk) => {
+                    const sample = members
+                      .map((m) => valueAt(m.id, mk).raw)
+                      .find((r) => r !== undefined);
+                    const podUtil =
+                      metric === "articles"
+                        ? sample?.pod_total_articles ?? null
+                        : sample && sample.pod_total_capacity > 0
+                          ? sample.pod_actual_raw / sample.pod_total_capacity
+                          : null;
+                    return (
+                      <td key={mk} className="px-2 py-1.5 text-right text-[10px] text-[#606060]">
+                        {podUtil === null
+                          ? ""
+                          : metric === "articles"
+                            ? podUtil
+                            : fmtPct(podUtil)}
+                      </td>
+                    );
+                  })}
+                </tr>
+                {members.map((m) => (
+                  <tr key={m.id} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
+                    <td className="sticky left-0 z-10 bg-[#0d0d0d] px-3 py-1.5 whitespace-nowrap text-white">
+                      {m.member}
+                      {m.role && (
+                        <span className="ml-2 text-[10px] text-[#606060]">{m.role}</span>
+                      )}
+                    </td>
+                    {months.map((mk) => {
+                      const { v } = valueAt(m.id, mk);
+                      return (
+                        <td
+                          key={mk}
+                          className="px-2 py-1.5 text-right tabular-nums text-[#C4BCAA]"
+                          style={metric === "articles" ? {} : utilCellStyle(v as number | null)}
+                        >
+                          {v === null || v === undefined
+                            ? "—"
+                            : metric === "articles"
+                              ? v
+                              : fmtPct(v as number)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="font-mono text-[10px] text-[#606060]">
+        Pod rows show the pod-level number (actual ÷ total capacity, or total articles).
+        Empty months (no production data yet) are hidden.
+      </p>
+    </section>
+  );
+}
 
 function AIComplianceTab() {
   const [summary, setSummary] = useState<AIMonitoringSummary | null>(null);

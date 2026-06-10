@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CartesianGrid,
   Line,
@@ -63,11 +63,33 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "editor", label: "Per Editor" },
 ];
 
-const METRICS: { key: Metric; label: string }[] = [
-  { key: "articles", label: "Articles" },
-  { key: "rate", label: "Revision rate %" },
-  { key: "revisions", label: "Revisions" },
+// The "revisions family" of KPIs — rendered as sub-tabs (one tab per metric)
+// with a one-line definition so the basis (creation vs revision month) is
+// always visible next to the active metric.
+const METRICS: { key: Metric; label: string; blurb: string }[] = [
+  {
+    key: "articles",
+    label: "Articles",
+    blurb: "Delivered articles (editor-credits), by the article's creation month.",
+  },
+  {
+    key: "rate",
+    label: "Revision rate",
+    blurb: "Articles with ≥1 revision ÷ all articles, by creation month — pooled, not averaged.",
+  },
+  {
+    key: "revisions",
+    label: "Revisions",
+    blurb: "Revision events, by the month the rework actually happened.",
+  },
 ];
+
+// Heat tint for Revision-rate cells: redder = higher rate (more rework).
+function rateCellStyle(v: number | null, metric: Metric): CSSProperties {
+  if (metric !== "rate" || v === null || v === undefined) return {};
+  const a = Math.min(0.35, (v / 100) * 0.55);
+  return a <= 0.03 ? {} : { backgroundColor: `rgba(237, 105, 88, ${a.toFixed(2)})` };
+}
 
 const DIM_LABEL: Record<Dim, string> = { pod: "Pod", client: "Client", editor: "Editor" };
 
@@ -597,37 +619,79 @@ export function MonthlyArticlesTab({
     () => data.creation.reduce((s, r) => s + r.published, 0),
     [data.creation],
   );
+  const totalRevisions = useMemo(
+    () => data.revisions.reduce((s, r) => s + r.revisions, 0),
+    [data.revisions],
+  );
   const overallRate = totalArticles > 0 ? Math.round((totalRevised / totalArticles) * 100) : 0;
 
-  const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? "Articles";
+  const activeMetric = METRICS.find((m) => m.key === metric) ?? METRICS[0];
+  const metricLabel = activeMetric.label;
   const pivotNote = isRevisions
     ? "by revision month (when the rework happened)"
     : "by article creation month";
 
+  // Per-metric headline: lead stat first, supporting stats after.
+  const headline: { value: string; label: string }[] =
+    metric === "rate"
+      ? [
+          { value: `${overallRate}%`, label: "overall revision rate" },
+          { value: totalRevised.toLocaleString(), label: "articles revised" },
+          { value: totalArticles.toLocaleString(), label: "articles total" },
+        ]
+      : metric === "revisions"
+        ? [
+            { value: totalRevisions.toLocaleString(), label: "revision events" },
+            { value: totalRevised.toLocaleString(), label: "articles affected" },
+            { value: totalArticles.toLocaleString(), label: "articles total" },
+          ]
+        : [
+            { value: totalArticles.toLocaleString(), label: "articles" },
+            { value: `${overallRate}%`, label: "revised" },
+            { value: totalPublished.toLocaleString(), label: "published (Notion ref)" },
+          ];
+
   return (
     <div className="mt-3 space-y-6">
-      {/* Top controls: metric selector + headline + editor multi-select */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#606060]">Metric</span>
-          <Segmented options={METRICS} value={metric} onChange={setMetric} />
-          <div className="flex items-center gap-4 pl-1 font-mono text-xs text-[#C4BCAA]">
-            <span>
-              <span className="font-semibold text-white">{totalArticles.toLocaleString()}</span> articles
-            </span>
-            <span>
-              <span className="font-semibold text-white">{overallRate}%</span> revised
-            </span>
-            <span>
-              <span className="font-semibold text-white">{totalPublished.toLocaleString()}</span> published
-            </span>
+      {/* Metric sub-tabs (the revisions KPI family) + editor multi-select */}
+      <div className="space-y-2">
+        <div className="flex items-end justify-between gap-3 border-b border-[#1f1f1f]">
+          <div className="flex items-center">
+            {METRICS.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setMetric(m.key)}
+                className={cn(
+                  "-mb-px border-b-2 px-3 pb-2 pt-1 font-mono text-xs uppercase tracking-wider transition-colors",
+                  metric === m.key
+                    ? "border-[#42CA80] text-white"
+                    : "border-transparent text-[#606060] hover:text-[#C4BCAA]",
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <div className="pb-1.5">
+            <EditorMultiSelect
+              options={editorOptions}
+              selected={selectedEditors}
+              onChange={setSelectedEditors}
+            />
           </div>
         </div>
-        <EditorMultiSelect
-          options={editorOptions}
-          selected={selectedEditors}
-          onChange={setSelectedEditors}
-        />
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+          {headline.map((h, i) => (
+            <span key={h.label} className="font-mono text-xs text-[#C4BCAA]">
+              <span className={cn("font-semibold", i === 0 ? "text-base text-white" : "text-white")}>
+                {h.value}
+              </span>{" "}
+              {h.label}
+            </span>
+          ))}
+          <span className="font-mono text-[10px] text-[#606060]">{activeMetric.blurb}</span>
+        </div>
       </div>
 
       {error && (
@@ -759,6 +823,20 @@ export function MonthlyArticlesTab({
             >
               Invert
             </button>
+            {secondaryDim !== "none" && (
+              <button
+                type="button"
+                onClick={() => {
+                  const allKeys = matrix.primaries.map((p) => p.key);
+                  setExpanded((prev) =>
+                    prev.size === allKeys.length ? new Set() : new Set(allKeys),
+                  );
+                }}
+                className="rounded-md border border-[#1e1e1e] px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider text-[#606060] transition-colors hover:text-[#C4BCAA]"
+              >
+                {expanded.size === matrix.primaries.length ? "Collapse all" : "Expand all"}
+              </button>
+            )}
           </div>
         </div>
         <p className="-mt-1 font-mono text-[10px] text-[#606060]">
@@ -893,11 +971,18 @@ function MatrixGroup({
             {primaryLabel}
           </span>
         </td>
-        {months.map((m) => (
-          <td key={m} className="px-2 py-2 text-right font-mono text-[#C4BCAA]">
-            {fmtValue(finalize(node.byMonth.get(m), metric), metric)}
-          </td>
-        ))}
+        {months.map((m) => {
+          const v = finalize(node.byMonth.get(m), metric);
+          return (
+            <td
+              key={m}
+              className="px-2 py-2 text-right font-mono text-[#C4BCAA]"
+              style={rateCellStyle(v, metric)}
+            >
+              {fmtValue(v, metric)}
+            </td>
+          );
+        })}
         <td className="px-3 py-2 text-right font-mono font-semibold text-white">
           {fmtValue(finalize(node.total, metric), metric)}
         </td>
@@ -909,11 +994,18 @@ function MatrixGroup({
             <td className="sticky left-0 z-10 bg-[#0f0f0f] py-1.5 pl-9 pr-3 text-[#909090] whitespace-nowrap">
               {secondaryDim === "pod" ? displayPod(c.key, podAxis) : c.key}
             </td>
-            {months.map((m) => (
-              <td key={m} className="px-2 py-1.5 text-right font-mono text-[#909090]">
-                {fmtValue(finalize(c.byMonth.get(m), metric), metric)}
-              </td>
-            ))}
+            {months.map((m) => {
+              const v = finalize(c.byMonth.get(m), metric);
+              return (
+                <td
+                  key={m}
+                  className="px-2 py-1.5 text-right font-mono text-[#909090]"
+                  style={rateCellStyle(v, metric)}
+                >
+                  {fmtValue(v, metric)}
+                </td>
+              );
+            })}
             <td className="px-3 py-1.5 text-right font-mono text-[#C4BCAA]">
               {fmtValue(finalize(c.total, metric), metric)}
             </td>
