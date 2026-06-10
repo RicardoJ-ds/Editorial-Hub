@@ -1,0 +1,971 @@
+{
+  "built_at": "2026-06-10",
+  "canonical_source": "graphite_bi.salesforce_int_Account",
+  "hub_to_salesforce": {
+    "Adobe": {
+      "hub_name": "Adobe",
+      "hub_status": "COMPLETED",
+      "sf_name": "Adobe",
+      "sf_account_id": "001PE00000BDAo2YAH",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Apartment List": {
+      "hub_name": "Apartment List",
+      "hub_status": "COMPLETED",
+      "sf_name": "Apartment List",
+      "sf_account_id": "0018V00002RmFB7QAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Athena": {
+      "hub_name": "Athena",
+      "hub_status": "COMPLETED",
+      "sf_name": "Athena",
+      "sf_account_id": "0018V00002RmFB9QAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Better": {
+      "hub_name": "Better",
+      "hub_status": "COMPLETED",
+      "sf_name": "Better",
+      "sf_account_id": "001PE00000M0wH4YAJ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "BetterUp": {
+      "hub_name": "BetterUp",
+      "hub_status": "COMPLETED",
+      "sf_name": "Betterup",
+      "sf_account_id": "0018V00002RmFBFQA3",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "Blu": {
+      "hub_name": "Blu",
+      "hub_status": "COMPLETED",
+      "sf_name": "Blu",
+      "sf_account_id": "001PE000006hchjYAA",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Bold": {
+      "hub_name": "Bold",
+      "hub_status": "COMPLETED",
+      "sf_name": "Bold",
+      "sf_account_id": "001PE0000093XwjYAE",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Boulevard": {
+      "hub_name": "Boulevard",
+      "hub_status": "ACTIVE",
+      "sf_name": "Boulevard",
+      "sf_account_id": "001PE00000Z6nUvYAJ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Captions": {
+      "hub_name": "Captions",
+      "hub_status": "COMPLETED",
+      "sf_name": "Captions",
+      "sf_account_id": "0018V00002fomJlQAI",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Chapter": {
+      "hub_name": "Chapter",
+      "hub_status": "ACTIVE",
+      "sf_name": "Chapter",
+      "sf_account_id": "0018V00002dYKbHQAW",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "ChatGPT": {
+      "hub_name": "ChatGPT",
+      "hub_status": "COMPLETED",
+      "sf_name": "OpenAI",
+      "sf_account_id": "001PE00000HQCRyYAP",
+      "status": "proposed",
+      "note": "company renamed — confirm OpenAI is the account"
+    },
+    "Cointracker": {
+      "hub_name": "Cointracker",
+      "hub_status": "COMPLETED",
+      "sf_name": "Cointracker",
+      "sf_account_id": "001PE0000075ykMYAQ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "College HUNKS": {
+      "hub_name": "College HUNKS",
+      "hub_status": "ACTIVE",
+      "sf_name": "College HUNKS",
+      "sf_account_id": "001PE00000WQMSHYA5",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Composer": {
+      "hub_name": "Composer",
+      "hub_status": "COMPLETED",
+      "sf_name": "Composer",
+      "sf_account_id": "0018V00002RmFBmQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Comun": {
+      "hub_name": "Comun",
+      "hub_status": "COMPLETED",
+      "sf_name": "Comun",
+      "sf_account_id": "001PE00000QMg4uYAD",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Contra": {
+      "hub_name": "Contra",
+      "hub_status": "COMPLETED",
+      "sf_name": "Contra",
+      "sf_account_id": "0018V00002SzQ1vQAF",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Dr Squatch": {
+      "hub_name": "Dr Squatch",
+      "hub_status": "ACTIVE",
+      "sf_name": "Dr. Squatch",
+      "sf_account_id": "001PE00000HQ8udYAD",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "EarnIn B2C": {
+      "hub_name": "EarnIn B2C",
+      "hub_status": "COMPLETED",
+      "sf_name": "EarnIn",
+      "sf_account_id": "0018V00002ZylJyQAJ",
+      "status": "decision_split",
+      "note": "two Hub variants → one SF account; keep split?"
+    },
+    "Earnin B2B": {
+      "hub_name": "Earnin B2B",
+      "hub_status": "COMPLETED",
+      "sf_name": "EarnIn",
+      "sf_account_id": "0018V00002ZylJyQAJ",
+      "status": "decision_split",
+      "note": "two Hub variants → one SF account; keep split?"
+    },
+    "Ellis": {
+      "hub_name": "Ellis",
+      "hub_status": "COMPLETED",
+      "sf_name": "Ellis",
+      "sf_account_id": "001PE00000TpH2vYAF",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Engine": {
+      "hub_name": "Engine",
+      "hub_status": "COMPLETED",
+      "sf_name": "Hotel Engine",
+      "sf_account_id": "001PE00000GFtKzYAL",
+      "status": "proposed",
+      "note": "likely correct — confirm"
+    },
+    "Eventbrite": {
+      "hub_name": "Eventbrite",
+      "hub_status": "ACTIVE",
+      "sf_name": "Eventbrite",
+      "sf_account_id": "001PE000006hRKvYAM",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Everand": {
+      "hub_name": "Everand",
+      "hub_status": "COMPLETED",
+      "sf_name": "Everand",
+      "sf_account_id": "0018V00002RmFDzQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Fellow": {
+      "hub_name": "Fellow",
+      "hub_status": "COMPLETED",
+      "sf_name": "Fellow",
+      "sf_account_id": "0018V00002gvcVGQAY",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Felt": {
+      "hub_name": "Felt",
+      "hub_status": "ACTIVE",
+      "sf_name": "Felt",
+      "sf_account_id": "001PE00000T2lqEYAR",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "First Round Capital": {
+      "hub_name": "First Round Capital",
+      "hub_status": "COMPLETED",
+      "sf_name": null,
+      "sf_account_id": null,
+      "status": "no_sf_match",
+      "note": "never in SF"
+    },
+    "Fishbowl": {
+      "hub_name": "Fishbowl",
+      "hub_status": "COMPLETED",
+      "sf_name": "Fishbowl Inventory",
+      "sf_account_id": "0018V00002jG45EQAS",
+      "status": "confirmed",
+      "note": ""
+    },
+    "Fivetran": {
+      "hub_name": "Fivetran",
+      "hub_status": "ACTIVE",
+      "sf_name": "Fivetran",
+      "sf_account_id": "0018V00002iD4lhQAC",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Flex": {
+      "hub_name": "Flex",
+      "hub_status": "ACTIVE",
+      "sf_name": "Flex",
+      "sf_account_id": "001PE00000ZT2v9YAD",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Front": {
+      "hub_name": "Front",
+      "hub_status": "ACTIVE",
+      "sf_name": "Front",
+      "sf_account_id": "001PE00000YOXlgYAH",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Gainbridge": {
+      "hub_name": "Gainbridge",
+      "hub_status": "ACTIVE",
+      "sf_name": "Gainbridge",
+      "sf_account_id": "001PE00000F1LTUYA3",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "GenstoreAI": {
+      "hub_name": "GenstoreAI",
+      "hub_status": "COMPLETED",
+      "sf_name": "Genstore",
+      "sf_account_id": "001PE00000ZUNj3YAH",
+      "status": "confirmed",
+      "note": ""
+    },
+    "Glossgenius": {
+      "hub_name": "Glossgenius",
+      "hub_status": "COMPLETED",
+      "sf_name": "GlossGenius",
+      "sf_account_id": "001PE000006k8gFYAQ",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "Grindr": {
+      "hub_name": "Grindr",
+      "hub_status": "COMPLETED",
+      "sf_name": "Grindr LLC",
+      "sf_account_id": "0018V00002SzKeaQAF",
+      "status": "confirmed",
+      "note": "legal-entity suffix"
+    },
+    "Honey": {
+      "hub_name": "Honey",
+      "hub_status": "ACTIVE",
+      "sf_name": "Honey",
+      "sf_account_id": "0018V00002RmFEyQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Honeybook": {
+      "hub_name": "Honeybook",
+      "hub_status": "ACTIVE",
+      "sf_name": "HoneyBook",
+      "sf_account_id": "001PE00000X3yXjYAJ",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "Huntress": {
+      "hub_name": "Huntress",
+      "hub_status": "ACTIVE",
+      "sf_name": "Huntress",
+      "sf_account_id": "001PE00000Z7zQnYAJ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Invoice Simple": {
+      "hub_name": "Invoice Simple",
+      "hub_status": "COMPLETED",
+      "sf_name": "Invoice Simple",
+      "sf_account_id": "0018V00002frg03QAA",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "IronVest": {
+      "hub_name": "IronVest",
+      "hub_status": "COMPLETED",
+      "sf_name": "Ironvest",
+      "sf_account_id": "0018V00002dfAjwQAE",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "Landing": {
+      "hub_name": "Landing",
+      "hub_status": "COMPLETED",
+      "sf_name": "Hello Landing",
+      "sf_account_id": "0018V00002ijnqCQAQ",
+      "status": "proposed",
+      "note": "likely correct — confirm"
+    },
+    "Leapsome": {
+      "hub_name": "Leapsome",
+      "hub_status": "ACTIVE",
+      "sf_name": "Leapsome",
+      "sf_account_id": "001PE00000bE171YAC",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Legit Security": {
+      "hub_name": "Legit Security",
+      "hub_status": "COMPLETED",
+      "sf_name": "Legit Security",
+      "sf_account_id": "001PE00000CrpVJYAZ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Lenny": {
+      "hub_name": "Lenny",
+      "hub_status": "COMPLETED",
+      "sf_name": null,
+      "sf_account_id": null,
+      "status": "no_sf_match",
+      "note": "never in SF"
+    },
+    "Linktree": {
+      "hub_name": "Linktree",
+      "hub_status": "COMPLETED",
+      "sf_name": "Linktree",
+      "sf_account_id": "0018V00002RmFCrQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Maven Clinic": {
+      "hub_name": "Maven Clinic",
+      "hub_status": "ACTIVE",
+      "sf_name": "Maven Clinic",
+      "sf_account_id": "001PE00000dy4GnYAI",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Men's Wearhouse": {
+      "hub_name": "Men's Wearhouse",
+      "hub_status": "ACTIVE",
+      "sf_name": "Men's Wearhouse",
+      "sf_account_id": "001PE00000aFYz9YAG",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Meta AI": {
+      "hub_name": "Meta AI",
+      "hub_status": "ACTIVE",
+      "sf_name": "Meta AI",
+      "sf_account_id": "001PE00000WabJZYAZ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Meta BMG": {
+      "hub_name": "Meta BMG",
+      "hub_status": "ACTIVE",
+      "sf_name": "Meta for Business",
+      "sf_account_id": "0018V00002Szru1QAB",
+      "status": "confirmed",
+      "note": "auto-fuzzy had wrongly said Meta AI"
+    },
+    "Meta Manus": {
+      "hub_name": "Meta Manus",
+      "hub_status": "SOON_TO_BE_ACTIVE",
+      "sf_name": null,
+      "sf_account_id": null,
+      "status": "no_sf_match",
+      "note": "new Meta engagement — no SF account yet"
+    },
+    "Meta RL": {
+      "hub_name": "Meta RL",
+      "hub_status": "COMPLETED",
+      "sf_name": "Meta Reality Labs",
+      "sf_account_id": "001PE00000TdRqvYAF",
+      "status": "confirmed",
+      "note": "auto-fuzzy had wrongly said Meta AI"
+    },
+    "Milan Laser": {
+      "hub_name": "Milan Laser",
+      "hub_status": "COMPLETED",
+      "sf_name": "Milan Laser",
+      "sf_account_id": "001PE00000ao20IYAQ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Mistplay": {
+      "hub_name": "Mistplay",
+      "hub_status": "ACTIVE",
+      "sf_name": "Mistplay",
+      "sf_account_id": "001PE00000HQ9AsYAL",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Miter": {
+      "hub_name": "Miter",
+      "hub_status": "ACTIVE",
+      "sf_name": "Miter",
+      "sf_account_id": "001PE00000XF4zbYAD",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Moss": {
+      "hub_name": "Moss",
+      "hub_status": "COMPLETED",
+      "sf_name": "Moss",
+      "sf_account_id": "001PE00000QuWmEYAV",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Neeva": {
+      "hub_name": "Neeva",
+      "hub_status": "COMPLETED",
+      "sf_name": null,
+      "sf_account_id": null,
+      "status": "no_sf_match",
+      "note": "defunct"
+    },
+    "Neiman Marcus": {
+      "hub_name": "Neiman Marcus",
+      "hub_status": "COMPLETED",
+      "sf_name": "Neiman Marcus",
+      "sf_account_id": "0018V00002RmFDEQA3",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Notion": {
+      "hub_name": "Notion",
+      "hub_status": "COMPLETED",
+      "sf_name": "Notion",
+      "sf_account_id": "0018V00002RmFDKQA3",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Onton": {
+      "hub_name": "Onton",
+      "hub_status": "COMPLETED",
+      "sf_name": "Onton",
+      "sf_account_id": "001PE00000M9PcNYAV",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Orderful (I)": {
+      "hub_name": "Orderful (I)",
+      "hub_status": "COMPLETED",
+      "sf_name": "Orderful",
+      "sf_account_id": "0018V00002ZxZbbQAF",
+      "status": "decision_split",
+      "note": "engagement phases → one SF account"
+    },
+    "Orderful (II)": {
+      "hub_name": "Orderful (II)",
+      "hub_status": "COMPLETED",
+      "sf_name": "Orderful",
+      "sf_account_id": "0018V00002ZxZbbQAF",
+      "status": "decision_split",
+      "note": "engagement phases → one SF account"
+    },
+    "Otter": {
+      "hub_name": "Otter",
+      "hub_status": "COMPLETED",
+      "sf_name": "Otter",
+      "sf_account_id": "001PE00000E3gSUYAZ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Oyster": {
+      "hub_name": "Oyster",
+      "hub_status": "COMPLETED",
+      "sf_name": "Oyster",
+      "sf_account_id": "0018V00002iETBeQAO",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Pebl": {
+      "hub_name": "Pebl",
+      "hub_status": "ACTIVE",
+      "sf_name": "Pebl",
+      "sf_account_id": "001PE00000guLHhYAM",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Photoroom": {
+      "hub_name": "Photoroom",
+      "hub_status": "ACTIVE",
+      "sf_name": "PhotoRoom",
+      "sf_account_id": "0018V00002fqZxaQAE",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "Practice": {
+      "hub_name": "Practice",
+      "hub_status": "COMPLETED",
+      "sf_name": "Practice",
+      "sf_account_id": "0018V00002RmFDmQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Pylon": {
+      "hub_name": "Pylon",
+      "hub_status": "ACTIVE",
+      "sf_name": "Pylon",
+      "sf_account_id": "001PE00000UmfpEYAR",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Quinn": {
+      "hub_name": "Quinn",
+      "hub_status": "COMPLETED",
+      "sf_name": "Quinn",
+      "sf_account_id": "0018V00002VlgYpQAJ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Rox": {
+      "hub_name": "Rox",
+      "hub_status": "COMPLETED",
+      "sf_name": "Rox",
+      "sf_account_id": "001PE00000NcF41YAF",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Scribe": {
+      "hub_name": "Scribe",
+      "hub_status": "COMPLETED",
+      "sf_name": "Scribe",
+      "sf_account_id": "0018V00002deQveQAE",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Sermo": {
+      "hub_name": "Sermo",
+      "hub_status": "COMPLETED",
+      "sf_name": "Sermo",
+      "sf_account_id": "001PE00000C79ULYAZ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Serval": {
+      "hub_name": "Serval",
+      "hub_status": "ACTIVE",
+      "sf_name": "Serval",
+      "sf_account_id": "001PE00000eo7LrYAI",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Smartling": {
+      "hub_name": "Smartling",
+      "hub_status": "COMPLETED",
+      "sf_name": "Smartling",
+      "sf_account_id": "001PE00000EIJm2YAH",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Talkiatry": {
+      "hub_name": "Talkiatry",
+      "hub_status": "COMPLETED",
+      "sf_name": "Talkiatry",
+      "sf_account_id": "0018V00002YacUeQAJ",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "TaskRabbit": {
+      "hub_name": "TaskRabbit",
+      "hub_status": "COMPLETED",
+      "sf_name": "TaskRabbit Inc",
+      "sf_account_id": "0018V00002cN4JsQAK",
+      "status": "confirmed",
+      "note": "legal-entity suffix"
+    },
+    "Tempo": {
+      "hub_name": "Tempo",
+      "hub_status": "ACTIVE",
+      "sf_name": "Tempo",
+      "sf_account_id": "001PE00000gxVCWYA2",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Tempo XYZ": {
+      "hub_name": "Tempo XYZ",
+      "hub_status": "SOON_TO_BE_ACTIVE",
+      "sf_name": null,
+      "sf_account_id": null,
+      "status": "decision_tempo",
+      "note": "Tempo AND Tempo.io both exist in SF — which?"
+    },
+    "Tempo.io": {
+      "hub_name": "Tempo.io",
+      "hub_status": "COMPLETED",
+      "sf_name": "Tempo.io",
+      "sf_account_id": "0018V00002aO02GQAS",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "ThredUp": {
+      "hub_name": "ThredUp",
+      "hub_status": "COMPLETED",
+      "sf_name": "Thred Up",
+      "sf_account_id": "001PE00000BfUzzYAF",
+      "status": "confirmed",
+      "note": "spelling drift (normalized match)"
+    },
+    "TravelJoy": {
+      "hub_name": "TravelJoy",
+      "hub_status": "COMPLETED",
+      "sf_name": "TravelJoy",
+      "sf_account_id": "0018V00002iBgbzQAC",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Vimeo": {
+      "hub_name": "Vimeo",
+      "hub_status": "ACTIVE",
+      "sf_name": "Vimeo",
+      "sf_account_id": "001PE00000G6dwjYAB",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Webflow": {
+      "hub_name": "Webflow",
+      "hub_status": "ACTIVE",
+      "sf_name": "Webflow",
+      "sf_account_id": "0018V00002RmFEmQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "Workleap + Sharegate": {
+      "hub_name": "Workleap + Sharegate",
+      "hub_status": "COMPLETED",
+      "sf_name": "Workleap",
+      "sf_account_id": "001PE00000NTNyZYAX",
+      "status": "decision_combined",
+      "note": "combined engagement; ShareGate has no SF account of its own"
+    },
+    "dYdX": {
+      "hub_name": "dYdX",
+      "hub_status": "COMPLETED",
+      "sf_name": "dYdX",
+      "sf_account_id": "0018V00002RmFBxQAN",
+      "status": "confirmed",
+      "note": "exact match"
+    },
+    "n8n": {
+      "hub_name": "n8n",
+      "hub_status": "ACTIVE",
+      "sf_name": "n8n",
+      "sf_account_id": "001PE00000T21AbYAJ",
+      "status": "confirmed",
+      "note": "exact match"
+    }
+  },
+  "article_tabs_unmapped": {
+    "Mirage": {
+      "tab": "Mirage",
+      "articles": 759,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Curology": {
+      "tab": "Curology",
+      "articles": 370,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Curology"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Worldcoin": {
+      "tab": "Worldcoin",
+      "articles": 333,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Worldcoin"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Flip": {
+      "tab": "Flip",
+      "articles": 307,
+      "sf_exists": false,
+      "sf_candidates": [
+        "FlipFit"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "EarnIn": {
+      "tab": "EarnIn",
+      "articles": 267,
+      "sf_exists": true,
+      "sf_candidates": [
+        "EarnIn"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "which Hub variant — B2C or B2B?"
+    },
+    "Jaanuu": {
+      "tab": "Jaanuu",
+      "articles": 248,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Jaanuu"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Workleap": {
+      "tab": "Workleap",
+      "articles": 194,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Workleap"
+      ],
+      "hub_client": "Workleap + Sharegate",
+      "status": "applied"
+    },
+    "Little Passports": {
+      "tab": "Little Passports",
+      "articles": 159,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Little Passports"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Neiman": {
+      "tab": "Neiman",
+      "articles": 158,
+      "sf_exists": false,
+      "sf_candidates": [
+        "Neiman Marcus"
+      ],
+      "hub_client": "Neiman Marcus",
+      "status": "proposed",
+      "note": "shorthand"
+    },
+    "Gopuff": {
+      "tab": "Gopuff",
+      "articles": 152,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Go Puff"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Athena2": {
+      "tab": "Athena2",
+      "articles": 145,
+      "sf_exists": false,
+      "sf_candidates": [
+        "Athena"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "second Athena engagement?"
+    },
+    "Orderful 2": {
+      "tab": "Orderful 2",
+      "articles": 135,
+      "sf_exists": false,
+      "sf_candidates": [
+        "Orderful"
+      ],
+      "hub_client": "Orderful (II)",
+      "status": "proposed",
+      "note": "phase-2 tab"
+    },
+    "Bergdorf": {
+      "tab": "Bergdorf",
+      "articles": 134,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Mailjet": {
+      "tab": "Mailjet",
+      "articles": 128,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Email On Acid": {
+      "tab": "Email On Acid",
+      "articles": 112,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Orderful": {
+      "tab": "Orderful",
+      "articles": 111,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Orderful"
+      ],
+      "hub_client": "Orderful (I)",
+      "status": "proposed",
+      "note": "phase-1 tab"
+    },
+    "Mailgun": {
+      "tab": "Mailgun",
+      "articles": 107,
+      "sf_exists": false,
+      "sf_candidates": [
+        "Pathwire/Mailgun"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Shift": {
+      "tab": "Shift",
+      "articles": 87,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Shift"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Dynamite": {
+      "tab": "Dynamite",
+      "articles": 58,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Dynamite"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "ShareGate": {
+      "tab": "ShareGate",
+      "articles": 49,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": "Workleap + Sharegate",
+      "status": "proposed",
+      "note": "combined Hub client"
+    },
+    "Genstore": {
+      "tab": "Genstore",
+      "articles": 40,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Genstore"
+      ],
+      "hub_client": "GenstoreAI",
+      "status": "proposed",
+      "note": "same client"
+    },
+    "ESGgo": {
+      "tab": "ESGgo",
+      "articles": 34,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Descript": {
+      "tab": "Descript",
+      "articles": 31,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Descript"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "FRC": {
+      "tab": "FRC",
+      "articles": 15,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": "First Round Capital",
+      "status": "proposed",
+      "note": "acronym"
+    },
+    "OpenSea": {
+      "tab": "OpenSea",
+      "articles": 15,
+      "sf_exists": true,
+      "sf_candidates": [
+        "OpenSea"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Men's Warehouse": {
+      "tab": "Men's Warehouse",
+      "articles": 12,
+      "sf_exists": false,
+      "sf_candidates": [],
+      "hub_client": "Men's Wearhouse",
+      "status": "proposed",
+      "note": "tab is misspelled"
+    },
+    "Cadre": {
+      "tab": "Cadre",
+      "articles": 6,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Cadre"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    },
+    "Credit Karma": {
+      "tab": "Credit Karma",
+      "articles": 1,
+      "sf_exists": true,
+      "sf_candidates": [
+        "Credit Karma"
+      ],
+      "hub_client": null,
+      "status": "decision",
+      "note": "no Hub client — add to SOW or out of scope?"
+    }
+  }
+}

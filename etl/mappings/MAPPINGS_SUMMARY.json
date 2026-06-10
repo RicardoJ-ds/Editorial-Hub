@@ -1,0 +1,63 @@
+{
+  "built_at": "2026-06-10",
+  "editors": {
+    "names": {
+      "ambiguous": 2,
+      "confirmed": 32,
+      "junk": 5,
+      "unresolved": 4
+    },
+    "article_rows": {
+      "ambiguous": 283,
+      "confirmed": 14055,
+      "junk": 7,
+      "unresolved": 462
+    }
+  },
+  "capacity_members": {
+    "combined_cell": 6,
+    "confirmed": 32,
+    "placeholder": 5
+  },
+  "clients": {
+    "confirmed": 71,
+    "decision_combined": 1,
+    "decision_split": 4,
+    "decision_tempo": 1,
+    "no_sf_match": 4,
+    "proposed": 3
+  },
+  "article_tabs": {
+    "tabs": {
+      "applied": 1,
+      "decision": 20,
+      "proposed": 7
+    },
+    "article_rows": {
+      "applied": 194,
+      "decision": 3453,
+      "proposed": 520
+    }
+  },
+  "writers": {
+    "names": {
+      "ambiguous": 5,
+      "confirmed": 43,
+      "confirmed_first_name": 78,
+      "first_name_only": 122,
+      "junk": 3,
+      "trial": 18,
+      "unresolved": 17
+    },
+    "article_rows": {
+      "ambiguous": 37,
+      "confirmed": 10285,
+      "confirmed_first_name": 10281,
+      "first_name_only": 4262,
+      "junk": 5,
+      "trial": 101,
+      "unresolved": 86
+    }
+  },
+  "writer_roster_size": 50
+}

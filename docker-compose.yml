@@ -34,6 +34,7 @@ services:
       TEAM_PODS_ID: ${TEAM_PODS_ID:-}
     volumes:
       - ./backend/app:/app/app
+      - ./etl:/app/etl
       - ./sa-key.json:/app/sa-key.json:ro
       - ./data:/app/data:ro
     depends_on:

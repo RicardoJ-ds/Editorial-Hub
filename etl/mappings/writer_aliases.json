@@ -1,0 +1,2131 @@
+{
+  "built_at": "2026-06-10",
+  "canonical_source": "pod_assignments(role=writer) ∪ historical full names (ai_monitoring_records.writer_name, notion_articles.writer)",
+  "roster": {
+    "abby norwood": {
+      "canonical": "Abby Norwood",
+      "emails": [
+        "abby.norwood@graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "adaeze nwakaeze": {
+      "canonical": "Adaeze Nwakaeze",
+      "emails": [
+        "writer1@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "ainoa lander gonzalez": {
+      "canonical": "Ainoa Lander Gonzalez",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "alex shoemaker": {
+      "canonical": "Alex Shoemaker",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "anabelle zaluski": {
+      "canonical": "Anabelle Zaluski",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "andrew blackman": {
+      "canonical": "Andrew Blackman",
+      "emails": [
+        "andrew-blackman@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "aranyak nanda": {
+      "canonical": "Aranyak Nanda",
+      "emails": [
+        "writer4@ext.writing.graphitehq.com",
+        "aranyaknanda98@gmail.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "ashton playsted": {
+      "canonical": "Ashton Playsted",
+      "emails": [
+        "writer5@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "aysenur zaza": {
+      "canonical": "Aysenur Zaza",
+      "emails": [
+        "writer6@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "brandon morgan": {
+      "canonical": "Brandon Morgan",
+      "emails": [
+        "writer.morgan@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "brian abrams": {
+      "canonical": "Brian Abrams",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "camille tovee": {
+      "canonical": "Camille Tovee",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "chelsea oliver": {
+      "canonical": "Chelsea Oliver",
+      "emails": [
+        "writer9@ext.writing.graphitehq.com",
+        "chelsea.m.oliver@gmail.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "daniela quiroga": {
+      "canonical": "Daniela Quiroga",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "daniela rial": {
+      "canonical": "Daniela Rial",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "danielle mackinlay": {
+      "canonical": "Danielle MacKinlay",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "eleanor pitkin": {
+      "canonical": "Eleanor Pitkin",
+      "emails": [
+        "writer.pitkin2@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "emily pitkin": {
+      "canonical": "Emily Pitkin",
+      "emails": [
+        "writer.pitkin@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "eric esposito": {
+      "canonical": "Eric Esposito",
+      "emails": [
+        "writer11@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "garrett schlichte": {
+      "canonical": "Garrett Schlichte",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "haley drucker": {
+      "canonical": "Haley Drucker",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "jack limebear": {
+      "canonical": "Jack Limebear",
+      "emails": [
+        "writer13@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "jacob mcphail": {
+      "canonical": "Jacob McPhail",
+      "emails": [
+        "writer14@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "jimmy bunes": {
+      "canonical": "Jimmy Bunes",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "kennedy stevens": {
+      "canonical": "Kennedy Stevens",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "kevin vaughn": {
+      "canonical": "Kevin Vaughn",
+      "emails": [
+        "writer17@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "kimberly kruge": {
+      "canonical": "Kimberly Kruge",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "laura soler": {
+      "canonical": "Laura Soler",
+      "emails": [
+        "writer.soler@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "lee anderson": {
+      "canonical": "Lee Anderson",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "linda l. armstrong": {
+      "canonical": "Linda L. Armstrong",
+      "emails": [
+        "writer.armstrong@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "meredith kane": {
+      "canonical": "Meredith Kane",
+      "emails": [
+        "writer19@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "nadia hlebowitsh": {
+      "canonical": "Nadia Hlebowitsh",
+      "emails": [
+        "writer.hlebowitsh@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "owen murray": {
+      "canonical": "Owen Murray",
+      "emails": [
+        "writer.murray@ext.writing.graphitehq.com",
+        "writer8@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "patrick sather": {
+      "canonical": "Patrick Sather",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "paulina karadajiyan": {
+      "canonical": "Paulina Karadajiyan",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "renata pacheco ovando": {
+      "canonical": "Renata Pacheco Ovando",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "ricardo ocampo": {
+      "canonical": "Ricardo Ocampo",
+      "emails": [
+        "ricardo.ocampo@graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "rich dezso": {
+      "canonical": "Rich Dezso",
+      "emails": [
+        "writer22@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "rob harper": {
+      "canonical": "Rob Harper",
+      "emails": [
+        "writer23@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "robert thorpe": {
+      "canonical": "Robert Thorpe",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "rocco pendola": {
+      "canonical": "Rocco Pendola",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "samantha mcgrail": {
+      "canonical": "Samantha McGrail",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "sarah foley": {
+      "canonical": "Sarah Foley",
+      "emails": [
+        "writer25@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "serena anton": {
+      "canonical": "Serena Anton",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "shannon canuelle": {
+      "canonical": "Shannon Canuelle",
+      "emails": [],
+      "source": "historical:notion"
+    },
+    "tamara siklosi": {
+      "canonical": "Tamara Siklosi",
+      "emails": [
+        "writer29@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "telisa faye": {
+      "canonical": "Telisa Faye",
+      "emails": [],
+      "source": "historical:ai_monitoring"
+    },
+    "tessina grant": {
+      "canonical": "Tessina Grant",
+      "emails": [
+        "grant.writer@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "tim suleyman": {
+      "canonical": "Tim Suleyman",
+      "emails": [
+        "writer.sulyeman@ext.writing.graphitehq.com"
+      ],
+      "source": "pod_sheet"
+    },
+    "victoria barberis": {
+      "canonical": "Victoria Barberis",
+      "emails": [],
+      "source": "historical:notion"
+    }
+  },
+  "aliases": {
+    "Eric Esposito": {
+      "raw": "Eric Esposito",
+      "articles": 1364,
+      "canonical": "Eric Esposito",
+      "status": "confirmed"
+    },
+    "Kimberly Kruge": {
+      "raw": "Kimberly Kruge",
+      "articles": 1255,
+      "canonical": "Kimberly Kruge",
+      "status": "confirmed"
+    },
+    "Chelsea Oliver": {
+      "raw": "Chelsea Oliver",
+      "articles": 882,
+      "canonical": "Chelsea Oliver",
+      "status": "confirmed"
+    },
+    "Kevin Vaughn": {
+      "raw": "Kevin Vaughn",
+      "articles": 763,
+      "canonical": "Kevin Vaughn",
+      "status": "confirmed"
+    },
+    "Aranyak Nanda": {
+      "raw": "Aranyak Nanda",
+      "articles": 751,
+      "canonical": "Aranyak Nanda",
+      "status": "confirmed"
+    },
+    "Camille Tovee": {
+      "raw": "Camille Tovee",
+      "articles": 695,
+      "canonical": "Camille Tovee",
+      "status": "confirmed"
+    },
+    "Ashton Playsted": {
+      "raw": "Ashton Playsted",
+      "articles": 472,
+      "canonical": "Ashton Playsted",
+      "status": "confirmed"
+    },
+    "Emile": {
+      "raw": "Emile",
+      "articles": 413,
+      "canonical": "Emile",
+      "status": "first_name_only"
+    },
+    "Abby Norwood": {
+      "raw": "Abby Norwood",
+      "articles": 370,
+      "canonical": "Abby Norwood",
+      "status": "confirmed"
+    },
+    "Sarah Foley": {
+      "raw": "Sarah Foley",
+      "articles": 369,
+      "canonical": "Sarah Foley",
+      "status": "confirmed"
+    },
+    "Rob Harper": {
+      "raw": "Rob Harper",
+      "articles": 365,
+      "canonical": "Rob Harper",
+      "status": "confirmed"
+    },
+    "Rich Dezso": {
+      "raw": "Rich Dezso",
+      "articles": 300,
+      "canonical": "Rich Dezso",
+      "status": "confirmed"
+    },
+    "Dana": {
+      "raw": "Dana",
+      "articles": 289,
+      "canonical": "Dana",
+      "status": "first_name_only"
+    },
+    "Adaeze Nwakaeze": {
+      "raw": "Adaeze Nwakaeze",
+      "articles": 246,
+      "canonical": "Adaeze Nwakaeze",
+      "status": "confirmed"
+    },
+    "Chantel": {
+      "raw": "Chantel",
+      "articles": 234,
+      "canonical": "Chantel",
+      "status": "first_name_only"
+    },
+    "Mark": {
+      "raw": "Mark",
+      "articles": 221,
+      "canonical": "Mark",
+      "status": "first_name_only"
+    },
+    "Gabryel": {
+      "raw": "Gabryel",
+      "articles": 221,
+      "canonical": "Gabryel",
+      "status": "first_name_only"
+    },
+    "Rocco Pendola": {
+      "raw": "Rocco Pendola",
+      "articles": 213,
+      "canonical": "Rocco Pendola",
+      "status": "confirmed"
+    },
+    "Jimmy Bunes": {
+      "raw": "Jimmy Bunes",
+      "articles": 200,
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed"
+    },
+    "Samaara": {
+      "raw": "Samaara",
+      "articles": 199,
+      "canonical": "Samaara",
+      "status": "first_name_only"
+    },
+    "CJ": {
+      "raw": "CJ",
+      "articles": 174,
+      "canonical": "Cj",
+      "status": "first_name_only"
+    },
+    "Claire": {
+      "raw": "Claire",
+      "articles": 173,
+      "canonical": "Claire",
+      "status": "first_name_only"
+    },
+    "Danielle MacKinlay": {
+      "raw": "Danielle MacKinlay",
+      "articles": 152,
+      "canonical": "Danielle MacKinlay",
+      "status": "confirmed"
+    },
+    "Meredith Kane": {
+      "raw": "Meredith Kane",
+      "articles": 148,
+      "canonical": "Meredith Kane",
+      "status": "confirmed"
+    },
+    "Samantha McGrail": {
+      "raw": "Samantha McGrail",
+      "articles": 146,
+      "canonical": "Samantha McGrail",
+      "status": "confirmed"
+    },
+    "Robert Thorpe": {
+      "raw": "Robert Thorpe",
+      "articles": 135,
+      "canonical": "Robert Thorpe",
+      "status": "confirmed"
+    },
+    "Patrick Sather": {
+      "raw": "Patrick Sather",
+      "articles": 134,
+      "canonical": "Patrick Sather",
+      "status": "confirmed"
+    },
+    "Paige": {
+      "raw": "Paige",
+      "articles": 132,
+      "canonical": "Paige",
+      "status": "first_name_only"
+    },
+    "Cat": {
+      "raw": "Cat",
+      "articles": 123,
+      "canonical": "Cat",
+      "status": "first_name_only"
+    },
+    "Jack Limebear": {
+      "raw": "Jack Limebear",
+      "articles": 123,
+      "canonical": "Jack Limebear",
+      "status": "confirmed"
+    },
+    "Martin": {
+      "raw": "Martin",
+      "articles": 119,
+      "canonical": "Martin",
+      "status": "first_name_only"
+    },
+    "Telisa Faye": {
+      "raw": "Telisa Faye",
+      "articles": 112,
+      "canonical": "Telisa Faye",
+      "status": "confirmed"
+    },
+    "Alex Shoemaker": {
+      "raw": "Alex Shoemaker",
+      "articles": 112,
+      "canonical": "Alex Shoemaker",
+      "status": "confirmed"
+    },
+    "Jacob McPhail": {
+      "raw": "Jacob McPhail",
+      "articles": 111,
+      "canonical": "Jacob McPhail",
+      "status": "confirmed"
+    },
+    "Tamara Siklosi": {
+      "raw": "Tamara Siklosi",
+      "articles": 108,
+      "canonical": "Tamara Siklosi",
+      "status": "confirmed"
+    },
+    "Miles": {
+      "raw": "Miles",
+      "articles": 105,
+      "canonical": "Miles",
+      "status": "first_name_only"
+    },
+    "Curtis": {
+      "raw": "Curtis",
+      "articles": 103,
+      "canonical": "Curtis",
+      "status": "first_name_only"
+    },
+    "Brian Abrams": {
+      "raw": "Brian Abrams",
+      "articles": 96,
+      "canonical": "Brian Abrams",
+      "status": "confirmed"
+    },
+    "Aysenur Zaza": {
+      "raw": "Aysenur Zaza",
+      "articles": 85,
+      "canonical": "Aysenur Zaza",
+      "status": "confirmed"
+    },
+    "Tom": {
+      "raw": "Tom",
+      "articles": 81,
+      "canonical": "Tom",
+      "status": "first_name_only"
+    },
+    "Owen Murray": {
+      "raw": "Owen Murray",
+      "articles": 77,
+      "canonical": "Owen Murray",
+      "status": "confirmed"
+    },
+    "Keenan": {
+      "raw": "Keenan",
+      "articles": 76,
+      "canonical": "Keenan",
+      "status": "first_name_only"
+    },
+    "Joshua": {
+      "raw": "Joshua",
+      "articles": 75,
+      "canonical": "Joshua",
+      "status": "first_name_only"
+    },
+    "Jordan": {
+      "raw": "Jordan",
+      "articles": 73,
+      "canonical": "Jordan",
+      "status": "first_name_only"
+    },
+    "Andrew Blackman": {
+      "raw": "Andrew Blackman",
+      "articles": 70,
+      "canonical": "Andrew Blackman",
+      "status": "confirmed"
+    },
+    "Meaghan": {
+      "raw": "Meaghan",
+      "articles": 70,
+      "canonical": "Meaghan",
+      "status": "first_name_only"
+    },
+    "Lisa": {
+      "raw": "Lisa",
+      "articles": 68,
+      "canonical": "Lisa",
+      "status": "first_name_only"
+    },
+    "Bonniey": {
+      "raw": "Bonniey",
+      "articles": 68,
+      "canonical": "Bonniey",
+      "status": "first_name_only"
+    },
+    "Michael": {
+      "raw": "Michael",
+      "articles": 67,
+      "canonical": "Michael",
+      "status": "first_name_only"
+    },
+    "Tessina Grant": {
+      "raw": "Tessina Grant",
+      "articles": 65,
+      "canonical": "Tessina Grant",
+      "status": "confirmed"
+    },
+    "CC": {
+      "raw": "CC",
+      "articles": 64,
+      "canonical": "Cc",
+      "status": "first_name_only"
+    },
+    "Tyler": {
+      "raw": "Tyler",
+      "articles": 62,
+      "canonical": "Tyler",
+      "status": "first_name_only"
+    },
+    "Nadia Hlebowitsh": {
+      "raw": "Nadia Hlebowitsh",
+      "articles": 61,
+      "canonical": "Nadia Hlebowitsh",
+      "status": "confirmed"
+    },
+    "Prianca": {
+      "raw": "Prianca",
+      "articles": 61,
+      "canonical": "Prianca",
+      "status": "first_name_only"
+    },
+    "Candice": {
+      "raw": "Candice",
+      "articles": 60,
+      "canonical": "Candice",
+      "status": "first_name_only"
+    },
+    "Mindy": {
+      "raw": "Mindy",
+      "articles": 59,
+      "canonical": "Mindy",
+      "status": "first_name_only"
+    },
+    "Jarrett": {
+      "raw": "Jarrett",
+      "articles": 56,
+      "canonical": "Jarrett",
+      "status": "first_name_only"
+    },
+    "Trial writer": {
+      "raw": "Trial writer",
+      "articles": 49,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Tim Suleyman": {
+      "raw": "Tim Suleyman",
+      "articles": 47,
+      "canonical": "Tim Suleyman",
+      "status": "confirmed"
+    },
+    "Nick": {
+      "raw": "Nick",
+      "articles": 47,
+      "canonical": "Nick",
+      "status": "first_name_only"
+    },
+    "Austin": {
+      "raw": "Austin",
+      "articles": 45,
+      "canonical": "Austin",
+      "status": "first_name_only"
+    },
+    "Eleanor Pitkin": {
+      "raw": "Eleanor Pitkin",
+      "articles": 43,
+      "canonical": "Eleanor Pitkin",
+      "status": "confirmed"
+    },
+    "Jason": {
+      "raw": "Jason",
+      "articles": 43,
+      "canonical": "Jason",
+      "status": "first_name_only"
+    },
+    "Marinda": {
+      "raw": "Marinda",
+      "articles": 42,
+      "canonical": "Marinda",
+      "status": "first_name_only"
+    },
+    "GR0": {
+      "raw": "GR0",
+      "articles": 40,
+      "canonical": "Gr0",
+      "status": "first_name_only"
+    },
+    "Linda L. Armstrong": {
+      "raw": "Linda L. Armstrong",
+      "articles": 38,
+      "canonical": "Linda L. Armstrong",
+      "status": "confirmed"
+    },
+    "James": {
+      "raw": "James",
+      "articles": 37,
+      "canonical": "James",
+      "status": "first_name_only"
+    },
+    "Garrett Schlichte": {
+      "raw": "Garrett Schlichte",
+      "articles": 37,
+      "canonical": "Garrett Schlichte",
+      "status": "confirmed"
+    },
+    "Christy": {
+      "raw": "Christy",
+      "articles": 35,
+      "canonical": "Christy",
+      "status": "first_name_only"
+    },
+    "Shianne": {
+      "raw": "Shianne",
+      "articles": 33,
+      "canonical": "Shianne",
+      "status": "first_name_only"
+    },
+    "Emily Pitkin": {
+      "raw": "Emily Pitkin",
+      "articles": 32,
+      "canonical": "Emily Pitkin",
+      "status": "confirmed"
+    },
+    "Amanda": {
+      "raw": "Amanda",
+      "articles": 31,
+      "canonical": "Amanda",
+      "status": "first_name_only"
+    },
+    "Micah": {
+      "raw": "Micah",
+      "articles": 29,
+      "canonical": "Micah",
+      "status": "first_name_only"
+    },
+    "Trial Writer": {
+      "raw": "Trial Writer",
+      "articles": 29,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Dan": {
+      "raw": "Dan",
+      "articles": 28,
+      "canonical": null,
+      "status": "ambiguous",
+      "candidates": [
+        "Daniela Quiroga",
+        "Daniela Rial",
+        "Danielle MacKinlay"
+      ]
+    },
+    "Braden": {
+      "raw": "Braden",
+      "articles": 28,
+      "canonical": "Braden",
+      "status": "first_name_only"
+    },
+    "Justine": {
+      "raw": "Justine",
+      "articles": 26,
+      "canonical": "Justine",
+      "status": "first_name_only"
+    },
+    "Shannon Canuelle": {
+      "raw": "Shannon Canuelle",
+      "articles": 25,
+      "canonical": "Shannon Canuelle",
+      "status": "confirmed"
+    },
+    "Brad": {
+      "raw": "Brad",
+      "articles": 24,
+      "canonical": "Brad",
+      "status": "first_name_only"
+    },
+    "John T": {
+      "raw": "John T",
+      "articles": 24,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Mike": {
+      "raw": "Mike",
+      "articles": 23,
+      "canonical": "Mike",
+      "status": "first_name_only"
+    },
+    "Briley": {
+      "raw": "Briley",
+      "articles": 23,
+      "canonical": "Briley",
+      "status": "first_name_only"
+    },
+    "Paulina Karadajiyan": {
+      "raw": "Paulina Karadajiyan",
+      "articles": 23,
+      "canonical": "Paulina Karadajiyan",
+      "status": "confirmed"
+    },
+    "crowd content": {
+      "raw": "crowd content",
+      "articles": 23,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Dave": {
+      "raw": "Dave",
+      "articles": 21,
+      "canonical": "Dave",
+      "status": "first_name_only"
+    },
+    "Alyssa": {
+      "raw": "Alyssa",
+      "articles": 18,
+      "canonical": "Alyssa",
+      "status": "first_name_only"
+    },
+    "Anabelle Zaluski": {
+      "raw": "Anabelle Zaluski",
+      "articles": 18,
+      "canonical": "Anabelle Zaluski",
+      "status": "confirmed"
+    },
+    "John": {
+      "raw": "John",
+      "articles": 18,
+      "canonical": "John",
+      "status": "first_name_only"
+    },
+    "Yonela": {
+      "raw": "Yonela",
+      "articles": 17,
+      "canonical": "Yonela",
+      "status": "first_name_only"
+    },
+    "Marina": {
+      "raw": "Marina",
+      "articles": 17,
+      "canonical": "Marina",
+      "status": "first_name_only"
+    },
+    "Thea": {
+      "raw": "Thea",
+      "articles": 14,
+      "canonical": "Thea",
+      "status": "first_name_only"
+    },
+    "Brandon Morgan": {
+      "raw": "Brandon Morgan",
+      "articles": 14,
+      "canonical": "Brandon Morgan",
+      "status": "confirmed"
+    },
+    "Nicholas": {
+      "raw": "Nicholas",
+      "articles": 13,
+      "canonical": "Nicholas",
+      "status": "first_name_only"
+    },
+    "Melissa": {
+      "raw": "Melissa",
+      "articles": 13,
+      "canonical": "Melissa",
+      "status": "first_name_only"
+    },
+    "Haley Drucker": {
+      "raw": "Haley Drucker",
+      "articles": 13,
+      "canonical": "Haley Drucker",
+      "status": "confirmed"
+    },
+    "Roxana": {
+      "raw": "Roxana",
+      "articles": 13,
+      "canonical": "Roxana",
+      "status": "first_name_only"
+    },
+    "Laura Soler": {
+      "raw": "Laura Soler",
+      "articles": 12,
+      "canonical": "Laura Soler",
+      "status": "confirmed"
+    },
+    "Shelby": {
+      "raw": "Shelby",
+      "articles": 11,
+      "canonical": "Shelby",
+      "status": "first_name_only"
+    },
+    "Madison": {
+      "raw": "Madison",
+      "articles": 11,
+      "canonical": "Madison",
+      "status": "first_name_only"
+    },
+    "Emeka": {
+      "raw": "Emeka",
+      "articles": 10,
+      "canonical": "Emeka",
+      "status": "first_name_only"
+    },
+    "Austin DeNoce": {
+      "raw": "Austin DeNoce",
+      "articles": 10,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Kory": {
+      "raw": "Kory",
+      "articles": 10,
+      "canonical": "Kory",
+      "status": "first_name_only"
+    },
+    "AI": {
+      "raw": "AI",
+      "articles": 10,
+      "canonical": "Ai",
+      "status": "first_name_only"
+    },
+    "Neil": {
+      "raw": "Neil",
+      "articles": 10,
+      "canonical": "Neil",
+      "status": "first_name_only"
+    },
+    "Michael D": {
+      "raw": "Michael D",
+      "articles": 8,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "writer audition": {
+      "raw": "writer audition",
+      "articles": 5,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Megan": {
+      "raw": "Megan",
+      "articles": 5,
+      "canonical": "Megan",
+      "status": "first_name_only"
+    },
+    "Yonela*": {
+      "raw": "Yonela*",
+      "articles": 4,
+      "canonical": "Yonela*",
+      "status": "first_name_only"
+    },
+    "trial writer": {
+      "raw": "trial writer",
+      "articles": 4,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Daniela": {
+      "raw": "Daniela",
+      "articles": 4,
+      "canonical": null,
+      "status": "ambiguous",
+      "candidates": [
+        "Daniela Quiroga",
+        "Daniela Rial"
+      ]
+    },
+    "Annabelle": {
+      "raw": "Annabelle",
+      "articles": 3,
+      "canonical": "Annabelle",
+      "status": "first_name_only"
+    },
+    "Kyle": {
+      "raw": "Kyle",
+      "articles": 3,
+      "canonical": "Kyle",
+      "status": "first_name_only"
+    },
+    "trial writer (no name in doc)": {
+      "raw": "trial writer (no name in doc)",
+      "articles": 3,
+      "canonical": null,
+      "status": "trial"
+    },
+    "freelancer": {
+      "raw": "freelancer",
+      "articles": 3,
+      "canonical": "Freelancer",
+      "status": "first_name_only"
+    },
+    "Braden*": {
+      "raw": "Braden*",
+      "articles": 3,
+      "canonical": "Braden*",
+      "status": "first_name_only"
+    },
+    "Paige*": {
+      "raw": "Paige*",
+      "articles": 3,
+      "canonical": "Paige*",
+      "status": "first_name_only"
+    },
+    "Marriah*": {
+      "raw": "Marriah*",
+      "articles": 3,
+      "canonical": "Marriah*",
+      "status": "first_name_only"
+    },
+    "Michael*": {
+      "raw": "Michael*",
+      "articles": 3,
+      "canonical": "Michael*",
+      "status": "first_name_only"
+    },
+    "Naomi *": {
+      "raw": "Naomi *",
+      "articles": 2,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Alison": {
+      "raw": "Alison",
+      "articles": 2,
+      "canonical": "Alison",
+      "status": "first_name_only"
+    },
+    "?": {
+      "raw": "?",
+      "articles": 2,
+      "canonical": null,
+      "status": "junk"
+    },
+    "Dominique": {
+      "raw": "Dominique",
+      "articles": 2,
+      "canonical": "Dominique",
+      "status": "first_name_only"
+    },
+    "Roxana*": {
+      "raw": "Roxana*",
+      "articles": 2,
+      "canonical": "Roxana*",
+      "status": "first_name_only"
+    },
+    "David Chang*": {
+      "raw": "David Chang*",
+      "articles": 2,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Dave/Kevin": {
+      "raw": "Dave/Kevin",
+      "articles": 2,
+      "canonical": "Dave/Kevin",
+      "status": "first_name_only"
+    },
+    "^^": {
+      "raw": "^^",
+      "articles": 2,
+      "canonical": null,
+      "status": "junk"
+    },
+    "Lisa*": {
+      "raw": "Lisa*",
+      "articles": 2,
+      "canonical": "Lisa*",
+      "status": "first_name_only"
+    },
+    "Ellie*": {
+      "raw": "Ellie*",
+      "articles": 2,
+      "canonical": "Ellie*",
+      "status": "first_name_only"
+    },
+    "Jordan F (aud writer)": {
+      "raw": "Jordan F (aud writer)",
+      "articles": 2,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Catherine": {
+      "raw": "Catherine",
+      "articles": 2,
+      "canonical": "Catherine",
+      "status": "first_name_only"
+    },
+    "Dan*": {
+      "raw": "Dan*",
+      "articles": 2,
+      "canonical": null,
+      "status": "ambiguous",
+      "candidates": [
+        "Daniela Quiroga",
+        "Daniela Rial",
+        "Danielle MacKinlay"
+      ]
+    },
+    "audition": {
+      "raw": "audition",
+      "articles": 2,
+      "canonical": "Audition",
+      "status": "first_name_only"
+    },
+    "Emle": {
+      "raw": "Emle",
+      "articles": 2,
+      "canonical": "Emle",
+      "status": "first_name_only"
+    },
+    "Matt": {
+      "raw": "Matt",
+      "articles": 2,
+      "canonical": "Matt",
+      "status": "first_name_only"
+    },
+    "Kendra": {
+      "raw": "Kendra",
+      "articles": 2,
+      "canonical": "Kendra",
+      "status": "first_name_only"
+    },
+    "Madison*": {
+      "raw": "Madison*",
+      "articles": 2,
+      "canonical": "Madison*",
+      "status": "first_name_only"
+    },
+    "Alyson*": {
+      "raw": "Alyson*",
+      "articles": 2,
+      "canonical": "Alyson*",
+      "status": "first_name_only"
+    },
+    "Kimberley": {
+      "raw": "Kimberley",
+      "articles": 2,
+      "canonical": "Kimberley",
+      "status": "first_name_only"
+    },
+    "Yulia": {
+      "raw": "Yulia",
+      "articles": 2,
+      "canonical": "Yulia",
+      "status": "first_name_only"
+    },
+    "Daniel": {
+      "raw": "Daniel",
+      "articles": 2,
+      "canonical": null,
+      "status": "ambiguous",
+      "candidates": [
+        "Daniela Quiroga",
+        "Daniela Rial",
+        "Danielle MacKinlay"
+      ]
+    },
+    "Chris Tepedino*": {
+      "raw": "Chris Tepedino*",
+      "articles": 2,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Morgan": {
+      "raw": "Morgan",
+      "articles": 2,
+      "canonical": "Morgan",
+      "status": "first_name_only"
+    },
+    "Mikayla": {
+      "raw": "Mikayla",
+      "articles": 2,
+      "canonical": "Mikayla",
+      "status": "first_name_only"
+    },
+    "Britt*": {
+      "raw": "Britt*",
+      "articles": 2,
+      "canonical": "Britt*",
+      "status": "first_name_only"
+    },
+    "writer trial": {
+      "raw": "writer trial",
+      "articles": 2,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Grace Anne*": {
+      "raw": "Grace Anne*",
+      "articles": 2,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Lee Anderson": {
+      "raw": "Lee Anderson",
+      "articles": 2,
+      "canonical": "Lee Anderson",
+      "status": "confirmed"
+    },
+    "Michael D.": {
+      "raw": "Michael D.",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Liam": {
+      "raw": "Liam",
+      "articles": 1,
+      "canonical": "Liam",
+      "status": "first_name_only"
+    },
+    "trial": {
+      "raw": "trial",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Jerry": {
+      "raw": "Jerry",
+      "articles": 1,
+      "canonical": "Jerry",
+      "status": "first_name_only"
+    },
+    "Aby": {
+      "raw": "Aby",
+      "articles": 1,
+      "canonical": "Aby",
+      "status": "first_name_only"
+    },
+    "Trial": {
+      "raw": "Trial",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "trial writer Michael Davis": {
+      "raw": "trial writer Michael Davis",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Jose": {
+      "raw": "Jose",
+      "articles": 1,
+      "canonical": "Jose",
+      "status": "first_name_only"
+    },
+    "New writer": {
+      "raw": "New writer",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Justin": {
+      "raw": "Justin",
+      "articles": 1,
+      "canonical": "Justin",
+      "status": "first_name_only"
+    },
+    "Savanna*": {
+      "raw": "Savanna*",
+      "articles": 1,
+      "canonical": "Savanna*",
+      "status": "first_name_only"
+    },
+    "Jemma": {
+      "raw": "Jemma",
+      "articles": 1,
+      "canonical": "Jemma",
+      "status": "first_name_only"
+    },
+    "Marinda*": {
+      "raw": "Marinda*",
+      "articles": 1,
+      "canonical": "Marinda*",
+      "status": "first_name_only"
+    },
+    "Marina D": {
+      "raw": "Marina D",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Dakota*": {
+      "raw": "Dakota*",
+      "articles": 1,
+      "canonical": "Dakota*",
+      "status": "first_name_only"
+    },
+    "Kennedy Stevens": {
+      "raw": "Kennedy Stevens",
+      "articles": 1,
+      "canonical": "Kennedy Stevens",
+      "status": "confirmed"
+    },
+    "Cianna*": {
+      "raw": "Cianna*",
+      "articles": 1,
+      "canonical": "Cianna*",
+      "status": "first_name_only"
+    },
+    "Gabyrel": {
+      "raw": "Gabyrel",
+      "articles": 1,
+      "canonical": "Gabyrel",
+      "status": "first_name_only"
+    },
+    "Mindy*": {
+      "raw": "Mindy*",
+      "articles": 1,
+      "canonical": "Mindy*",
+      "status": "first_name_only"
+    },
+    "Liana*": {
+      "raw": "Liana*",
+      "articles": 1,
+      "canonical": "Liana*",
+      "status": "first_name_only"
+    },
+    "JJ*": {
+      "raw": "JJ*",
+      "articles": 1,
+      "canonical": "Jj*",
+      "status": "first_name_only"
+    },
+    "Genie*": {
+      "raw": "Genie*",
+      "articles": 1,
+      "canonical": "Genie*",
+      "status": "first_name_only"
+    },
+    "Mariah": {
+      "raw": "Mariah",
+      "articles": 1,
+      "canonical": "Mariah",
+      "status": "first_name_only"
+    },
+    "michael davis": {
+      "raw": "michael davis",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Meesha": {
+      "raw": "Meesha",
+      "articles": 1,
+      "canonical": "Meesha",
+      "status": "first_name_only"
+    },
+    "Hannah*": {
+      "raw": "Hannah*",
+      "articles": 1,
+      "canonical": "Hannah*",
+      "status": "first_name_only"
+    },
+    "Lauren": {
+      "raw": "Lauren",
+      "articles": 1,
+      "canonical": "Lauren",
+      "status": "first_name_only"
+    },
+    "Renee*": {
+      "raw": "Renee*",
+      "articles": 1,
+      "canonical": "Renee*",
+      "status": "first_name_only"
+    },
+    "Blain": {
+      "raw": "Blain",
+      "articles": 1,
+      "canonical": "Blain",
+      "status": "first_name_only"
+    },
+    "Kasey*": {
+      "raw": "Kasey*",
+      "articles": 1,
+      "canonical": "Kasey*",
+      "status": "first_name_only"
+    },
+    "freelance test": {
+      "raw": "freelance test",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Ke": {
+      "raw": "Ke",
+      "articles": 1,
+      "canonical": "Ke",
+      "status": "first_name_only"
+    },
+    "Marcin": {
+      "raw": "Marcin",
+      "articles": 1,
+      "canonical": "Marcin",
+      "status": "first_name_only"
+    },
+    "Cynthia (trial writer)": {
+      "raw": "Cynthia (trial writer)",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Braden (REWRITTEN BY ERIC 6/3/25)": {
+      "raw": "Braden (REWRITTEN BY ERIC 6/3/25)",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Ayşenur": {
+      "raw": "Ayşenur",
+      "articles": 1,
+      "canonical": "Ayşenur",
+      "status": "first_name_only"
+    },
+    "Tara*": {
+      "raw": "Tara*",
+      "articles": 1,
+      "canonical": "Tara*",
+      "status": "first_name_only"
+    },
+    "Cheslea": {
+      "raw": "Cheslea",
+      "articles": 1,
+      "canonical": "Cheslea",
+      "status": "first_name_only"
+    },
+    "trial writer Genie Davis": {
+      "raw": "trial writer Genie Davis",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "^": {
+      "raw": "^",
+      "articles": 1,
+      "canonical": null,
+      "status": "junk"
+    },
+    "Dave G": {
+      "raw": "Dave G",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Claire*": {
+      "raw": "Claire*",
+      "articles": 1,
+      "canonical": "Claire*",
+      "status": "first_name_only"
+    },
+    "Hannah": {
+      "raw": "Hannah",
+      "articles": 1,
+      "canonical": "Hannah",
+      "status": "first_name_only"
+    },
+    "Dani": {
+      "raw": "Dani",
+      "articles": 1,
+      "canonical": null,
+      "status": "ambiguous",
+      "candidates": [
+        "Daniela Quiroga",
+        "Daniela Rial",
+        "Danielle MacKinlay"
+      ]
+    },
+    "Karisa": {
+      "raw": "Karisa",
+      "articles": 1,
+      "canonical": "Karisa",
+      "status": "first_name_only"
+    },
+    "Daniele": {
+      "raw": "Daniele",
+      "articles": 1,
+      "canonical": "Daniele",
+      "status": "first_name_only"
+    },
+    "trial writer jose triana": {
+      "raw": "trial writer jose triana",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Andrea*": {
+      "raw": "Andrea*",
+      "articles": 1,
+      "canonical": "Andrea*",
+      "status": "first_name_only"
+    },
+    "Jordan F (aud writer)*": {
+      "raw": "Jordan F (aud writer)*",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "https://docs.google.com/document/d/1ic2n_uoNdMktXBDNhhrWDsjYfT3g-1Vdf9HJolyTeyE/edit": {
+      "raw": "https://docs.google.com/document/d/1ic2n_uoNdMktXBDNhhrWDsjYfT3g-1Vdf9HJolyTeyE/edit",
+      "articles": 1,
+      "canonical": "Https://Docs.Google.Com/Document/D/1Ic2N_Uondmktxbdnhhrwdsjyft3G-1Vdf9Hjolyteye/Edit",
+      "status": "first_name_only"
+    },
+    "Thomas Hinds": {
+      "raw": "Thomas Hinds",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Gr0": {
+      "raw": "Gr0",
+      "articles": 1,
+      "canonical": "Gr0",
+      "status": "first_name_only"
+    },
+    "Spencer (trial)": {
+      "raw": "Spencer (trial)",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Michael D (aud writer)*": {
+      "raw": "Michael D (aud writer)*",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Trichelle": {
+      "raw": "Trichelle",
+      "articles": 1,
+      "canonical": "Trichelle",
+      "status": "first_name_only"
+    },
+    "Brian (trial)": {
+      "raw": "Brian (trial)",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Josh*": {
+      "raw": "Josh*",
+      "articles": 1,
+      "canonical": "Josh*",
+      "status": "first_name_only"
+    },
+    "Amanda W (aud writer)": {
+      "raw": "Amanda W (aud writer)",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Matthew": {
+      "raw": "Matthew",
+      "articles": 1,
+      "canonical": "Matthew",
+      "status": "first_name_only"
+    },
+    "Camile": {
+      "raw": "Camile",
+      "articles": 1,
+      "canonical": "Camile",
+      "status": "first_name_only"
+    },
+    "Auditioning writer (Kimberly)": {
+      "raw": "Auditioning writer (Kimberly)",
+      "articles": 1,
+      "canonical": null,
+      "status": "trial"
+    },
+    "Eric": {
+      "raw": "Eric",
+      "articles": 1346,
+      "canonical": "Eric Esposito",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kimberly": {
+      "raw": "Kimberly",
+      "articles": 1245,
+      "canonical": "Kimberly Kruge",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Chelsea": {
+      "raw": "Chelsea",
+      "articles": 864,
+      "canonical": "Chelsea Oliver",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Aranyak": {
+      "raw": "Aranyak",
+      "articles": 751,
+      "canonical": "Aranyak Nanda",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Camille": {
+      "raw": "Camille",
+      "articles": 691,
+      "canonical": "Camille Tovee",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kevin": {
+      "raw": "Kevin",
+      "articles": 664,
+      "canonical": "Kevin Vaughn",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Ashton": {
+      "raw": "Ashton",
+      "articles": 472,
+      "canonical": "Ashton Playsted",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Abby": {
+      "raw": "Abby",
+      "articles": 370,
+      "canonical": "Abby Norwood",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Rob": {
+      "raw": "Rob",
+      "articles": 363,
+      "canonical": "Rob Harper",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Adaeze": {
+      "raw": "Adaeze",
+      "articles": 245,
+      "canonical": "Adaeze Nwakaeze",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Rich": {
+      "raw": "Rich",
+      "articles": 241,
+      "canonical": "Rich Dezso",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Rocco": {
+      "raw": "Rocco",
+      "articles": 211,
+      "canonical": "Rocco Pendola",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Jimmy": {
+      "raw": "Jimmy",
+      "articles": 198,
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Sarah": {
+      "raw": "Sarah",
+      "articles": 164,
+      "canonical": "Sarah Foley",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Danielle": {
+      "raw": "Danielle",
+      "articles": 152,
+      "canonical": "Danielle MacKinlay",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Meredith": {
+      "raw": "Meredith",
+      "articles": 146,
+      "canonical": "Meredith Kane",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Sam": {
+      "raw": "Sam",
+      "articles": 145,
+      "canonical": "Samantha McGrail",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Robert": {
+      "raw": "Robert",
+      "articles": 135,
+      "canonical": "Robert Thorpe",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Jack": {
+      "raw": "Jack",
+      "articles": 123,
+      "canonical": "Jack Limebear",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Pat": {
+      "raw": "Pat",
+      "articles": 122,
+      "canonical": "Patrick Sather",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Telisa": {
+      "raw": "Telisa",
+      "articles": 110,
+      "canonical": "Telisa Faye",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Jacob": {
+      "raw": "Jacob",
+      "articles": 109,
+      "canonical": "Jacob McPhail",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Sara": {
+      "raw": "Sara",
+      "articles": 109,
+      "canonical": "Sarah Foley",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Alex": {
+      "raw": "Alex",
+      "articles": 108,
+      "canonical": "Alex Shoemaker",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kev": {
+      "raw": "Kev",
+      "articles": 98,
+      "canonical": "Kevin Vaughn",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Tamara": {
+      "raw": "Tamara",
+      "articles": 96,
+      "canonical": "Tamara Siklosi",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Sarah H": {
+      "raw": "Sarah H",
+      "articles": 94,
+      "canonical": "Sarah Foley",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Brian": {
+      "raw": "Brian",
+      "articles": 92,
+      "canonical": "Brian Abrams",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Aysenur": {
+      "raw": "Aysenur",
+      "articles": 85,
+      "canonical": "Aysenur Zaza",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Owen": {
+      "raw": "Owen",
+      "articles": 77,
+      "canonical": "Owen Murray",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Andrew": {
+      "raw": "Andrew",
+      "articles": 66,
+      "canonical": "Andrew Blackman",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Tessina": {
+      "raw": "Tessina",
+      "articles": 65,
+      "canonical": "Tessina Grant",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Nadia": {
+      "raw": "Nadia",
+      "articles": 61,
+      "canonical": "Nadia Hlebowitsh",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Richard": {
+      "raw": "Richard",
+      "articles": 57,
+      "canonical": "Rich Dezso",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Tim": {
+      "raw": "Tim",
+      "articles": 47,
+      "canonical": "Tim Suleyman",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Eleanor": {
+      "raw": "Eleanor",
+      "articles": 43,
+      "canonical": "Eleanor Pitkin",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Linda": {
+      "raw": "Linda",
+      "articles": 38,
+      "canonical": "Linda L. Armstrong",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Garrett": {
+      "raw": "Garrett",
+      "articles": 36,
+      "canonical": "Garrett Schlichte",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Emily": {
+      "raw": "Emily",
+      "articles": 32,
+      "canonical": "Emily Pitkin",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Shannon": {
+      "raw": "Shannon",
+      "articles": 23,
+      "canonical": "Shannon Canuelle",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Chels": {
+      "raw": "Chels",
+      "articles": 18,
+      "canonical": "Chelsea Oliver",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Anabelle": {
+      "raw": "Anabelle",
+      "articles": 18,
+      "canonical": "Anabelle Zaluski",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Eric E": {
+      "raw": "Eric E",
+      "articles": 17,
+      "canonical": "Eric Esposito",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Paulina": {
+      "raw": "Paulina",
+      "articles": 14,
+      "canonical": "Paulina Karadajiyan",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Haley": {
+      "raw": "Haley",
+      "articles": 13,
+      "canonical": "Haley Drucker",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Brandon": {
+      "raw": "Brandon",
+      "articles": 13,
+      "canonical": "Brandon Morgan",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Tam": {
+      "raw": "Tam",
+      "articles": 12,
+      "canonical": "Tamara Siklosi",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Patrick": {
+      "raw": "Patrick",
+      "articles": 12,
+      "canonical": "Patrick Sather",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Laura": {
+      "raw": "Laura",
+      "articles": 12,
+      "canonical": "Laura Soler",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Pau": {
+      "raw": "Pau",
+      "articles": 5,
+      "canonical": "Paulina Karadajiyan",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Andre": {
+      "raw": "Andre",
+      "articles": 4,
+      "canonical": "Andrew Blackman",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Paul": {
+      "raw": "Paul",
+      "articles": 4,
+      "canonical": "Paulina Karadajiyan",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kimberly/Aranyak": {
+      "raw": "Kimberly/Aranyak",
+      "articles": 4,
+      "canonical": "Kimberly Kruge",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Brian*": {
+      "raw": "Brian*",
+      "articles": 3,
+      "canonical": "Brian Abrams",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "KIMBERLY": {
+      "raw": "KIMBERLY",
+      "articles": 3,
+      "canonical": "Kimberly Kruge",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Richard*": {
+      "raw": "Richard*",
+      "articles": 2,
+      "canonical": "Rich Dezso",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Jacob*": {
+      "raw": "Jacob*",
+      "articles": 2,
+      "canonical": "Jacob McPhail",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Alex*": {
+      "raw": "Alex*",
+      "articles": 2,
+      "canonical": "Alex Shoemaker",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Sarah*": {
+      "raw": "Sarah*",
+      "articles": 2,
+      "canonical": "Sarah Foley",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Alex (audition)": {
+      "raw": "Alex (audition)",
+      "articles": 2,
+      "canonical": "Alex Shoemaker",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Lee": {
+      "raw": "Lee",
+      "articles": 2,
+      "canonical": "Lee Anderson",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Rocco*": {
+      "raw": "Rocco*",
+      "articles": 2,
+      "canonical": "Rocco Pendola",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kim": {
+      "raw": "Kim",
+      "articles": 2,
+      "canonical": "Kimberly Kruge",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Rob Harper - audtition": {
+      "raw": "Rob Harper - audtition",
+      "articles": 2,
+      "canonical": "Rob Harper",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Telisa*": {
+      "raw": "Telisa*",
+      "articles": 2,
+      "canonical": "Telisa Faye",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Meredith*": {
+      "raw": "Meredith*",
+      "articles": 2,
+      "canonical": "Meredith Kane",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Shannon*": {
+      "raw": "Shannon*",
+      "articles": 2,
+      "canonical": "Shannon Canuelle",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kennedy": {
+      "raw": "Kennedy",
+      "articles": 1,
+      "canonical": "Kennedy Stevens",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Jimmy*": {
+      "raw": "Jimmy*",
+      "articles": 1,
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Eric E.": {
+      "raw": "Eric E.",
+      "articles": 1,
+      "canonical": "Eric Esposito",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "JImmy": {
+      "raw": "JImmy",
+      "articles": 1,
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Adaeze*": {
+      "raw": "Adaeze*",
+      "articles": 1,
+      "canonical": "Adaeze Nwakaeze",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Brian A": {
+      "raw": "Brian A",
+      "articles": 1,
+      "canonical": "Brian Abrams",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kevin`": {
+      "raw": "Kevin`",
+      "articles": 1,
+      "canonical": "Kevin Vaughn",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Sam*": {
+      "raw": "Sam*",
+      "articles": 1,
+      "canonical": "Samantha McGrail",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Kimberly*": {
+      "raw": "Kimberly*",
+      "articles": 1,
+      "canonical": "Kimberly Kruge",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Brandon*": {
+      "raw": "Brandon*",
+      "articles": 1,
+      "canonical": "Brandon Morgan",
+      "status": "confirmed_first_name",
+      "retained": true
+    },
+    "Garret": {
+      "raw": "Garret",
+      "articles": 1,
+      "canonical": "Garrett Schlichte",
+      "status": "confirmed_first_name",
+      "retained": true
+    }
+  }
+}

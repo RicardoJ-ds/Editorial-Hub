@@ -1,0 +1,561 @@
+{
+  "built_at": "2026-06-10",
+  "canonical_source": "graphite_bi_sandbox.v_team_pods_editorial (HR)",
+  "aliases": {
+    "83": {
+      "raw": "83",
+      "articles": 1,
+      "canonical": null,
+      "status": "junk"
+    },
+    "AND": {
+      "raw": "AND",
+      "articles": 2,
+      "canonical": null,
+      "status": "junk"
+    },
+    "Abby": {
+      "raw": "Abby",
+      "articles": 558,
+      "canonical": "Abby Norwood",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor"
+    },
+    "Alyssa": {
+      "raw": "Alyssa",
+      "articles": 1019,
+      "canonical": "Alyssa Zacharias",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Sr. Editor II"
+    },
+    "Anabelle": {
+      "raw": "Anabelle",
+      "articles": 1558,
+      "canonical": "Anabelle Zaluski",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Bryan": {
+      "raw": "Bryan",
+      "articles": 25,
+      "canonical": "Bryan Clark",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "VP, Editor in Chief"
+    },
+    "Chelsea": {
+      "raw": "Chelsea",
+      "articles": 113,
+      "canonical": "Chelsea Erhard",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Chrissy": {
+      "raw": "Chrissy",
+      "articles": 377,
+      "canonical": "Chrissy Woods",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Director of Editorial"
+    },
+    "Derriik": {
+      "raw": "Derriik",
+      "articles": 3,
+      "canonical": "Derrik Chinn",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor"
+    },
+    "Derrik": {
+      "raw": "Derrik",
+      "articles": 1972,
+      "canonical": "Derrik Chinn",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor"
+    },
+    "Eesha": {
+      "raw": "Eesha",
+      "articles": 989,
+      "canonical": "Eesha Verma",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Elliot": {
+      "raw": "Elliot",
+      "articles": 251,
+      "canonical": "Elliot Gardner",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Editor"
+    },
+    "Haley": {
+      "raw": "Haley",
+      "articles": 346,
+      "canonical": "Haley Drucker",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Editor"
+    },
+    "Jared": {
+      "raw": "Jared",
+      "articles": 301,
+      "canonical": "Jared Maguire",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Jimmy": {
+      "raw": "Jimmy",
+      "articles": 235,
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Editor"
+    },
+    "Katie": {
+      "raw": "Katie",
+      "articles": 228,
+      "canonical": "Katie Shevlin",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Kennedy": {
+      "raw": "Kennedy",
+      "articles": 741,
+      "canonical": "Kennedy Stevens",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Sr. Editor"
+    },
+    "Kimberly": {
+      "raw": "Kimberly",
+      "articles": 45,
+      "canonical": "Kimberly Pavlovich",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Kira": {
+      "raw": "Kira",
+      "articles": 109,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Kristin": {
+      "raw": "Kristin",
+      "articles": 212,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Lauren": {
+      "raw": "Lauren",
+      "articles": 141,
+      "canonical": null,
+      "status": "ambiguous",
+      "candidates": [
+        "Lauren Friar",
+        "Lauren Keleher"
+      ],
+      "note": "Both active. Needs a split rule (by pod/client) from DaniQ."
+    },
+    "Lee": {
+      "raw": "Lee",
+      "articles": 337,
+      "canonical": "Lee Anderson",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Editor"
+    },
+    "Maggie": {
+      "raw": "Maggie",
+      "articles": 1396,
+      "canonical": "Maggie Gowland",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor II"
+    },
+    "Micki": {
+      "raw": "Micki",
+      "articles": 20,
+      "canonical": "Micki Cottam",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Mike": {
+      "raw": "Mike",
+      "articles": 55,
+      "canonical": "Michael Doyle",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Nicholas": {
+      "raw": "Nicholas",
+      "articles": 1365,
+      "canonical": "Nicholas Youngblood",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Nina": {
+      "raw": "Nina",
+      "articles": 700,
+      "canonical": "Nina Denison",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Sr. Editor"
+    },
+    "Robert": {
+      "raw": "Robert",
+      "articles": 252,
+      "canonical": "Robert Thorpe",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Editor"
+    },
+    "Sam": {
+      "raw": "Sam",
+      "articles": 142,
+      "canonical": "Samantha Marceau",
+      "status": "ambiguous",
+      "candidates": [
+        "Samantha Marceau",
+        "Samantha McGrail"
+      ],
+      "note": "McGrail terminated 2026-01-27 — articles after that are Marceau; earlier ones ambiguous. Proposed: Marceau unless dated before Feb 2026."
+    },
+    "Shain": {
+      "raw": "Shain",
+      "articles": 1,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Shalin": {
+      "raw": "Shalin",
+      "articles": 140,
+      "canonical": null,
+      "status": "unresolved"
+    },
+    "Shelby": {
+      "raw": "Shelby",
+      "articles": 531,
+      "canonical": "Shelby Talbot",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Shivani": {
+      "raw": "Shivani",
+      "articles": 151,
+      "canonical": "Shivani Verma",
+      "status": "confirmed",
+      "hr_status": "ACTIVE",
+      "hr_title": "Editor"
+    },
+    "Tiffany": {
+      "raw": "Tiffany",
+      "articles": 170,
+      "canonical": "Tiffany Anderson",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "Vince": {
+      "raw": "Vince",
+      "articles": 299,
+      "canonical": "Vincent Lee",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor"
+    },
+    "^": {
+      "raw": "^",
+      "articles": 1,
+      "canonical": null,
+      "status": "junk"
+    },
+    "^^": {
+      "raw": "^^",
+      "articles": 2,
+      "canonical": null,
+      "status": "junk"
+    },
+    "no edits": {
+      "raw": "no edits",
+      "articles": 1,
+      "canonical": null,
+      "status": "junk"
+    },
+    "MAGGIE": {
+      "raw": "MAGGIE",
+      "articles": 3,
+      "canonical": "Maggie Gowland",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor II",
+      "retained": true
+    },
+    "Magggie": {
+      "raw": "Magggie",
+      "articles": 1,
+      "canonical": "Maggie Gowland",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor II",
+      "retained": true
+    },
+    "Magie": {
+      "raw": "Magie",
+      "articles": 1,
+      "canonical": "Maggie Gowland",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor II",
+      "retained": true
+    },
+    "NIcholas": {
+      "raw": "NIcholas",
+      "articles": 12,
+      "canonical": "Nicholas Youngblood",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Editor",
+      "retained": true
+    },
+    "maggie": {
+      "raw": "maggie",
+      "articles": 1,
+      "canonical": "Maggie Gowland",
+      "status": "confirmed",
+      "hr_status": "TERMINATED",
+      "hr_title": "Sr. Editor II",
+      "retained": true
+    }
+  },
+  "capacity_members": {
+    "-": {
+      "raw": "-",
+      "canonical": null,
+      "status": "placeholder"
+    },
+    "Abby Norwood": {
+      "raw": "Abby Norwood",
+      "canonical": "Abby Norwood",
+      "status": "confirmed"
+    },
+    "Alyssa Zacharias": {
+      "raw": "Alyssa Zacharias",
+      "canonical": "Alyssa Zacharias",
+      "status": "confirmed"
+    },
+    "Anabelle Zaluski": {
+      "raw": "Anabelle Zaluski",
+      "canonical": "Anabelle Zaluski",
+      "status": "confirmed"
+    },
+    "Anabelle Zaluski (freelancer)": {
+      "raw": "Anabelle Zaluski (freelancer)",
+      "canonical": "Anabelle Zaluski",
+      "status": "confirmed"
+    },
+    "Chrissy Woods / Anabelle Zaluski / or Pod 2": {
+      "raw": "Chrissy Woods / Anabelle Zaluski / or Pod 2",
+      "canonical": null,
+      "status": "combined_cell"
+    },
+    "Derrik Chinn": {
+      "raw": "Derrik Chinn",
+      "canonical": "Derrik Chinn",
+      "status": "confirmed"
+    },
+    "Derrik Chinn (42) + Haley Drucker (backfill) (6)": {
+      "raw": "Derrik Chinn (42) + Haley Drucker (backfill) (6)",
+      "canonical": null,
+      "status": "combined_cell"
+    },
+    "Elliot Gardner": {
+      "raw": "Elliot Gardner",
+      "canonical": "Elliot Gardner",
+      "status": "confirmed"
+    },
+    "Haley Drucker": {
+      "raw": "Haley Drucker",
+      "canonical": "Haley Drucker",
+      "status": "confirmed"
+    },
+    "Jared Maguire": {
+      "raw": "Jared Maguire",
+      "canonical": "Jared Maguire",
+      "status": "confirmed"
+    },
+    "Jimmy Bunes": {
+      "raw": "Jimmy Bunes",
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed"
+    },
+    "Jimmy Bunes (Anabelle's backfill)": {
+      "raw": "Jimmy Bunes (Anabelle's backfill)",
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed"
+    },
+    "Jimmy Bunes (temp)": {
+      "raw": "Jimmy Bunes (temp)",
+      "canonical": "Jimmy Bunes",
+      "status": "confirmed"
+    },
+    "Katie Shevlin": {
+      "raw": "Katie Shevlin",
+      "canonical": "Katie Shevlin",
+      "status": "confirmed"
+    },
+    "Kennedy Sievers": {
+      "raw": "Kennedy Sievers",
+      "canonical": "Kennedy Stevens",
+      "status": "confirmed",
+      "note": "capacity-sheet surname typo (Sievers → Stevens)"
+    },
+    "Kennedy Stevens": {
+      "raw": "Kennedy Stevens",
+      "canonical": "Kennedy Stevens",
+      "status": "confirmed"
+    },
+    "Kimberly Pavlovich": {
+      "raw": "Kimberly Pavlovich",
+      "canonical": "Kimberly Pavlovich",
+      "status": "confirmed"
+    },
+    "Lauren Friar": {
+      "raw": "Lauren Friar",
+      "canonical": "Lauren Friar",
+      "status": "confirmed"
+    },
+    "Lauren Friar (net-new)": {
+      "raw": "Lauren Friar (net-new)",
+      "canonical": "Lauren Friar",
+      "status": "confirmed"
+    },
+    "Lauren Keleher": {
+      "raw": "Lauren Keleher",
+      "canonical": "Lauren Keleher",
+      "status": "confirmed"
+    },
+    "Lauren Keleher (28) + Anabelle Zaluski (8)": {
+      "raw": "Lauren Keleher (28) + Anabelle Zaluski (8)",
+      "canonical": null,
+      "status": "combined_cell"
+    },
+    "Lee Anderson": {
+      "raw": "Lee Anderson",
+      "canonical": "Lee Anderson",
+      "status": "confirmed"
+    },
+    "Maggie Gowland": {
+      "raw": "Maggie Gowland",
+      "canonical": "Maggie Gowland",
+      "status": "confirmed"
+    },
+    "Maggie Gowland (14) Anabelle Zaluski (10)": {
+      "raw": "Maggie Gowland (14) Anabelle Zaluski (10)",
+      "canonical": null,
+      "status": "combined_cell"
+    },
+    "Maggie Gowland (27) Katie Shevlin (1)": {
+      "raw": "Maggie Gowland (27) Katie Shevlin (1)",
+      "canonical": null,
+      "status": "combined_cell"
+    },
+    "Maggie Gowland (3) Katie Shevlin (1)": {
+      "raw": "Maggie Gowland (3) Katie Shevlin (1)",
+      "canonical": null,
+      "status": "combined_cell"
+    },
+    "Micki Cottam": {
+      "raw": "Micki Cottam",
+      "canonical": "Micki Cottam",
+      "status": "confirmed"
+    },
+    "Micki Cottam (net-new)": {
+      "raw": "Micki Cottam (net-new)",
+      "canonical": "Micki Cottam",
+      "status": "confirmed"
+    },
+    "Nicholas Youngblood": {
+      "raw": "Nicholas Youngblood",
+      "canonical": "Nicholas Youngblood",
+      "status": "confirmed"
+    },
+    "Nina Denison": {
+      "raw": "Nina Denison",
+      "canonical": "Nina Denison",
+      "status": "confirmed"
+    },
+    "ROBERT THORPE": {
+      "raw": "ROBERT THORPE",
+      "canonical": "Robert Thorpe",
+      "status": "confirmed"
+    },
+    "Robert Thorpe": {
+      "raw": "Robert Thorpe",
+      "canonical": "Robert Thorpe",
+      "status": "confirmed"
+    },
+    "Samantha Marceau": {
+      "raw": "Samantha Marceau",
+      "canonical": "Samantha Marceau",
+      "status": "confirmed"
+    },
+    "Samantha McGrail": {
+      "raw": "Samantha McGrail",
+      "canonical": "Samantha McGrail",
+      "status": "confirmed"
+    },
+    "Shivani Verma": {
+      "raw": "Shivani Verma",
+      "canonical": "Shivani Verma",
+      "status": "confirmed"
+    },
+    "Shivani Verma (net-new)": {
+      "raw": "Shivani Verma (net-new)",
+      "canonical": "Shivani Verma",
+      "status": "confirmed"
+    },
+    "Tiffany Anderson": {
+      "raw": "Tiffany Anderson",
+      "canonical": "Tiffany Anderson",
+      "status": "confirmed"
+    },
+    "Tiffany Anderson (Micki's backfill)": {
+      "raw": "Tiffany Anderson (Micki's backfill)",
+      "canonical": "Tiffany Anderson",
+      "status": "confirmed"
+    },
+    "new hire": {
+      "raw": "new hire",
+      "canonical": null,
+      "status": "placeholder"
+    },
+    "new hire + Pod 3 (20)": {
+      "raw": "new hire + Pod 3 (20)",
+      "canonical": null,
+      "status": "placeholder"
+    },
+    "support from Pod 1": {
+      "raw": "support from Pod 1",
+      "canonical": null,
+      "status": "placeholder"
+    },
+    "support from Pod 3": {
+      "raw": "support from Pod 3",
+      "canonical": null,
+      "status": "placeholder"
+    }
+  }
+}
