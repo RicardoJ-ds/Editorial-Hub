@@ -24,7 +24,6 @@ import { apiGet } from "@/lib/api";
 import type {
   TeamMember,
   KpiScore,
-  CapacityProjection,
   Client,
   AIMonitoringSummary,
   AIMonitoringBreakdown,
@@ -33,7 +32,7 @@ import type {
 } from "@/lib/types";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { KpiCard, KPI_DISPLAY_NAMES, getKpiTypesForRole } from "@/components/dashboard/KpiCard";
-import { CapacityChart } from "@/components/charts/CapacityChart";
+import { PodUtilizationTrendChart } from "@/components/charts/PodUtilizationTrendChart";
 import RecommendationChart from "@/components/charts/RecommendationChart";
 import { cn } from "@/lib/utils";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
@@ -177,22 +176,6 @@ const MONTHS = [
   { value: 12, label: "December" },
 ];
 
-const MONTH_SHORT = [
-  "",
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
 const POD_COLORS: Record<string, string> = {
   "Pod 1": "bg-[#5B9BF5]/15 text-[#5B9BF5] border-[#5B9BF5]/30",
   "Pod 2": "bg-[#42CA80]/15 text-[#42CA80] border-[#42CA80]/30",
@@ -258,7 +241,6 @@ export default function TeamKpisPage() {
   useSectionDwellById("ai-surfer");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [kpiScores, setKpiScores] = useState<KpiScore[]>([]);
-  const [capacityData, setCapacityData] = useState<CapacityProjection[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -305,15 +287,13 @@ export default function TeamKpisPage() {
         kpiQs.set("year_to", String(dateRangeQuery.yt));
         kpiQs.set("month_to", String(dateRangeQuery.mt));
       }
-      const [members, kpis, capacity, activeClients] = await Promise.all([
+      const [members, kpis, activeClients] = await Promise.all([
         apiGet<TeamMember[]>("/api/team-members/?limit=200"),
         apiGet<KpiScore[]>(`/api/kpis/?${kpiQs.toString()}`),
-        apiGet<CapacityProjection[]>("/api/capacity/?limit=200"),
         apiGet<Client[]>("/api/clients/?limit=500"),
       ]);
       setTeamMembers(members);
       setKpiScores(kpis);
-      setCapacityData(capacity);
       setClients(activeClients);
     } catch (err) {
       console.error("Failed to load team KPI data:", err);
@@ -359,10 +339,6 @@ export default function TeamKpisPage() {
   const filteredScores = useMemo(
     () => kpiScores.filter((s) => s.client_id === null || clientIds.has(s.client_id)),
     [kpiScores, clientIds],
-  );
-  const filteredCapacity = useMemo(
-    () => capacityData.filter((c) => activePods.has(normalizePod(c.pod))),
-    [capacityData, activePods],
   );
 
   // (Year-options dropdown removed — replaced by DateRangeFilter.)
@@ -416,12 +392,6 @@ export default function TeamKpisPage() {
               KPI Performance
             </TabsTrigger>
             <TabsTrigger
-              value="capacity-projections"
-              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-            >
-              Capacity Projections
-            </TabsTrigger>
-            <TabsTrigger
               value="ai-compliance"
               className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
             >
@@ -437,7 +407,7 @@ export default function TeamKpisPage() {
               value="capacity-by-pod"
               className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
             >
-              Capacity by Pod
+              Capacity
             </TabsTrigger>
           </TabsList>
         </div>
@@ -454,15 +424,6 @@ export default function TeamKpisPage() {
                 year={selectedYear}
                 clientMap={clientMap}
               />
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="capacity-projections">
-          <div className="flex gap-6">
-            <SectionIndex sections={CAPACITY_SECTIONS} topOffset={140} />
-            <div className="flex-1 min-w-0">
-              <CapacityProjectionsTab capacity={filteredCapacity} />
             </div>
           </div>
         </TabsContent>
@@ -489,7 +450,7 @@ export default function TeamKpisPage() {
           <div className="flex gap-6">
             <SectionIndex sections={CAPACITY_BY_POD_SECTIONS} topOffset={140} />
             <div className="flex-1 min-w-0">
-              <CapacityByPodTab />
+              <CapacityTab activePods={activePods} />
             </div>
           </div>
         </TabsContent>
@@ -530,20 +491,16 @@ const KPI_PERFORMANCE_SECTIONS = [
   { id: "kpi-overview", label: "KPI Overview" },
   { id: "kpi-pods", label: "Pod Detail" },
 ];
-const CAPACITY_SECTIONS = [
-  { id: "capacity-summary", label: "Summary" },
-  { id: "capacity-chart", label: "Utilization" },
-  { id: "capacity-detail", label: "Detail" },
-];
 const MONTHLY_ARTICLES_SECTIONS = [
   { id: "articles-chart", label: "Over Time" },
   { id: "articles-matrix", label: "Matrix" },
 ];
 const CAPACITY_BY_POD_SECTIONS = [
-  { id: "capacity-by-pod", label: "Pod Overview" },
-  { id: "member-utilization", label: "Per Editor" },
-  { id: "client-contributions", label: "Client Detail" },
-  { id: "utilization-trend", label: "Trend" },
+  { id: "capacity-glance", label: "At a glance" },
+  { id: "capacity-by-pod", label: "By Pod" },
+  { id: "capacity-trend", label: "Trend" },
+  { id: "member-utilization", label: "By Editor" },
+  { id: "client-contributions", label: "By Client" },
 ];
 
 // ── Capacity by Pod ──────────────────────────────────────────────────────────
@@ -566,10 +523,25 @@ const capMonthLabel = (y: number, m: number) => `${CAP_MONTH_ABBR[m - 1] ?? m} $
 const capPct = (num: number | null, den: number | null) =>
   den && den > 0 ? `${Math.round((100 * (num ?? 0)) / den)}%` : "—";
 
-function CapacityByPodTab() {
+// Utilization → status dot color. Green in the 80–105% band, amber under,
+// red over. Returns a hex + label for the By-Pod status cell.
+function utilStatus(pct: number | null): { color: string; label: string } {
+  if (pct === null) return { color: "#404040", label: "—" };
+  if (pct < 80) return { color: "#F5BC4E", label: "Under" };
+  if (pct <= 105) return { color: "#42CA80", label: "On plan" };
+  return { color: "#ED6958", label: "Over" };
+}
+
+function CapacityTab({ activePods }: { activePods: Set<string> }) {
   const [rows, setRows] = useState<CapacityPodRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string>("");
+
+  // Respect the FilterBar pod scope when it narrows to specific pods.
+  const podVisible = useMemo(
+    () => (pod: string) => activePods.size === 0 || activePods.has(pod),
+    [activePods],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -577,7 +549,6 @@ function CapacityByPodTab() {
       .then((data) => {
         if (!alive) return;
         setRows(data);
-        // Default to the latest month that has any staffed capacity.
         const withCap = data
           .filter((r) => (r.total_capacity ?? 0) > 0)
           .map((r) => capMonthKey(r.year, r.month))
@@ -603,32 +574,48 @@ function CapacityByPodTab() {
     if (!selected) return [];
     const [y, m] = selected.split("-").map(Number);
     return rows
-      .filter((r) => r.year === y && r.month === m && (r.total_capacity ?? 0) > 0)
+      .filter((r) => r.year === y && r.month === m && (r.total_capacity ?? 0) > 0 && podVisible(r.pod))
       .sort((a, b) => a.pod.localeCompare(b.pod, undefined, { numeric: true }));
-  }, [rows, selected]);
+  }, [rows, selected, podVisible]);
 
-  const totals = useMemo(
-    () => ({
-      total: podRows.reduce((s, r) => s + (r.total_capacity ?? 0), 0),
-      proj: podRows.reduce((s, r) => s + (r.projected_used_capacity ?? 0), 0),
-      act: podRows.reduce((s, r) => s + (r.actual_used_capacity ?? 0), 0),
-    }),
-    [podRows],
-  );
+  // KPI strip + table totals for the selected month.
+  const k = useMemo(() => {
+    const cap = podRows.reduce((s, r) => s + (r.total_capacity ?? 0), 0);
+    const proj = podRows.reduce((s, r) => s + (r.projected_used_capacity ?? 0), 0);
+    const act = podRows.reduce((s, r) => s + (r.actual_used_capacity ?? 0), 0);
+    const hasActual = podRows.some((r) => (r.actual_used_capacity ?? 0) > 0);
+    const overPlan = podRows.filter(
+      (r) => (r.projected_used_capacity ?? 0) > (r.total_capacity ?? 0),
+    ).length;
+    return {
+      cap,
+      proj,
+      act,
+      hasActual,
+      overPlan,
+      plannedPct: cap > 0 ? Math.round((proj / cap) * 100) : null,
+      deliveredPct: cap > 0 && hasActual ? Math.round((act / cap) * 100) : null,
+      spare: cap - proj,
+    };
+  }, [podRows]);
 
   if (loading) return <Skeleton className="h-48 w-full max-w-2xl" />;
 
+  const monthLabel = selected
+    ? capMonthLabel(...(selected.split("-").map(Number) as [number, number]))
+    : "";
+
   return (
     <div className="space-y-10">
-    <section id="capacity-by-pod" className="max-w-2xl space-y-3 scroll-mt-[140px]">
-      <div className="flex items-end justify-between gap-3">
+      {/* Header: title + shared month selector */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Capacity by Pod
+            Capacity — {monthLabel}
           </h2>
           <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
-            Total capacity = sum of every role in the pod. % Projected / % Actual = used ÷ total.
-            Latest ET CP version. Actual fills in as the month closes.
+            Editorial pods only. Capacity = sum of every role in the pod. Planned = projected
+            workload; Delivered = actual, which fills in as the month closes. Latest ET CP version.
           </p>
         </div>
         <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
@@ -648,61 +635,186 @@ function CapacityByPodTab() {
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
-        <table className="w-full border-collapse font-mono text-[13px]">
-          <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
-            <tr>
-              <th className="px-4 py-2 text-left font-semibold">Pod</th>
-              <th className="px-4 py-2 text-right font-semibold">Total capacity</th>
-              <th className="px-4 py-2 text-right font-semibold">% Projected</th>
-              <th className="px-4 py-2 text-right font-semibold">% Actual</th>
-            </tr>
-          </thead>
-          <tbody>
-            {podRows.length === 0 ? (
+      {/* At a glance */}
+      <section id="capacity-glance" className="scroll-mt-[140px] space-y-3">
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+          At a glance
+        </h3>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <SummaryCard
+            title="Delivered utilization"
+            value={k.deliveredPct === null ? "—" : `${k.deliveredPct}%`}
+            valueColor={
+              k.deliveredPct === null
+                ? "white"
+                : k.deliveredPct >= 80 && k.deliveredPct <= 105
+                  ? "green"
+                  : k.deliveredPct > 105
+                    ? "red"
+                    : "white"
+            }
+            description={k.deliveredPct === null ? "Month not closed yet" : "actual ÷ capacity"}
+          />
+          <SummaryCard
+            title="Planned utilization"
+            value={k.plannedPct === null ? "—" : `${k.plannedPct}%`}
+            valueColor={k.plannedPct !== null && k.plannedPct > 105 ? "red" : "white"}
+            description="projected ÷ capacity"
+          />
+          <SummaryCard
+            title="Pods over plan"
+            value={k.overPlan}
+            valueColor={k.overPlan > 0 ? "red" : "green"}
+            description="projected > capacity"
+          />
+          <SummaryCard
+            title="Spare capacity"
+            value={k.spare}
+            valueColor={k.spare >= 0 ? "green" : "red"}
+            description="capacity − planned"
+          />
+        </div>
+      </section>
+
+      {/* By Pod */}
+      <section id="capacity-by-pod" className="scroll-mt-[140px] space-y-3">
+        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
+          By Pod
+        </h3>
+        <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+          <table className="w-full border-collapse font-mono text-[13px]">
+            <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-[#606060]">
-                  No capacity data for this month.
-                </td>
+                <th className="px-4 py-2 text-left font-semibold">Pod</th>
+                <th className="px-4 py-2 text-right font-semibold">Capacity</th>
+                <th className="px-4 py-2 text-right font-semibold">Planned</th>
+                <th className="px-4 py-2 text-right font-semibold">% Plan</th>
+                <th className="px-4 py-2 text-right font-semibold">Delivered</th>
+                <th className="px-4 py-2 text-right font-semibold">% Delivered</th>
+                <th className="px-4 py-2 text-left font-semibold">Status</th>
               </tr>
-            ) : (
-              podRows.map((r) => (
-                <tr key={r.pod} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
-                  <td className="px-4 py-2 text-white">{displayPod(r.pod, "editorial")}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
-                    {r.total_capacity ?? 0}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
-                    {capPct(r.projected_used_capacity, r.total_capacity)}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
-                    {capPct(r.actual_used_capacity, r.total_capacity)}
+            </thead>
+            <tbody>
+              {podRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-[#606060]">
+                    No capacity data for this month.
                   </td>
                 </tr>
-              ))
+              ) : (
+                podRows.map((r) => {
+                  const cap = r.total_capacity ?? 0;
+                  const proj = r.projected_used_capacity ?? 0;
+                  const act = r.actual_used_capacity ?? 0;
+                  const delPct = cap > 0 && act > 0 ? Math.round((act / cap) * 100) : null;
+                  const planPct = cap > 0 ? Math.round((proj / cap) * 100) : null;
+                  const st = utilStatus(delPct ?? planPct);
+                  return (
+                    <tr key={r.pod} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
+                      <td className="px-4 py-2 text-white">{displayPod(r.pod, "editorial")}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">{cap}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-[#909090]">{proj}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
+                        {capPct(proj, cap)}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums text-[#909090]">
+                        {act > 0 ? act : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums text-white">
+                        {delPct === null ? "—" : `${delPct}%`}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="flex items-center gap-1.5 text-[11px] text-[#909090]">
+                          <span
+                            className="inline-block h-2 w-2 rounded-full"
+                            style={{ backgroundColor: st.color }}
+                          />
+                          {st.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            {podRows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-[#2a2a2a] bg-[#111111] font-semibold">
+                  <td className="px-4 py-2 text-[#C4BCAA]">Totals</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-white">{k.cap}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-white">{k.proj}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-white">
+                    {capPct(k.proj, k.cap)}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums text-white">
+                    {k.hasActual ? k.act : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums text-white">
+                    {k.deliveredPct === null ? "—" : `${k.deliveredPct}%`}
+                  </td>
+                  <td className="px-4 py-2" />
+                </tr>
+              </tfoot>
             )}
-          </tbody>
-          {podRows.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-[#2a2a2a] bg-[#111111] font-semibold">
-                <td className="px-4 py-2 text-[#C4BCAA]">Totals</td>
-                <td className="px-4 py-2 text-right tabular-nums text-white">{totals.total}</td>
-                <td className="px-4 py-2 text-right tabular-nums text-white">
-                  {capPct(totals.proj, totals.total)}
-                </td>
-                <td className="px-4 py-2 text-right tabular-nums text-white">
-                  {capPct(totals.act, totals.total)}
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-    </section>
-    {selected && <MemberUtilizationSection monthKey={selected} />}
-    {selected && <ClientContributionsSection monthKey={selected} />}
-    <UtilizationTrendSection />
+          </table>
+        </div>
+      </section>
+
+      {/* Trend (all months) */}
+      <TrendSection podRows={rows} activePods={activePods} />
+
+      {/* By Editor + By Client (selected month) */}
+      {selected && <MemberUtilizationSection monthKey={selected} activePods={activePods} />}
+      {selected && <ClientContributionsSection monthKey={selected} activePods={activePods} />}
     </div>
+  );
+}
+
+// ── Trend wrapper: Pods (line chart) | Editors (heat matrix) ──────────────────
+function TrendSection({
+  podRows,
+  activePods,
+}: {
+  podRows: CapacityPodRow[];
+  activePods: Set<string>;
+}) {
+  const [grain, setGrain] = useState<"pods" | "editors">("pods");
+  return (
+    <section id="capacity-trend" className="scroll-mt-[140px] space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+            Trend
+          </h2>
+          <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
+            Utilization across every month — by pod (line) or by editor (heat matrix).
+          </p>
+        </div>
+        <div className="inline-flex shrink-0 rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
+          {(["pods", "editors"] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGrain(g)}
+              className={
+                grain === g
+                  ? "rounded bg-[#42CA80]/15 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-[#42CA80]"
+                  : "rounded px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-[#606060] hover:text-[#C4BCAA]"
+              }
+            >
+              {g === "pods" ? "Pods" : "Editors"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {grain === "pods" ? (
+        <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
+          <PodUtilizationTrendChart rows={podRows} activePods={activePods} />
+        </div>
+      ) : (
+        <EditorTrendMatrix activePods={activePods} />
+      )}
+    </section>
   );
 }
 
@@ -738,7 +850,13 @@ interface MemberUtilRow {
 const fmtPct = (v: number | null | undefined) =>
   v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`;
 
-function MemberUtilizationSection({ monthKey }: { monthKey: string }) {
+function MemberUtilizationSection({
+  monthKey,
+  activePods,
+}: {
+  monthKey: string;
+  activePods?: Set<string>;
+}) {
   const [rows, setRows] = useState<MemberUtilRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -765,13 +883,14 @@ function MemberUtilizationSection({ monthKey }: { monthKey: string }) {
   const pods = useMemo(() => {
     const map = new Map<string, MemberUtilRow[]>();
     for (const r of rows) {
+      if (activePods && activePods.size > 0 && !activePods.has(r.pod)) continue;
       if (!map.has(r.pod)) map.set(r.pod, []);
       map.get(r.pod)!.push(r);
     }
     return Array.from(map.entries()).sort((a, b) =>
       a[0].localeCompare(b[0], undefined, { numeric: true }),
     );
-  }, [rows]);
+  }, [rows, activePods]);
 
   const unmatched = rows.filter(
     (r) => !r.matched && r.member.toLowerCase() !== "support from pod 1",
@@ -898,7 +1017,13 @@ interface ClientContributionRow {
   actual_weighted: number;
 }
 
-function ClientContributionsSection({ monthKey }: { monthKey: string }) {
+function ClientContributionsSection({
+  monthKey,
+  activePods,
+}: {
+  monthKey: string;
+  activePods?: Set<string>;
+}) {
   const [rows, setRows] = useState<ClientContributionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -925,6 +1050,7 @@ function ClientContributionsSection({ monthKey }: { monthKey: string }) {
   const pods = useMemo(() => {
     const map = new Map<string, ClientContributionRow[]>();
     for (const r of rows) {
+      if (activePods && activePods.size > 0 && !activePods.has(r.pod)) continue;
       if (!map.has(r.pod)) map.set(r.pod, []);
       map.get(r.pod)!.push(r);
     }
@@ -1061,7 +1187,7 @@ function utilCellStyle(v: number | null): React.CSSProperties {
   return { backgroundColor: `rgba(237, 105, 88, ${a.toFixed(2)})` };
 }
 
-function UtilizationTrendSection() {
+function EditorTrendMatrix({ activePods }: { activePods?: Set<string> }) {
   const [rows, setRows] = useState<MemberUtilMatrixRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState<TrendMetric>("real");
@@ -1097,6 +1223,7 @@ function UtilizationTrendSection() {
     for (const r of rows) {
       const mk = capMonthKey(r.year, r.month);
       if (!months.includes(mk)) continue;
+      if (activePods && activePods.size > 0 && !activePods.has(r.pod)) continue;
       const id = `${r.pod}|${r.member}`;
       byCell.set(`${id}|${mk}`, r);
       const cur = members.get(id);
@@ -1124,26 +1251,21 @@ function UtilizationTrendSection() {
       return { v: metric === "real" ? r.pct_util_real : r.pct_util_weighted, raw: r };
     };
     return { pods, valueAt };
-  }, [rows, months, metric]);
+  }, [rows, months, metric, activePods]);
 
   if (loading) return <Skeleton className="h-72 w-full" />;
   if (!rows.length || months.length === 0) return null;
 
   return (
-    <section id="utilization-trend" className="space-y-3 scroll-mt-[140px]">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Utilization Trend
-          </h2>
-          <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-[#606060]">
-            Final per-editor numbers across every month with staffed capacity and real
-            production. <span className="text-[#F5BC4E]">Amber</span> = under 85% ·{" "}
-            <span className="text-[#42CA80]">green</span> = 85–105% ·{" "}
-            <span className="text-[#ED6958]">red</span> = over.
-          </p>
-        </div>
-        <div className="inline-flex rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-mono text-[11px] leading-relaxed text-[#606060]">
+          Per-editor utilization across every month with real production.{" "}
+          <span className="text-[#F5BC4E]">Amber</span> = under 85% ·{" "}
+          <span className="text-[#42CA80]">green</span> = 85–105% ·{" "}
+          <span className="text-[#ED6958]">red</span> = over.
+        </p>
+        <div className="inline-flex shrink-0 rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
           {TREND_METRICS.map((o) => (
             <button
               key={o.key}
@@ -1244,7 +1366,7 @@ function UtilizationTrendSection() {
         Pod rows show the pod-level number (actual ÷ total capacity, or total articles).
         Empty months (no production data yet) are hidden.
       </p>
-    </section>
+    </div>
   );
 }
 
@@ -1910,308 +2032,5 @@ function KpiPerformanceTab({
       })}
       </div>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 2: Capacity Projections
-// ---------------------------------------------------------------------------
-
-function CapacityProjectionsTab({
-  capacity,
-}: {
-  capacity: CapacityProjection[];
-}) {
-  // Compute summary stats
-  const summary = useMemo(() => {
-    const utilizations: number[] = [];
-    let podsOptimal = 0;
-    let podsOver = 0;
-
-    // Group by pod+month to get unique entries
-    const byPodMonth = new Map<string, CapacityProjection>();
-    for (const c of capacity) {
-      const key = `${c.pod}-${c.year}-${c.month}`;
-      byPodMonth.set(key, c);
-    }
-
-    for (const c of byPodMonth.values()) {
-      const total = c.total_capacity ?? 0;
-      const projected = c.projected_used_capacity ?? 0;
-      if (total > 0) {
-        const util = (projected / total) * 100;
-        utilizations.push(util);
-        if (util >= 80 && util <= 85) podsOptimal++;
-        if (util > 100) podsOver++;
-      }
-    }
-
-    const avgUtil =
-      utilizations.length > 0
-        ? Math.round(
-            (utilizations.reduce((a, b) => a + b, 0) / utilizations.length) * 10
-          ) / 10
-        : 0;
-
-    // Total available bandwidth for current month
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-    let totalAvailableBandwidth = 0;
-    let hasBandwidthData = false;
-    for (const c of byPodMonth.values()) {
-      if (c.year === currentYear && c.month === currentMonth) {
-        const total = c.total_capacity ?? 0;
-        const projected = c.projected_used_capacity ?? 0;
-        totalAvailableBandwidth += total - projected;
-        hasBandwidthData = true;
-      }
-    }
-
-    return { avgUtil, podsOptimal, podsOver, totalAvailableBandwidth, hasBandwidthData };
-  }, [capacity]);
-
-  // Table rows sorted by pod then date
-  const tableRows = useMemo(() => {
-    return [...capacity].sort((a, b) => {
-      const podCmp = a.pod.localeCompare(b.pod);
-      if (podCmp !== 0) return podCmp;
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
-  }, [capacity]);
-
-  return (
-    <div className="mt-3 space-y-5">
-      {/* Summary Row */}
-      <div id="capacity-summary" className="mb-1 scroll-mt-[140px]">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">Capacity Summary</span>
-          <DataSourceBadge type="live" source="Pod-level monthly capacity projections + utilization." />
-        </div>
-        <p className="text-[10px] font-mono text-[#606060] mt-0.5">
-          Roll-ups across all pods: avg utilization, pods in the 80–85% optimal band, pods over 100%, and total available bandwidth for the current month.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          title="Overall Avg Utilization"
-          value={`${summary.avgUtil.toFixed(1)}%`}
-          valueColor={
-            summary.avgUtil >= 80 && summary.avgUtil <= 85 ? "green" : "white"
-          }
-        />
-        <SummaryCard
-          title="Pods At Optimal (80-85%)"
-          value={summary.podsOptimal}
-          valueColor="green"
-        />
-        <SummaryCard
-          title="Pods Over Capacity (>100%)"
-          value={summary.podsOver}
-          valueColor={summary.podsOver > 0 ? "red" : "green"}
-        />
-        <SummaryCard
-          title="Total Available Bandwidth"
-          value={
-            summary.hasBandwidthData
-              ? summary.totalAvailableBandwidth
-              : "N/A"
-          }
-          valueColor={
-            !summary.hasBandwidthData
-              ? "white"
-              : summary.totalAvailableBandwidth >= 0
-                ? "green"
-                : "red"
-          }
-          description="Current month: capacity - projected"
-        />
-      </div>
-
-      {/* Capacity Chart */}
-      <div id="capacity-chart" className="scroll-mt-[140px] rounded-xl border border-[#2a2a2a] bg-[#161616] p-6">
-        <div className="mb-4">
-          <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-            Utilization by Pod <DataSourceBadge type="live" source="Sheet: 'ET CP 2026 [V11 Mar 2026]' — Spreadsheet: Editorial Capacity Planning. Monthly pod-level capacity projections and utilization." />
-          </h4>
-          <p className="text-[10px] font-mono text-[#606060] mt-0.5">
-            Per-pod monthly utilization = projected workload ÷ pod capacity. Reference bands at 80% and 100% show the optimal zone and the over-capacity line.
-          </p>
-        </div>
-        <CapacityChart data={capacity} />
-      </div>
-
-      {/* Capacity Table */}
-      <h3 id="capacity-detail" className="scroll-mt-[140px] font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-        Capacity Detail <DataSourceBadge type="live" source="Per-pod monthly capacity, projected vs. actual usage." />
-      </h3>
-      <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] table-scroll">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-[#2a2a2a] hover:bg-transparent">
-              <TableHead className="text-xs text-[#C4BCAA]">Editorial Pod</TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">Month</TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">
-                Total Capacity
-              </TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">
-                Projected Articles
-              </TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">
-                Actual Used
-              </TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">
-                Available
-              </TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">
-                Variance
-              </TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">
-                Utilization %
-              </TableHead>
-              <TableHead className="text-xs text-[#C4BCAA]">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tableRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center text-[#606060]">
-                  No capacity data available.
-                </TableCell>
-              </TableRow>
-            ) : (
-              tableRows.map((row, idx) => {
-                const total = row.total_capacity ?? 0;
-                const projected = row.projected_used_capacity ?? 0;
-                const actual = row.actual_used_capacity ?? 0;
-                const utilPct =
-                  total > 0
-                    ? Math.round((projected / total) * 1000) / 10
-                    : 0;
-                const status = getCapacityStatus(utilPct);
-
-                return (
-                  <TableRow
-                    key={row.id}
-                    className="border-[#2a2a2a] hover:bg-[#1F1F1F] animate-fade-slide"
-                    style={{ animationDelay: `${idx * 30}ms` }}
-                  >
-                    <TableCell>
-                      <CapacityPodBadge pod={row.pod} />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-[#C4BCAA]">
-                      {MONTH_SHORT[row.month]} {row.year}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-white">
-                      {total}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-white">
-                      {projected}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-white">
-                      {actual > 0 ? actual : "\u2014"}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "font-mono text-xs font-semibold",
-                        total - projected < 0
-                          ? "text-[#ED6958]"
-                          : "text-white"
-                      )}
-                    >
-                      {total - projected}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "font-mono text-xs font-semibold",
-                        projected - total > 0
-                          ? "text-[#ED6958]"
-                          : "text-white"
-                      )}
-                    >
-                      {projected - total > 0
-                        ? `+${projected - total}`
-                        : projected - total}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "font-mono text-xs font-semibold",
-                        utilPct >= 80 && utilPct <= 85
-                          ? "text-[#42CA80]"
-                          : utilPct > 100
-                            ? "text-[#ED6958]"
-                            : utilPct > 85
-                              ? "text-[#F5BC4E]"
-                              : "text-[#ED6958]"
-                      )}
-                    >
-                      {utilPct.toFixed(1)}%
-                    </TableCell>
-                    <TableCell>{status}</TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function CapacityPodBadge({ pod }: { pod: string }) {
-  const color =
-    POD_COLORS[pod] ?? "bg-[#606060]/15 text-[#909090] border-[#606060]/30";
-  return (
-    <Badge variant="outline" className={color}>
-      {pod}
-    </Badge>
-  );
-}
-
-function getCapacityStatus(utilPct: number) {
-  if (utilPct >= 80 && utilPct <= 85) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-[#42CA80]/15 text-[#42CA80] border-[#42CA80]/30"
-      >
-        Optimal
-      </Badge>
-    );
-  }
-  if (utilPct > 85 && utilPct <= 100) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-[#F5BC4E]/15 text-[#F5BC4E] border-[#F5BC4E]/30"
-      >
-        Warning
-      </Badge>
-    );
-  }
-  if (utilPct > 100) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30"
-      >
-        Over
-      </Badge>
-    );
-  }
-  // Under 80%
-  return (
-    <Badge
-      variant="outline"
-      className="bg-[#ED6958]/15 text-[#ED6958] border-[#ED6958]/30"
-    >
-      Under
-    </Badge>
   );
 }
