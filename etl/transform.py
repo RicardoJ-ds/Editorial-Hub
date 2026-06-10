@@ -174,6 +174,82 @@ def build_client_contributions_mart(session: Session, mappings: dict) -> list[di
     return out
 
 
+def build_month_basis_mart(session: Session) -> list[dict]:
+    """Per (client, year, month): Operating Model actual (calendar month) vs the
+    article log counted two ways — by EDITORIAL month (week distribution, what
+    the dashboards use) and by CALENDAR month (the article's submitted date).
+
+    This is the evidence table for the month-definition question: for CLOSED
+    months and well-logged clients the editorial-month count equals the
+    Operating Model actual exactly, proving the data isn't lost — only the month
+    boundary + completeness differ. `verdict` tags each row for quick scanning."""
+    rows = session.execute(
+        text(
+            """
+            WITH ph AS (
+              SELECT client_id, year, month, SUM(COALESCE(articles_actual,0)) AS act
+              FROM production_history WHERE is_actual AND client_id IS NOT NULL
+              GROUP BY 1,2,3),
+            le AS (
+              SELECT client_id, year, month, COUNT(DISTINCT article_uid) AS c
+              FROM article_records WHERE client_id IS NOT NULL AND year IS NOT NULL
+              GROUP BY 1,2,3),
+            lc AS (
+              SELECT client_id,
+                     EXTRACT(YEAR FROM submitted_date)::int AS year,
+                     EXTRACT(MONTH FROM submitted_date)::int AS month,
+                     COUNT(DISTINCT article_uid) AS c
+              FROM article_records
+              WHERE client_id IS NOT NULL AND submitted_date IS NOT NULL
+              GROUP BY 1,2,3)
+            SELECT c.name AS client_name,
+                   COALESCE(ph.year, le.year, lc.year) AS year,
+                   COALESCE(ph.month, le.month, lc.month) AS month,
+                   COALESCE(ph.act, 0) AS operating_model_actual,
+                   COALESCE(le.c, 0) AS log_editorial_month,
+                   COALESCE(lc.c, 0) AS log_calendar_month
+            FROM ph
+            FULL JOIN le USING (client_id, year, month)
+            FULL JOIN lc USING (client_id, year, month)
+            JOIN clients c
+              ON c.id = COALESCE(ph.client_id, le.client_id, lc.client_id)
+            ORDER BY 1, 2, 3
+            """
+        )
+    )
+    out: list[dict] = []
+    for r in rows:
+        prod, edit, cal = r.operating_model_actual, r.log_editorial_month, r.log_calendar_month
+        diff = edit - prod
+        if prod == 0 and edit == 0 and cal == 0:
+            continue
+        if prod == 0:
+            verdict = "no_operating_model"
+        elif edit == prod:
+            verdict = "exact_match"
+        elif abs(diff) <= 2:
+            verdict = "close"
+        elif edit == 0:
+            verdict = "missing_from_log"
+        elif abs(cal - prod) < abs(diff):
+            verdict = "month_boundary"  # calendar count is closer → boundary effect
+        else:
+            verdict = "gap"
+        out.append(
+            {
+                "client_name": r.client_name,
+                "year": r.year,
+                "month": r.month,
+                "operating_model_actual": prod,
+                "log_editorial_month": edit,
+                "log_calendar_month": cal,
+                "edit_minus_prod": diff,
+                "verdict": verdict,
+            }
+        )
+    return out
+
+
 def build_articles_monthly_mart(session: Session) -> list[dict]:
     """Pre-aggregated article counts at (month, editorial_pod, growth_pod,
     client, editor) grain — the exact rollup GET /api/articles/monthly serves

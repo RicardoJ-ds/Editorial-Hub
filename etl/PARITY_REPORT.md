@@ -1,6 +1,6 @@
 # ETL → BigQuery parity report
 
-_Generated 2026-06-10 08:20 UTC by `python -m etl.parity`. Postgres = what the dashboard
+_Generated 2026-06-10 17:43 UTC by `python -m etl.parity`. Postgres = what the dashboard
 reads today; BigQuery = `graphite-data.graphite_bi_sandbox.editorial_*`
 as loaded by `python -m etl.run`._
 

@@ -1,0 +1,309 @@
+{
+  "month_basis_totals_2026": [
+    {
+      "month": "Jan",
+      "operating_model": 274,
+      "log_editorial": 201,
+      "log_calendar": 147
+    },
+    {
+      "month": "Feb",
+      "operating_model": 294,
+      "log_editorial": 224,
+      "log_calendar": 213
+    },
+    {
+      "month": "Mar",
+      "operating_model": 324,
+      "log_editorial": 252,
+      "log_calendar": 317
+    },
+    {
+      "month": "Apr",
+      "operating_model": 339,
+      "log_editorial": 259,
+      "log_calendar": 185
+    },
+    {
+      "month": "May",
+      "operating_model": 364,
+      "log_editorial": 123,
+      "log_calendar": 197
+    },
+    {
+      "month": "Jun",
+      "operating_model": 0,
+      "log_editorial": 1,
+      "log_calendar": 1
+    },
+    {
+      "month": "Sep",
+      "operating_model": 0,
+      "log_editorial": 6,
+      "log_calendar": 6
+    }
+  ],
+  "month_basis_verdicts": {
+    "gap": 180,
+    "close": 171,
+    "missing_from_log": 166,
+    "exact_match": 163,
+    "no_operating_model": 87,
+    "month_boundary": 18
+  },
+  "miter_example": [
+    {
+      "month": "Jan",
+      "operating_model": 5,
+      "log_editorial": 5,
+      "log_calendar": 4
+    },
+    {
+      "month": "Feb",
+      "operating_model": 15,
+      "log_editorial": 15,
+      "log_calendar": 11
+    },
+    {
+      "month": "Mar",
+      "operating_model": 15,
+      "log_editorial": 15,
+      "log_calendar": 20
+    },
+    {
+      "month": "Apr",
+      "operating_model": 25,
+      "log_editorial": 25,
+      "log_calendar": 11
+    },
+    {
+      "month": "May",
+      "operating_model": 28,
+      "log_editorial": 11,
+      "log_calendar": 25
+    }
+  ],
+  "caret_row_count": 28,
+  "unmapped_tabs": [
+    {
+      "tab": "Mirage",
+      "articles": 759,
+      "span": "2023-10\u20262025-12",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Curology",
+      "articles": 370,
+      "span": "2022-01\u20262023-02",
+      "proposed": "",
+      "sf_years": "2022\u20132023"
+    },
+    {
+      "tab": "Worldcoin",
+      "articles": 333,
+      "span": "2022-07\u20262023-02",
+      "proposed": "",
+      "sf_years": "2022\u20132023"
+    },
+    {
+      "tab": "Flip",
+      "articles": 307,
+      "span": "2022-06\u20262022-12",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "EarnIn",
+      "articles": 267,
+      "span": "2023-07\u20262025-04",
+      "proposed": "",
+      "sf_years": "2023\u20132025"
+    },
+    {
+      "tab": "Jaanuu",
+      "articles": 248,
+      "span": "2021-12\u20262022-09",
+      "proposed": "",
+      "sf_years": "2021\u20132021"
+    },
+    {
+      "tab": "Workleap",
+      "articles": 194,
+      "span": "2025-05\u20262026-03",
+      "proposed": "Workleap + Sharegate",
+      "sf_years": "2025\u20132026"
+    },
+    {
+      "tab": "Little Passports",
+      "articles": 159,
+      "span": "2022-02\u20262023-03",
+      "proposed": "",
+      "sf_years": "2022\u20132023"
+    },
+    {
+      "tab": "Neiman",
+      "articles": 158,
+      "span": "2022-11\u20262023-05",
+      "proposed": "Neiman Marcus",
+      "sf_years": ""
+    },
+    {
+      "tab": "Gopuff",
+      "articles": 152,
+      "span": "2022-03\u20262022-08",
+      "proposed": "",
+      "sf_years": "?\u2013?"
+    },
+    {
+      "tab": "Athena2",
+      "articles": 145,
+      "span": "2020-10\u20262025-11",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Orderful 2",
+      "articles": 135,
+      "span": "2024-10\u20262025-06",
+      "proposed": "Orderful (II)",
+      "sf_years": ""
+    },
+    {
+      "tab": "Bergdorf",
+      "articles": 134,
+      "span": "2022-10\u20262023-05",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Mailjet",
+      "articles": 128,
+      "span": "2022-02\u20262025-02",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Email On Acid",
+      "articles": 112,
+      "span": "2022-02\u20262022-11",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Orderful",
+      "articles": 111,
+      "span": "2023-05\u20262023-10",
+      "proposed": "Orderful (I)",
+      "sf_years": "2024\u20132025"
+    },
+    {
+      "tab": "Mailgun",
+      "articles": 107,
+      "span": "2022-02\u20262022-11",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Shift",
+      "articles": 87,
+      "span": "2022-03\u20262022-05",
+      "proposed": "",
+      "sf_years": "2021\u20132022"
+    },
+    {
+      "tab": "Dynamite",
+      "articles": 58,
+      "span": "2022-07\u20262022-10",
+      "proposed": "",
+      "sf_years": "2022\u20132022"
+    },
+    {
+      "tab": "ShareGate",
+      "articles": 49,
+      "span": "2025-08\u20262026-04",
+      "proposed": "Workleap + Sharegate",
+      "sf_years": ""
+    },
+    {
+      "tab": "Genstore",
+      "articles": 40,
+      "span": "2025-03\u20262026-03",
+      "proposed": "GenstoreAI",
+      "sf_years": "2025\u20132026"
+    },
+    {
+      "tab": "ESGgo",
+      "articles": 34,
+      "span": "2022-07\u20262022-11",
+      "proposed": "",
+      "sf_years": ""
+    },
+    {
+      "tab": "Descript",
+      "articles": 31,
+      "span": "2022-04\u20262022-06",
+      "proposed": "",
+      "sf_years": "2021\u20132024"
+    },
+    {
+      "tab": "FRC",
+      "articles": 15,
+      "span": "2023-05\u20262023-06",
+      "proposed": "First Round Capital",
+      "sf_years": ""
+    },
+    {
+      "tab": "OpenSea",
+      "articles": 15,
+      "span": "2022-06\u20262022-08",
+      "proposed": "",
+      "sf_years": "2022\u20132023"
+    },
+    {
+      "tab": "Men's Warehouse",
+      "articles": 12,
+      "span": "2026-04\u20262026-05",
+      "proposed": "Men's Wearhouse",
+      "sf_years": ""
+    },
+    {
+      "tab": "Cadre",
+      "articles": 6,
+      "span": "2022-03\u20262022-03",
+      "proposed": "",
+      "sf_years": "2022\u20132022"
+    },
+    {
+      "tab": "Credit Karma",
+      "articles": 1,
+      "span": "2026-04\u20262026-04",
+      "proposed": "",
+      "sf_years": "2024\u20132026 (active)"
+    }
+  ],
+  "mapping_impact": {
+    "editors": {
+      "confirmed_rows": 14055,
+      "total_rows": 14807,
+      "needs_decision": [
+        "Kira",
+        "Kristin",
+        "Lauren",
+        "Sam",
+        "Shain",
+        "Shalin"
+      ]
+    },
+    "writers": {
+      "applied_renames": 78,
+      "rows_full_named": 20566,
+      "rows_first_name_only": 4262,
+      "distinct_before": 286
+    },
+    "clients": {
+      "confirmed": 71,
+      "needs_decision": 13
+    }
+  }
+}

@@ -35,7 +35,11 @@ etl/
   build_mappings.py builds mappings/*.json (curated seeds ∪ live DB ∪ canonical
                     pulls); --apply-writer-aliases loads the writer dictionary
                     into article_name_aliases (self-healing, reversible)
+  reports.py        DaniQ-facing CSVs → reports/ (month-basis reconciliation,
+                    mapping tables w/ where-to-look, unmapped tabs + client years,
+                    caret rows) + REPORT_FACTS.json
   mappings/         canonical pulls + the editor/client/writer dictionaries
+  reports/          openable CSVs for DaniQ validation + the markdown report
 ```
 
 ## Commands (inside the backend container)
@@ -47,6 +51,8 @@ docker compose exec -T backend python -m etl.run --scope full     # SYNC + Re-sy
 docker compose exec -T backend python -m etl.run --tables editorial_articles  # selective
 docker compose exec -T backend python -m etl.parity               # parity proof → PARITY_REPORT.md
 docker compose exec -T backend python -m etl.build_mappings       # refresh name dictionaries
+docker compose exec -T backend python -m etl.build_mappings --apply-writer-aliases  # load writer aliases
+docker compose exec -T backend python -m etl.reports              # DaniQ CSVs → reports/
 ```
 
 Auth: `sa-key.json` mounted at `/app/sa-key.json` (project `graphite-data`,
@@ -61,13 +67,15 @@ folder is volume-mounted into the backend container (`docker-compose.yml`).
   `editorial_goals_vs_delivery`, `editorial_notion_articles`, … (full list:
   `manifest.py TABLES`). Excluded by design: RBAC/access tables, comments,
   usage analytics, audit log (app state, not sheet data).
-- **5 marts**: `editorial_capacity_pod` (latest-V## collapse, = pod-summary
+- **6 marts**: `editorial_capacity_pod` (latest-V## collapse, = pod-summary
   endpoint) · `editorial_capacity_member_utilization` (per year/month/pod/member,
   = member-utilization endpoint + canonical names) ·
   `editorial_capacity_client_contributions` (per-client processed table that
   drives the pod totals) · `editorial_articles_monthly` +
   `editorial_revisions_monthly` (the /api/articles/monthly rollup at both-axes
-  grain).
+  grain) · `editorial_month_basis` (per client×month: Operating Model actual vs
+  article log by editorial month vs calendar month + a verdict — the evidence
+  table for the month-definition question).
 - **3 mapping review tables**: `editorial_map_editors` / `_clients` / `_writers`.
 
 ## The parity proof (`PARITY_REPORT.md`)

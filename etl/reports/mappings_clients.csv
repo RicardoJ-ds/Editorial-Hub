@@ -1,0 +1,85 @@
+before_hub_name,after_salesforce_name,status,where_to_validate,note
+Adobe,Adobe,confirmed,Salesforce account name; SOW Overview client list,exact match
+Apartment List,Apartment List,confirmed,Salesforce account name; SOW Overview client list,exact match
+Athena,Athena,confirmed,Salesforce account name; SOW Overview client list,exact match
+Better,Better,confirmed,Salesforce account name; SOW Overview client list,exact match
+BetterUp,Betterup,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+Blu,Blu,confirmed,Salesforce account name; SOW Overview client list,exact match
+Bold,Bold,confirmed,Salesforce account name; SOW Overview client list,exact match
+Boulevard,Boulevard,confirmed,Salesforce account name; SOW Overview client list,exact match
+Captions,Captions,confirmed,Salesforce account name; SOW Overview client list,exact match
+Chapter,Chapter,confirmed,Salesforce account name; SOW Overview client list,exact match
+ChatGPT,OpenAI,proposed,Salesforce account name; SOW Overview client list,company renamed — confirm OpenAI is the account
+Cointracker,Cointracker,confirmed,Salesforce account name; SOW Overview client list,exact match
+College HUNKS,College HUNKS,confirmed,Salesforce account name; SOW Overview client list,exact match
+Composer,Composer,confirmed,Salesforce account name; SOW Overview client list,exact match
+Comun,Comun,confirmed,Salesforce account name; SOW Overview client list,exact match
+Contra,Contra,confirmed,Salesforce account name; SOW Overview client list,exact match
+Dr Squatch,Dr. Squatch,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+EarnIn B2C,EarnIn,decision_split,Salesforce account name; SOW Overview client list,two Hub variants → one SF account; keep split?
+Earnin B2B,EarnIn,decision_split,Salesforce account name; SOW Overview client list,two Hub variants → one SF account; keep split?
+Ellis,Ellis,confirmed,Salesforce account name; SOW Overview client list,exact match
+Engine,Hotel Engine,proposed,Salesforce account name; SOW Overview client list,likely correct — confirm
+Eventbrite,Eventbrite,confirmed,Salesforce account name; SOW Overview client list,exact match
+Everand,Everand,confirmed,Salesforce account name; SOW Overview client list,exact match
+Fellow,Fellow,confirmed,Salesforce account name; SOW Overview client list,exact match
+Felt,Felt,confirmed,Salesforce account name; SOW Overview client list,exact match
+First Round Capital,,no_sf_match,Salesforce account name; SOW Overview client list,never in SF
+Fishbowl,Fishbowl Inventory,confirmed,Salesforce account name; SOW Overview client list,
+Fivetran,Fivetran,confirmed,Salesforce account name; SOW Overview client list,exact match
+Flex,Flex,confirmed,Salesforce account name; SOW Overview client list,exact match
+Front,Front,confirmed,Salesforce account name; SOW Overview client list,exact match
+Gainbridge,Gainbridge,confirmed,Salesforce account name; SOW Overview client list,exact match
+GenstoreAI,Genstore,confirmed,Salesforce account name; SOW Overview client list,
+Glossgenius,GlossGenius,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+Grindr,Grindr LLC,confirmed,Salesforce account name; SOW Overview client list,legal-entity suffix
+Honey,Honey,confirmed,Salesforce account name; SOW Overview client list,exact match
+Honeybook,HoneyBook,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+Huntress,Huntress,confirmed,Salesforce account name; SOW Overview client list,exact match
+Invoice Simple,Invoice Simple,confirmed,Salesforce account name; SOW Overview client list,exact match
+IronVest,Ironvest,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+Landing,Hello Landing,proposed,Salesforce account name; SOW Overview client list,likely correct — confirm
+Leapsome,Leapsome,confirmed,Salesforce account name; SOW Overview client list,exact match
+Legit Security,Legit Security,confirmed,Salesforce account name; SOW Overview client list,exact match
+Lenny,,no_sf_match,Salesforce account name; SOW Overview client list,never in SF
+Linktree,Linktree,confirmed,Salesforce account name; SOW Overview client list,exact match
+Maven Clinic,Maven Clinic,confirmed,Salesforce account name; SOW Overview client list,exact match
+Men's Wearhouse,Men's Wearhouse,confirmed,Salesforce account name; SOW Overview client list,exact match
+Meta AI,Meta AI,confirmed,Salesforce account name; SOW Overview client list,exact match
+Meta BMG,Meta for Business,confirmed,Salesforce account name; SOW Overview client list,auto-fuzzy had wrongly said Meta AI
+Meta Manus,,no_sf_match,Salesforce account name; SOW Overview client list,new Meta engagement — no SF account yet
+Meta RL,Meta Reality Labs,confirmed,Salesforce account name; SOW Overview client list,auto-fuzzy had wrongly said Meta AI
+Milan Laser,Milan Laser,confirmed,Salesforce account name; SOW Overview client list,exact match
+Mistplay,Mistplay,confirmed,Salesforce account name; SOW Overview client list,exact match
+Miter,Miter,confirmed,Salesforce account name; SOW Overview client list,exact match
+Moss,Moss,confirmed,Salesforce account name; SOW Overview client list,exact match
+Neeva,,no_sf_match,Salesforce account name; SOW Overview client list,defunct
+Neiman Marcus,Neiman Marcus,confirmed,Salesforce account name; SOW Overview client list,exact match
+Notion,Notion,confirmed,Salesforce account name; SOW Overview client list,exact match
+Onton,Onton,confirmed,Salesforce account name; SOW Overview client list,exact match
+Orderful (I),Orderful,decision_split,Salesforce account name; SOW Overview client list,engagement phases → one SF account
+Orderful (II),Orderful,decision_split,Salesforce account name; SOW Overview client list,engagement phases → one SF account
+Otter,Otter,confirmed,Salesforce account name; SOW Overview client list,exact match
+Oyster,Oyster,confirmed,Salesforce account name; SOW Overview client list,exact match
+Pebl,Pebl,confirmed,Salesforce account name; SOW Overview client list,exact match
+Photoroom,PhotoRoom,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+Practice,Practice,confirmed,Salesforce account name; SOW Overview client list,exact match
+Pylon,Pylon,confirmed,Salesforce account name; SOW Overview client list,exact match
+Quinn,Quinn,confirmed,Salesforce account name; SOW Overview client list,exact match
+Rox,Rox,confirmed,Salesforce account name; SOW Overview client list,exact match
+Scribe,Scribe,confirmed,Salesforce account name; SOW Overview client list,exact match
+Sermo,Sermo,confirmed,Salesforce account name; SOW Overview client list,exact match
+Serval,Serval,confirmed,Salesforce account name; SOW Overview client list,exact match
+Smartling,Smartling,confirmed,Salesforce account name; SOW Overview client list,exact match
+Talkiatry,Talkiatry,confirmed,Salesforce account name; SOW Overview client list,exact match
+TaskRabbit,TaskRabbit Inc,confirmed,Salesforce account name; SOW Overview client list,legal-entity suffix
+Tempo,Tempo,confirmed,Salesforce account name; SOW Overview client list,exact match
+Tempo XYZ,,decision_tempo,Salesforce account name; SOW Overview client list,Tempo AND Tempo.io both exist in SF — which?
+Tempo.io,Tempo.io,confirmed,Salesforce account name; SOW Overview client list,exact match
+ThredUp,Thred Up,confirmed,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
+TravelJoy,TravelJoy,confirmed,Salesforce account name; SOW Overview client list,exact match
+Vimeo,Vimeo,confirmed,Salesforce account name; SOW Overview client list,exact match
+Webflow,Webflow,confirmed,Salesforce account name; SOW Overview client list,exact match
+Workleap + Sharegate,Workleap,decision_combined,Salesforce account name; SOW Overview client list,combined engagement; ShareGate has no SF account of its own
+dYdX,dYdX,confirmed,Salesforce account name; SOW Overview client list,exact match
+n8n,n8n,confirmed,Salesforce account name; SOW Overview client list,exact match

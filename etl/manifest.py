@@ -80,6 +80,7 @@ MARTS = [
     "editorial_capacity_client_contributions",
     "editorial_articles_monthly",
     "editorial_revisions_monthly",
+    "editorial_month_basis",
 ]
 
 MAPPING_TABLES = [

@@ -62,6 +62,12 @@ MART_SCHEMAS: dict[str, list[tuple[str, str]]] = {
         ("month_year", "STRING"), ("editorial_pod", "STRING"), ("growth_pod", "STRING"),
         ("client_name", "STRING"), ("editor_name", "STRING"), ("revisions", "INTEGER"),
     ],
+    "editorial_month_basis": [
+        ("client_name", "STRING"), ("year", "INTEGER"), ("month", "INTEGER"),
+        ("operating_model_actual", "INTEGER"), ("log_editorial_month", "INTEGER"),
+        ("log_calendar_month", "INTEGER"), ("edit_minus_prod", "INTEGER"),
+        ("verdict", "STRING"),
+    ],
 }
 
 MAPPING_SCHEMAS: dict[str, list[tuple[str, str]]] = {
@@ -176,6 +182,7 @@ def run_publish(
                 "editorial_capacity_client_contributions": lambda: transform.build_client_contributions_mart(session, mappings),
                 "editorial_articles_monthly": lambda: transform.build_articles_monthly_mart(session),
                 "editorial_revisions_monthly": lambda: transform.build_revisions_monthly_mart(session),
+                "editorial_month_basis": lambda: transform.build_month_basis_mart(session),
             }
             for name in MARTS:
                 _record(name, "mart", lambda name=name: load_rows(

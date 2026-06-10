@@ -1,288 +1,209 @@
-# Editorial data — what we cleaned, what we need you to decide
+# Editorial data clean-up — your sign-offs
 
-_For Daniela · 2026-06-10 · from Ricardo's Editorial Hub work_
+_For Daniela · 2026-06-10 · from Ricardo_
 
-**What this is.** We are moving all the editorial spreadsheet data into one clean,
-central database (BigQuery) so every dashboard reads the same numbers. Along the
-way we standardized people and client names and catalogued every data problem we
-found. This doc shows **what changed (before → after)** and lists **the few
-decisions only the team can make**. Everything else is already handled.
+We moved all the editorial spreadsheets into one clean central database and
+standardized people + client names. **The data is sound** — for every closed
+month, the article log already matches the Operating Model exactly (proof in
+§C). What's left is a short list of confirmations only you can give, because you
+built the source sheets.
 
-**Words used below** (only the unavoidable ones):
-- **Article log** = the "[Internal] Monthly Article Count" sheet (one tab per client).
-- **Capacity sheet** = the "ET CP" Editorial Team Capacity Planning sheet.
-- **Salesforce name** = the official client name in Salesforce, our system of record.
-- **Hub** = the Editorial Hub dashboard app.
+**How to use this doc:** Section A = the decisions, each with the **exact place
+to look**. Section B = the mapping tables to approve (open the CSV, tick or
+fix). Section C = why recent-month counts look low. Section D = already fixed.
+
+**Everything to review is an openable file in `etl/reports/`** (drop into Google
+Sheets):
+`mappings_editors.csv` · `mappings_writers.csv` · `mappings_clients.csv` ·
+`unmapped_client_tabs.csv` · `month_basis_by_client.csv` · `caret_rows.csv`.
+The same lists are also live in the Hub → **Admin → Data Quality → Article
+mappings** (fix one there and the next sync applies it everywhere).
 
 ---
 
-## 1 — Decisions we need from you 🟧
+## A. Decisions — at a glance
 
-### D1. Two editors share a first name — who gets the credit?
-The article log only records first names. Two cases can't be auto-resolved:
+| # | What we need you to confirm | Where to look | Our proposal |
+|---|---|---|---|
+| **1** | **"Lauren"** = Lauren Friar or Lauren Keleher? (141 articles, both active) | Monthly Article Count → **EDITOR** column. Tell us a rule (e.g. by client or pod). | a split rule from you |
+| **2** | **"Sam"** before Feb 2026 = Marceau or McGrail? | EDITOR column. McGrail left **2026-01-27**, so after that it's Marceau. | Marceau after Feb 2026; you confirm earlier |
+| **3** | **4 unknown 2022 editors**: Kristin (212), Shalin (140), Kira (109), Shain (1) | EDITOR column in tabs **Gopuff, Mailjet, Descript** (Kristin) · **Practice, Linktree, Dynamite** (Shalin) · **Practice, Email On Acid** (Kira). Not in HR. | name them, or leave as "legacy 2022 editor" |
+| **4** | **Caret rows** (`^`, `^^`, `^^^`) — what do they mean? | COPY column in tabs **Fishbowl** (rows ~226–244) & **Otter** (rows ~111–125). See `caret_rows.csv`. **Detail below.** | confirm meaning → §A-detail |
+| **5** | **13 client → Salesforce** name calls (ChatGPT→OpenAI? Tempo XYZ? splits) | `mappings_clients.csv` + the Salesforce account list. | per-row proposal in the CSV |
+| **6** | **20 ex-client tabs not in the Hub** — add or leave out? | `unmapped_client_tabs.csv` (we added each one's **years**). **Detail below.** | most ended 2021–23 → out of scope; add the active ones |
+| **7** | **Pick ONE "month" definition** for cross-sheet comparison | §C below + `month_basis_by_client.csv`. | editorial month for editor workload, Operating Model month for client delivery — never mixed in one chart |
+| **8** | **Approve writer names** (78 auto-mapped) + help name 122 legacy first-names | `mappings_writers.csv` → WRITER column. **Detail in §B.** | approve the 78; you/team fill the legacy |
 
-| Name in log | Articles | Candidates | Our proposal |
-|---|---:|---|---|
-| **Lauren** | 141 | Lauren Friar / Lauren Keleher (both active) | none — needs a rule from you (by client or pod?) |
-| **Sam** | 142 | Samantha Marceau / Samantha McGrail | Marceau for articles after Feb 2026 (McGrail left 2026-01-27); earlier ones need your call |
+### A-detail · #4 Caret rows (`^` / `^^` / `^^^`)
+In the **COPY column**, the first part of each entry is normally a document
+number (224, 225, 227…). On a few rows it's a caret instead. Looking at the
+actual rows (open `caret_rows.csv`), each caret row already has its **own
+distinct title and word count** — e.g. Fishbowl row 227 "warehouse logistics",
+row 228 "lead time" — so they are **separate real articles, not duplicates**.
+The caret seems to mean *"same source document as the row above"* (linked
+sub-articles), and several already carry an `(LP)` tag in the title.
 
-### D2. Four 2022-era editor names match nobody
-**Kristin** (212 articles), **Shalin** (140), **Kira** (109), **Shain** (1 — likely a
-Shalin typo). They appear in no HR record, no pod sheet, nothing — they predate
-every people source we have. If anyone remembers their full names, we'll map
-them; otherwise they stay as-is, clearly labeled "unknown 2022 editor."
+**So "copy the row above into the caret row" would overwrite real, different
+articles — we don't recommend that.** Our read: the carets are a *linking*
+marker, not a "count twice" marker; the rows are already counted once each
+(correct). The separate question — *should jumbos count ×2 and landing pages
+×0.5?* — we'll handle from the `[jumbo]` / `(LP)` tags in the title, which is
+reliable. **Please confirm what `^`/`^^`/`^^^` mean in your sheet** so we lock
+the rule; it's only ~16 rows, so impact is tiny either way.
 
-### D3. Garbage values in the editor column — OK to drop?
-`^`, `^^`, `AND`, `83`, `no edits` appear as "editors" on 7 rows total. We plan
-to drop them from editor counts (the articles still count for the client).
+### A-detail · #6 Ex-client tabs (with years)
+These 20 tabs have articles in the log but no Hub client, so their work is
+counted nowhere. We added each one's **article date span** and its **Salesforce
+contract years** — and the pattern is clear: **most are old engagements that
+ended in 2021–2023, before the current SOW Overview**, so leaving them out is
+reasonable. A few are recent and worth adding.
 
-### D4. Client names that need a human call
+| Tab | Articles | Article span | Salesforce contract | Likely call |
+|---|---:|---|---|---|
+| Mirage | 759 | 2023-10 → 2025-12 | not in Salesforce | **recent & large — review** |
+| Curology | 370 | 2022-01 → 2023-02 | 2022–2023 | out of scope (ended) |
+| Worldcoin | 333 | 2022-07 → 2023-02 | 2022–2023 | out of scope (ended) |
+| Flip | 307 | 2022-06 → 2022-12 | FlipFit 2022 | out of scope (ended) |
+| EarnIn | 267 | 2023-07 → 2025-04 | 2023–2025 | map to EarnIn (see #5) |
+| Jaanuu | 248 | 2021-12 → 2022-09 | 2021 | out of scope (ended) |
+| Little Passports | 159 | 2022-02 → 2023-03 | 2022–2023 | out of scope (ended) |
+| Gopuff | 152 | 2022-03 → 2022-08 | — | out of scope (ended) |
+| Bergdorf | 134 | 2022-… | not in Salesforce | out of scope (ended) |
+| Mailjet / Email On Acid / ESGgo | 128 / 112 / 34 | 2022–23 | not in Salesforce | out of scope (ended) |
+| Mailgun | 107 | 2022 | Pathwire/Mailgun 2022–23 | out of scope (ended) |
+| Shift / Dynamite / OpenSea / Cadre | 87 / 58 / 15 / 6 | 2021–23 | ended 2021–23 | out of scope (ended) |
+| Descript | 31 | 2021–24 | 2021–2024 | out of scope (ended) |
+| **Credit Karma** | 1 | recent | **active through 2026** | **add to Hub** |
+| Athena2 | 145 | — | "Athena" 2024–25 | second Athena engagement? |
 
-| Hub name | Question | Our proposal |
+Full list with every column in `unmapped_client_tabs.csv`. (Plus 7 tabs we
+already mapped with confidence — see §B clients.)
+
+---
+
+## B. Mapping tables to approve
+
+Each is a CSV you can open and tick/correct. Status meanings: **confirmed** =
+applied · **proposed** = our best guess, needs your OK · **ambiguous /
+unresolved** = needs your call.
+
+### B1 · Editors — `mappings_editors.csv`
+First names in the log → full HR names. **32 of 43 done, covering 95% of all
+14,807 article rows.** Open question rows are #1–3 above. Columns include
+**where_to_validate** (the exact tabs each name appears in).
+
+### B2 · Writers — `mappings_writers.csv`
+The writer column is also first-names-only. **78 names auto-mapped to full
+names** (covering **10,470 of 14,776 writer rows ≈ 71%**); distinct writer names
+dropped 244 → 208. Please skim and approve. Two things need you:
+- **The "Dan" cluster** (≈37 rows): Dan / Dani / Daniel / Daniela →
+  Daniela Quiroga, Daniela Rial, or Danielle MacKinlay? (tabs: Better,
+  EarnIn B2B, Engine, Ellis, Moss…)
+- **122 legacy first-name-only writers** (4,306 rows, mostly 2022–24) match no
+  current roster — kept as first names. Top: Emile (413, tabs Notion/Email On
+  Acid/Mailgun), Dana (289), Chantel (234), Gabryel (221), Mark (221). If old
+  rosters exist, we can finish these.
+
+### B3 · Clients — `mappings_clients.csv`
+**71 of 84 Hub clients link to Salesforce automatically** (13 were just spelling
+fixes — incl. the corrected `Meta BMG → Meta for Business`,
+`Meta RL → Meta Reality Labs`). The **13 needing your call** (#5):
+
+| Hub name | Question | Proposal |
 |---|---|---|
-| ChatGPT | Salesforce has **OpenAI** — same account? | map to OpenAI |
+| ChatGPT | Salesforce has **OpenAI** | map to OpenAI |
 | Engine | Salesforce has **Hotel Engine** | map to Hotel Engine |
 | Landing | Salesforce has **Hello Landing** | map to Hello Landing |
-| EarnIn B2C + Earnin B2B | one Salesforce account (**EarnIn**) — keep the split in our reports? | keep split, both link to EarnIn |
-| Orderful (I) + (II) | engagement phases, one account | keep split, both link to Orderful |
-| Workleap + Sharegate | combined deal; ShareGate has no Salesforce account | link to Workleap |
-| Tempo XYZ | Salesforce has BOTH **Tempo** and **Tempo.io** | which one? |
-| Meta Manus | no Salesforce account exists | create one, or leave unlinked? |
-| First Round Capital / Lenny / Neeva | never in Salesforce (Neeva defunct) | leave unlinked, marked "no Salesforce account" |
+| EarnIn B2C + Earnin B2B | one account (EarnIn) — keep split in reports? | keep split, both → EarnIn |
+| Orderful (I) + (II) | phases, one account | keep split, both → Orderful |
+| Workleap + Sharegate | combined; ShareGate has no Salesforce account | → Workleap |
+| Tempo XYZ | Salesforce has BOTH Tempo and Tempo.io | which one? |
+| Meta Manus | no Salesforce account | create one, or leave unlinked? |
+| First Round Capital / Lenny / Neeva | never in Salesforce (Neeva defunct) | leave unlinked |
 
-### D5. 20 article-log tabs belong to no Hub client (≈3,400 articles)
-These clients were never added to the Hub's client list (SOW Overview), so their
-articles are counted nowhere. Most exist in Salesforce — they're real clients,
-just missing from the Hub. **Decide per client: add to the Hub, or mark
-out-of-scope** (e.g. ended before tracking started).
-
-| Tab | Articles | In Salesforce? |
-|---|---:|---|
-| Mirage | 759 | no |
-| Curology | 370 | yes |
-| Worldcoin | 333 | yes |
-| Flip | 307 | close — "FlipFit" |
-| EarnIn | 267 | yes — also: which Hub variant, B2C or B2B? |
-| Jaanuu | 248 | yes |
-| Little Passports | 159 | yes |
-| Gopuff | 152 | yes — "Go Puff" |
-| Bergdorf | 134 | no |
-| Mailjet | 128 | no |
-| Email On Acid | 112 | no |
-| Mailgun | 107 | close — "Pathwire/Mailgun" |
-| Shift | 87 | yes |
-| Dynamite | 58 | yes |
-| ESGgo | 34 | no |
-| Descript | 31 | yes |
-| OpenSea | 15 | yes |
-| Cadre | 6 | yes |
-| Athena2 | 145 | "Athena" — second engagement? |
-| Credit Karma | 1 | yes |
-
-(Another 7 tabs we already mapped with confidence — see section 3. One, Workleap,
-is live in the Hub already.)
-
-### D6. Whole clients missing from the article log
-- **Meta AI / Meta BMG**: no tabs at all, yet the Operating Model claims 18 and
-  15 delivered articles as "actual" — **nothing corroborates those numbers**.
-- **College HUNKS**: 37 articles all-time in the log vs ~29/month expected.
-- **Eventbrite**: tab stops in February.
-Someone on the team needs to backfill these rows (we can't invent them).
-
-### D7. Pick ONE month definition (the biggest analytical decision)
-"May" means three different things across our sheets, so per-month counts look
-~⅓ lower in the article log than in the Operating Model. Worked example —
-**Miter, May 2026**: article log "May" (editorial month, starts ~the 6th) = 11
-articles · calendar May = 25 · Operating Model "May" = 28 · Goals-vs-Delivery =
-28. None of these are wrong — they count different windows. **Decision needed:
-which month basis do we standardize comparisons on?** Our proposal: keep the
-editorial month for editor workload (capacity), and the Operating Model month
-for client delivery — but never mix the two in one chart, and label each.
-
-### D8. Writers we couldn't fully name
-The writer column is also first-names-only. We matched most (section 3), but:
-- **122 first-name-only writers** (4,262 articles, mostly 2022–2024) exist in no
-  roster we have — they stay as first names, labeled "legacy writer". Top:
-  Emile (413), Dana (289), Chantel (234), Gabryel (221), Mark (221), Samaara (199).
-  If old rosters exist anywhere, we can finish the job.
-- **Dan / Dani / Daniel / Daniela** (37 articles) — could be Daniela Quiroga,
-  Daniela Rial, or Danielle MacKinlay. Who?
-- Small tail of unresolved one-offs (86 articles), incl. "John T" (24),
-  "crowd content" (23), "Austin DeNoce" (10).
+Article-tabs we already mapped (proposed, in `mappings_clients.csv`):
+Men's Warehouse→Men's Wearhouse, Neiman→Neiman Marcus, Orderful→Orderful (I),
+Orderful 2→Orderful (II), ShareGate→Workleap + Sharegate, Genstore→GenstoreAI,
+FRC→First Round Capital.
 
 ---
 
-## 2 — Decided & shipped this week 🟦 (FYI, no action needed)
+## C. Why recent-month counts look low (decision #7)
 
-1. **Capacity sheet "shared slot" bug fixed.** Cells like
-   "Maggie Gowland (14) Anabelle Zaluski (10)" were counted as ONE person with
-   capacity 10. They now split into two people (14 + 10). Per-editor capacity
-   for the affected months is now correct.
-2. **Capacity sheet typos mapped**: "Kennedy Sievers" → Kennedy Stevens,
-   "ROBERT THORPE" → Robert Thorpe; annotations like "(temp)", "(net-new)",
-   "(backfill)" are stripped before matching. Slot placeholders ("new hire",
-   "support from Pod 1") are labeled as placeholders, not people.
-3. **The Maggie & Tiffany "status mystery" is solved** — HR says TERMINATED,
-   capacity says active. Both are right: Maggie Gowland left 2026-06-03 and
-   Tiffany Anderson left 2026-05-07, so they really were active in the months
-   the capacity sheet staffs them.
-4. **"Mike" identified**: Michael Doyle, an editor employed Mar–May 2023 —
-   exactly the months his 55 articles appear.
-5. **Writer name cleanup applied**: 78 first-name variants now map to full
-   names (10,281 articles, ~70% of all writer rows) — see section 3. This is
-   live in the Hub's Data Quality screen and reversible.
-6. **Editor typos merged**: Derriik→Derrik Chinn, Magggie/Magie/MAGGIE/maggie→
-   Maggie Gowland, NIcholas→Nicholas Youngblood, etc.
-7. **Everything lands in BigQuery now.** All dashboard data + these mappings
-   are published to central tables (`editorial_*`), with an automated proof that
-   the dashboard numbers are EXACTLY the same as today's (see
-   `PARITY_REPORT.md` — every table and every chart-feeding number matched).
+Short version: **nothing is missing for closed months.** "May" just means three
+different windows across our sheets:
+- **Article log** buckets by the *editorial* month (weeks starting ~the 6th).
+- **Operating Model / Goals** bucket by the *delivered / calendar* month.
 
-**Still on the engineering list** (known, not yet shipped):
-- 471 articles have dates we can't read (Vimeo 186, Webflow 118, Go Puff 27,
-  ~140 across other tabs — the date column says e.g. "12/17" with no year and
-  the article-file column that would tell us the year is empty). Parser fix planned.
-- The whole **Felt** tab (96 rows) is skipped — its header row is laid out
-  differently. Fix planned.
-- Jumbo articles count as 1 (should weigh ×2) and landing pages as 1 (should
-  weigh ×0.5) in the article log — there's no content-type column; we'll read
-  the `[jumbo]` / `(LP)` tags in titles (~91 rows have markers).
-- Per-editor utilization splits each pod's verified output by article share.
-  This assumes under-logging is roughly even across a pod's editors —
-  reasonable, but unproven. The better the log (D5, D6), the better the split.
+**The proof** — for the 72 client-months that closed in 2026 (Jan–Apr), the
+editorial-month log **equals** the Operating Model actual **exactly in 50 of
+them**, and none are empty. The apparent gap is entirely in the **current
+month** (May: 0 exact — the sheet just isn't filled in yet) plus a few clients
+genuinely not logged (§D).
 
----
+**Worked example — Miter (your go-to):**
 
-## 3 — Name mappings: before → after
+| Month | Operating Model | Log (editorial month) | Log (calendar month) |
+|---|---:|---:|---:|
+| Jan | 5 | **5** | 4 |
+| Feb | 15 | **15** | 11 |
+| Mar | 15 | **15** | 20 |
+| Apr | 25 | **25** | 11 |
+| May (open) | 28 | 11 | 25 |
 
-### 3a. Editors (article log → HR full name) — applied
-32 of 43 log names mapped, covering **94.9%** of 14,789 article rows.
+Editorial-month and Operating Model agree perfectly for the closed months; only
+the in-progress May differs (and there the *calendar* count, 25, is already near
+28). **Whole-portfolio 2026:**
 
-| Before (log) | After (HR name) | Note |
-|---|---|---|
-| Alyssa | Alyssa Zacharias | |
-| Bryan | Bryan Clark | |
-| Chrissy | Chrissy Woods | |
-| Elliot | Elliot Gardner | |
-| Haley | Haley Drucker | |
-| Jimmy | Jimmy Bunes | |
-| Kennedy | Kennedy Stevens | |
-| Lee | Lee Anderson | |
-| Nina | Nina Denison | |
-| Robert | Robert Thorpe | |
-| Shivani | Shivani Verma | |
-| Mike | Michael Doyle | editor Mar–May 2023 |
-| Abby | Abby Norwood | former |
-| Anabelle | Anabelle Zaluski | former |
-| Chelsea | Chelsea Erhard | former |
-| Derrik / Derriik | Derrik Chinn | former; typo merged |
-| Eesha | Eesha Verma | former |
-| Jared | Jared Maguire | former |
-| Katie | Katie Shevlin | former |
-| Kimberly | Kimberly Pavlovich | former |
-| Maggie / MAGGIE / Magggie / Magie / maggie | Maggie Gowland | left 2026-06-03 |
-| Micki | Micki Cottam | former |
-| Nicholas / NIcholas | Nicholas Youngblood | former |
-| Shelby | Shelby Talbot | former |
-| Tiffany | Tiffany Anderson | left 2026-05-07 |
-| Vince | Vincent Lee | former |
-| Lauren · Sam · Kira · Kristin · Shain/Shalin | **pending — see D1/D2** | |
-| ^ · ^^ · AND · 83 · no edits | **drop — see D3** | |
+| Month | Operating Model | Log (editorial) | Log (calendar) |
+|---|---:|---:|---:|
+| Jan | 274 | 201 | 147 |
+| Feb | 294 | 224 | 213 |
+| Mar | 324 | 252 | 317 |
+| Apr | 339 | 259 | 185 |
+| May (open) | 364 | 123 | 197 |
 
-### 3b. Writers (article log → full name) — applied, top 25 by volume
-78 renames applied (10,281 articles). Full list lives in the Hub's Data
-Quality → Article mappings screen and in `mappings/writer_aliases.json`.
+The full per-client × per-month breakdown — with all three counts and a verdict
+(`exact_match` / `close` / `month_boundary` / `missing_from_log`) — is in
+**`month_basis_by_client.csv`**.
 
-| Before | After | Articles |
-|---|---|---:|
-| Eric | Eric Esposito | 1,346 |
-| Kimberly | Kimberly Kruge | 1,245 |
-| Chelsea | Chelsea Oliver | 864 |
-| Aranyak | Aranyak Nanda | 751 |
-| Camille | Camille Tovee | 691 |
-| Kevin | Kevin Vaughn | 664 |
-| Ashton | Ashton Playsted | 472 |
-| Abby | Abby Norwood | 370 |
-| Rob | Rob Harper | 363 |
-| Adaeze | Adaeze Nwakaeze | 245 |
-| Rich | Rich Dezso | 241 |
-| Rocco | Rocco Pendola | 211 |
-| Jimmy | Jimmy Bunes | 198 |
-| Sarah | Sarah Foley | 164 |
-| Danielle | Danielle MacKinlay | 152 |
-| Meredith | Meredith Kane | 146 |
-| Sam | Samantha McGrail | 145 |
-| Robert | Robert Thorpe | 135 |
-| Jack | Jack Limebear | 123 |
-| Pat | Patrick Sather | 122 |
-| Telisa | Telisa Faye | 110 |
-| Jacob | Jacob McPhail | 109 |
-| Sara | Sarah Foley | 109 |
-| Alex | Alex Shoemaker | 108 |
-| Kev | Kevin Vaughn | 98 |
-
-(Note: the writer "Kimberly" is Kimberly **Kruge** — a different person from the
-editor Kimberly **Pavlovich**.)
-
-### 3c. Clients (Hub name → Salesforce name)
-71 of 84 Hub clients link to Salesforce automatically. 13 of those differ only
-in spelling — now standardized:
-
-| Hub name (before) | Salesforce name (after) |
-|---|---|
-| BetterUp | Betterup |
-| Dr Squatch | Dr. Squatch |
-| Fishbowl | Fishbowl Inventory |
-| GenstoreAI | Genstore |
-| Glossgenius | GlossGenius |
-| Grindr | Grindr LLC |
-| Honeybook | HoneyBook |
-| IronVest | Ironvest |
-| **Meta BMG** | **Meta for Business** (auto-match had wrongly said "Meta AI") |
-| **Meta RL** | **Meta Reality Labs** (same wrong auto-match, corrected) |
-| Photoroom | PhotoRoom |
-| TaskRabbit | TaskRabbit Inc |
-| ThredUp | Thred Up |
-
-The remaining 13 need your call — see D4.
-
-### 3d. Article-log tabs we mapped to existing Hub clients — proposed
-| Tab (before) | Hub client (after) | Why |
-|---|---|---|
-| Men's Warehouse | Men's Wearhouse | tab is misspelled |
-| Neiman | Neiman Marcus | shorthand |
-| Orderful | Orderful (I) | phase-1 tab |
-| Orderful 2 | Orderful (II) | phase-2 tab |
-| ShareGate | Workleap + Sharegate | combined engagement |
-| Genstore | GenstoreAI | same client |
-| FRC | First Round Capital | acronym |
-| Workleap | Workleap + Sharegate | ✅ already applied in the Hub |
+**Decision:** which basis do we standardize on? Our proposal: editorial month
+for editor workload (capacity), Operating Model month for client delivery, and
+never blend the two in one chart.
 
 ---
 
-## 4 — Numbers appendix (so every figure reconciles)
+## D. Already fixed (FYI, no action)
 
-- **471** articles with unreadable dates → invisible in monthly views
-  (Vimeo 186, Webflow 118, Go Puff 27, ~140 spread across other tabs).
-- **96** Felt rows skipped (header layout).
-- **~91** rows carry `^` markers (mostly Webflow 36, CoinTracker 30) — some mark
-  linked articles/jumbos, some are blank separators; negligible for counts.
-- **May 2026 total**: Operating Model 364 vs article log 130 — the gap is mostly
-  the month-definition difference (D7) plus the missing tabs/rows (D5, D6),
-  NOT lost data.
-- Mapping coverage after this week: **editors 94.9%** of article rows mapped to
-  a real person · **writers 70%** full-named + 29% legacy first-name-only ·
-  **clients 71/84** Salesforce-linked.
+- **Capacity "shared slot" bug**: cells like "Maggie Gowland (14) Anabelle
+  Zaluski (10)" were counted as one person — now split into two. Per-editor
+  capacity is correct.
+- **Maggie & Tiffany "active vs terminated" mystery** solved — both left
+  recently (2026-06-03 / 2026-05-07), so they really were active in the staffed
+  months. **"Mike" = Michael Doyle** (editor Mar–May 2023).
+- **Names standardized**: editor + writer typos merged (Derriik→Derrik,
+  Magggie→Maggie, NIcholas→Nicholas…); 78 writer renames live.
+- **All data now in BigQuery** with an automated proof it matches today's
+  dashboards exactly (`PARITY_REPORT.md`).
+
+**Genuinely missing (needs the team to backfill rows):**
+- **Meta AI / Meta BMG / Meta RL** — the Operating Model claims 78 / 20 / 33
+  "actual" articles but there are **no article-log tabs at all**, so nothing
+  corroborates those numbers.
+- **Eventbrite** — logged Jan & Feb (matches exactly: 4=4, 5=5), then stops; the
+  Operating Model shows more after.
+
+**Still on engineering's list:**
+- 471 articles have unreadable dates (Vimeo 186, Webflow 118, Go Puff 27, ~140
+  others — the date is e.g. "12/17" with no year and the doc column is empty).
+- The whole **Felt** tab (96 rows) is skipped — its header is laid out
+  differently.
+- Jumbo (×2) / landing-page (×0.5) weighting — we'll read the `[jumbo]` / `(LP)`
+  title tags (see #4).
 
 ---
 
-## 5 — Where to review / change any of this
-
-- **Hub → Admin → Data Quality → Article mappings**: every editor/writer/client
-  mapping is visible there; you can add or fix one in two clicks, and the next
-  sync applies it everywhere automatically.
-- The same lists live in BigQuery (`editorial_map_editors`, `editorial_map_writers`,
-  `editorial_map_clients`) for any analysis.
-- Engineering reference (how the pipeline works, full inventory):
-  `etl/README.md`, `etl/ETL_INVENTORY.md`, `etl/NAME_MAPPINGS.md`,
-  `etl/PARITY_REPORT.md`.
+### Where to do the actual editing
+Hub → **Admin → Data Quality → Article mappings** has every editor / writer /
+client mapping; fix one there and the next sync applies it everywhere. Or mark
+up the CSVs and send them back — we'll load them.
