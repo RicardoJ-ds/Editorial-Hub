@@ -64,31 +64,37 @@ function DarkTooltip({
 export function PodUtilizationTrendChart({
   rows,
   activePods,
+  range,
 }: {
   rows: PodSummaryRow[];
   activePods?: Set<string>;
+  /** Inclusive "YYYY-MM" window from the FilterBar period; omit for all time. */
+  range?: { from: string; to: string };
 }) {
   const [metric, setMetric] = useState<Metric>("delivered");
 
   const { chartData, pods } = useMemo(() => {
     const useFilter = activePods && activePods.size > 0;
+    const mk = (r: PodSummaryRow) => `${r.year}-${String(r.month).padStart(2, "0")}`;
+    const inRange = (k: string) => !range || (k >= range.from && k <= range.to);
     const visible = rows.filter(
-      (r) => (r.total_capacity ?? 0) > 0 && (!useFilter || activePods!.has(r.pod)),
+      (r) =>
+        (r.total_capacity ?? 0) > 0 &&
+        (!useFilter || activePods!.has(r.pod)) &&
+        inRange(mk(r)),
     );
     const podList = Array.from(new Set(visible.map((r) => r.pod))).sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true }),
     );
-    const monthKeys = Array.from(
-      new Set(visible.map((r) => `${r.year}-${String(r.month).padStart(2, "0")}`)),
-    ).sort();
+    const monthKeys = Array.from(new Set(visible.map(mk))).sort();
     const byCell = new Map<string, PodSummaryRow>();
     for (const r of visible) byCell.set(`${r.pod}|${r.year}-${String(r.month).padStart(2, "0")}`, r);
 
-    const data = monthKeys.map((mk) => {
-      const [y, m] = mk.split("-").map(Number);
+    const data = monthKeys.map((key) => {
+      const [y, m] = key.split("-").map(Number);
       const row: Record<string, string | number | null> = { month: `${MONTH_ABBR[m]} ${String(y).slice(2)}` };
       for (const pod of podList) {
-        const r = byCell.get(`${pod}|${mk}`);
+        const r = byCell.get(`${pod}|${key}`);
         const cap = r?.total_capacity ?? 0;
         const used = metric === "planned" ? r?.projected_used_capacity ?? 0 : r?.actual_used_capacity ?? 0;
         // Delivered is 0 for not-yet-closed months → null so the line stops.
@@ -97,7 +103,7 @@ export function PodUtilizationTrendChart({
       return row;
     });
     return { chartData: data, pods: podList };
-  }, [rows, metric, activePods]);
+  }, [rows, metric, activePods, range]);
 
   if (pods.length === 0) {
     return <p className="py-8 text-center font-mono text-xs text-[#606060]">No capacity data.</p>;

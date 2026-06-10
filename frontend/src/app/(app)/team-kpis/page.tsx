@@ -450,7 +450,7 @@ export default function TeamKpisPage() {
           <div className="flex gap-6">
             <SectionIndex sections={CAPACITY_BY_POD_SECTIONS} topOffset={140} />
             <div className="flex-1 min-w-0">
-              <CapacityTab activePods={activePods} />
+              <CapacityTab activePods={activePods} dateRange={dateRange} />
             </div>
           </div>
         </TabsContent>
@@ -532,7 +532,13 @@ function utilStatus(pct: number | null): { color: string; label: string } {
   return { color: "#ED6958", label: "Over" };
 }
 
-function CapacityTab({ activePods }: { activePods: Set<string> }) {
+function CapacityTab({
+  activePods,
+  dateRange,
+}: {
+  activePods: Set<string>;
+  dateRange: DateRange;
+}) {
   const [rows, setRows] = useState<CapacityPodRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string>("");
@@ -543,18 +549,24 @@ function CapacityTab({ activePods }: { activePods: Set<string> }) {
     [activePods],
   );
 
+  // The shared FilterBar period scopes the whole tab: a "YYYY-MM" window the
+  // month dropdown options + the trend are clamped to.
+  const range = useMemo(() => {
+    if (dateRange.type !== "range" || !dateRange.from) return null;
+    const to = dateRange.to ?? dateRange.from;
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { from: fmt(dateRange.from), to: fmt(to) };
+  }, [dateRange]);
+  const inRange = useMemo(
+    () => (mk: string) => !range || (mk >= range.from && mk <= range.to),
+    [range],
+  );
+
   useEffect(() => {
     let alive = true;
     apiGet<CapacityPodRow[]>("/api/capacity/pod-summary")
       .then((data) => {
-        if (!alive) return;
-        setRows(data);
-        const withCap = data
-          .filter((r) => (r.total_capacity ?? 0) > 0)
-          .map((r) => capMonthKey(r.year, r.month))
-          .sort();
-        const all = data.map((r) => capMonthKey(r.year, r.month)).sort();
-        setSelected(withCap.at(-1) ?? all.at(-1) ?? "");
+        if (alive) setRows(data);
       })
       .catch(() => {})
       .finally(() => {
@@ -565,10 +577,42 @@ function CapacityTab({ activePods }: { activePods: Set<string> }) {
     };
   }, []);
 
+  // Month dropdown — only months inside the FilterBar period, newest first.
   const monthOptions = useMemo(
-    () => Array.from(new Set(rows.map((r) => capMonthKey(r.year, r.month)))).sort().reverse(),
+    () =>
+      Array.from(new Set(rows.map((r) => capMonthKey(r.year, r.month))))
+        .filter(inRange)
+        .sort()
+        .reverse(),
+    [rows, inRange],
+  );
+  const monthsWithActual = useMemo(
+    () =>
+      new Set(
+        rows.filter((r) => (r.actual_used_capacity ?? 0) > 0).map((r) => capMonthKey(r.year, r.month)),
+      ),
     [rows],
   );
+  const monthsWithCap = useMemo(
+    () =>
+      new Set(
+        rows.filter((r) => (r.total_capacity ?? 0) > 0).map((r) => capMonthKey(r.year, r.month)),
+      ),
+    [rows],
+  );
+
+  // Keep the selection valid as the period changes: prefer the latest in-range
+  // CLOSED month (has delivered actuals — the most informative), else the
+  // latest in-range month with staffed capacity, else the latest in range.
+  useEffect(() => {
+    if (selected && monthOptions.includes(selected)) return;
+    const preferred =
+      monthOptions.find((mk) => monthsWithActual.has(mk)) ??
+      monthOptions.find((mk) => monthsWithCap.has(mk)) ??
+      monthOptions[0] ??
+      "";
+    setSelected(preferred);
+  }, [monthOptions, monthsWithActual, monthsWithCap, selected]);
 
   const podRows = useMemo(() => {
     if (!selected) return [];
@@ -603,11 +647,11 @@ function CapacityTab({ activePods }: { activePods: Set<string> }) {
 
   const monthLabel = selected
     ? capMonthLabel(...(selected.split("-").map(Number) as [number, number]))
-    : "";
+    : "—";
 
   return (
     <div className="space-y-10">
-      {/* Header: title + shared month selector */}
+      {/* Header: title + shared month selector (both scoped by the period filter) */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
@@ -616,11 +660,12 @@ function CapacityTab({ activePods }: { activePods: Set<string> }) {
           <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
             Editorial pods only. Capacity = sum of every role in the pod. Planned = projected
             workload; Delivered = actual, which fills in as the month closes. Latest ET CP version.
+            {range && " Month picker + trend are scoped to the selected period."}
           </p>
         </div>
-        <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+        <Select value={selected} onValueChange={(v) => setSelected(v ?? "")} disabled={monthOptions.length === 0}>
           <SelectTrigger className="w-[150px] shrink-0">
-            <SelectValue placeholder="Month" />
+            <SelectValue placeholder="No months" />
           </SelectTrigger>
           <SelectContent>
             {monthOptions.map((mo) => {
@@ -760,8 +805,8 @@ function CapacityTab({ activePods }: { activePods: Set<string> }) {
         </div>
       </section>
 
-      {/* Trend (all months) */}
-      <TrendSection podRows={rows} activePods={activePods} />
+      {/* Trend (months inside the period) */}
+      <TrendSection podRows={rows} activePods={activePods} range={range} />
 
       {/* By Editor + By Client (selected month) */}
       {selected && <MemberUtilizationSection monthKey={selected} activePods={activePods} />}
@@ -770,13 +815,20 @@ function CapacityTab({ activePods }: { activePods: Set<string> }) {
   );
 }
 
+// A "YYYY-MM" inclusive window from the FilterBar period (null = all time).
+type MonthRange = { from: string; to: string } | null;
+const monthInRange = (mk: string, range: MonthRange) =>
+  !range || (mk >= range.from && mk <= range.to);
+
 // ── Trend wrapper: Pods (line chart) | Editors (heat matrix) ──────────────────
 function TrendSection({
   podRows,
   activePods,
+  range,
 }: {
   podRows: CapacityPodRow[];
   activePods: Set<string>;
+  range: MonthRange;
 }) {
   const [grain, setGrain] = useState<"pods" | "editors">("pods");
   return (
@@ -787,7 +839,7 @@ function TrendSection({
             Trend
           </h2>
           <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
-            Utilization across every month — by pod (line) or by editor (heat matrix).
+            Utilization across the selected period — by pod (line) or by editor (heat matrix).
           </p>
         </div>
         <div className="inline-flex shrink-0 rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
@@ -809,10 +861,10 @@ function TrendSection({
       </div>
       {grain === "pods" ? (
         <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
-          <PodUtilizationTrendChart rows={podRows} activePods={activePods} />
+          <PodUtilizationTrendChart rows={podRows} activePods={activePods} range={range ?? undefined} />
         </div>
       ) : (
-        <EditorTrendMatrix activePods={activePods} />
+        <EditorTrendMatrix activePods={activePods} range={range} />
       )}
     </section>
   );
@@ -1187,7 +1239,13 @@ function utilCellStyle(v: number | null): React.CSSProperties {
   return { backgroundColor: `rgba(237, 105, 88, ${a.toFixed(2)})` };
 }
 
-function EditorTrendMatrix({ activePods }: { activePods?: Set<string> }) {
+function EditorTrendMatrix({
+  activePods,
+  range,
+}: {
+  activePods?: Set<string>;
+  range?: MonthRange;
+}) {
   const [rows, setRows] = useState<MemberUtilMatrixRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState<TrendMetric>("real");
@@ -1209,13 +1267,16 @@ function EditorTrendMatrix({ activePods }: { activePods?: Set<string> }) {
     };
   }, []);
 
-  // Only months where some pod has real production (skip empty future months).
+  // Months with real production, clamped to the FilterBar period.
   const months = useMemo(() => {
     const withData = new Set(
-      rows.filter((r) => r.pod_actual_raw > 0).map((r) => capMonthKey(r.year, r.month)),
+      rows
+        .filter((r) => r.pod_actual_raw > 0)
+        .map((r) => capMonthKey(r.year, r.month))
+        .filter((mk) => monthInRange(mk, range ?? null)),
     );
     return Array.from(withData).sort();
-  }, [rows]);
+  }, [rows, range]);
 
   const { pods, valueAt } = useMemo(() => {
     const byCell = new Map<string, MemberUtilMatrixRow>();
