@@ -1,8 +1,47 @@
 # Editorial Hub — Task Tracker
 
-> **Last reviewed:** 2026-06-08
+> **Last reviewed:** 2026-06-10
 
 ## 🚧 In progress
+
+### ETL→BigQuery migration + capacity UI + DaniQ report (started 2026-06-10)
+
+Objective (Ricardo): mirror today's ingestion behavior exactly in a dedicated ETL that
+lands everything in BigQuery; prove the dashboard fed from BQ would show the same
+numbers; document every DQ caveat + name mapping (before/after) for DaniQ in a simple
+non-technical report; add writer mappings; surface capacity-utilization processed +
+final tables in the UI; redesign the revisions-family KPI section + matrix.
+
+- [x] **Phase 0 — STEP 0 audit**: 6 parallel auditors; inventory gaps fixed in
+      ETL_INVENTORY.md; capacity golden numbers verified; BQ write access proven;
+      name-coverage gaps absorbed into the dictionaries
+- [x] **Phase 1 — Writer mappings**: dictionary generated (roster = pod sheet ∪
+      historical full names); 78 renames APPLIED via article_name_aliases
+      (kind='writer', source='etl', reversible); 244→208 distinct names, ~70% rows
+      full-named; ambiguous/legacy flagged for DaniQ
+- [x] **Phase 2 — ETL → BigQuery**: etl/ package built (run/manifest/extract/
+      transform/load/parity/build_mappings); 27 tables + 5 marts + 3 mapping tables
+      in `graphite_bi_sandbox.editorial_*`; capacity math shared via
+      `app/services/capacity_calc.py`; **PARITY_REPORT.md = FULL PARITY** (fingerprints
+      + 4 endpoint replays byte-identical); `--scope current` ingest+publish proven
+      end-to-end. BONUS fix: `_parse_member_breakdown` space-separated combined cells
+- [x] **Phase 3 — Dashboard UI**: Capacity by Pod tab + SectionIndex + NEW Client
+      Contributions + NEW Utilization Trend (member × month heat matrix) + new
+      endpoints client-contributions / member-utilization-matrix; Monthly Articles
+      metric SUB-TABS + KPI strip + matrix Expand-all + rate heat tint. tsc + prod
+      build green. ⚠️ visual check pending (Playwright blocked by OAuth — needs one
+      manual login in its browser profile)
+- [x] **Phase 4 — DaniQ report v2**: rewritten non-technical with decisions D1–D8,
+      shipped-fixes section, embedded before→after tables, numbers appendix
+- [x] **Phase 5 — wrap**: memory updated; scoped commits on main (not pushed)
+
+#### Review (2026-06-10)
+ETL phase 1 (strangler): ingestion = the same sync_manifest steps as the SYNC
+button (exact behavior by construction); publish mirrors all dashboard tables to
+BQ with canonical-name columns ADDED (originals untouched) + computed marts.
+Parity proven two ways (table fingerprints + endpoint replays). Writer mappings
+live + reversible. Pending: DaniQ decisions D1–D8, phase-2 direct sheet extract,
+repoint reads to BQ behind a flag, date-parse/Felt/jumbo-LP fixes.
 
 ### Data Quality — normalize tabs + keep mapped rows visible (approved 2026-06-09)
 
