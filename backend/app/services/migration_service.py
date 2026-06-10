@@ -1101,9 +1101,12 @@ def _parse_et_cp_month_header(cell: str) -> tuple[int, int] | None:
 
 
 def _parse_member_breakdown(raw: str | None, total_cap: int | None) -> list[dict]:
-    """Split a Team cell into [{name, capacity}]. Handles combined cells like
-    'Lauren K (28) + Anabelle (15)'; a lone name with no parens inherits the
-    slot's total capacity."""
+    """Split a Team cell into [{name, capacity}]. Handles combined cells in
+    both formats — 'Lauren K (28) + Anabelle (15)' AND the space-separated
+    'Maggie Gowland (14) Anabelle Zaluski (10)' (no '+'); a lone name with no
+    parens inherits the slot's total capacity. Annotation parens like
+    '(backfill)' are not split points — only cells with ≥2 numeric '(N)'
+    groups get the secondary split."""
     raw = (raw or "").strip()
     if not raw or raw in ("-", "—", "N/A"):
         return []
@@ -1112,11 +1115,15 @@ def _parse_member_breakdown(raw: str | None, total_cap: int | None) -> list[dict
         part = part.strip()
         if not part:
             continue
-        m = re.match(r"^(.*?)\s*\((\d+)\)\s*$", part)
-        if m:
-            out.append({"name": m.group(1).strip(), "capacity": int(m.group(2))})
-        else:
-            out.append({"name": part, "capacity": None})
+        pieces = [part]
+        if len(re.findall(r"\(\d+\)", part)) >= 2:
+            pieces = [p.strip() for p in re.split(r"(?<=\))\s+(?=[A-Za-z])", part) if p.strip()]
+        for piece in pieces:
+            m = re.match(r"^(.*?)\s*\((\d+)\)\s*$", piece)
+            if m:
+                out.append({"name": m.group(1).strip(), "capacity": int(m.group(2))})
+            else:
+                out.append({"name": piece, "capacity": None})
     if len(out) == 1 and out[0]["capacity"] is None:
         out[0]["capacity"] = total_cap
     return out
