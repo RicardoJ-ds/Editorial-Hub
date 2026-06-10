@@ -13,13 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { apiGet } from "@/lib/api";
 import type {
   TeamMember,
@@ -541,7 +534,6 @@ function CapacityTab({
 }) {
   const [rows, setRows] = useState<CapacityPodRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<string>("");
 
   // Respect the FilterBar pod scope when it narrows to specific pods.
   const podVisible = useMemo(
@@ -601,18 +593,18 @@ function CapacityTab({
     [rows],
   );
 
-  // Keep the selection valid as the period changes: prefer the latest in-range
-  // CLOSED month (has delivered actuals — the most informative), else the
-  // latest in-range month with staffed capacity, else the latest in range.
-  useEffect(() => {
-    if (selected && monthOptions.includes(selected)) return;
-    const preferred =
+  // The single-month sections show ONE month, derived from the FilterBar period
+  // (no separate picker): the latest CLOSED month in range (has delivered
+  // actuals — most informative), else latest in-range with capacity, else
+  // latest in range. Narrow the period's end to look at an earlier month.
+  const selected = useMemo(
+    () =>
       monthOptions.find((mk) => monthsWithActual.has(mk)) ??
       monthOptions.find((mk) => monthsWithCap.has(mk)) ??
       monthOptions[0] ??
-      "";
-    setSelected(preferred);
-  }, [monthOptions, monthsWithActual, monthsWithCap, selected]);
+      "",
+    [monthOptions, monthsWithActual, monthsWithCap],
+  );
 
   const podRows = useMemo(() => {
     if (!selected) return [];
@@ -651,33 +643,18 @@ function CapacityTab({
 
   return (
     <div className="space-y-10">
-      {/* Header: title + shared month selector (both scoped by the period filter) */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Capacity — {monthLabel}
-          </h2>
-          <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
-            Editorial pods only. Capacity = sum of every role in the pod. Planned = projected
-            workload; Delivered = actual, which fills in as the month closes. Latest ET CP version.
-            {range && " Month picker + trend are scoped to the selected period."}
-          </p>
-        </div>
-        <Select value={selected} onValueChange={(v) => setSelected(v ?? "")} disabled={monthOptions.length === 0}>
-          <SelectTrigger className="w-[150px] shrink-0">
-            <SelectValue placeholder="No months" />
-          </SelectTrigger>
-          <SelectContent>
-            {monthOptions.map((mo) => {
-              const [y, m] = mo.split("-").map(Number);
-              return (
-                <SelectItem key={mo} value={mo}>
-                  {capMonthLabel(y, m)}
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+      {/* Header — the single-month sections + the trend are driven entirely by
+          the FilterBar period at the top (no separate month picker). */}
+      <div>
+        <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          Capacity — {monthLabel}
+        </h2>
+        <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
+          Editorial pods only. Capacity = sum of every role in the pod. Planned = projected
+          workload; Delivered = actual, which fills in as the month closes. Latest ET CP version.
+          The cards + tables show the latest closed month in your selected period (narrow the
+          period&apos;s end date to look at an earlier month); the trend spans the whole period.
+        </p>
       </div>
 
       {/* At a glance */}
