@@ -18,6 +18,26 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.25 — June 10
+
+**Team KPIs now shows a real capacity picture: one Capacity tab that reveals how fully each pod — and each editor — is used, month by month. The Monthly Articles revision metrics are also reorganized into clearer tabs.**
+
+### Capacity (one tab, was two)
+
+- The old **Capacity Projections** and **Capacity by Pod** tabs are merged into a single **Capacity** tab, with one shared month picker and a section rail (At a glance · By Pod · Trend · By Editor · By Client).
+- **At a glance** — planned vs delivered utilization, pods over plan, and spare capacity for the selected month.
+- **By Pod** — each pod's capacity, planned vs delivered workload, and an on-track / under / over status.
+- **By Editor** — how much of each pod's delivered work each editor carried, as a real and a weighted utilization %.
+- **By Client** — what each client adds to its pod's workload (specialized clients weighted ×1.4); these totals are exactly what the per-editor view splits up.
+- **Trend** — utilization across the months, either as a per-pod line chart (planned or delivered, with a 100% over-capacity line) or a per-editor heat grid (under / on-plan / over at a glance).
+- The whole tab now follows the page's **pod and period filters** at the top — the month picker only offers months inside the selected period, and the trend matches.
+
+### Monthly Articles
+
+- The revision metrics are now **sub-tabs — Articles · Revision rate · Revisions** — each with a one-line definition and a headline number, so it's always clear what you're looking at. The matrix shades higher revision rates and can expand or collapse all rows at once.
+
+---
+
 ## 0.3.24 — June 8
 
 **A Data Quality overhaul: catch clients that were being silently dropped, keep a running log of what you've fixed, and jump straight to the tabs that affect a given dashboard.**
