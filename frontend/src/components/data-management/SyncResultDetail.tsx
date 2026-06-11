@@ -231,8 +231,14 @@ function SheetResultRow({
   const [error, setError] = useState<string | null>(null);
 
   const hasTabs = result.details && result.details.length > 0;
+  // Synthetic manifest steps aren't Google Sheets — there's nothing to
+  // preview (labels from backend sync_manifest REFRESH_KPIS_LABEL /
+  // WAREHOUSE_LABEL; keep in sync).
+  const isSynthetic =
+    result.sheet === "Refresh computed KPIs" ||
+    result.sheet === "Publish warehouse (BigQuery)";
   // If no per-tab details, allow expanding to preview the sheet itself
-  const canPreviewSheet = !hasTabs && result.success;
+  const canPreviewSheet = !hasTabs && result.success && !isSynthetic;
 
   const toggle = useCallback(async () => {
     const next = !open;

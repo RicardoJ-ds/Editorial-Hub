@@ -8,6 +8,7 @@ every business rule via the verbatim ports in `pyrules.py` plus the SHARED
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 
 from sqlalchemy import text
@@ -26,6 +27,21 @@ def _stamp(rows: list[dict]) -> list[dict]:
     for r in rows:
         r["synced_at"] = SYNCED_AT
     return rows
+
+
+# One job = (bq table name, rows, schema). Extraction/compute stays serial
+# (one SQLAlchemy session, fast); the BQ LOAD jobs are network-bound and run
+# in parallel — this is what turns the ~2 min publish into ~25-35 s.
+Job = tuple[str, list[dict], list]
+
+
+def flush_jobs(bq, jobs: list[Job], max_workers: int = 8) -> dict[str, int]:
+    def _one(job: Job) -> tuple[str, int]:
+        name, rows, schema = job
+        return name, load_rows(bq, name, rows, schema)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        return dict(ex.map(_one, jobs))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -70,8 +86,8 @@ NAME_MAPPINGS_SPEC = [
 ]
 
 
-def build_raw(bq, session, mappings) -> dict[str, int]:
-    counts: dict[str, int] = {}
+def build_raw(session, mappings) -> list[Job]:
+    jobs: list[Job] = []
     for model, table, tkey in RAW_TABLES:
         rows = fetch_model_rows(session, model)
         if tkey == "client_canonicals":
@@ -79,7 +95,7 @@ def build_raw(bq, session, mappings) -> dict[str, int]:
         elif tkey == "article_canonicals":
             rows = transform.add_article_canonicals(rows, mappings)
         extra = _EXTRA_BY_TRANSFORM.get(tkey or "", []) + [("synced_at", "TIMESTAMP")]
-        counts[table] = load_rows(bq, table, _stamp(rows), schema_for_model(model, extra))
+        jobs.append((table, _stamp(rows), schema_for_model(model, extra)))
 
     # The 3 mapping dictionaries collapsed into ONE table with a `kind` column.
     map_rows = transform.mapping_table_rows(mappings)
@@ -99,10 +115,9 @@ def build_raw(bq, session, mappings) -> dict[str, int]:
                     "note": r.get("note") or r.get("candidates"),
                 }
             )
-    counts["editorial_raw_name_mappings"] = load_rows(
-        bq, "editorial_raw_name_mappings", _stamp(union), schema_from_spec(NAME_MAPPINGS_SPEC)
-    )
-    return counts
+    jobs.append(("editorial_raw_name_mappings", _stamp(union),
+                 schema_from_spec(NAME_MAPPINGS_SPEC)))
+    return jobs
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -174,7 +189,7 @@ def _month_key(y: int, mth: int) -> tuple[int, int]:
     return (y, mth)
 
 
-def build_int_delivery(bq, session, as_of: date) -> dict[str, int]:
+def build_int_delivery(session, as_of: date) -> list[Job]:
     """int_client_months + int_client_q_snapshot — the variance brain."""
     clients = fetch_model_rows(session, m.Client)
     deliverables = fetch_model_rows(session, m.DeliverableMonthly)
@@ -360,19 +375,15 @@ def build_int_delivery(bq, session, as_of: date) -> dict[str, int]:
             }
         )
 
-    return {
-        "editorial_int_client_months": load_rows(
-            bq, "editorial_int_client_months", _stamp(month_rows_out),
-            schema_from_spec(INT_CLIENT_MONTHS_SPEC),
-        ),
-        "editorial_int_client_q_snapshot": load_rows(
-            bq, "editorial_int_client_q_snapshot", _stamp(snapshot_out),
-            schema_from_spec(INT_Q_SNAPSHOT_SPEC),
-        ),
-    }
+    return [
+        ("editorial_int_client_months", _stamp(month_rows_out),
+         schema_from_spec(INT_CLIENT_MONTHS_SPEC)),
+        ("editorial_int_client_q_snapshot", _stamp(snapshot_out),
+         schema_from_spec(INT_Q_SNAPSHOT_SPEC)),
+    ]
 
 
-def build_int_goals(bq, session) -> dict[str, int]:
+def build_int_goals(session) -> list[Job]:
     rows = [
         dict(r._mapping)
         for r in session.execute(
@@ -384,49 +395,34 @@ def build_int_goals(bq, session) -> dict[str, int]:
         )
     ]
     out = R.goals_month_ct_rows(rows)
-    return {
-        "editorial_int_goals_month_ct": load_rows(
-            bq, "editorial_int_goals_month_ct", _stamp(out), schema_from_spec(INT_GOALS_SPEC)
-        )
-    }
+    return [("editorial_int_goals_month_ct", _stamp(out), schema_from_spec(INT_GOALS_SPEC))]
 
 
-def build_int_capacity_articles(bq, session, mappings) -> dict[str, int]:
+def build_int_capacity_articles(session, mappings) -> list[Job]:
     """Capacity + articles INT tables — reuse the phase-1 mart builders (which
     share `capacity_calc` with the API) under the new layered names."""
     from etl.run import MART_SCHEMAS  # canonical specs from phase 1
 
-    counts = {}
-    counts["editorial_int_capacity_pod_months"] = load_rows(
-        bq, "editorial_int_capacity_pod_months",
-        _stamp(transform.build_capacity_pod_mart(fetch_model_rows(session, m.CapacityProjection))),
-        schema_from_spec(MART_SCHEMAS["editorial_capacity_pod"] + [("synced_at", "TIMESTAMP")]),
-    )
-    counts["editorial_int_member_months"] = load_rows(
-        bq, "editorial_int_member_months",
-        _stamp(transform.build_member_utilization_mart(session, mappings)),
-        schema_from_spec(
-            MART_SCHEMAS["editorial_capacity_member_utilization"] + [("synced_at", "TIMESTAMP")]
-        ),
-    )
-    counts["editorial_int_client_pod_months"] = load_rows(
-        bq, "editorial_int_client_pod_months",
-        _stamp(transform.build_client_contributions_mart(session, mappings)),
-        schema_from_spec(
-            MART_SCHEMAS["editorial_capacity_client_contributions"] + [("synced_at", "TIMESTAMP")]
-        ),
-    )
-    counts["editorial_int_articles_creation"] = load_rows(
-        bq, "editorial_int_articles_creation",
-        _stamp(transform.build_articles_monthly_mart(session)),
-        schema_from_spec(MART_SCHEMAS["editorial_articles_monthly"] + [("synced_at", "TIMESTAMP")]),
-    )
-    counts["editorial_int_articles_revisions"] = load_rows(
-        bq, "editorial_int_articles_revisions",
-        _stamp(transform.build_revisions_monthly_mart(session)),
-        schema_from_spec(MART_SCHEMAS["editorial_revisions_monthly"] + [("synced_at", "TIMESTAMP")]),
-    )
-    return counts
+    def spec(key):
+        return schema_from_spec(MART_SCHEMAS[key] + [("synced_at", "TIMESTAMP")])
+
+    return [
+        ("editorial_int_capacity_pod_months",
+         _stamp(transform.build_capacity_pod_mart(fetch_model_rows(session, m.CapacityProjection))),
+         spec("editorial_capacity_pod")),
+        ("editorial_int_member_months",
+         _stamp(transform.build_member_utilization_mart(session, mappings)),
+         spec("editorial_capacity_member_utilization")),
+        ("editorial_int_client_pod_months",
+         _stamp(transform.build_client_contributions_mart(session, mappings)),
+         spec("editorial_capacity_client_contributions")),
+        ("editorial_int_articles_creation",
+         _stamp(transform.build_articles_monthly_mart(session)),
+         spec("editorial_articles_monthly")),
+        ("editorial_int_articles_revisions",
+         _stamp(transform.build_revisions_monthly_mart(session)),
+         spec("editorial_revisions_monthly")),
+    ]
 
 
 def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict[str, int]:
@@ -436,12 +432,12 @@ def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict
     as_of = as_of or date.today()
     bq = get_bq()
     mappings = transform.load_mappings()
-    counts: dict[str, int] = {}
+    jobs: list[Job] = []
     with get_session() as session:
         if "raw" in layers:
-            counts.update(build_raw(bq, session, mappings))
+            jobs += build_raw(session, mappings)
         if "int" in layers:
-            counts.update(build_int_delivery(bq, session, as_of))
-            counts.update(build_int_goals(bq, session))
-            counts.update(build_int_capacity_articles(bq, session, mappings))
-    return counts
+            jobs += build_int_delivery(session, as_of)
+            jobs += build_int_goals(session)
+            jobs += build_int_capacity_articles(session, mappings)
+    return flush_jobs(bq, jobs)

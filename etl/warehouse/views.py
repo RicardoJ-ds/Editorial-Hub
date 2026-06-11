@@ -222,8 +222,12 @@ WHERE is_flagged = TRUE OR is_rewrite = TRUE
 
 
 def create_views(bq) -> list[str]:
-    created = []
-    for name, ddl in VIEWS:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _one(v):
+        name, ddl = v
         bq.query(ddl).result()
-        created.append(name)
-    return created
+        return name
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        return list(ex.map(_one, VIEWS))
