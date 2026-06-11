@@ -1,0 +1,816 @@
+hub_client,salesforce_name,status,year,month,distinct_articles,editor_credit_rows,source_tabs
+Apartment List,Apartment List,confirmed,2022,Oct,1,1,Apartment List
+Apartment List,Apartment List,confirmed,2024,Oct,41,41,Apartment List
+Apartment List,Apartment List,confirmed,2024,Nov,44,44,Apartment List
+Athena,Athena,confirmed,2021,Nov,1,1,Athena
+Athena,Athena,confirmed,2022,Feb,4,4,Athena
+Athena,Athena,confirmed,2022,Mar,18,18,Athena
+Athena,Athena,confirmed,2022,Apr,6,6,Athena
+Athena,Athena,confirmed,2022,May,7,7,Athena
+Athena2,,not_in_mapping,2020,Oct,4,4,Athena2
+Athena2,,not_in_mapping,2025,Feb,5,5,Athena2
+Athena2,,not_in_mapping,2025,Mar,5,5,Athena2
+Athena2,,not_in_mapping,2025,Apr,13,13,Athena2
+Athena2,,not_in_mapping,2025,May,24,24,Athena2
+Athena2,,not_in_mapping,2025,Jun,18,18,Athena2
+Athena2,,not_in_mapping,2025,Jul,22,22,Athena2
+Athena2,,not_in_mapping,2025,Aug,18,18,Athena2
+Athena2,,not_in_mapping,2025,Sep,17,17,Athena2
+Athena2,,not_in_mapping,2025,Oct,13,13,Athena2
+Athena2,,not_in_mapping,2025,Nov,4,4,Athena2
+Bergdorf,,not_in_mapping,2022,Oct,5,5,Bergdorf
+Bergdorf,,not_in_mapping,2022,Nov,11,11,Bergdorf
+Bergdorf,,not_in_mapping,2022,Dec,10,11,Bergdorf
+Bergdorf,,not_in_mapping,2023,Jan,31,31,Bergdorf
+Bergdorf,,not_in_mapping,2023,Feb,25,25,Bergdorf
+Bergdorf,,not_in_mapping,2023,Mar,25,25,Bergdorf
+Bergdorf,,not_in_mapping,2023,Apr,18,18,Bergdorf
+Bergdorf,,not_in_mapping,2023,May,3,3,Bergdorf
+Better,Better,confirmed,2025,Apr,4,4,Better
+Better,Better,confirmed,2025,May,10,10,Better
+Better,Better,confirmed,2025,Jun,15,15,Better
+Better,Better,confirmed,2025,Jul,19,19,Better
+Better,Better,confirmed,2025,Aug,20,20,Better
+Better,Better,confirmed,2025,Sep,20,20,Better
+Better,Better,confirmed,2025,Oct,18,18,Better
+Better,Better,confirmed,2025,Nov,14,14,Better
+Better,Better,confirmed,2025,Dec,22,22,Better
+Better,Better,confirmed,2026,Jan,13,13,Better
+Better,Better,confirmed,2026,Feb,5,5,Better
+BetterUp,Betterup,confirmed,2022,Feb,1,1,BetterUp
+BetterUp,Betterup,confirmed,2022,Mar,20,20,BetterUp
+BetterUp,Betterup,confirmed,2022,Apr,32,32,BetterUp
+BetterUp,Betterup,confirmed,2022,May,62,62,BetterUp
+BetterUp,Betterup,confirmed,2022,Jun,20,20,BetterUp
+BetterUp,Betterup,confirmed,2022,Jul,38,38,BetterUp
+BetterUp,Betterup,confirmed,2022,Aug,40,54,BetterUp
+BetterUp,Betterup,confirmed,2022,Sep,37,37,BetterUp
+BetterUp,Betterup,confirmed,2022,Oct,28,29,BetterUp
+BetterUp,Betterup,confirmed,2022,Nov,20,20,BetterUp
+BetterUp,Betterup,confirmed,2022,Dec,40,75,BetterUp
+BetterUp,Betterup,confirmed,2023,Jan,42,72,BetterUp
+BetterUp,Betterup,confirmed,2023,Feb,41,41,BetterUp
+BetterUp,Betterup,confirmed,2023,Mar,37,37,BetterUp
+BetterUp,Betterup,confirmed,2023,Apr,55,55,BetterUp
+BetterUp,Betterup,confirmed,2023,May,78,78,BetterUp
+BetterUp,Betterup,confirmed,2023,Jun,48,48,BetterUp
+BetterUp,Betterup,confirmed,2023,Jul,50,50,BetterUp
+BetterUp,Betterup,confirmed,2023,Aug,65,65,BetterUp
+BetterUp,Betterup,confirmed,2023,Sep,45,45,BetterUp
+BetterUp,Betterup,confirmed,2023,Oct,50,50,BetterUp
+BetterUp,Betterup,confirmed,2023,Nov,28,28,BetterUp
+Blu,Blu,confirmed,2024,Nov,2,2,Blu
+Blu,Blu,confirmed,2024,Dec,3,3,Blu
+Blu,Blu,confirmed,2025,Jan,8,8,Blu
+Blu,Blu,confirmed,2025,Feb,9,9,Blu
+Blu,Blu,confirmed,2025,Mar,3,3,Blu
+Blu,Blu,confirmed,2025,Apr,4,4,Blu
+Blu,Blu,confirmed,2025,May,1,1,Blu
+Boulevard,Boulevard,confirmed,2026,Jan,5,5,Boulevard
+Boulevard,Boulevard,confirmed,2026,Feb,10,10,Boulevard
+Boulevard,Boulevard,confirmed,2026,Mar,15,15,Boulevard
+Boulevard,Boulevard,confirmed,2026,Apr,23,23,Boulevard
+Boulevard,Boulevard,confirmed,2026,May,10,10,Boulevard
+Cadre,,not_in_mapping,2022,Mar,5,5,Cadre
+ChatGPT,OpenAI,proposed,2025,Aug,4,4,ChatGPT
+Cointracker,Cointracker,confirmed,2024,Jun,10,10,CoinTracker
+Cointracker,Cointracker,confirmed,2024,Jul,29,29,CoinTracker
+Cointracker,Cointracker,confirmed,2024,Aug,8,8,CoinTracker
+Cointracker,Cointracker,confirmed,2024,Sep,3,3,CoinTracker
+Cointracker,Cointracker,confirmed,2024,Oct,12,12,CoinTracker
+Cointracker,Cointracker,confirmed,2024,Nov,10,10,CoinTracker
+Cointracker,Cointracker,confirmed,2024,Dec,17,17,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Jan,19,19,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Feb,21,21,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Mar,32,32,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Apr,13,13,CoinTracker
+Cointracker,Cointracker,confirmed,2025,May,7,7,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Jun,4,4,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Jul,9,9,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Aug,14,14,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Sep,23,23,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Oct,17,17,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Nov,22,22,CoinTracker
+Cointracker,Cointracker,confirmed,2025,Dec,23,23,CoinTracker
+Cointracker,Cointracker,confirmed,2026,Jan,24,24,CoinTracker
+Cointracker,Cointracker,confirmed,2026,Feb,16,16,CoinTracker
+Cointracker,Cointracker,confirmed,2026,Mar,17,17,CoinTracker
+Cointracker,Cointracker,confirmed,2026,Apr,19,19,CoinTracker
+College HUNKS,College HUNKS,confirmed,2026,Jan,1,1,College HUNKS
+College HUNKS,College HUNKS,confirmed,2026,Feb,5,5,College HUNKS
+College HUNKS,College HUNKS,confirmed,2026,Mar,10,10,College HUNKS
+College HUNKS,College HUNKS,confirmed,2026,Apr,10,10,College HUNKS
+College HUNKS,College HUNKS,confirmed,2026,May,11,11,College HUNKS
+Composer,Composer,confirmed,2023,Aug,1,1,Composer
+Composer,Composer,confirmed,2023,Sep,5,5,Composer
+Composer,Composer,confirmed,2023,Oct,13,13,Composer
+Composer,Composer,confirmed,2023,Nov,7,7,Composer
+Composer,Composer,confirmed,2023,Dec,20,32,Composer
+Composer,Composer,confirmed,2024,Jan,28,43,Composer
+Composer,Composer,confirmed,2024,Feb,9,11,Composer
+Composer,Composer,confirmed,2024,Mar,3,3,Composer
+Contra,Contra,confirmed,2022,Dec,5,8,Contra
+Contra,Contra,confirmed,2023,Jan,15,15,Contra
+Contra,Contra,confirmed,2023,Feb,20,20,Contra
+Contra,Contra,confirmed,2023,Mar,21,21,Contra
+Contra,Contra,confirmed,2023,Apr,24,24,Contra
+Contra,Contra,confirmed,2023,May,33,35,Contra
+Contra,Contra,confirmed,2023,Jun,26,42,Contra
+Contra,Contra,confirmed,2023,Jul,35,52,Contra
+Contra,Contra,confirmed,2023,Aug,43,77,Contra
+Contra,Contra,confirmed,2023,Sep,32,32,Contra
+Contra,Contra,confirmed,2023,Oct,48,93,Contra
+Contra,Contra,confirmed,2023,Nov,7,14,Contra
+Credit Karma,,not_in_mapping,2026,Apr,1,1,Credit Karma
+Curology,,not_in_mapping,2022,Jan,3,4,Curology
+Curology,,not_in_mapping,2022,Feb,22,22,Curology
+Curology,,not_in_mapping,2022,Apr,11,11,Curology
+Curology,,not_in_mapping,2022,May,15,15,Curology
+Curology,,not_in_mapping,2022,Jun,23,23,Curology
+Curology,,not_in_mapping,2022,Jul,24,24,Curology
+Curology,,not_in_mapping,2022,Aug,25,25,Curology
+Curology,,not_in_mapping,2022,Sep,24,27,Curology
+Curology,,not_in_mapping,2022,Oct,40,40,Curology
+Curology,,not_in_mapping,2022,Nov,24,28,Curology
+Curology,,not_in_mapping,2022,Dec,30,60,Curology
+Curology,,not_in_mapping,2023,Jan,38,43,Curology
+Curology,,not_in_mapping,2023,Feb,42,42,Curology
+Descript,,not_in_mapping,2022,Apr,7,7,Descript
+Descript,,not_in_mapping,2022,May,15,15,Descript
+Descript,,not_in_mapping,2022,Jun,8,8,Descript
+Dr Squatch,Dr. Squatch,confirmed,2026,May,1,1,Dr. Squatch
+Dynamite,,not_in_mapping,2022,Jul,12,12,Dynamite
+Dynamite,,not_in_mapping,2022,Aug,21,21,Dynamite
+Dynamite,,not_in_mapping,2022,Sep,20,20,Dynamite
+Dynamite,,not_in_mapping,2022,Oct,5,5,Dynamite
+ESGgo,,not_in_mapping,2022,Jul,1,1,ESGgo
+ESGgo,,not_in_mapping,2022,Aug,9,11,ESGgo
+ESGgo,,not_in_mapping,2022,Sep,3,6,ESGgo
+ESGgo,,not_in_mapping,2022,Oct,4,8,ESGgo
+ESGgo,,not_in_mapping,2022,Nov,4,8,ESGgo
+EarnIn,,not_in_mapping,2023,Jul,1,1,EarnIn
+EarnIn,,not_in_mapping,2023,Aug,14,21,EarnIn
+EarnIn,,not_in_mapping,2023,Sep,10,10,EarnIn
+EarnIn,,not_in_mapping,2023,Oct,13,13,EarnIn
+EarnIn,,not_in_mapping,2023,Nov,7,7,EarnIn
+EarnIn,,not_in_mapping,2023,Dec,10,14,EarnIn
+EarnIn,,not_in_mapping,2024,Jan,10,10,EarnIn
+EarnIn,,not_in_mapping,2024,Feb,10,10,EarnIn
+EarnIn,,not_in_mapping,2024,Mar,10,10,EarnIn
+EarnIn,,not_in_mapping,2024,Apr,15,15,EarnIn
+EarnIn,,not_in_mapping,2024,May,10,10,EarnIn
+EarnIn,,not_in_mapping,2024,Jun,8,14,EarnIn
+EarnIn,,not_in_mapping,2024,Jul,14,14,EarnIn
+EarnIn,,not_in_mapping,2024,Aug,10,10,EarnIn
+EarnIn,,not_in_mapping,2024,Sep,10,10,EarnIn
+EarnIn,,not_in_mapping,2024,Oct,16,16,EarnIn
+EarnIn,,not_in_mapping,2024,Nov,16,16,EarnIn
+EarnIn,,not_in_mapping,2024,Dec,16,16,EarnIn
+EarnIn,,not_in_mapping,2025,Jan,13,13,EarnIn
+EarnIn,,not_in_mapping,2025,Feb,15,15,EarnIn
+EarnIn,,not_in_mapping,2025,Mar,12,12,EarnIn
+EarnIn,,not_in_mapping,2025,Apr,10,10,EarnIn
+Earnin B2B,EarnIn,decision_split,2024,Oct,3,3,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2024,Nov,5,5,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2024,Dec,11,11,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Jan,14,14,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Feb,5,5,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Mar,4,4,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Apr,10,10,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,May,13,13,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Jun,15,15,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Jul,18,18,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Aug,12,12,EarnIn B2B
+Earnin B2B,EarnIn,decision_split,2025,Sep,9,9,EarnIn B2B
+Ellis,Ellis,confirmed,2025,Aug,2,2,Ellis
+Ellis,Ellis,confirmed,2025,Sep,3,3,Ellis
+Ellis,Ellis,confirmed,2025,Oct,7,7,Ellis
+Ellis,Ellis,confirmed,2025,Nov,6,6,Ellis
+Ellis,Ellis,confirmed,2025,Dec,16,16,Ellis
+Email On Acid,,not_in_mapping,2022,Feb,4,4,Email On Acid
+Email On Acid,,not_in_mapping,2022,Mar,15,15,Email On Acid
+Email On Acid,,not_in_mapping,2022,Apr,1,1,Email On Acid
+Email On Acid,,not_in_mapping,2022,May,7,7,Email On Acid
+Email On Acid,,not_in_mapping,2022,Jun,12,18,Email On Acid
+Email On Acid,,not_in_mapping,2022,Jul,14,16,Email On Acid
+Email On Acid,,not_in_mapping,2022,Aug,13,13,Email On Acid
+Email On Acid,,not_in_mapping,2022,Sep,16,16,Email On Acid
+Email On Acid,,not_in_mapping,2022,Oct,7,7,Email On Acid
+Email On Acid,,not_in_mapping,2022,Nov,14,14,Email On Acid
+Engine,Hotel Engine,proposed,2024,Nov,6,6,Engine
+Engine,Hotel Engine,proposed,2024,Dec,4,4,Engine
+Engine,Hotel Engine,proposed,2025,Jan,7,8,Engine
+Engine,Hotel Engine,proposed,2025,Feb,15,15,Engine
+Engine,Hotel Engine,proposed,2025,Mar,18,18,Engine
+Engine,Hotel Engine,proposed,2025,Apr,15,15,Engine
+Engine,Hotel Engine,proposed,2025,May,16,16,Engine
+Engine,Hotel Engine,proposed,2025,Jun,19,19,Engine
+Engine,Hotel Engine,proposed,2025,Jul,19,19,Engine
+Engine,Hotel Engine,proposed,2025,Aug,26,26,Engine
+Engine,Hotel Engine,proposed,2025,Sep,27,27,Engine
+Engine,Hotel Engine,proposed,2025,Oct,3,3,Engine
+Eventbrite,Eventbrite,confirmed,2025,Dec,2,2,Eventbrite
+Eventbrite,Eventbrite,confirmed,2026,Jan,4,4,Eventbrite
+Eventbrite,Eventbrite,confirmed,2026,Feb,5,5,Eventbrite
+Everand,Everand,confirmed,2025,Apr,2,2,Everand
+Everand,Everand,confirmed,2025,May,5,5,Everand
+Everand,Everand,confirmed,2025,Jun,21,21,Everand
+Everand,Everand,confirmed,2025,Jul,22,22,Everand
+Everand,Everand,confirmed,2025,Aug,18,18,Everand
+Everand,Everand,confirmed,2025,Sep,25,25,Everand
+Everand,Everand,confirmed,2025,Oct,20,20,Everand
+Everand,Everand,confirmed,2025,Nov,20,20,Everand
+FRC,,not_in_mapping,2023,May,5,14,FRC
+FRC,,not_in_mapping,2023,Jun,1,1,FRC
+Fellow,Fellow,confirmed,2024,Mar,2,2,Fellow
+Fellow,Fellow,confirmed,2024,Apr,12,12,Fellow
+Fellow,Fellow,confirmed,2024,May,10,10,Fellow
+Fellow,Fellow,confirmed,2024,Jun,8,8,Fellow
+Fellow,Fellow,confirmed,2024,Jul,2,2,Fellow
+Fishbowl,Fishbowl Inventory,confirmed,2024,Jan,5,5,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Feb,16,16,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Mar,14,14,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Apr,6,6,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,May,10,10,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Jun,21,21,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Jul,31,31,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Aug,23,23,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Sep,16,16,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Oct,21,21,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Nov,17,17,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2024,Dec,7,7,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2025,Jan,8,8,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2025,Feb,8,8,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2025,Mar,7,7,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2025,Apr,8,8,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2025,May,9,9,Fishbowl
+Fishbowl,Fishbowl Inventory,confirmed,2025,Jun,14,14,Fishbowl
+Fivetran,Fivetran,confirmed,2025,Jan,1,1,Fivetran
+Fivetran,Fivetran,confirmed,2025,Feb,1,1,Fivetran
+Fivetran,Fivetran,confirmed,2025,Sep,1,1,Fivetran
+Fivetran,Fivetran,confirmed,2025,Oct,5,5,Fivetran
+Fivetran,Fivetran,confirmed,2025,Nov,6,6,Fivetran
+Fivetran,Fivetran,confirmed,2025,Dec,18,18,Fivetran
+Fivetran,Fivetran,confirmed,2026,Jan,20,20,Fivetran
+Fivetran,Fivetran,confirmed,2026,Feb,22,22,Fivetran
+Fivetran,Fivetran,confirmed,2026,Mar,20,20,Fivetran
+Fivetran,Fivetran,confirmed,2026,Apr,20,20,Fivetran
+Fivetran,Fivetran,confirmed,2026,May,7,7,Fivetran
+Flex,Flex,confirmed,2026,Apr,5,5,Flex
+Flex,Flex,confirmed,2026,May,2,2,Flex
+Flip,,not_in_mapping,2022,Jun,25,25,Flip
+Flip,,not_in_mapping,2022,Jul,25,25,Flip
+Flip,,not_in_mapping,2022,Aug,25,49,Flip
+Flip,,not_in_mapping,2022,Sep,38,74,Flip
+Flip,,not_in_mapping,2022,Oct,50,93,Flip
+Flip,,not_in_mapping,2022,Nov,25,34,Flip
+Flip,,not_in_mapping,2022,Dec,7,7,Flip
+Front,Front,confirmed,2025,Oct,2,2,Front
+Front,Front,confirmed,2025,Nov,2,2,Front
+Front,Front,confirmed,2025,Dec,13,14,Front
+Front,Front,confirmed,2026,Jan,9,9,Front
+Front,Front,confirmed,2026,Feb,24,24,Front
+Front,Front,confirmed,2026,Mar,17,17,Front
+Front,Front,confirmed,2026,Apr,19,19,Front
+Front,Front,confirmed,2026,May,8,8,Front
+Front,Front,confirmed,2026,Jun,1,1,Front
+Gainbridge,Gainbridge,confirmed,2024,Oct,6,6,Gainbridge
+Gainbridge,Gainbridge,confirmed,2024,Nov,6,6,Gainbridge
+Gainbridge,Gainbridge,confirmed,2024,Dec,6,6,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Jan,16,16,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Feb,14,14,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Mar,18,18,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Apr,21,25,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,May,16,16,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Jun,19,19,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Jul,19,19,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Aug,13,13,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Sep,21,21,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Oct,18,18,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Nov,20,20,Gainbridge
+Gainbridge,Gainbridge,confirmed,2025,Dec,16,16,Gainbridge
+Gainbridge,Gainbridge,confirmed,2026,Jan,15,15,Gainbridge
+Gainbridge,Gainbridge,confirmed,2026,Feb,10,10,Gainbridge
+Gainbridge,Gainbridge,confirmed,2026,Mar,16,16,Gainbridge
+Genstore,,not_in_mapping,2025,Mar,1,1,Genstore
+Genstore,,not_in_mapping,2025,Dec,4,4,Genstore
+Genstore,,not_in_mapping,2026,Jan,11,11,Genstore
+Genstore,,not_in_mapping,2026,Feb,15,15,Genstore
+Genstore,,not_in_mapping,2026,Mar,9,9,Genstore
+Glossgenius,GlossGenius,confirmed,2024,May,5,5,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Jun,6,6,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Jul,19,19,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Aug,10,10,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Sep,8,8,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Oct,12,12,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Nov,10,10,GlossGenius
+Glossgenius,GlossGenius,confirmed,2024,Dec,4,4,GlossGenius
+Glossgenius,GlossGenius,confirmed,2025,Jan,15,15,GlossGenius
+Glossgenius,GlossGenius,confirmed,2025,Feb,1,1,GlossGenius
+Gopuff,,not_in_mapping,2022,Mar,1,1,Gopuff
+Gopuff,,not_in_mapping,2022,Apr,34,34,Gopuff
+Gopuff,,not_in_mapping,2022,May,30,30,Gopuff
+Gopuff,,not_in_mapping,2022,Jun,59,59,Gopuff
+Gopuff,,not_in_mapping,2022,Aug,1,1,Gopuff
+Grindr,Grindr LLC,confirmed,2023,Apr,1,1,Grindr
+Grindr,Grindr LLC,confirmed,2023,May,14,14,Grindr
+Grindr,Grindr LLC,confirmed,2023,Jun,15,15,Grindr
+Grindr,Grindr LLC,confirmed,2023,Jul,7,7,Grindr
+Grindr,Grindr LLC,confirmed,2023,Sep,18,18,Grindr
+Grindr,Grindr LLC,confirmed,2023,Oct,28,28,Grindr
+Grindr,Grindr LLC,confirmed,2023,Nov,10,10,Grindr
+Grindr,Grindr LLC,confirmed,2023,Dec,32,32,Grindr
+Grindr,Grindr LLC,confirmed,2024,Jan,46,46,Grindr
+Grindr,Grindr LLC,confirmed,2024,Feb,7,7,Grindr
+Grindr,Grindr LLC,confirmed,2024,Mar,20,20,Grindr
+Grindr,Grindr LLC,confirmed,2024,Apr,21,21,Grindr
+Grindr,Grindr LLC,confirmed,2024,May,20,20,Grindr
+Grindr,Grindr LLC,confirmed,2024,Jun,16,16,Grindr
+Grindr,Grindr LLC,confirmed,2024,Jul,24,24,Grindr
+Grindr,Grindr LLC,confirmed,2024,Aug,16,16,Grindr
+Grindr,Grindr LLC,confirmed,2024,Sep,18,18,Grindr
+Grindr,Grindr LLC,confirmed,2024,Oct,24,24,Grindr
+Grindr,Grindr LLC,confirmed,2024,Nov,19,19,Grindr
+Grindr,Grindr LLC,confirmed,2024,Dec,19,19,Grindr
+Honeybook,HoneyBook,confirmed,2025,Apr,3,3,HoneyBook
+Honeybook,HoneyBook,confirmed,2026,Jan,5,5,HoneyBook
+Honeybook,HoneyBook,confirmed,2026,Feb,10,10,HoneyBook
+Honeybook,HoneyBook,confirmed,2026,Mar,15,15,HoneyBook
+Honeybook,HoneyBook,confirmed,2026,Apr,22,22,HoneyBook
+Honeybook,HoneyBook,confirmed,2026,May,12,12,HoneyBook
+Huntress,Huntress,confirmed,2026,Feb,5,5,Huntress
+Huntress,Huntress,confirmed,2026,Mar,10,10,Huntress
+Huntress,Huntress,confirmed,2026,Apr,5,5,Huntress
+Huntress,Huntress,confirmed,2026,May,3,3,Huntress
+Invoice Simple,Invoice Simple,confirmed,2021,Nov,1,1,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Feb,5,5,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Mar,9,9,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Apr,16,16,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,May,25,25,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Jun,22,22,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Jul,28,28,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Aug,25,25,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Sep,18,18,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Oct,32,32,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Nov,22,22,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2024,Dec,28,28,Invoice Simple
+Invoice Simple,Invoice Simple,confirmed,2025,Jan,9,9,Invoice Simple
+IronVest,Ironvest,confirmed,2023,Oct,5,5,IronVest
+IronVest,Ironvest,confirmed,2023,Nov,10,10,IronVest
+IronVest,Ironvest,confirmed,2023,Dec,20,25,IronVest
+IronVest,Ironvest,confirmed,2024,Jan,35,35,IronVest
+IronVest,Ironvest,confirmed,2024,Feb,10,10,IronVest
+Jaanuu,,not_in_mapping,2021,Dec,8,8,Jaanuu
+Jaanuu,,not_in_mapping,2022,Mar,25,25,Jaanuu
+Jaanuu,,not_in_mapping,2022,Apr,25,25,Jaanuu
+Jaanuu,,not_in_mapping,2022,May,25,25,Jaanuu
+Jaanuu,,not_in_mapping,2022,Jun,24,24,Jaanuu
+Jaanuu,,not_in_mapping,2022,Jul,26,41,Jaanuu
+Jaanuu,,not_in_mapping,2022,Aug,31,62,Jaanuu
+Jaanuu,,not_in_mapping,2022,Sep,19,38,Jaanuu
+Landing,Hello Landing,proposed,2024,Jan,1,1,Landing
+Landing,Hello Landing,proposed,2024,Feb,16,16,Landing
+Landing,Hello Landing,proposed,2024,Mar,12,12,Landing
+Landing,Hello Landing,proposed,2024,Apr,11,11,Landing
+Landing,Hello Landing,proposed,2024,May,10,10,Landing
+Landing,Hello Landing,proposed,2024,Jun,8,8,Landing
+Landing,Hello Landing,proposed,2024,Jul,6,6,Landing
+Landing,Hello Landing,proposed,2024,Sep,2,2,Landing
+Leapsome,Leapsome,confirmed,2025,Apr,1,1,Leapsome
+Leapsome,Leapsome,confirmed,2026,Jan,1,1,Leapsome
+Leapsome,Leapsome,confirmed,2026,Feb,1,1,Leapsome
+Leapsome,Leapsome,confirmed,2026,Mar,8,8,Leapsome
+Leapsome,Leapsome,confirmed,2026,Apr,18,18,Leapsome
+Leapsome,Leapsome,confirmed,2026,May,17,17,Leapsome
+Legit Security,Legit Security,confirmed,2024,Aug,1,1,Legit Security
+Legit Security,Legit Security,confirmed,2024,Sep,6,6,Legit Security
+Legit Security,Legit Security,confirmed,2024,Oct,8,8,Legit Security
+Legit Security,Legit Security,confirmed,2024,Nov,12,12,Legit Security
+Legit Security,Legit Security,confirmed,2024,Dec,12,12,Legit Security
+Legit Security,Legit Security,confirmed,2025,Jan,11,11,Legit Security
+Legit Security,Legit Security,confirmed,2025,Feb,13,13,Legit Security
+Legit Security,Legit Security,confirmed,2025,Mar,10,10,Legit Security
+Legit Security,Legit Security,confirmed,2025,Apr,24,24,Legit Security
+Legit Security,Legit Security,confirmed,2025,May,14,14,Legit Security
+Legit Security,Legit Security,confirmed,2025,Jun,7,7,Legit Security
+Legit Security,Legit Security,confirmed,2025,Jul,12,12,Legit Security
+Legit Security,Legit Security,confirmed,2025,Aug,32,32,Legit Security
+Legit Security,Legit Security,confirmed,2025,Sep,14,14,Legit Security
+Legit Security,Legit Security,confirmed,2025,Oct,16,16,Legit Security
+Legit Security,Legit Security,confirmed,2025,Nov,15,15,Legit Security
+Legit Security,Legit Security,confirmed,2025,Dec,13,13,Legit Security
+Lenny,,no_sf_match,2023,Jun,3,3,Lenny
+Linktree,Linktree,confirmed,2021,Mar,4,6,Linktree
+Linktree,Linktree,confirmed,2022,Jun,11,11,Linktree
+Linktree,Linktree,confirmed,2022,Jul,22,22,Linktree
+Linktree,Linktree,confirmed,2022,Aug,31,38,Linktree
+Linktree,Linktree,confirmed,2022,Sep,31,31,Linktree
+Linktree,Linktree,confirmed,2022,Oct,31,31,Linktree
+Linktree,Linktree,confirmed,2022,Nov,25,47,Linktree
+Linktree,Linktree,confirmed,2022,Dec,14,22,Linktree
+Linktree,Linktree,confirmed,2023,Jan,33,62,Linktree
+Linktree,Linktree,confirmed,2023,Feb,25,50,Linktree
+Linktree,Linktree,confirmed,2023,Mar,26,35,Linktree
+Linktree,Linktree,confirmed,2023,Apr,23,40,Linktree
+Linktree,Linktree,confirmed,2023,May,15,26,Linktree
+Linktree,Linktree,confirmed,2023,Sep,5,5,Linktree
+Linktree,Linktree,confirmed,2023,Oct,25,25,Linktree
+Little Passports,,not_in_mapping,2022,Feb,3,3,Little Passports
+Little Passports,,not_in_mapping,2022,Aug,20,20,Little Passports
+Little Passports,,not_in_mapping,2022,Sep,18,19,Little Passports
+Little Passports,,not_in_mapping,2022,Oct,8,13,Little Passports
+Little Passports,,not_in_mapping,2022,Nov,16,28,Little Passports
+Little Passports,,not_in_mapping,2022,Dec,15,15,Little Passports
+Little Passports,,not_in_mapping,2023,Jan,15,18,Little Passports
+Little Passports,,not_in_mapping,2023,Feb,11,13,Little Passports
+Little Passports,,not_in_mapping,2023,Mar,9,19,Little Passports
+Mailgun,,not_in_mapping,2022,Feb,3,3,Mailgun
+Mailgun,,not_in_mapping,2022,Mar,13,13,Mailgun
+Mailgun,,not_in_mapping,2022,Apr,8,8,Mailgun
+Mailgun,,not_in_mapping,2022,May,15,15,Mailgun
+Mailgun,,not_in_mapping,2022,Jun,4,5,Mailgun
+Mailgun,,not_in_mapping,2022,Jul,14,14,Mailgun
+Mailgun,,not_in_mapping,2022,Aug,16,16,Mailgun
+Mailgun,,not_in_mapping,2022,Sep,15,18,Mailgun
+Mailgun,,not_in_mapping,2022,Nov,15,15,Mailgun
+Mailjet,,not_in_mapping,2022,Feb,1,1,Mailjet
+Mailjet,,not_in_mapping,2022,Mar,15,15,Mailjet
+Mailjet,,not_in_mapping,2022,Apr,9,9,Mailjet
+Mailjet,,not_in_mapping,2022,May,15,15,Mailjet
+Mailjet,,not_in_mapping,2022,Jun,15,15,Mailjet
+Mailjet,,not_in_mapping,2022,Jul,12,15,Mailjet
+Mailjet,,not_in_mapping,2022,Aug,16,30,Mailjet
+Mailjet,,not_in_mapping,2022,Sep,1,1,Mailjet
+Mailjet,,not_in_mapping,2022,Oct,7,9,Mailjet
+Mailjet,,not_in_mapping,2022,Nov,16,16,Mailjet
+Mailjet,,not_in_mapping,2025,Feb,1,1,Mailjet
+Maven Clinic,Maven Clinic,confirmed,2026,Mar,5,5,Maven Clinic
+Maven Clinic,Maven Clinic,confirmed,2026,Apr,10,10,Maven Clinic
+Maven Clinic,Maven Clinic,confirmed,2026,May,5,5,Maven Clinic
+Men's Warehouse,,not_in_mapping,2026,Apr,5,5,Men's Warehouse
+Men's Warehouse,,not_in_mapping,2026,May,7,7,Men's Warehouse
+Mirage,,not_in_mapping,2023,Oct,6,6,Mirage
+Mirage,,not_in_mapping,2023,Nov,18,25,Mirage
+Mirage,,not_in_mapping,2023,Dec,21,27,Mirage
+Mirage,,not_in_mapping,2024,Jan,30,30,Mirage
+Mirage,,not_in_mapping,2024,Feb,16,16,Mirage
+Mirage,,not_in_mapping,2024,Mar,17,17,Mirage
+Mirage,,not_in_mapping,2024,Apr,25,25,Mirage
+Mirage,,not_in_mapping,2024,May,20,20,Mirage
+Mirage,,not_in_mapping,2024,Jun,15,15,Mirage
+Mirage,,not_in_mapping,2024,Jul,25,25,Mirage
+Mirage,,not_in_mapping,2024,Aug,20,20,Mirage
+Mirage,,not_in_mapping,2024,Sep,23,23,Mirage
+Mirage,,not_in_mapping,2024,Oct,32,32,Mirage
+Mirage,,not_in_mapping,2024,Nov,40,40,Mirage
+Mirage,,not_in_mapping,2024,Dec,39,39,Mirage
+Mirage,,not_in_mapping,2025,Jan,34,34,Mirage
+Mirage,,not_in_mapping,2025,Feb,34,34,Mirage
+Mirage,,not_in_mapping,2025,Mar,67,67,Mirage
+Mirage,,not_in_mapping,2025,Apr,79,79,Mirage
+Mirage,,not_in_mapping,2025,May,50,50,Mirage
+Mirage,,not_in_mapping,2025,Jun,47,47,Mirage
+Mirage,,not_in_mapping,2025,Jul,39,39,Mirage
+Mirage,,not_in_mapping,2025,Aug,15,15,Mirage
+Mirage,,not_in_mapping,2025,Oct,6,6,Mirage
+Mirage,,not_in_mapping,2025,Nov,12,12,Mirage
+Mirage,,not_in_mapping,2025,Dec,11,11,Mirage
+Mistplay,Mistplay,confirmed,2025,Sep,2,2,Mistplay
+Mistplay,Mistplay,confirmed,2025,Oct,5,5,Mistplay
+Mistplay,Mistplay,confirmed,2025,Nov,10,10,Mistplay
+Mistplay,Mistplay,confirmed,2025,Dec,15,15,Mistplay
+Mistplay,Mistplay,confirmed,2026,Jan,24,24,Mistplay
+Mistplay,Mistplay,confirmed,2026,Feb,26,26,Mistplay
+Mistplay,Mistplay,confirmed,2026,Mar,18,18,Mistplay
+Mistplay,Mistplay,confirmed,2026,Apr,18,18,Mistplay
+Mistplay,Mistplay,confirmed,2026,May,6,6,Mistplay
+Miter,Miter,confirmed,2025,Dec,2,2,Miter
+Miter,Miter,confirmed,2026,Jan,5,5,Miter
+Miter,Miter,confirmed,2026,Feb,15,15,Miter
+Miter,Miter,confirmed,2026,Mar,15,15,Miter
+Miter,Miter,confirmed,2026,Apr,25,25,Miter
+Miter,Miter,confirmed,2026,May,11,11,Miter
+Moss,Moss,confirmed,2025,Aug,3,4,Moss
+Moss,Moss,confirmed,2025,Sep,12,15,Moss
+Moss,Moss,confirmed,2025,Oct,19,19,Moss
+Moss,Moss,confirmed,2025,Nov,17,17,Moss
+Moss,Moss,confirmed,2025,Dec,17,17,Moss
+Moss,Moss,confirmed,2026,Jan,10,10,Moss
+Neeva,,no_sf_match,2023,Jan,5,5,Neeva
+Neeva,,no_sf_match,2023,Feb,9,9,Neeva
+Neeva,,no_sf_match,2023,Mar,3,3,Neeva
+Neeva,,no_sf_match,2023,Apr,12,19,Neeva
+Neiman,,not_in_mapping,2022,Nov,22,22,Neiman
+Neiman,,not_in_mapping,2022,Dec,13,13,Neiman
+Neiman,,not_in_mapping,2023,Jan,32,34,Neiman
+Neiman,,not_in_mapping,2023,Feb,25,25,Neiman
+Neiman,,not_in_mapping,2023,Mar,23,23,Neiman
+Neiman,,not_in_mapping,2023,Apr,19,20,Neiman
+Neiman,,not_in_mapping,2023,May,8,16,Neiman
+Notion,Notion,confirmed,2022,Dec,5,10,Notion
+Notion,Notion,confirmed,2023,Jan,10,12,Notion
+Notion,Notion,confirmed,2023,Feb,25,25,Notion
+Notion,Notion,confirmed,2023,Mar,41,41,Notion
+Notion,Notion,confirmed,2023,Apr,63,63,Notion
+Notion,Notion,confirmed,2023,May,47,47,Notion
+Notion,Notion,confirmed,2023,Jun,40,40,Notion
+Notion,Notion,confirmed,2023,Jul,33,33,Notion
+Notion,Notion,confirmed,2023,Aug,27,27,Notion
+Notion,Notion,confirmed,2023,Sep,42,42,Notion
+Notion,Notion,confirmed,2023,Oct,56,56,Notion
+Onton,Onton,confirmed,2025,Mar,3,3,Onton
+Onton,Onton,confirmed,2025,Apr,8,8,Onton
+Onton,Onton,confirmed,2025,May,16,16,Onton
+Onton,Onton,confirmed,2025,Jun,25,25,Onton
+Onton,Onton,confirmed,2025,Jul,20,20,Onton
+Onton,Onton,confirmed,2025,Aug,15,15,Onton
+Onton,Onton,confirmed,2025,Sep,17,17,Onton
+OpenSea,,not_in_mapping,2022,Jun,5,5,OpenSea
+OpenSea,,not_in_mapping,2022,Aug,2,2,OpenSea
+Orderful,,not_in_mapping,2023,May,6,14,Orderful
+Orderful,,not_in_mapping,2023,Jun,16,16,Orderful
+Orderful,,not_in_mapping,2023,Jul,25,25,Orderful
+Orderful,,not_in_mapping,2023,Aug,20,20,Orderful
+Orderful,,not_in_mapping,2023,Sep,19,19,Orderful
+Orderful,,not_in_mapping,2023,Oct,14,14,Orderful
+Orderful 2,,not_in_mapping,2024,Oct,5,5,Orderful 2
+Orderful 2,,not_in_mapping,2024,Nov,10,10,Orderful 2
+Orderful 2,,not_in_mapping,2024,Dec,14,14,Orderful 2
+Orderful 2,,not_in_mapping,2025,Jan,14,14,Orderful 2
+Orderful 2,,not_in_mapping,2025,Feb,19,19,Orderful 2
+Orderful 2,,not_in_mapping,2025,Mar,28,28,Orderful 2
+Orderful 2,,not_in_mapping,2025,Apr,14,14,Orderful 2
+Orderful 2,,not_in_mapping,2025,May,15,15,Orderful 2
+Orderful 2,,not_in_mapping,2025,Jun,15,15,Orderful 2
+Otter,Otter,confirmed,2024,Sep,6,6,Otter
+Otter,Otter,confirmed,2024,Oct,14,14,Otter
+Otter,Otter,confirmed,2024,Nov,15,15,Otter
+Otter,Otter,confirmed,2024,Dec,15,15,Otter
+Otter,Otter,confirmed,2025,Jan,11,11,Otter
+Otter,Otter,confirmed,2025,Feb,13,13,Otter
+Otter,Otter,confirmed,2025,Mar,13,13,Otter
+Otter,Otter,confirmed,2025,Apr,10,10,Otter
+Otter,Otter,confirmed,2025,May,9,9,Otter
+Otter,Otter,confirmed,2025,Jun,15,15,Otter
+Otter,Otter,confirmed,2025,Jul,11,11,Otter
+Otter,Otter,confirmed,2025,Aug,3,3,Otter
+Oyster,Oyster,confirmed,2024,Mar,3,3,Oyster
+Oyster,Oyster,confirmed,2024,Apr,12,12,Oyster
+Oyster,Oyster,confirmed,2024,May,15,15,Oyster
+Oyster,Oyster,confirmed,2024,Jun,11,11,Oyster
+Oyster,Oyster,confirmed,2024,Jul,20,20,Oyster
+Oyster,Oyster,confirmed,2024,Aug,13,13,Oyster
+Oyster,Oyster,confirmed,2024,Sep,14,14,Oyster
+Oyster,Oyster,confirmed,2024,Oct,20,20,Oyster
+Oyster,Oyster,confirmed,2024,Nov,12,13,Oyster
+Oyster,Oyster,confirmed,2024,Dec,17,17,Oyster
+Oyster,Oyster,confirmed,2025,Jan,10,10,Oyster
+Oyster,Oyster,confirmed,2025,Feb,18,18,Oyster
+Oyster,Oyster,confirmed,2025,Mar,16,20,Oyster
+Oyster,Oyster,confirmed,2025,Apr,13,14,Oyster
+Oyster,Oyster,confirmed,2025,May,22,22,Oyster
+Oyster,Oyster,confirmed,2025,Jun,21,21,Oyster
+Oyster,Oyster,confirmed,2025,Jul,19,19,Oyster
+Oyster,Oyster,confirmed,2025,Aug,14,14,Oyster
+Oyster,Oyster,confirmed,2025,Sep,18,18,Oyster
+Oyster,Oyster,confirmed,2025,Oct,16,16,Oyster
+Oyster,Oyster,confirmed,2025,Nov,20,20,Oyster
+Oyster,Oyster,confirmed,2025,Dec,7,7,Oyster
+Oyster,Oyster,confirmed,2026,Jan,10,10,Oyster
+Oyster,Oyster,confirmed,2026,Feb,8,8,Oyster
+Oyster,Oyster,confirmed,2026,Mar,15,15,Oyster
+Oyster,Oyster,confirmed,2026,Apr,15,15,Oyster
+Photoroom,PhotoRoom,confirmed,2026,Mar,1,1,Photoroom
+Photoroom,PhotoRoom,confirmed,2026,Apr,3,3,Photoroom
+Photoroom,PhotoRoom,confirmed,2026,May,3,3,Photoroom
+Practice,Practice,confirmed,2021,Mar,3,3,Practice
+Practice,Practice,confirmed,2022,Jun,5,7,Practice
+Practice,Practice,confirmed,2022,Jul,23,24,Practice
+Practice,Practice,confirmed,2022,Aug,26,26,Practice
+Practice,Practice,confirmed,2022,Sep,22,29,Practice
+Practice,Practice,confirmed,2022,Oct,11,22,Practice
+Practice,Practice,confirmed,2022,Nov,25,47,Practice
+Practice,Practice,confirmed,2022,Dec,21,40,Practice
+Practice,Practice,confirmed,2023,Jan,23,46,Practice
+Practice,Practice,confirmed,2023,Feb,32,64,Practice
+Practice,Practice,confirmed,2023,Mar,31,51,Practice
+Practice,Practice,confirmed,2023,Apr,20,32,Practice
+Practice,Practice,confirmed,2023,May,32,48,Practice
+Practice,Practice,confirmed,2023,Jun,15,23,Practice
+Practice,Practice,confirmed,2023,Sep,1,2,Practice
+Practice,Practice,confirmed,2023,Nov,1,2,Practice
+Pylon,Pylon,confirmed,2025,Sep,5,5,Pylon
+Pylon,Pylon,confirmed,2025,Oct,8,8,Pylon
+Pylon,Pylon,confirmed,2025,Nov,10,10,Pylon
+Pylon,Pylon,confirmed,2025,Dec,26,26,Pylon
+Pylon,Pylon,confirmed,2026,Jan,26,26,Pylon
+Pylon,Pylon,confirmed,2026,Feb,20,20,Pylon
+Pylon,Pylon,confirmed,2026,Mar,18,18,Pylon
+Pylon,Pylon,confirmed,2026,Apr,18,18,Pylon
+Pylon,Pylon,confirmed,2026,May,10,10,Pylon
+Quinn,Quinn,confirmed,2023,Jan,4,4,Quinn
+Quinn,Quinn,confirmed,2023,Mar,6,6,Quinn
+Quinn,Quinn,confirmed,2023,Apr,1,1,Quinn
+Quinn,Quinn,confirmed,2023,Jun,1,1,Quinn
+Quinn,Quinn,confirmed,2023,Jul,8,8,Quinn
+Quinn,Quinn,confirmed,2023,Aug,31,31,Quinn
+Quinn,Quinn,confirmed,2023,Sep,18,18,Quinn
+Quinn,Quinn,confirmed,2023,Oct,31,31,Quinn
+Quinn,Quinn,confirmed,2023,Nov,19,22,Quinn
+Quinn,Quinn,confirmed,2023,Dec,30,37,Quinn
+Quinn,Quinn,confirmed,2024,Jan,36,36,Quinn
+Quinn,Quinn,confirmed,2024,Feb,30,30,Quinn
+Quinn,Quinn,confirmed,2024,Mar,8,8,Quinn
+Quinn,Quinn,confirmed,2024,Apr,7,7,Quinn
+Rox,Rox,confirmed,2025,Apr,3,3,Rox
+Rox,Rox,confirmed,2025,May,11,11,Rox
+Rox,Rox,confirmed,2025,Jun,12,12,Rox
+Rox,Rox,confirmed,2025,Jul,31,32,Rox
+Rox,Rox,confirmed,2025,Aug,24,24,Rox
+Rox,Rox,confirmed,2025,Sep,37,37,Rox
+Rox,Rox,confirmed,2025,Oct,22,22,Rox
+Rox,Rox,confirmed,2025,Nov,23,23,Rox
+Rox,Rox,confirmed,2025,Dec,9,9,Rox
+Rox,Rox,confirmed,2026,Jan,7,7,Rox
+Rox,Rox,confirmed,2026,Feb,3,3,Rox
+Scribe,Scribe,confirmed,2024,Jun,2,2,Scribe
+Scribe,Scribe,confirmed,2024,Jul,11,11,Scribe
+Scribe,Scribe,confirmed,2024,Aug,5,5,Scribe
+Scribe,Scribe,confirmed,2024,Sep,12,12,Scribe
+Scribe,Scribe,confirmed,2024,Oct,16,16,Scribe
+Scribe,Scribe,confirmed,2024,Nov,15,15,Scribe
+Scribe,Scribe,confirmed,2024,Dec,9,9,Scribe
+Scribe,Scribe,confirmed,2025,Jan,8,8,Scribe
+Scribe,Scribe,confirmed,2025,Feb,9,9,Scribe
+Scribe,Scribe,confirmed,2025,Mar,3,3,Scribe
+Sermo,Sermo,confirmed,2025,Jan,3,3,Sermo
+Sermo,Sermo,confirmed,2025,Feb,10,10,Sermo
+Sermo,Sermo,confirmed,2025,Mar,7,7,Sermo
+Sermo,Sermo,confirmed,2025,Apr,5,5,Sermo
+Sermo,Sermo,confirmed,2025,May,4,4,Sermo
+Sermo,Sermo,confirmed,2025,Jun,2,2,Sermo
+Serval,Serval,confirmed,2026,Apr,5,5,Serval
+Serval,Serval,confirmed,2026,May,4,4,Serval
+ShareGate,,not_in_mapping,2025,Aug,1,1,ShareGate
+ShareGate,,not_in_mapping,2025,Sep,3,3,ShareGate
+ShareGate,,not_in_mapping,2025,Nov,7,7,ShareGate
+ShareGate,,not_in_mapping,2025,Dec,11,11,ShareGate
+ShareGate,,not_in_mapping,2026,Jan,7,7,ShareGate
+ShareGate,,not_in_mapping,2026,Feb,3,3,ShareGate
+ShareGate,,not_in_mapping,2026,Mar,3,3,ShareGate
+ShareGate,,not_in_mapping,2026,Apr,13,13,ShareGate
+Shift,,not_in_mapping,2022,Mar,27,27,Shift
+Shift,,not_in_mapping,2022,Apr,30,30,Shift
+Shift,,not_in_mapping,2022,May,29,29,Shift
+Smartling,Smartling,confirmed,2024,Sep,3,3,Smartling
+Smartling,Smartling,confirmed,2024,Oct,9,9,Smartling
+Smartling,Smartling,confirmed,2024,Nov,6,6,Smartling
+Smartling,Smartling,confirmed,2024,Dec,18,18,Smartling
+Smartling,Smartling,confirmed,2025,Jan,13,13,Smartling
+Smartling,Smartling,confirmed,2025,Feb,18,18,Smartling
+Smartling,Smartling,confirmed,2025,Mar,16,16,Smartling
+Smartling,Smartling,confirmed,2025,Apr,19,19,Smartling
+Smartling,Smartling,confirmed,2025,May,14,14,Smartling
+Smartling,Smartling,confirmed,2025,Jun,20,20,Smartling
+Smartling,Smartling,confirmed,2025,Jul,24,24,Smartling
+Smartling,Smartling,confirmed,2025,Aug,15,15,Smartling
+Smartling,Smartling,confirmed,2025,Sep,5,5,Smartling
+Talkiatry,Talkiatry,confirmed,2025,Aug,2,2,Talkiatry
+TaskRabbit,TaskRabbit Inc,confirmed,2023,Nov,11,12,Taskrabbit
+TaskRabbit,TaskRabbit Inc,confirmed,2023,Dec,14,14,Taskrabbit
+TaskRabbit,TaskRabbit Inc,confirmed,2024,Jan,50,50,Taskrabbit
+Tempo,Tempo,confirmed,2023,Jun,7,7,Tempo
+Tempo,Tempo,confirmed,2023,Jul,16,16,Tempo
+Tempo,Tempo,confirmed,2023,Aug,47,47,Tempo
+Tempo,Tempo,confirmed,2023,Sep,17,17,Tempo
+Tempo,Tempo,confirmed,2023,Oct,29,29,Tempo
+Tempo,Tempo,confirmed,2023,Nov,1,1,Tempo
+Tempo,Tempo,confirmed,2023,Dec,22,22,Tempo
+Tempo,Tempo,confirmed,2024,Jan,11,11,Tempo
+Tempo,Tempo,confirmed,2024,Feb,10,10,Tempo
+Tempo,Tempo,confirmed,2024,Mar,19,19,Tempo
+Tempo,Tempo,confirmed,2024,Apr,23,23,Tempo
+Tempo,Tempo,confirmed,2024,May,23,23,Tempo
+Tempo,Tempo,confirmed,2024,Jun,17,17,Tempo
+Tempo,Tempo,confirmed,2024,Jul,23,23,Tempo
+Tempo,Tempo,confirmed,2024,Aug,15,15,Tempo
+Tempo,Tempo,confirmed,2024,Sep,12,12,Tempo
+Tempo,Tempo,confirmed,2024,Oct,4,4,Tempo
+Tempo,Tempo,confirmed,2024,Nov,4,4,Tempo
+Tempo,Tempo,confirmed,2024,Dec,4,4,Tempo
+Tempo,Tempo,confirmed,2025,Jan,22,22,Tempo
+Tempo,Tempo,confirmed,2025,Feb,29,31,Tempo
+Tempo,Tempo,confirmed,2025,Mar,33,33,Tempo
+Tempo,Tempo,confirmed,2025,Apr,29,29,Tempo
+Tempo,Tempo,confirmed,2025,May,11,11,Tempo
+Tempo,Tempo,confirmed,2025,Jun,26,26,Tempo
+Tempo,Tempo,confirmed,2025,Jul,16,16,Tempo
+Tempo,Tempo,confirmed,2025,Aug,12,12,Tempo
+Tempo,Tempo,confirmed,2025,Sep,22,22,Tempo
+ThredUp,Thred Up,confirmed,2024,Jul,5,5,ThredUp
+ThredUp,Thred Up,confirmed,2024,Aug,9,9,ThredUp
+ThredUp,Thred Up,confirmed,2024,Sep,18,18,ThredUp
+ThredUp,Thred Up,confirmed,2024,Oct,27,27,ThredUp
+ThredUp,Thred Up,confirmed,2024,Nov,24,24,ThredUp
+ThredUp,Thred Up,confirmed,2024,Dec,24,24,ThredUp
+ThredUp,Thred Up,confirmed,2025,Jan,20,20,ThredUp
+ThredUp,Thred Up,confirmed,2025,Feb,22,22,ThredUp
+ThredUp,Thred Up,confirmed,2025,Mar,24,24,ThredUp
+ThredUp,Thred Up,confirmed,2025,Apr,23,23,ThredUp
+ThredUp,Thred Up,confirmed,2025,May,24,24,ThredUp
+ThredUp,Thred Up,confirmed,2025,Jun,16,16,ThredUp
+ThredUp,Thred Up,confirmed,2025,Jul,3,3,ThredUp
+TravelJoy,TravelJoy,confirmed,2025,May,4,4,TravelJoy
+TravelJoy,TravelJoy,confirmed,2025,Jun,5,5,TravelJoy
+TravelJoy,TravelJoy,confirmed,2025,Jul,6,6,TravelJoy
+Webflow,Webflow,confirmed,2019,Sep,5,5,Webflow
+Webflow,Webflow,confirmed,2020,Dec,1,1,Webflow
+Webflow,Webflow,confirmed,2021,Oct,1,1,Webflow
+Webflow,Webflow,confirmed,2021,Dec,2,2,Webflow
+Webflow,Webflow,confirmed,2022,Aug,5,5,Webflow
+Webflow,Webflow,confirmed,2022,Sep,10,12,Webflow
+Webflow,Webflow,confirmed,2022,Oct,15,30,Webflow
+Webflow,Webflow,confirmed,2022,Nov,17,32,Webflow
+Webflow,Webflow,confirmed,2022,Dec,8,16,Webflow
+Webflow,Webflow,confirmed,2023,Jan,20,34,Webflow
+Webflow,Webflow,confirmed,2023,Feb,21,21,Webflow
+Webflow,Webflow,confirmed,2023,Mar,22,22,Webflow
+Webflow,Webflow,confirmed,2023,Apr,20,36,Webflow
+Webflow,Webflow,confirmed,2023,May,35,72,Webflow
+Webflow,Webflow,confirmed,2023,Jun,26,26,Webflow
+Webflow,Webflow,confirmed,2023,Jul,21,21,Webflow
+Webflow,Webflow,confirmed,2023,Nov,6,6,Webflow
+Webflow,Webflow,confirmed,2023,Dec,10,10,Webflow
+Webflow,Webflow,confirmed,2024,Jan,18,18,Webflow
+Webflow,Webflow,confirmed,2024,Feb,32,32,Webflow
+Webflow,Webflow,confirmed,2024,Mar,26,26,Webflow
+Webflow,Webflow,confirmed,2024,Apr,36,36,Webflow
+Webflow,Webflow,confirmed,2024,May,31,31,Webflow
+Webflow,Webflow,confirmed,2024,Jun,28,28,Webflow
+Webflow,Webflow,confirmed,2024,Jul,34,34,Webflow
+Webflow,Webflow,confirmed,2024,Aug,28,28,Webflow
+Webflow,Webflow,confirmed,2024,Sep,9,9,Webflow
+Webflow,Webflow,confirmed,2024,Oct,18,18,Webflow
+Webflow,Webflow,confirmed,2024,Nov,10,10,Webflow
+Webflow,Webflow,confirmed,2024,Dec,10,10,Webflow
+Webflow,Webflow,confirmed,2025,Jan,8,8,Webflow
+Webflow,Webflow,confirmed,2025,Feb,9,9,Webflow
+Webflow,Webflow,confirmed,2025,Mar,3,3,Webflow
+Webflow,Webflow,confirmed,2025,Apr,7,8,Webflow
+Webflow,Webflow,confirmed,2025,May,12,12,Webflow
+Webflow,Webflow,confirmed,2025,Jun,6,6,Webflow
+Webflow,Webflow,confirmed,2025,Jul,8,8,Webflow
+Webflow,Webflow,confirmed,2025,Aug,5,6,Webflow
+Webflow,Webflow,confirmed,2025,Sep,8,10,Webflow
+Webflow,Webflow,confirmed,2025,Oct,5,5,Webflow
+Webflow,Webflow,confirmed,2025,Nov,6,6,Webflow
+Webflow,Webflow,confirmed,2025,Dec,7,7,Webflow
+Webflow,Webflow,confirmed,2026,Jan,9,9,Webflow
+Webflow,Webflow,confirmed,2026,Feb,7,7,Webflow
+Webflow,Webflow,confirmed,2026,Mar,15,15,Webflow
+Webflow,Webflow,confirmed,2026,Apr,15,15,Webflow
+Webflow,Webflow,confirmed,2026,May,4,4,Webflow
+Webflow,Webflow,confirmed,2026,Sep,6,6,Webflow
+Workleap + Sharegate,Workleap,decision_combined,2025,May,2,2,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Jun,9,9,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Jul,15,15,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Aug,16,19,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Sep,21,21,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Oct,10,10,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Nov,14,15,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2025,Dec,22,23,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2026,Jan,13,13,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2026,Feb,32,32,Workleap
+Workleap + Sharegate,Workleap,decision_combined,2026,Mar,33,33,Workleap
+Worldcoin,,not_in_mapping,2022,Jul,1,2,Worldcoin
+Worldcoin,,not_in_mapping,2022,Aug,39,72,Worldcoin
+Worldcoin,,not_in_mapping,2022,Sep,27,52,Worldcoin
+Worldcoin,,not_in_mapping,2022,Oct,31,62,Worldcoin
+Worldcoin,,not_in_mapping,2022,Nov,24,48,Worldcoin
+Worldcoin,,not_in_mapping,2022,Dec,13,33,Worldcoin
+Worldcoin,,not_in_mapping,2023,Jan,28,56,Worldcoin
+Worldcoin,,not_in_mapping,2023,Feb,3,6,Worldcoin
+dYdX,dYdX,confirmed,2023,Jan,1,2,dydx
+dYdX,dYdX,confirmed,2023,Feb,13,32,dydx
+dYdX,dYdX,confirmed,2023,Mar,19,38,dydx
+dYdX,dYdX,confirmed,2023,Apr,6,12,dydx
+dYdX,dYdX,confirmed,2023,May,21,40,dydx
+dYdX,dYdX,confirmed,2023,Jun,27,51,dydx
+dYdX,dYdX,confirmed,2023,Jul,12,24,dydx
+dYdX,dYdX,confirmed,2023,Aug,23,46,dydx
+dYdX,dYdX,confirmed,2023,Sep,8,8,dydx
+dYdX,dYdX,confirmed,2023,Nov,11,22,dydx
+dYdX,dYdX,confirmed,2023,Dec,17,34,dydx
+dYdX,dYdX,confirmed,2024,Jan,76,151,dydx
+dYdX,dYdX,confirmed,2024,Feb,40,70,dydx
+dYdX,dYdX,confirmed,2024,Mar,15,21,dydx
+dYdX,dYdX,confirmed,2024,Apr,41,41,dydx
+dYdX,dYdX,confirmed,2024,May,14,14,dydx
+dYdX,dYdX,confirmed,2024,Jun,15,15,dydx
+dYdX,dYdX,confirmed,2024,Jul,14,14,dydx
+dYdX,dYdX,confirmed,2024,Aug,20,20,dydx
+dYdX,dYdX,confirmed,2024,Sep,11,11,dydx
+dYdX,dYdX,confirmed,2024,Oct,2,2,dydx
+n8n,n8n,confirmed,2026,Mar,4,4,n8n
+n8n,n8n,confirmed,2026,Apr,9,9,n8n
+n8n,n8n,confirmed,2026,May,9,9,n8n

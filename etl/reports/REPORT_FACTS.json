@@ -282,6 +282,27 @@
       "sf_years": "2024\u20132026 (active)"
     }
   ],
+  "mapping_by_month": {
+    "editors": {
+      "dated_rows": 14293,
+      "undated_rows": 496,
+      "total_log_rows": 14789,
+      "distinct_raw_to_resolved": 184,
+      "csv_rows": 736
+    },
+    "writers": {
+      "dated_rows": 14282,
+      "undated_rows": 494,
+      "total_log_rows": 14776,
+      "distinct_raw_to_resolved": 241,
+      "csv_rows": 1279
+    },
+    "clients": {
+      "csv_rows": 815,
+      "clients": 88,
+      "dated_articles": 12807
+    }
+  },
   "mapping_impact": {
     "editors": {
       "confirmed_rows": 14055,
