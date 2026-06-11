@@ -916,8 +916,16 @@ class ArticleNameAlias(Base):
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
     created_by: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Optional date window ('YYYY-MM', inclusive) — lets one raw name map to
+    # different people over time (e.g. "Sam" → Samantha McGrail through
+    # 2026-01, → Samantha Marceau from 2026-02; tenure windows from the
+    # Rippling headcount). NULL bound = open-ended; both NULL = always.
+    valid_from: Mapped[str | None] = mapped_column(String(7))
+    valid_to: Mapped[str | None] = mapped_column(String(7))
 
-    __table_args__ = (UniqueConstraint("kind", "raw_value", name="uq_article_name_alias"),)
+    __table_args__ = (
+        UniqueConstraint("kind", "raw_value", "valid_from", name="uq_article_name_alias_window"),
+    )
 
 
 class ClientNameAlias(Base):

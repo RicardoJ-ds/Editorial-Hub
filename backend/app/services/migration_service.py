@@ -5525,18 +5525,43 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         canon = _resolve_client(lookup, a.canonical_value)
         if canon is not None:
             lookup.setdefault(a.raw_value.strip().lower(), canon)
-    editor_alias = {
-        a.raw_value.strip().lower(): a.canonical_value
-        for a in session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "editor"))
-        .scalars()
-        .all()
-    }
-    writer_alias = {
-        a.raw_value.strip().lower(): a.canonical_value
-        for a in session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "writer"))
-        .scalars()
-        .all()
-    }
+
+    # Aliases may carry a date window ('YYYY-MM', inclusive bounds, NULL =
+    # open) so one raw name can map to different people over time (e.g. "Sam").
+    # {raw_lower: [(valid_from, valid_to, canonical), ...]}
+    def _alias_map(kind: str) -> dict[str, list[tuple[str | None, str | None, str]]]:
+        out: dict[str, list[tuple[str | None, str | None, str]]] = {}
+        for a in (
+            session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == kind))
+            .scalars()
+            .all()
+        ):
+            out.setdefault(a.raw_value.strip().lower(), []).append(
+                (a.valid_from, a.valid_to, a.canonical_value)
+            )
+        return out
+
+    def _alias_resolve(
+        amap: dict[str, list[tuple[str | None, str | None, str]]],
+        raw_lower: str,
+        ym: str | None,
+    ) -> str | None:
+        """Windowed rows win when the article's month falls inside; a windowless
+        row is the fallback. Undated articles only match windowless aliases."""
+        rows = amap.get(raw_lower)
+        if not rows:
+            return None
+        fallback = None
+        for vfrom, vto, canon in rows:
+            if vfrom is None and vto is None:
+                fallback = canon
+                continue
+            if ym is not None and (vfrom is None or vfrom <= ym) and (vto is None or ym <= vto):
+                return canon
+        return fallback
+
+    editor_alias = _alias_map("editor")
+    writer_alias = _alias_map("writer")
     # Editorial week distribution — maps each article date to its editorial month.
     editorial_weeks = _build_editorial_weeks(session)
 
@@ -5667,7 +5692,8 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             collab = len(editors) > 1
             writer_raw = str(cell("WRITER")).strip() or None
             writer_name = (
-                writer_alias.get(writer_raw.strip().lower(), _clean_editor(writer_raw))
+                _alias_resolve(writer_alias, writer_raw.strip().lower(), month_year)
+                or _clean_editor(writer_raw)
                 if writer_raw
                 else None
             )
@@ -5679,7 +5705,9 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
             rev_dates_iso = [d.isoformat() for d, _ in rev_events]
             for ed in editors:
-                editor_name = editor_alias.get(ed.strip().lower(), _clean_editor(ed))
+                editor_name = _alias_resolve(
+                    editor_alias, ed.strip().lower(), month_year
+                ) or _clean_editor(ed)
                 records.append(
                     {
                         "article_uid": uid,

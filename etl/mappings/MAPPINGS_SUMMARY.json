@@ -1,17 +1,17 @@
 {
-  "built_at": "2026-06-10",
+  "built_at": "2026-06-11",
   "editors": {
     "names": {
-      "ambiguous": 2,
-      "confirmed": 32,
+      "confirmed": 33,
+      "confirmed_windowed": 1,
       "junk": 5,
-      "unresolved": 4
+      "unresolved": 8
     },
     "article_rows": {
-      "ambiguous": 283,
-      "confirmed": 14055,
+      "confirmed": 14523,
+      "confirmed_windowed": 4,
       "junk": 7,
-      "unresolved": 462
+      "unresolved": 781
     }
   },
   "capacity_members": {
@@ -51,11 +51,11 @@
     },
     "article_rows": {
       "ambiguous": 37,
-      "confirmed": 10285,
+      "confirmed": 10650,
       "confirmed_first_name": 10281,
       "first_name_only": 4262,
       "junk": 5,
-      "trial": 101,
+      "trial": 103,
       "unresolved": 86
     }
   },

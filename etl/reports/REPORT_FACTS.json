@@ -293,7 +293,7 @@
       "dated_rows": 14654,
       "undated_rows": 502,
       "total_log_rows": 15156,
-      "distinct_raw_to_resolved": 185,
+      "distinct_raw_to_resolved": 186,
       "csv_rows": 750
     },
     "writers": {
@@ -311,20 +311,22 @@
   },
   "mapping_impact": {
     "editors": {
-      "confirmed_rows": 14055,
-      "total_rows": 14807,
+      "confirmed_rows": 14523,
+      "total_rows": 15315,
       "needs_decision": [
         "Kira",
         "Kristin",
-        "Lauren",
-        "Sam",
+        "Lauren Friar",
+        "Lauren Keleher",
+        "Samantha Marceau",
+        "Samantha McGrail",
         "Shain",
         "Shalin"
       ]
     },
     "writers": {
       "applied_renames": 78,
-      "rows_full_named": 20566,
+      "rows_full_named": 20931,
       "rows_first_name_only": 4262,
       "distinct_before": 286
     },

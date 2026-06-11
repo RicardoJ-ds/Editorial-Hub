@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-06-10",
+  "built_at": "2026-06-11",
   "canonical_source": "graphite_bi_sandbox.v_team_pods_editorial (HR)",
   "aliases": {
     "83": {
@@ -24,7 +24,7 @@
     },
     "Alyssa": {
       "raw": "Alyssa",
-      "articles": 1019,
+      "articles": 1025,
       "canonical": "Alyssa Zacharias",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -32,7 +32,7 @@
     },
     "Anabelle": {
       "raw": "Anabelle",
-      "articles": 1558,
+      "articles": 1561,
       "canonical": "Anabelle Zaluski",
       "status": "confirmed",
       "hr_status": "TERMINATED",
@@ -88,7 +88,7 @@
     },
     "Elliot": {
       "raw": "Elliot",
-      "articles": 251,
+      "articles": 272,
       "canonical": "Elliot Gardner",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -96,7 +96,7 @@
     },
     "Haley": {
       "raw": "Haley",
-      "articles": 346,
+      "articles": 378,
       "canonical": "Haley Drucker",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -112,7 +112,7 @@
     },
     "Jimmy": {
       "raw": "Jimmy",
-      "articles": 235,
+      "articles": 296,
       "canonical": "Jimmy Bunes",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -120,7 +120,7 @@
     },
     "Katie": {
       "raw": "Katie",
-      "articles": 228,
+      "articles": 238,
       "canonical": "Katie Shevlin",
       "status": "confirmed",
       "hr_status": "TERMINATED",
@@ -128,7 +128,7 @@
     },
     "Kennedy": {
       "raw": "Kennedy",
-      "articles": 741,
+      "articles": 756,
       "canonical": "Kennedy Stevens",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -154,20 +154,23 @@
       "canonical": null,
       "status": "unresolved"
     },
-    "Lauren": {
-      "raw": "Lauren",
-      "articles": 141,
+    "Lauren Friar": {
+      "raw": "Lauren Friar",
+      "articles": 149,
       "canonical": null,
-      "status": "ambiguous",
-      "candidates": [
-        "Lauren Friar",
-        "Lauren Keleher"
-      ],
-      "note": "Both active. Needs a split rule (by pod/client) from DaniQ."
+      "status": "unresolved",
+      "note": "NEW since last build"
+    },
+    "Lauren Keleher": {
+      "raw": "Lauren Keleher",
+      "articles": 4,
+      "canonical": null,
+      "status": "unresolved",
+      "note": "NEW since last build"
     },
     "Lee": {
       "raw": "Lee",
-      "articles": 337,
+      "articles": 369,
       "canonical": "Lee Anderson",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -175,7 +178,7 @@
     },
     "Maggie": {
       "raw": "Maggie",
-      "articles": 1396,
+      "articles": 1412,
       "canonical": "Maggie Gowland",
       "status": "confirmed",
       "hr_status": "TERMINATED",
@@ -207,7 +210,7 @@
     },
     "Nina": {
       "raw": "Nina",
-      "articles": 700,
+      "articles": 709,
       "canonical": "Nina Denison",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -215,7 +218,7 @@
     },
     "Robert": {
       "raw": "Robert",
-      "articles": 252,
+      "articles": 345,
       "canonical": "Robert Thorpe",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -223,14 +226,34 @@
     },
     "Sam": {
       "raw": "Sam",
-      "articles": 142,
-      "canonical": "Samantha Marceau",
-      "status": "ambiguous",
-      "candidates": [
-        "Samantha Marceau",
-        "Samantha McGrail"
+      "articles": 4,
+      "canonical": "Samantha McGrail / Samantha Marceau",
+      "status": "confirmed_windowed",
+      "windows": [
+        {
+          "to": "2026-01",
+          "canonical": "Samantha McGrail"
+        },
+        {
+          "from": "2026-02",
+          "canonical": "Samantha Marceau"
+        }
       ],
-      "note": "McGrail terminated 2026-01-27 — articles after that are Marceau; earlier ones ambiguous. Proposed: Marceau unless dated before Feb 2026."
+      "note": "Split by headcount dates: McGrail 2025-08-04→2026-01-27 (log shows Sam Aug 2025–Jan 2026, none Feb–Apr); Marceau 2026-05-11→ (log resumes May 2026). Zero overlap."
+    },
+    "Samantha Marceau": {
+      "raw": "Samantha Marceau",
+      "articles": 32,
+      "canonical": null,
+      "status": "unresolved",
+      "note": "NEW since last build"
+    },
+    "Samantha McGrail": {
+      "raw": "Samantha McGrail",
+      "articles": 134,
+      "canonical": null,
+      "status": "unresolved",
+      "note": "NEW since last build"
     },
     "Shain": {
       "raw": "Shain",
@@ -254,7 +277,7 @@
     },
     "Shivani": {
       "raw": "Shivani",
-      "articles": 151,
+      "articles": 180,
       "canonical": "Shivani Verma",
       "status": "confirmed",
       "hr_status": "ACTIVE",
@@ -293,6 +316,15 @@
       "articles": 1,
       "canonical": null,
       "status": "junk"
+    },
+    "Lauren": {
+      "raw": "Lauren",
+      "articles": 141,
+      "canonical": "Lauren Friar",
+      "status": "confirmed",
+      "retained": true,
+      "hr_status": "ACTIVE",
+      "hr_title": "Sr. Editor"
     },
     "MAGGIE": {
       "raw": "MAGGIE",

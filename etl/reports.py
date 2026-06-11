@@ -161,6 +161,18 @@ def _top_tabs(tabs: dict[str, int], n: int = 2) -> str:
     return " · ".join(t for t, _ in sorted(tabs.items(), key=lambda kv: -kv[1])[:n])
 
 
+def _spans_by_raw(month_map) -> dict[str, tuple[str, str]]:
+    """{raw_name: ('YYYY-MM' first, 'YYYY-MM' last)} across all resolved names."""
+    spans: dict[str, tuple[tuple[int, int], tuple[int, int]]] = {}
+    for (raw, _resolved), months in month_map.items():
+        for ym in months:
+            lo, hi = spans.get(raw, (ym, ym))
+            spans[raw] = (min(lo, ym), max(hi, ym))
+    return {
+        raw: (f"{lo[0]}-{lo[1]:02d}", f"{hi[0]}-{hi[1]:02d}") for raw, (lo, hi) in spans.items()
+    }
+
+
 def main() -> int:
     os.makedirs(REPORTS_DIR, exist_ok=True)
     facts: dict = {}
@@ -335,14 +347,18 @@ def main() -> int:
     def _tabs_str(tabs: list[str]) -> str:
         return " · ".join(tabs) if tabs else ""
 
+    ed_spans = _spans_by_raw(ed_month)
     ed_rows = []
     for v in sorted(ed["aliases"].values(), key=lambda v: (v["status"], -v.get("articles", 0))):
+        span = ed_spans.get(v["raw"], ("", ""))
         ed_rows.append(
             [
                 v["raw"],
                 v.get("canonical") or "",
                 v["status"],
                 v.get("articles", 0),
+                span[0],
+                span[1],
                 ", ".join(v.get("candidates", [])) if v.get("candidates") else "",
                 f"Monthly Article Count → EDITOR column in: {_tabs_str(ed_tabs.get(v['raw'], []))}",
                 v.get("note", ""),
@@ -355,6 +371,8 @@ def main() -> int:
             "after_hr_name",
             "status",
             "article_rows",
+            "first_month",
+            "last_month",
             "candidates",
             "where_to_validate",
             "note",
@@ -362,14 +380,18 @@ def main() -> int:
         ed_rows,
     )
 
+    wr_spans = _spans_by_raw(wr_month)
     wr_rows = []
     for v in sorted(wr["aliases"].values(), key=lambda v: (v["status"], -v.get("articles", 0))):
+        span = wr_spans.get(v["raw"], ("", ""))
         wr_rows.append(
             [
                 v["raw"],
                 v.get("canonical") or "",
                 v["status"],
                 v.get("articles", 0),
+                span[0],
+                span[1],
                 ", ".join(v.get("candidates", [])) if v.get("candidates") else "",
                 f"Monthly Article Count → WRITER column in: {_tabs_str(wr_tabs.get(v['raw'], []))}",
             ]
@@ -381,26 +403,43 @@ def main() -> int:
             "after_full_name",
             "status",
             "article_rows",
+            "first_month",
+            "last_month",
             "candidates",
             "where_to_validate",
         ],
         wr_rows,
     )
 
+    cl_spans: dict[str, tuple[str, str]] = {}
+    for client, months in cl_month.items():
+        yms = sorted(months)
+        cl_spans[client] = (f"{yms[0][0]}-{yms[0][1]:02d}", f"{yms[-1][0]}-{yms[-1][1]:02d}")
     cl_rows = []
     for v in cl["hub_to_salesforce"].values():
+        span = cl_spans.get(v["hub_name"], ("", ""))
         cl_rows.append(
             [
                 v["hub_name"],
                 v.get("sf_name") or "",
                 v["status"],
+                span[0],
+                span[1],
                 "Salesforce account name; SOW Overview client list",
                 v.get("note", ""),
             ]
         )
     _write_csv(
         "mappings_clients.csv",
-        ["before_hub_name", "after_salesforce_name", "status", "where_to_validate", "note"],
+        [
+            "before_hub_name",
+            "after_salesforce_name",
+            "status",
+            "first_article_month",
+            "last_article_month",
+            "where_to_validate",
+            "note",
+        ],
         cl_rows,
     )
 

@@ -269,6 +269,30 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("client_pod_history.category migration failed (continuing)")
 
+    # 13. article_name_aliases date windows — one raw name can map to different
+    #     people over time (e.g. "Sam" → Samantha McGrail through 2026-01,
+    #     → Samantha Marceau from 2026-02, per Rippling headcount tenure).
+    #     The old (kind, raw_value) unique constraint is replaced with one that
+    #     includes valid_from so windowed rows can coexist.
+    try:
+        await conn.execute(
+            text("ALTER TABLE article_name_aliases ADD COLUMN IF NOT EXISTS valid_from VARCHAR(7)")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_name_aliases ADD COLUMN IF NOT EXISTS valid_to VARCHAR(7)")
+        )
+        await conn.execute(
+            text("ALTER TABLE article_name_aliases DROP CONSTRAINT IF EXISTS uq_article_name_alias")
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_article_name_alias_window "
+                "ON article_name_aliases (kind, raw_value, COALESCE(valid_from, ''))"
+            )
+        )
+    except Exception:
+        logger.exception("article_name_aliases window migration failed (continuing)")
+
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model
     #    itself is created by Base.metadata.create_all; this DELETE
