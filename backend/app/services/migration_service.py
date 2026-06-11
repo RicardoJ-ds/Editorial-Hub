@@ -5334,6 +5334,11 @@ def _article_parse_full(
         if yr and 1 <= mm <= 12:
             return _safe_article_date(yr, mm, dd), yr, mm
     txt = str(date_text)
+    # 2a. ISO yyyy-mm-dd — the standardized target format (sheet proposal).
+    iso = re.search(r"\b(20\d{2})-(\d{1,2})-(\d{1,2})\b", txt)
+    if iso:
+        yr, mm, dd = int(iso.group(1)), int(iso.group(2)), int(iso.group(3))
+        return _safe_article_date(yr, mm, dd), yr, mm
     # 2. m/d/yyyy or m-d-yyyy.
     slash = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b", txt)
     if slash:
