@@ -37,8 +37,17 @@ async def list_kpi_scores(
     if source == "bq":
         return await asyncio.to_thread(
             bq_dashboard.list_kpis,
-            team_member_id, year, month, year_from, month_from, year_to,
-            month_to, kpi_type, client_id, skip, limit,
+            team_member_id,
+            year,
+            month,
+            year_from,
+            month_from,
+            year_to,
+            month_to,
+            kpi_type,
+            client_id,
+            skip,
+            limit,
         )
 
     stmt = select(KpiScore)
@@ -62,7 +71,11 @@ async def list_kpi_scores(
     if year_to is not None and month_to is not None:
         stmt = stmt.where(ordinal <= year_to * 100 + month_to)
 
-    stmt = stmt.offset(skip).limit(limit).order_by(KpiScore.year.desc(), KpiScore.month.desc())
+    stmt = (
+        stmt.offset(skip)
+        .limit(limit)
+        .order_by(KpiScore.year.desc(), KpiScore.month.desc(), KpiScore.id)
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
 

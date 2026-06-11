@@ -1,8 +1,7 @@
+import asyncio
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
-import asyncio
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,14 +26,14 @@ from app.schemas import (
     ProductionTrendPoint,
     TimeToMetric,
 )
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 from app.services.calculations import (
     capacity_status,
     capacity_utilization_pct,
     pacing_status,
     time_to_metric,
 )
-from app.services import bq_dashboard
-from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 

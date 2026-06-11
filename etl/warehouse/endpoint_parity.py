@@ -62,6 +62,23 @@ CASES: list[tuple[str, str, str | None]] = [
     ("ai flags", "/api/ai-monitoring/flags?limit=50", "id"),
     ("ai rewrites", "/api/ai-monitoring/rewrites?limit=50", "id"),
     ("ai surfer", "/api/ai-monitoring/surfer-usage", "id"),
+    # pagination stability (id tiebreaks on BOTH sources — exact sequence)
+    ("deliverables p3 paged", "/api/deliverables/?limit=20&skip=40", "id"),
+    ("kpis paged", "/api/kpis/?limit=20&skip=100", "id"),
+    ("clients paged", "/api/clients/?limit=20&skip=20", "id"),
+    # filter params the dashboards don't use but the API supports
+    ("deliverables by client", "/api/deliverables/?limit=1000&client_id=471", "id"),
+    ("deliverables by ym", "/api/deliverables/?limit=1000&year=2026&month=3", "id"),
+    ("kpis single month", "/api/kpis/?limit=5000&year=2026&month=4", None),
+    ("kpis by type", "/api/kpis/?limit=5000&kpi_type=revision_rate", None),
+    ("team-members role", "/api/team-members/?limit=200&role=SENIOR_EDITOR", "id"),
+    ("team-members active", "/api/team-members/?limit=200&is_active=true", "id"),
+    ("weeks 2026", "/api/migrate/editorial-weeks?year=2026", None),
+    ("clients growth pod", "/api/clients/?limit=500&growth_pod=Pod%201", "id"),
+    ("cumulative pod", "/api/goals-delivery/cumulative?pod=Pod%201", "id"),
+    ("ai summary pod+month", "/api/ai-monitoring/summary?pod=Pod%201", None),
+    ("ai by-client month", "/api/ai-monitoring/by-client?limit=20&month=March%202026", "name"),
+    ("ai flags client", "/api/ai-monitoring/flags?limit=50&pod=Pod%201", "id"),
 ]
 
 

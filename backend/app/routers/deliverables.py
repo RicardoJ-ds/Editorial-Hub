@@ -40,7 +40,11 @@ async def list_deliverables(
     stmt = (
         stmt.offset(skip)
         .limit(limit)
-        .order_by(DeliverableMonthly.year.desc(), DeliverableMonthly.month.desc())
+        .order_by(
+            DeliverableMonthly.year.desc(),
+            DeliverableMonthly.month.desc(),
+            DeliverableMonthly.id,  # stable tie-break: identical pages on every source
+        )
     )
     result = await db.execute(stmt)
     return result.scalars().all()

@@ -100,6 +100,11 @@ def run_ingest(scope: str) -> list[dict]:
     plan = ingest_plan(scope)
     engine = get_engine()
     for step in plan:
+        if step["key"].startswith("@warehouse"):
+            # The phase-1 publisher below refreshes the flat tables itself;
+            # running the warehouse publish as an "ingest step" here would
+            # rebuild the layered warehouse twice for nothing.
+            continue
         t0 = time.time()
         with SyncSession(engine) as session:
             try:

@@ -20,12 +20,16 @@ from etl.extract import fetch_model_rows, get_session
 from etl.load import get_bq, load_rows, schema_for_model, schema_from_spec
 from etl.warehouse import pyrules as R
 
-SYNCED_AT = datetime.now(timezone.utc)
+_BUILD_TS: datetime | None = None
 
 
 def _stamp(rows: list[dict]) -> list[dict]:
+    # One timestamp per build_all run (NOT module import time — the manifest
+    # runs builds in the long-lived backend process — and not per-table, so
+    # cross-table freshness comparisons stay exact).
+    ts = _BUILD_TS or datetime.now(timezone.utc)
     for r in rows:
-        r["synced_at"] = SYNCED_AT
+        r["synced_at"] = ts
     return rows
 
 
@@ -35,13 +39,33 @@ def _stamp(rows: list[dict]) -> list[dict]:
 Job = tuple[str, list[dict], list]
 
 
-def flush_jobs(bq, jobs: list[Job], max_workers: int = 8) -> dict[str, int]:
-    def _one(job: Job) -> tuple[str, int]:
+def flush_jobs(bq, jobs: list[Job], pg_engine=None, max_workers: int = 8) -> dict[str, int]:
+    """Load all jobs to BOTH sinks in parallel. Per-job failures are isolated
+    (every other table still loads) and re-raised AGGREGATED at the end so the
+    sync UI can name exactly which tables are stale."""
+    from etl.warehouse import pg_sink
+
+    def _one(job: Job) -> tuple[str, int, str | None]:
         name, rows, schema = job
-        return name, load_rows(bq, name, rows, schema)
+        try:
+            n = load_rows(bq, name, rows, schema)
+            # Dual sink: the processed layer ALSO lands in Postgres (schema
+            # `warehouse`) — same in-memory rows, so the two stores can't drift.
+            if pg_engine is not None and pg_sink.sinks_to_pg(name):
+                pg_sink.write_table(pg_engine, name, rows, schema)
+            return name, n, None
+        except Exception as exc:  # noqa: BLE001 — aggregated below
+            return name, 0, f"{type(exc).__name__}: {exc}"
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        return dict(ex.map(_one, jobs))
+        results = list(ex.map(_one, jobs))
+    failures = [(n, e) for n, _c, e in results if e]
+    if failures:
+        raise RuntimeError(
+            "warehouse load failed for "
+            + "; ".join(f"{n} ({e})" for n, e in failures)
+        )
+    return {n: c for n, c, _e in results}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -252,9 +276,9 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
             s = c.get("start_date")
             if s:
                 first_ym = min(first_ym, (s.year, s.month))
-                e = c.get("end_date")
-                if e:
-                    last_ym = max(last_ym, (e.year, e.month))
+            e = c.get("end_date")
+            if e:
+                last_ym = max(last_ym, (e.year, e.month))
             meta_start = date(first_ym[0], first_ym[1], 1)
             d1_term = (last_ym[0] - first_ym[0]) * 12 + (last_ym[1] - first_ym[1]) + 1
         d1_start = meta_start or c.get("start_date")
@@ -333,7 +357,7 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
                 "lifetime_variance": lifetime.variance,
                 "pct_complete": lifetime.pct_complete,
                 "published_live": published,
-                "pct_published": R.js_round(published / sow * 100) if sow > 0 else 0,
+                "pct_published": R.js_round(published / sow * 100) if sow > 0 else None,
                 "ovr_q_label": ovr_cq["label"] if ovr_cq else None,
                 "ovr_q_month_in_q": ovr_cq["month_in_q"] if ovr_cq else None,
                 "ovr_q_length": ovr_cq["q_length"] if ovr_cq else None,
@@ -390,7 +414,10 @@ def build_int_goals(session) -> list[Job]:
             text(
                 "SELECT client_name, month_year, content_type, ratios, "
                 "cb_monthly_goal, ad_monthly_goal, cb_delivered_to_date, "
-                "ad_delivered_to_date FROM goals_vs_delivery"
+                "ad_delivered_to_date FROM goals_vs_delivery "
+                # Same ordering the API serves — the per-group ratio is
+                # first-row-wins, so ordering is load-bearing.
+                "ORDER BY month_year, week_number, client_name"
             )
         )
     ]
@@ -432,12 +459,33 @@ def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict
     as_of = as_of or date.today()
     bq = get_bq()
     mappings = transform.load_mappings()
-    jobs: list[Job] = []
-    with get_session() as session:
-        if "raw" in layers:
-            jobs += build_raw(session, mappings)
-        if "int" in layers:
-            jobs += build_int_delivery(session, as_of)
-            jobs += build_int_goals(session)
-            jobs += build_int_capacity_articles(session, mappings)
-    return flush_jobs(bq, jobs)
+    from etl.extract import get_engine
+    from etl.warehouse import pg_sink
+
+    global _BUILD_TS
+    _BUILD_TS = datetime.now(timezone.utc)
+    pg_engine = get_engine()
+    pg_sink.ensure_schema(pg_engine)
+    # Cross-process publish lock (SYNC step, wizard import, refresh.sh can all
+    # trigger a publish) — second publisher waits, never interleaves.
+    with pg_engine.connect() as lock_cx:
+        lock_cx.execute(text("SELECT pg_advisory_lock(815001)"))
+        try:
+            jobs: list[Job] = []
+            with get_session() as session:
+                if "raw" in layers:
+                    jobs += build_raw(session, mappings)
+                if "int" in layers:
+                    jobs += build_int_delivery(session, as_of)
+                    jobs += build_int_goals(session)
+                    jobs += build_int_capacity_articles(session, mappings)
+            try:
+                counts = flush_jobs(bq, jobs, pg_engine=pg_engine)
+            finally:
+                # PG views are CASCADE-dropped with their tables — recreate
+                # even on partial failure so the schema is never left bare.
+                pg_sink.create_pg_views(pg_engine)
+            return counts
+        finally:
+            _BUILD_TS = None
+            lock_cx.execute(text("SELECT pg_advisory_unlock(815001)"))

@@ -1,6 +1,6 @@
 # Endpoint parity — Postgres vs BigQuery warehouse
 
-_Generated 2026-06-11 04:47 UTC. Same server, same request, two X-Data-Source values;
+_Generated 2026-06-11 06:01 UTC. Same server, same request, two X-Data-Source values;
 JSON diffed (lists as multisets; on-screen-ordered endpoints also
 order-checked)._
 
@@ -45,3 +45,18 @@ order-checked)._
 | ai flags (`/api/ai-monitoring/flags?limit=50`) | ✅ |
 | ai rewrites (`/api/ai-monitoring/rewrites?limit=50`) | ✅ |
 | ai surfer (`/api/ai-monitoring/surfer-usage`) | ✅ |
+| deliverables p3 paged (`/api/deliverables/?limit=20&skip=40`) | ✅ |
+| kpis paged (`/api/kpis/?limit=20&skip=100`) | ✅ |
+| clients paged (`/api/clients/?limit=20&skip=20`) | ✅ |
+| deliverables by client (`/api/deliverables/?limit=1000&client_id=471`) | ✅ |
+| deliverables by ym (`/api/deliverables/?limit=1000&year=2026&month=3`) | ✅ |
+| kpis single month (`/api/kpis/?limit=5000&year=2026&month=4`) | ✅ |
+| kpis by type (`/api/kpis/?limit=5000&kpi_type=revision_rate`) | ✅ |
+| team-members role (`/api/team-members/?limit=200&role=SENIOR_EDITOR`) | ✅ |
+| team-members active (`/api/team-members/?limit=200&is_active=true`) | ✅ |
+| weeks 2026 (`/api/migrate/editorial-weeks?year=2026`) | ✅ |
+| clients growth pod (`/api/clients/?limit=500&growth_pod=Pod%201`) | ✅ |
+| cumulative pod (`/api/goals-delivery/cumulative?pod=Pod%201`) | ✅ |
+| ai summary pod+month (`/api/ai-monitoring/summary?pod=Pod%201`) | ✅ |
+| ai by-client month (`/api/ai-monitoring/by-client?limit=20&month=March%202026`) | ✅ |
+| ai flags client (`/api/ai-monitoring/flags?limit=50&pod=Pod%201`) | ✅ |

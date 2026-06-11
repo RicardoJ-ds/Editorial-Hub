@@ -1,6 +1,5 @@
-from datetime import date
-
 import asyncio
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
@@ -10,8 +9,8 @@ from app.auth_deps import current_access, get_sync_session
 from app.database import get_db
 from app.models import Client, PodAssignment, ProductionHistory
 from app.schemas import ClientCreate, ClientResponse, ClientUpdate
-from app.services.access import AccessProfile
 from app.services import bq_dashboard
+from app.services.access import AccessProfile
 from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
@@ -92,7 +91,13 @@ async def list_clients(
             return []
         return await asyncio.to_thread(
             bq_dashboard.list_clients,
-            search, status, growth_pod, editorial_pod, skip, limit, allowed_bq,
+            search,
+            status,
+            growth_pod,
+            editorial_pod,
+            skip,
+            limit,
+            allowed_bq,
         )
 
     stmt = select(Client)
@@ -115,7 +120,7 @@ async def list_clients(
             return []
         stmt = stmt.where(Client.name.in_(allowed))
 
-    stmt = stmt.offset(skip).limit(limit).order_by(Client.name)
+    stmt = stmt.offset(skip).limit(limit).order_by(Client.name, Client.id)
     result = await db.execute(stmt)
     clients = result.scalars().all()
 

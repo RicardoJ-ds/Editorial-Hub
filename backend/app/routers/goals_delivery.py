@@ -74,6 +74,7 @@ async def goals_delivery_all(
         GoalsVsDelivery.month_year,
         GoalsVsDelivery.week_number,
         GoalsVsDelivery.client_name,
+        GoalsVsDelivery.id,
     )
     if pod:
         stmt = stmt.where(
@@ -113,7 +114,7 @@ async def cumulative_metrics(
     """Get all-time cumulative pipeline metrics per client."""
     if source == "bq":
         return await asyncio.to_thread(bq_dashboard.goals_cumulative, pod, status)
-    stmt = select(CumulativeMetric).order_by(CumulativeMetric.client_name)
+    stmt = select(CumulativeMetric).order_by(CumulativeMetric.client_name, CumulativeMetric.id)
     if pod:
         stmt = stmt.where(CumulativeMetric.account_team_pod == pod)
     if status:

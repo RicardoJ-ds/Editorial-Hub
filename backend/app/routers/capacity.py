@@ -15,13 +15,15 @@ from app.models import (
     ProductionHistory,
 )
 from app.schemas import CapacityCreate, CapacityResponse, CapacityUpdate
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 from app.services.capacity_calc import (
     compute_client_contributions,
     compute_member_utilization,
+)
+from app.services.capacity_calc import (
     version_num as _version_num,
 )
-from app.services import bq_dashboard
-from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 

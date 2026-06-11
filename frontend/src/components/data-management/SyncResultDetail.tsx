@@ -39,6 +39,8 @@ export interface TabDetail {
 
 export interface ImportResultItem {
   sheet: string;
+  /** Non-sheet manifest step (KPI refresh / warehouse publish) — no preview. */
+  synthetic?: boolean;
   rows_parsed: number;
   rows_imported: number;
   success: boolean;
@@ -232,9 +234,10 @@ function SheetResultRow({
 
   const hasTabs = result.details && result.details.length > 0;
   // Synthetic manifest steps aren't Google Sheets — there's nothing to
-  // preview (labels from backend sync_manifest REFRESH_KPIS_LABEL /
-  // WAREHOUSE_LABEL; keep in sync).
+  // preview. The backend tags them (ImportResultResponse.synthetic); the
+  // label match remains as a fallback for older cached responses.
   const isSynthetic =
+    result.synthetic === true ||
     result.sheet === "Refresh computed KPIs" ||
     result.sheet === "Publish warehouse (BigQuery)";
   // If no per-tab details, allow expanding to preview the sheet itself

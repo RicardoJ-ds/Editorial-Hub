@@ -37,7 +37,7 @@ DUMP_PATH = os.environ.get("PARITY_DUMP", "/tmp/parity_frontend_dump.json")
 # Fields compared client-by-client between the TS dump and the snapshot table.
 SNAPSHOT_FIELDS = [
     "lifetime_delivered", "lifetime_invoiced", "articles_sow", "lifetime_variance",
-    "pct_complete",
+    "pct_complete", "published_live", "pct_published",
     "ovr_q_label", "ovr_q_month_in_q", "ovr_q_length", "ovr_q_delivered",
     "ovr_q_projected_remaining", "ovr_q_projected_end", "ovr_q_invoiced",
     "ovr_q_projected_variance", "ovr_is_first_q", "ovr_tier",
@@ -96,6 +96,57 @@ def compare_snapshot(bq) -> dict:
         "check": "client_q_snapshot vs REAL frontend functions",
         "clients": len(dump["clients"]),
         "fields_checked": checked,
+        "match": not diffs,
+        "diffs": diffs[:25],
+        "diff_count": len(diffs),
+    }
+
+
+def compare_client_months(bq) -> dict:
+    """Per-month period assignments (both detector variants) + is_future vs the
+    REAL frontend periods — covers editorial_int_client_months, which the
+    snapshot check can't see."""
+    with open(DUMP_PATH) as f:
+        dump = json.load(f)
+    rows = _bq_rows(bq, f"""
+        SELECT client_id, year, month, is_future,
+               ovr_period_idx, ovr_period_label, ovr_is_prelude,
+               d1_period_idx, d1_period_label, d1_is_prelude, d1_is_post_contract
+        FROM {DS}.editorial_int_client_months
+        WHERE delivered IS NOT NULL OR invoiced IS NOT NULL""")
+    by_client: dict[int, dict[str, dict]] = {}
+    for r in rows:
+        by_client.setdefault(r["client_id"], {})[f"{r['year']}-{r['month']:02d}"] = r
+    diffs = []
+    checked = 0
+    for d in dump["clients"]:
+        wh = by_client.get(d["client_id"], {})
+        for mk, (qi, label, prel) in (d.get("ovr_period_map") or {}).items():
+            w = wh.get(mk)
+            checked += 1
+            if w is None:
+                diffs.append(f"{d['client_name']} {mk}: missing month row")
+                continue
+            got = (w["ovr_period_idx"], w["ovr_period_label"] or "", bool(w["ovr_is_prelude"]))
+            if got != (qi, label, bool(prel)):
+                diffs.append(f"{d['client_name']} {mk} ovr: frontend={(qi,label,prel)} wh={got}")
+        for mk, vals in (d.get("d1_period_map") or {}).items():
+            qi, label, prel, post = vals
+            w = wh.get(mk)
+            checked += 1
+            if w is None:
+                # D1 post-contract truncation DROPS all-zero post rows from
+                # periods; the month row itself still exists with NULL d1_*.
+                continue
+            got = (w["d1_period_idx"], w["d1_period_label"] or "",
+                   bool(w["d1_is_prelude"]), bool(w["d1_is_post_contract"]))
+            if w["d1_period_idx"] is None:
+                continue  # dropped post-contract zero row — matches by absence
+            if got != (qi, label, bool(prel), bool(post)):
+                diffs.append(f"{d['client_name']} {mk} d1: frontend={(qi,label,prel,post)} wh={got}")
+    return {
+        "check": "client_months period maps vs REAL frontend periods",
+        "clients": checked,
         "match": not diffs,
         "diffs": diffs[:25],
         "diff_count": len(diffs),
@@ -189,6 +240,7 @@ def main() -> int:
     bq = get_bq()
     checks = [
         compare_snapshot(bq),
+        compare_client_months(bq),
         compare_goals(bq),
         replay_member_utilization(bq),
         replay_pod_summary(bq),

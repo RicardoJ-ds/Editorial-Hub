@@ -14,8 +14,16 @@ from app.config import settings
 from app.database import prepare_sync_url
 
 
+_ENGINE = None
+
+
 def get_engine():
-    return create_engine(prepare_sync_url(settings.database_url), echo=False)
+    # One engine (pool) per process — builds run inside the long-lived backend
+    # via the sync manifest; per-call engines would leak pooled connections.
+    global _ENGINE
+    if _ENGINE is None:
+        _ENGINE = create_engine(prepare_sync_url(settings.database_url), echo=False)
+    return _ENGINE
 
 
 def get_session(engine=None) -> Session:

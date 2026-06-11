@@ -41,16 +41,17 @@ Postgres ──(etl/warehouse: raw → int → views)──▶ BigQuery graphite
 Ingestion stays byte-identical to the SYNC button (same strangler approach as
 phase 1). The warehouse package replaces the flat mirror with three layers:
 
-### RAW — 16 topic tables (was 27 mirrors)
+### RAW — 17 topic tables (was 27 mirrors)
 
 Source-shaped, one per source grain, canonical-name columns added where they
 exist (originals untouched). Dropped from the warehouse (app-state, not
 analytics): access/RBAC, comments, usage analytics, audit log, sync history,
 alias/unmapped/incomplete/pod-issue review tables, notion_articles (its
 dashboard-relevant outputs — is_published/notion_matched and the computed KPIs —
-are already denormalized into articles/kpi_scores), and the wizard-only seeds
-(delivery_templates, model_assumptions, engagement_rules — feed only DEAD or
-unmounted surfaces per the audit).
+are already denormalized into articles/kpi_scores), and two wizard-only seeds
+(model_assumptions, engagement_rules — feed only DEAD or unmounted surfaces per
+the audit). delivery_templates WAS initially dropped on the same reasoning but
+came back at the repoint: the live `/api/dashboard/pacing` endpoint reads it.
 
 | Table | Source | Grain |
 |---|---|---|
@@ -69,6 +70,7 @@ unmounted surfaces per the audit).
 | editorial_raw_ai_monitoring | ai_monitoring_records | record |
 | editorial_raw_surfer_usage | surfer_api_usage | year_month |
 | editorial_raw_team_members | team_members | member |
+| editorial_raw_delivery_templates | delivery_templates (Pacing badge) | template × month_index |
 | editorial_raw_name_mappings | the 3 mapping dicts, `kind` column | raw_name × kind |
 
 ### INT — 8 materialized transform tables (the brains)
@@ -134,7 +136,7 @@ SUM/GROUP BY away. Each table carries `synced_at` + (where time-dependent)
 (kpi_scores needs no int table — the raw grain IS final; the sync-time
 recompute rules, incl. their all-time quirks, are upstream and unchanged.)
 
-### VIEWS — the dashboard contract (~16, all `v_editorial_*`)
+### VIEWS — the dashboard contract (19, all `v_editorial_*`)
 
 | View | Backs (dashboard surface) | Definition over |
 |---|---|---|
@@ -145,6 +147,7 @@ recompute rules, incl. their all-time quirks, are upstream and unchanged.)
 | v_editorial_fct_pod_snapshot | Overview pod rows (Σ incl./excl. 1st-Q per the audited rules, both pod axes) | int_client_q_snapshot × dim_client |
 | v_editorial_fct_client_months | monthly breakdown popovers, lifetime bars | int_client_months |
 | v_editorial_fct_goals_monthly | Pod Snapshot Goals, Monthly Goals gauges + table | int_goals_month_ct |
+| v_editorial_fct_goals_client_totals | Goal-gated client/month totals (step-3 of the goals aggregation, in SQL) | int_goals_month_ct |
 | v_editorial_fct_production_monthly | Production History chart (all 3 modes) | raw_production × dim_client |
 | v_editorial_fct_pipeline | Cumulative Pipeline header/cards (+approval-rate fields) | raw_cumulative × dim_client |
 | v_editorial_fct_milestone_transitions | TTM cards, Pod Timelines, Per-Client Days (8 transitions, day diffs) | raw_clients |
@@ -155,10 +158,11 @@ recompute rules, incl. their all-time quirks, are upstream and unchanged.)
 | v_editorial_fct_articles_monthly | Monthly Articles (chart+matrix, both axes) | int_articles_creation |
 | v_editorial_fct_article_revisions | Monthly Articles Revisions metric | int_articles_revisions |
 | v_editorial_fct_ai_recommendations | AI Compliance rollups (pod/client/writer/month) | raw_ai_monitoring |
+| v_editorial_fct_ai_flagged | AI Compliance flags + rewrites detail rows | raw_ai_monitoring |
 
-**Count: 16 raw + 8 int = 24 physical tables (was 36) + 17 views.** Views are
-free, self-documenting, and define the read contract for the future dashboard
-repoint.
+**Count: 17 raw + 8 int = 25 physical tables (was 36) + 19 views.** Views are
+free, self-documenting, and ARE the dashboard read contract (the repoint
+shipped — see "Final architecture" below).
 
 ## Cross-cutting semantics (the considerations, made explicit)
 
@@ -216,47 +220,78 @@ Verdict + diffs land in `etl/PARITY_REPORT_WAREHOUSE.md`.
 | B11 | client-production delivered falls back to clients.articles_delivered only when Σactual = 0; client skipped when all-zero | dashboard.py | be-audit caveat c |
 | B12 | %SOW numerator (date-scoped delivered) ÷ clients.articles_sow while lifetime bars use lifetimeSow | PodLifetimeProgressCard | d1-audit 4.1 |
 
-## The repoint (dashboards now READ the warehouse) — 2026-06-11
+## Final architecture — DUAL-SINK (decision 2026-06-11)
 
-- **Backend flag `DASHBOARD_SOURCE`** (`postgres` | `bq`; compose sets `bq` on
-  this branch). Every dashboard read endpoint (22 routes: clients,
-  deliverables, goals all+cumulative, kpis, team-members, editorial-weeks,
-  production-trend, client-production, pacing, capacity ×4, articles ×2,
-  ai-monitoring ×8) branches to `app/services/bq_dashboard.py`, which mirrors
-  the Postgres logic over `editorial_raw_*` / `editorial_int_*`. The frontend
-  is untouched (same API contracts); RBAC scoping stays app-side (Postgres).
-  Per-request override header `X-Data-Source` exists for the parity harness.
+After a 4-agent adversarial audit of the BQ-only repoint, Ricardo chose (and
+we implemented) a **dual-sink** publish: the same in-memory processed rows are
+written, in one ~20s parallel publish, to BOTH
+
+1. **Postgres schema `warehouse`** (11 tables: the 8 `editorial_int_*` +
+   raw_clients/raw_articles/raw_name_mappings the readers need, + all 19 views
+   translated to PG dialect in `etl/warehouse/pg_sink.py`) — **this is what
+   the app serves** (`DASHBOARD_SOURCE=postgres`, ~10–20ms per endpoint), and
+2. **BigQuery `graphite_bi_sandbox`** (all 25 tables + 19 views) — the
+   always-fresh analytics mirror for other projects, and the backup.
+
+Why this beats BQ-only serving: same numbers everywhere by construction
+(tables are written from one row set — table-level cross-sink drift is
+impossible; the 19 views are dialect translations kept in lockstep and proven
+by the endpoint harness), Postgres latency for users, BQ availability for
+analysts. The earlier BQ-only latency concern (~0.5–2.5s/endpoint) is moot.
+
+- **Backend flag `DASHBOARD_SOURCE`** (`postgres` default | `bq`). Every
+  dashboard read endpoint (**24 routes**: clients, deliverables, goals
+  all+cumulative, kpis, team-members, editorial-weeks, production-trend,
+  client-production, pacing, capacity ×4, articles ×2, ai-monitoring ×8)
+  branches to `app/services/bq_dashboard.py`, which mirrors the legacy logic
+  over the warehouse views. The frontend is untouched (same API contracts);
+  RBAC scoping stays app-side. Per-request override header `X-Data-Source`
+  is **gated by `DATA_SOURCE_OVERRIDE_ENABLED`** (true in local compose for
+  the harness, **false in production**).
 - **Endpoint parity** (`python -m etl.warehouse.endpoint_parity` →
-  `PARITY_REPORT_ENDPOINTS.md`): **37/37 cases identical** across a realistic
-  param matrix (statuses, pods, axes, windows, filters). Loop fixes applied:
-  (1) BQ tz-aware timestamps normalized to naive UTC; (2) deterministic
-  tie-break sort keys added to BOTH paths for the four endpoints whose
-  within-tie order was source-arbitrary (articles/editors, ai by-client,
-  by-writer, flags, rewrites) — pure tiebreaks, no visible semantics change.
+  `PARITY_REPORT_ENDPOINTS.md`): **53/53 cases identical** across a realistic
+  param matrix (statuses, pods, axes, windows, filters, skip>0 pagination
+  with exact-sequence id checks). Loop fixes applied: (1) BQ tz-aware
+  timestamps normalized to naive UTC; (2) deterministic id/name tie-break
+  sort keys added to BOTH paths everywhere pagination or on-screen order
+  matters — pure tiebreaks, no visible semantics change. Latent note: PG
+  `en_US` vs BQ code-point collation could order non-ASCII names differently
+  within ties; the id tiebreak bounds the blast radius to adjacent rows.
+- **Function parity** (`python -m etl.warehouse.parity` →
+  `PARITY_REPORT_WAREHOUSE.md`): 3,612 snapshot fields + 1,233 per-month
+  period assignments + goals totals + capacity/articles replays — all
+  identical vs the REAL frontend TS functions (`scripts/parity-dump.ts`).
 - **Visual validation (Playwright, authenticated)**: Overview / Editorial
-  Clients / Team KPIs all render fully from BQ; capacity golden numbers
-  (72.6/92.4 · 94.7/120.5 · 54.4/69.3) byte-identical on screen; pod variance
-  chips (0 / −5 / −5) match `v_editorial_fct_pod_snapshot` exactly (count
-  deltas vs the view = the FilterBar's default Active filter, by design).
+  Clients / Team KPIs render fully from the warehouse; capacity golden
+  numbers byte-identical on screen; pod variance chips match
+  `v_editorial_fct_pod_snapshot` exactly.
 - **Refresh triggers — same behavior as before**:
   - Terminal one-liner: `./etl/refresh.sh [current|past|full]`
-    (= SYNC button / Re-sync Past Months / both, then warehouse rebuild).
+    (= SYNC button / Re-sync Past Months / both, then warehouse publish).
   - **SYNC button** → manifest step `@warehouse-publish` runs last.
   - **Re-sync Past Months** → `@warehouse-publish-past` runs last.
   - **scope=full** (month-rollover / cron) publishes exactly ONCE, at the end.
-  - **Import Wizard** single-sheet imports publish after success.
-  - Steps auto-hide from the plans when `DASHBOARD_SOURCE=postgres`.
-- **Latency note**: BQ reads add ~0.5–2.5s per endpoint (vs ~50ms Postgres).
-  Acceptable for validation; add caching/BI-Engine before making it the prod
-  default.
+  - **Import Wizard** single-sheet imports publish after success (a publish
+    failure surfaces as a failed synthetic step, never a 500).
+  - `etl/warehouse/run.py --scope current` self-escalates to `full` on month
+    rollover, mirroring SyncAllModal.
+- **Publish hardening**: cross-process `pg_advisory_lock(815001)`; per-table
+  failure isolation in `flush_jobs` (one bad table fails loudly, the rest
+  land); single `_BUILD_TS` per build; atomic `CREATE OR REPLACE TABLE` on
+  the empty-table BQ path; PG bulk inserts via `execute_values`; parallel
+  loads (ThreadPoolExecutor×8, ~120s → ~20s).
+- **Prod deploy**: backend Dockerfile `COPY etl/ ./etl/` + railway.toml
+  `watchPatterns` include `etl/**` — the image ships the publisher.
 
 ## Out of scope (documented, deliberate)
 
-- Dead/unmounted surfaces get NO warehouse objects: backend pacing badge,
-  EngagementHealth, /dashboard/clients/summary + time-to-metrics endpoints,
+- Dead/unmounted surfaces get NO warehouse objects: backend pacing badge
+  internals beyond `/api/dashboard/pacing`, EngagementHealth,
+  /dashboard/clients/summary + time-to-metrics endpoints,
   VarianceCard/LastFullQCard/RecentQClosesCard, PodPipelineRow approval matrix
   (spec preserved in the audit if it returns).
 - RBAC row-scoping stays a read-time app concern (per-user), never baked into
   shared tables.
-- Repointing the dashboards to read these views = the next phase, after parity
-  is signed off.
+- Phase 2 (post-merge): thin-reader endpoints that SELECT the views directly
+  (delete the per-endpoint Python mirrors), then decommission the phase-1
+  flat `editorial_hub_*` tables.

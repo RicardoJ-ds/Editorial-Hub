@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # see etl/WAREHOUSE_DESIGN.md). Per-request override via the X-Data-Source
     # header (lets the parity harness diff both sources on one server).
     dashboard_source: str = "postgres"
+    # Honor the per-request X-Data-Source override (parity harness only).
+    # MUST stay False in production — any caller could flip the datastore.
+    data_source_override_enabled: bool = False
     cors_origins: list[str] = ["http://localhost:3000"]
     spreadsheet_id: str = ""
     master_tracker_id: str = ""

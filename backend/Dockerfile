@@ -14,6 +14,9 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+# The warehouse ETL (manifest step "Publish warehouse" + ./etl/refresh.sh)
+# runs inside this image — ship it. Mounted over by docker-compose in dev.
+COPY etl/ ./etl/
 
 RUN useradd --create-home --shell /bin/bash appuser
 RUN chown -R appuser:appuser /app

@@ -37,6 +37,19 @@ def main(argv: list[str] | None = None) -> int:
         from etl.extract import get_engine
         from etl.manifest import ingest_plan
 
+        # Mirror the SYNC button's month-rollover escalation: the first run of
+        # a new editorial month must also re-pull the just-closed month's
+        # finals (scope=full), exactly like SyncAllModal does.
+        if args.scope == "current":
+            with SyncSession(get_engine()) as s:
+                due = sync_manifest.monthly_resync_due(s)
+            if due.get("due"):
+                logger.info(
+                    "month rollover detected (%s) — escalating scope current → full",
+                    due.get("current_month"),
+                )
+                args.scope = "full"
+
         # Same steps as the SYNC button / Re-sync — minus the manifest's own
         # warehouse-publish step (we build the warehouse ourselves below, so
         # running it inside ingest would rebuild everything twice).
@@ -66,30 +79,38 @@ def main(argv: list[str] | None = None) -> int:
     from etl.warehouse.views import create_views
 
     t0 = time.time()
-    counts = build_all(layers={"raw", "int"} & layers)
-    for table, n in counts.items():
-        logger.info("built %-44s rows=%s", table, n)
-
-    views = []
-    if "views" in layers:
-        views = create_views(get_bq())
-        logger.info("created/replaced %d views", len(views))
-
-    summary = {
-        "started_at": started,
-        "finished_at": datetime.now(timezone.utc).isoformat(),
-        "scope": args.scope,
-        "layers": sorted(layers),
-        "ingest": ingest_results,
-        "tables": counts,
-        "views": views,
-        "seconds": round(time.time() - t0, 1),
-    }
-    out = os.path.join(os.path.dirname(__file__), "last_run.json")
-    with open(out, "w") as f:
-        json.dump(summary, f, indent=2, default=str)
-    ok = all(r["success"] for r in ingest_results) if ingest_results else True
-    print(f"\nWAREHOUSE {'OK' if ok else 'FAILED'} — {len(counts)} tables, "
+    counts: dict = {}
+    views: list = []
+    publish_error: str | None = None
+    try:
+        counts = build_all(layers={"raw", "int"} & layers)
+        for table, n in counts.items():
+            logger.info("built %-44s rows=%s", table, n)
+        if "views" in layers:
+            views = create_views(get_bq())
+            logger.info("created/replaced %d views", len(views))
+    except Exception as exc:  # noqa: BLE001 — recorded + non-zero exit below
+        publish_error = f"{type(exc).__name__}: {exc}"
+        logger.exception("warehouse publish failed")
+    finally:
+        summary = {
+            "started_at": started,
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "scope": args.scope,
+            "layers": sorted(layers),
+            "ingest": ingest_results,
+            "tables": counts,
+            "views": views,
+            "publish_error": publish_error,
+            "seconds": round(time.time() - t0, 1),
+        }
+        out = os.path.join(os.path.dirname(__file__), "last_run.json")
+        with open(out, "w") as f:
+            json.dump(summary, f, indent=2, default=str)
+    ingest_ok = all(r["success"] for r in ingest_results) if ingest_results else True
+    ok = ingest_ok and publish_error is None
+    status = "OK" if ok else ("PUBLISH FAILED" if publish_error else "INGEST FAILED (warehouse published)")
+    print(f"\nWAREHOUSE {status} — {len(counts)} tables, "
           f"{len(views)} views ({summary['seconds']}s). Log: {out}")
     return 0 if ok else 1
 

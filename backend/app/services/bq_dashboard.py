@@ -23,11 +23,13 @@ _client: bigquery.Client | None = None
 
 
 def get_data_source(request: Request) -> str:
-    """The per-request data source: X-Data-Source header (parity harness)
-    else the configured default."""
-    hdr = (request.headers.get("X-Data-Source") or "").strip().lower()
-    if hdr in ("bq", "postgres"):
-        return hdr
+    """The per-request data source: X-Data-Source header (parity harness;
+    honored only when the override flag is on — keep it OFF in prod) else the
+    configured default."""
+    if settings.data_source_override_enabled:
+        hdr = (request.headers.get("X-Data-Source") or "").strip().lower()
+        if hdr in ("bq", "postgres"):
+            return hdr
     return settings.dashboard_source
 
 
@@ -45,9 +47,7 @@ DS = f"`{settings.bq_project}.{settings.bq_dataset}`"
 
 
 def q(sql: str, params: list | None = None) -> list[dict]:
-    job = bq().query(
-        sql, job_config=bigquery.QueryJobConfig(query_parameters=params or [])
-    )
+    job = bq().query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
     rows = [dict(r) for r in job.result()]
     # Postgres stores naive UTC datetimes; BQ returns tz-aware. Normalize so
     # both sources serialize identically through the response models.
@@ -69,6 +69,7 @@ def _arr(name: str, type_: str, values):
 # ──────────────────────────────────────────────────────────────────────────────
 # /api/clients/  (RBAC scope filter applied by the ROUTER — app state stays PG)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def list_clients(
     search: str | None,
@@ -98,7 +99,7 @@ def list_clients(
     params += [_p("limit", "INT64", limit), _p("skip", "INT64", skip)]
     rows = q(
         f"SELECT * FROM {DS}.editorial_raw_clients WHERE {' AND '.join(where)} "
-        f"ORDER BY name LIMIT @limit OFFSET @skip",
+        f"ORDER BY name, id LIMIT @limit OFFSET @skip",
         params,
     )
     ids = [r["id"] for r in rows]
@@ -123,6 +124,7 @@ def list_clients(
 # /api/deliverables/, /api/kpis/, /api/team-members/, /api/migrate/editorial-weeks
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def list_deliverables(client_id, year, month, skip, limit) -> list[dict]:
     where, params = ["TRUE"], []
     if client_id is not None:
@@ -142,8 +144,19 @@ def list_deliverables(client_id, year, month, skip, limit) -> list[dict]:
     )
 
 
-def list_kpis(team_member_id, year, month, year_from, month_from, year_to, month_to,
-              kpi_type, client_id, skip, limit) -> list[dict]:
+def list_kpis(
+    team_member_id,
+    year,
+    month,
+    year_from,
+    month_from,
+    year_to,
+    month_to,
+    kpi_type,
+    client_id,
+    skip,
+    limit,
+) -> list[dict]:
     where, params = ["TRUE"], []
     if team_member_id is not None:
         where.append("team_member_id = @tm")
@@ -188,7 +201,7 @@ def list_team_members(role, pod, is_active, skip, limit) -> list[dict]:
     params += [_p("limit", "INT64", limit), _p("skip", "INT64", skip)]
     return q(
         f"SELECT * FROM {DS}.editorial_raw_team_members WHERE {' AND '.join(where)} "
-        f"ORDER BY name LIMIT @limit OFFSET @skip",
+        f"ORDER BY name, id LIMIT @limit OFFSET @skip",
         params,
     )
 
@@ -209,6 +222,7 @@ def list_editorial_weeks(year: int | None) -> list[dict]:
 # /api/goals-delivery/all + /cumulative
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def goals_all(pod: str | None) -> list[dict]:
     where, params = "TRUE", []
     if pod:
@@ -216,7 +230,7 @@ def goals_all(pod: str | None) -> list[dict]:
         params = [_p("pod", "STRING", pod)]
     return q(
         f"SELECT * FROM {DS}.editorial_raw_goals WHERE {where} "
-        f"ORDER BY month_year, week_number, client_name",
+        f"ORDER BY month_year, week_number, client_name, id",
         params,
     )
 
@@ -231,7 +245,7 @@ def goals_cumulative(pod: str | None, status: str | None) -> list[dict]:
         params.append(_p("status", "STRING", status))
     return q(
         f"SELECT * FROM {DS}.editorial_raw_cumulative WHERE {' AND '.join(where)} "
-        f"ORDER BY client_name",
+        f"ORDER BY client_name, id",
         params,
     )
 
@@ -239,6 +253,7 @@ def goals_cumulative(pod: str | None, status: str | None) -> list[dict]:
 # ──────────────────────────────────────────────────────────────────────────────
 # /api/dashboard/* — production-trend, client-production, pacing
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def production_trend() -> list[dict]:
     return q(
@@ -362,14 +377,14 @@ _MEMBER_COLS = (
 def capacity_pod_summary() -> list[dict]:
     return q(
         f"SELECT year, month, pod, version, total_capacity, projected_used_capacity, "
-        f"actual_used_capacity FROM {DS}.editorial_int_capacity_pod_months "
+        f"actual_used_capacity FROM {DS}.v_editorial_fct_capacity_pods "
         f"ORDER BY year, month, pod"
     )
 
 
 def member_utilization(year: int, month: int) -> list[dict]:
     rows = q(
-        f"SELECT {_MEMBER_COLS} FROM {DS}.editorial_int_member_months "
+        f"SELECT {_MEMBER_COLS} FROM {DS}.v_editorial_fct_member_utilization "
         f"WHERE year = @y AND month = @m",
         [_p("y", "INT64", year), _p("m", "INT64", month)],
     )
@@ -378,7 +393,7 @@ def member_utilization(year: int, month: int) -> list[dict]:
 
 
 def member_utilization_matrix() -> list[dict]:
-    rows = q(f"SELECT year, month, {_MEMBER_COLS} FROM {DS}.editorial_int_member_months")
+    rows = q(f"SELECT year, month, {_MEMBER_COLS} FROM {DS}.v_editorial_fct_member_utilization")
     months = sorted({(r["year"], r["month"]) for r in rows})
     out: list[dict] = []
     for ym in months:
@@ -392,7 +407,7 @@ def client_contributions(year: int, month: int) -> list[dict]:
     rows = q(
         f"SELECT pod, client_id, client_name, category, weight, projected_raw, "
         f"actual_raw, projected_weighted, actual_weighted "
-        f"FROM {DS}.editorial_int_client_pod_months WHERE year = @y AND month = @m",
+        f"FROM {DS}.v_editorial_fct_client_contributions WHERE year = @y AND month = @m",
         [_p("y", "INT64", year), _p("m", "INT64", month)],
     )
     rows.sort(key=lambda r: (r["pod"], -r["actual_raw"], r["client_name"]))
@@ -402,6 +417,7 @@ def client_contributions(year: int, month: int) -> list[dict]:
 # ──────────────────────────────────────────────────────────────────────────────
 # /api/articles/monthly + /editors
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _normalize_pod(raw: str) -> str:
     t = str(raw).strip()
@@ -440,14 +456,14 @@ def articles_monthly(date_from, date_to, pod, pod_axis, client_list, editor_list
                    editor_name, SUM(count) AS count, SUM(revised) AS revised,
                    SUM(published) AS published, SUM(published_revised) AS published_revised,
                    SUM(matched) AS matched
-            FROM {DS}.editorial_int_articles_creation WHERE {where}
+            FROM {DS}.v_editorial_fct_articles_monthly WHERE {where}
             GROUP BY month_year, pod, client_name, editor_name""",
         params,
     )
     revisions = q(
         f"""SELECT month_year, IFNULL({pod_col}, 'Unassigned') AS pod, client_name,
                    editor_name, SUM(revisions) AS revisions
-            FROM {DS}.editorial_int_articles_revisions WHERE {where}
+            FROM {DS}.v_editorial_fct_article_revisions WHERE {where}
             GROUP BY month_year, pod, client_name, editor_name""",
         params,
     )
@@ -469,6 +485,7 @@ def articles_editors() -> list[dict]:
 # ──────────────────────────────────────────────────────────────────────────────
 # /api/ai-monitoring/*
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _ai_where(pod=None, client=None, month=None, writer=None, editor=None):
     where, params = ["is_rewrite = FALSE"], []
@@ -504,23 +521,36 @@ def ai_summary(pod, client, month, writer, editor) -> dict:
     total = r["total"] or 0
     fp, pp, rr = r["full_pass"] or 0, r["partial_pass"] or 0, r["review_rewrite"] or 0
     return {
-        "total": total, "full_pass": fp, "partial_pass": pp, "review_rewrite": rr,
+        "total": total,
+        "full_pass": fp,
+        "partial_pass": pp,
+        "review_rewrite": rr,
         "full_pass_rate": round(fp / total * 100, 1) if total > 0 else 0,
         "partial_pass_rate": round(pp / total * 100, 1) if total > 0 else 0,
         "review_rewrite_rate": round(rr / total * 100, 1) if total > 0 else 0,
     }
 
 
-def _ai_breakdown(group_col: str, order: str, limit: int | None,
-                  month: str | None = None, pod: str | None = None,
-                  skip_empty: bool = False) -> list[dict]:
+def _ai_breakdown(
+    group_col: str,
+    order: str,
+    limit: int | None,
+    month: str | None = None,
+    pod: str | None = None,
+    skip_empty: bool = False,
+) -> list[dict]:
     where, params = _ai_where(pod=pod, month=month)
     if skip_empty:
         where += f" AND {group_col} IS NOT NULL AND {group_col} != ''"
     lim = f" LIMIT {int(limit)}" if limit else ""
     return [
-        {"name": r["name"], "total": r["total"], "full_pass": r["full_pass"],
-         "partial_pass": r["partial_pass"], "review_rewrite": r["review_rewrite"]}
+        {
+            "name": r["name"],
+            "total": r["total"],
+            "full_pass": r["full_pass"],
+            "partial_pass": r["partial_pass"],
+            "review_rewrite": r["review_rewrite"],
+        }
         for r in q(
             f"SELECT {group_col} AS name, {_AI_AGG} FROM {DS}.editorial_raw_ai_monitoring "
             f"WHERE {where} GROUP BY {group_col} ORDER BY {order}{lim}",
@@ -538,8 +568,9 @@ def ai_by_client(pod, month, limit):
 
 
 def ai_by_writer(pod, month, limit):
-    return _ai_breakdown("writer_name", "total DESC, name", limit, month=month, pod=pod,
-                         skip_empty=True)
+    return _ai_breakdown(
+        "writer_name", "total DESC, name", limit, month=month, pod=pod, skip_empty=True
+    )
 
 
 def ai_by_month(pod=None, client=None):
@@ -547,8 +578,13 @@ def ai_by_month(pod=None, client=None):
     where, params = _ai_where(pod=pod, client=client)
     where += " AND month IS NOT NULL AND month != ''"
     return [
-        {"name": r["name"], "total": r["total"], "full_pass": r["full_pass"],
-         "partial_pass": r["partial_pass"], "review_rewrite": r["review_rewrite"]}
+        {
+            "name": r["name"],
+            "total": r["total"],
+            "full_pass": r["full_pass"],
+            "partial_pass": r["partial_pass"],
+            "review_rewrite": r["review_rewrite"],
+        }
         for r in q(
             f"SELECT month AS name, {_AI_AGG} FROM {DS}.editorial_raw_ai_monitoring "
             f"WHERE {where} GROUP BY month ORDER BY name",

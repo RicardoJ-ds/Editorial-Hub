@@ -427,8 +427,9 @@ def quarter_meta_from_periods(periods: list[BillingPeriod], as_of: date) -> dict
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Goals 3-step aggregation — GoalsVsDeliverySection.tsx:40-148 (step 1+2 feed the
-# int table; step 3's goal-gating is replicated in the views/parity).
+# Goals 3-step aggregation — GoalsVsDeliverySection.tsx:40-148 (steps 1+2 feed
+# the int table; step 3's goal-gating lives in v_editorial_fct_goals_client_totals
+# (both dialects) and is verified by parity via goals_grand_totals below).
 # ──────────────────────────────────────────────────────────────────────────────
 
 def goals_month_ct_rows(goal_rows: list[dict]) -> list[dict]:

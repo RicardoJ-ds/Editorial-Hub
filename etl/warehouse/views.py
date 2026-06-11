@@ -96,6 +96,29 @@ GROUP BY pod_axis, pod, as_of_date
 SELECT * FROM {DS}.editorial_int_goals_month_ct
 """,
     ),
+    _v(
+        "v_editorial_fct_goals_client_totals",
+        f"""
+-- Step-3 of the goals aggregation IN SQL: per client, month totals are gated
+-- on that month's weighted goal > 0 (independently for CB and AD) — exactly
+-- aggregateGoalsSummary. Summing the monthly view directly would overcount
+-- whenever a client-month has deliveries but no goal in that dimension.
+WITH cm AS (
+  SELECT client_name, month_year,
+         SUM(w_cb_goal) AS cb_goal, SUM(w_cb_delivered) AS cb_del,
+         SUM(w_ad_goal) AS ad_goal, SUM(w_ad_delivered) AS ad_del
+  FROM {DS}.editorial_int_goals_month_ct
+  GROUP BY client_name, month_year
+)
+SELECT client_name,
+       SUM(IF(cb_goal > 0, cb_goal, 0)) AS cb_goal,
+       SUM(IF(cb_goal > 0, cb_del, 0)) AS cb_delivered,
+       SUM(IF(ad_goal > 0, ad_goal, 0)) AS ad_goal,
+       SUM(IF(ad_goal > 0, ad_del, 0)) AS ad_delivered
+FROM cm
+GROUP BY client_name
+""",
+    ),
     # ── production ──────────────────────────────────────────────────────────
     _v(
         "v_editorial_fct_production_monthly",

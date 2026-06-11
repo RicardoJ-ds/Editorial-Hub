@@ -1,6 +1,6 @@
 [build]
 dockerfilePath = "backend/Dockerfile"
-watchPatterns = ["backend/**", "railway.toml"]
+watchPatterns = ["backend/**", "etl/**", "railway.toml"]
 
 [deploy]
 restartPolicyType = "ON_FAILURE"

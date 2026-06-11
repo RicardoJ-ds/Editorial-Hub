@@ -37,7 +37,7 @@ async def list_team_members(
     if is_active is not None:
         stmt = stmt.where(TeamMember.is_active == is_active)
 
-    stmt = stmt.offset(skip).limit(limit).order_by(TeamMember.name)
+    stmt = stmt.offset(skip).limit(limit).order_by(TeamMember.name, TeamMember.id)
     result = await db.execute(stmt)
     return result.scalars().all()
 

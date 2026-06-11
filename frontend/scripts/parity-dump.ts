@@ -29,7 +29,12 @@ import {
 } from "../src/components/dashboard/ClientDeliveryCards";
 import { varianceTier } from "../src/components/dashboard/shared-helpers";
 import { aggregateGoalsSummary } from "../src/components/dashboard/GoalsVsDeliverySection";
-import type { Client, DeliverableMonthly, GoalsVsDeliveryRow } from "../src/lib/types";
+import type {
+  Client,
+  CumulativeMetric,
+  DeliverableMonthly,
+  GoalsVsDeliveryRow,
+} from "../src/lib/types";
 
 const API = process.env.PARITY_API ?? "http://localhost:8050";
 const HDRS = { "X-User-Email": "ricardo.jaramillo@graphitehq.com" };
@@ -104,11 +109,15 @@ function deliveryMetaFor(
 }
 
 async function main() {
-  const [clients, deliverables, goals] = await Promise.all([
+  const [clients, deliverables, goals, cumulative] = await Promise.all([
     get<Client[]>("/api/clients/?limit=500"),
     fetchAllDeliverables(),
     get<GoalsVsDeliveryRow[]>("/api/goals-delivery/all"),
+    get<CumulativeMetric[]>("/api/goals-delivery/cumulative"),
   ]);
+  // publishedByName — same exact-name, last-wins join the Overview uses.
+  const publishedByName = new Map<string, number>();
+  for (const cm of cumulative) publishedByName.set(cm.client_name, cm.published_live ?? 0);
 
   const summaries = buildLifetimeSummaries(clients, deliverables);
   const meta = deliveryMetaFor(clients, deliverables);
@@ -147,9 +156,29 @@ async function main() {
     const d1IsFirst = qm.currentQ?.label === "Q1";
     const d1Tier = computeClientTier(qm.currentQ, !!d1IsFirst)?.key ?? null;
 
+    // Per-month period assignments (both variants) — verifies the
+    // editorial_int_client_months table the snapshot check can't see.
+    const periodMap = (ps: { qIdx: number; label: string; isPrelude: boolean; months: { year: number; month: number }[] }[], post?: boolean) => {
+      const m: Record<string, (number | string | boolean)[]> = {};
+      for (const p of ps) {
+        for (const mo of p.months) {
+          const k = `${mo.year}-${String(mo.month).padStart(2, "0")}`;
+          m[k] = post
+            ? [p.qIdx, p.label, p.isPrelude, (p as { isPostContract?: boolean }).isPostContract ?? false]
+            : [p.qIdx, p.label, p.isPrelude];
+        }
+      }
+      return m;
+    };
+    const published = publishedByName.get(row.name) ?? 0;
+
     return {
       client_id: row.id,
       client_name: row.name,
+      published_live: published,
+      pct_published: row.articles_sow > 0 ? Math.round((published / row.articles_sow) * 100) : null,
+      ovr_period_map: periodMap(periods),
+      d1_period_map: periodMap(d1Periods as never, true),
       lifetime_delivered: row.articles_delivered,
       lifetime_invoiced: row.articles_invoiced,
       articles_sow: row.articles_sow,

@@ -73,8 +73,11 @@ def _warehouse_publish_run(session: Session) -> "list[ImportResult]":
     except ImportError as exc:  # etl/ not present in this deployment
         return [
             ImportResult(
-                sheet=WAREHOUSE_LABEL, rows_parsed=0, rows_imported=0,
-                success=False, errors=[f"etl package unavailable: {exc}"],
+                sheet=WAREHOUSE_LABEL,
+                rows_parsed=0,
+                rows_imported=0,
+                success=False,
+                errors=[f"etl package unavailable: {exc}"],
             )
         ]
     counts = build_all()
@@ -87,6 +90,7 @@ def _warehouse_publish_run(session: Session) -> "list[ImportResult]":
             success=True,
         )
     ]
+
 
 _MONTHS = [
     "January",
@@ -179,7 +183,10 @@ CURRENT_STEPS: list[ManifestStep] = [
     ),
     ManifestStep(REFRESH_KPIS_KEY, REFRESH_KPIS_LABEL, "current", run=_refresh_kpis_run),
     ManifestStep(
-        WAREHOUSE_KEY, WAREHOUSE_LABEL, "current", run=_warehouse_publish_run,
+        WAREHOUSE_KEY,
+        WAREHOUSE_LABEL,
+        "current",
+        run=_warehouse_publish_run,
         description="Rebuild the BigQuery warehouse the dashboards read",
     ),
 ]
@@ -222,7 +229,10 @@ PAST_STEPS: list[ManifestStep] = [
         description="Fills clients.editorial_pod from the most recent confirmed history",
     ),
     ManifestStep(
-        WAREHOUSE_PAST_KEY, WAREHOUSE_LABEL, "past", run=_warehouse_publish_run,
+        WAREHOUSE_PAST_KEY,
+        WAREHOUSE_LABEL,
+        "past",
+        run=_warehouse_publish_run,
         description="Rebuild the BigQuery warehouse the dashboards read",
     ),
 ]
@@ -232,25 +242,20 @@ _FIXED_BY_KEY: dict[str, ManifestStep] = {st.key: st for st in ALL_STEPS if st.r
 
 
 def steps_for_scope(scope: str) -> list[ManifestStep]:
-    from app.config import settings
-
-    def _trim(steps: list[ManifestStep]) -> list[ManifestStep]:
-        # The warehouse publish only matters when dashboards READ BigQuery;
-        # in postgres mode it would just burn ~2 min per SYNC for nothing.
-        if settings.dashboard_source == "bq":
-            return steps
-        return [s for s in steps if s.key not in (WAREHOUSE_KEY, WAREHOUSE_PAST_KEY)]
-
+    # The warehouse publish ALWAYS runs (~20 s, parallel loads): it refreshes
+    # the processed layer in BOTH sinks — Postgres `warehouse` schema (what
+    # the app can serve) and BigQuery (analytics mirror / backup for other
+    # projects) — regardless of which source the dashboards read.
     if scope == "current":
-        return _trim(list(CURRENT_STEPS))
+        return list(CURRENT_STEPS)
     if scope == "past":
-        return _trim(list(PAST_STEPS))
+        return list(PAST_STEPS)
     if scope == "full":
         # full == click SYNC, then Re-sync Past Months (current then past).
         # Publish ONCE at the very end — drop the current-scope publish so the
         # warehouse isn't rebuilt twice in one run.
         cur = [s for s in CURRENT_STEPS if s.key != WAREHOUSE_KEY]
-        return _trim(cur + PAST_STEPS)
+        return cur + PAST_STEPS
     raise ValueError(f"Unknown sync scope '{scope}' (expected current|past|full)")
 
 
