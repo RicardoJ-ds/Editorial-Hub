@@ -48,6 +48,9 @@ RAW_TABLES: list[tuple[type, str, str | None]] = [
     (m.AIMonitoringRecord, "editorial_raw_ai_monitoring", None),
     (m.SurferAPIUsage, "editorial_raw_surfer_usage", None),
     (m.TeamMember, "editorial_raw_team_members", None),
+    # Pacing templates: the /api/dashboard/pacing endpoint still FETCHES them
+    # (its result is currently unrendered, but the page request must not 500).
+    (m.DeliveryTemplate, "editorial_raw_delivery_templates", None),
 ]
 
 _EXTRA_BY_TRANSFORM = {

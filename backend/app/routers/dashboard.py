@@ -1,6 +1,8 @@
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
+import asyncio
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +33,8 @@ from app.services.calculations import (
     pacing_status,
     time_to_metric,
 )
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -144,7 +148,12 @@ async def kpis_capacity_summary(
 
 
 @router.get("/client-production", response_model=list[ClientProductionRow])
-async def client_production(db: AsyncSession = Depends(get_db)):
+async def client_production(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.client_production)
     """Per-client monthly production (actual vs projected from the Editorial
     Operating Model) plus per-client totals used by the Client Engagement
     Timeline's % Delivered view and its right-hand summary sidebar.
@@ -229,8 +238,13 @@ async def client_production(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/production-trend", response_model=list[ProductionTrendPoint])
-async def production_trend(db: AsyncSession = Depends(get_db)):
+async def production_trend(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+):
     """Aggregate production history by year/month across all clients."""
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.production_trend)
     stmt = (
         select(
             ProductionHistory.year,
@@ -262,8 +276,13 @@ async def production_trend(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/pacing", response_model=list[ClientPacing])
-async def client_pacing(db: AsyncSession = Depends(get_db)):
+async def client_pacing(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+):
     """Calculate delivery pacing for each active client against delivery templates."""
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.pacing)
     # Get active clients with SOW info
     clients_result = await db.execute(
         select(Client).where(Client.status == "ACTIVE").order_by(Client.name)

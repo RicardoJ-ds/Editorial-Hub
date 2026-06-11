@@ -1,5 +1,7 @@
 """Goals vs Delivery + Cumulative metrics endpoints."""
 
+import asyncio
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import CumulativeMetric, GoalsVsDelivery
 from app.schemas import CumulativeMetricResponse, GoalsVsDeliveryResponse
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -55,7 +59,10 @@ async def goals_delivery_latest(
 async def goals_delivery_all(
     pod: str | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.goals_all, pod)
     """Return every Goals vs Delivery row we have on hand.
 
     Intended for the Deliverables-vs-SOW page's month-range view: the client
@@ -101,8 +108,11 @@ async def cumulative_metrics(
     pod: str | None = None,
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
     """Get all-time cumulative pipeline metrics per client."""
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.goals_cumulative, pod, status)
     stmt = select(CumulativeMetric).order_by(CumulativeMetric.client_name)
     if pod:
         stmt = stmt.where(CumulativeMetric.account_team_pod == pod)

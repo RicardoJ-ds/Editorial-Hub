@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import KpiScore
 from app.schemas import KpiScoreCreate, KpiScoreResponse, KpiScoreUpdate
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -28,7 +32,15 @@ async def list_kpi_scores(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(
+            bq_dashboard.list_kpis,
+            team_member_id, year, month, year_from, month_from, year_to,
+            month_to, kpi_type, client_id, skip, limit,
+        )
+
     stmt = select(KpiScore)
 
     if team_member_id is not None:

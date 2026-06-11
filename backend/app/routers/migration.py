@@ -26,6 +26,8 @@ from app.services.migration_service import (
     preview_sheet,
     refresh_computed_kpis,
 )
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -179,6 +181,18 @@ async def trigger_import(body: ImportRequest):
             status_code=500,
             detail=f"Import failed: {exc}",
         ) from exc
+
+    # When dashboards read BigQuery, a wizard import must also refresh the
+    # warehouse or the imported sheet would be invisible until the next SYNC.
+    if settings.dashboard_source == "bq" and any(r.success for r in results):
+        def _publish():
+            session = _get_sync_session()
+            try:
+                return sync_manifest._warehouse_publish_run(session)
+            finally:
+                session.close()
+
+        results += await asyncio.to_thread(_publish)
 
     return ImportResponse(
         results=[
@@ -575,7 +589,10 @@ async def resync_single_step(step: str):
 async def list_editorial_weeks(
     year: int | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.list_editorial_weeks, year)
     """Read-only feed of the editorial-week rows the past-months resync wrote.
     Lives on `/api/migrate/...` because it's tightly coupled to the importer
     that populates it; no separate router warranted."""

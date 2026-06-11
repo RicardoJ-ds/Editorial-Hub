@@ -216,6 +216,40 @@ Verdict + diffs land in `etl/PARITY_REPORT_WAREHOUSE.md`.
 | B11 | client-production delivered falls back to clients.articles_delivered only when Σactual = 0; client skipped when all-zero | dashboard.py | be-audit caveat c |
 | B12 | %SOW numerator (date-scoped delivered) ÷ clients.articles_sow while lifetime bars use lifetimeSow | PodLifetimeProgressCard | d1-audit 4.1 |
 
+## The repoint (dashboards now READ the warehouse) — 2026-06-11
+
+- **Backend flag `DASHBOARD_SOURCE`** (`postgres` | `bq`; compose sets `bq` on
+  this branch). Every dashboard read endpoint (22 routes: clients,
+  deliverables, goals all+cumulative, kpis, team-members, editorial-weeks,
+  production-trend, client-production, pacing, capacity ×4, articles ×2,
+  ai-monitoring ×8) branches to `app/services/bq_dashboard.py`, which mirrors
+  the Postgres logic over `editorial_raw_*` / `editorial_int_*`. The frontend
+  is untouched (same API contracts); RBAC scoping stays app-side (Postgres).
+  Per-request override header `X-Data-Source` exists for the parity harness.
+- **Endpoint parity** (`python -m etl.warehouse.endpoint_parity` →
+  `PARITY_REPORT_ENDPOINTS.md`): **37/37 cases identical** across a realistic
+  param matrix (statuses, pods, axes, windows, filters). Loop fixes applied:
+  (1) BQ tz-aware timestamps normalized to naive UTC; (2) deterministic
+  tie-break sort keys added to BOTH paths for the four endpoints whose
+  within-tie order was source-arbitrary (articles/editors, ai by-client,
+  by-writer, flags, rewrites) — pure tiebreaks, no visible semantics change.
+- **Visual validation (Playwright, authenticated)**: Overview / Editorial
+  Clients / Team KPIs all render fully from BQ; capacity golden numbers
+  (72.6/92.4 · 94.7/120.5 · 54.4/69.3) byte-identical on screen; pod variance
+  chips (0 / −5 / −5) match `v_editorial_fct_pod_snapshot` exactly (count
+  deltas vs the view = the FilterBar's default Active filter, by design).
+- **Refresh triggers — same behavior as before**:
+  - Terminal one-liner: `./etl/refresh.sh [current|past|full]`
+    (= SYNC button / Re-sync Past Months / both, then warehouse rebuild).
+  - **SYNC button** → manifest step `@warehouse-publish` runs last.
+  - **Re-sync Past Months** → `@warehouse-publish-past` runs last.
+  - **scope=full** (month-rollover / cron) publishes exactly ONCE, at the end.
+  - **Import Wizard** single-sheet imports publish after success.
+  - Steps auto-hide from the plans when `DASHBOARD_SOURCE=postgres`.
+- **Latency note**: BQ reads add ~0.5–2.5s per endpoint (vs ~50ms Postgres).
+  Acceptable for validation; add caching/BI-Engine before making it the prod
+  default.
+
 ## Out of scope (documented, deliberate)
 
 - Dead/unmounted surfaces get NO warehouse objects: backend pacing badge,

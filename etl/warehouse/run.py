@@ -31,9 +31,35 @@ def main(argv: list[str] | None = None) -> int:
     started = datetime.now(timezone.utc).isoformat()
     ingest_results = []
     if args.scope:
-        from etl.run import run_ingest
+        from sqlalchemy.orm import Session as SyncSession
 
-        ingest_results = run_ingest(args.scope)
+        from app.services import sync_manifest
+        from etl.extract import get_engine
+        from etl.manifest import ingest_plan
+
+        # Same steps as the SYNC button / Re-sync — minus the manifest's own
+        # warehouse-publish step (we build the warehouse ourselves below, so
+        # running it inside ingest would rebuild everything twice).
+        engine = get_engine()
+        for step in ingest_plan(args.scope):
+            if step["key"].startswith("@warehouse"):
+                continue
+            t0 = time.time()
+            with SyncSession(engine) as session:
+                try:
+                    rs = sync_manifest.run_step(session, step["key"])
+                    ok = all(r.success for r in rs)
+                    imported = sum(r.rows_imported or 0 for r in rs)
+                    errors = [e for r in rs for e in (r.errors or [])][:3]
+                except Exception as exc:
+                    ok, imported, errors = False, 0, [str(exc)]
+            ingest_results.append(
+                {"step": step["key"], "scope": step["scope"], "success": ok,
+                 "rows_imported": imported, "seconds": round(time.time() - t0, 1),
+                 "errors": errors}
+            )
+            logger.info("ingest %-45s %s rows=%s", step["key"],
+                        "OK" if ok else "FAIL " + "; ".join(errors), imported)
 
     from etl.load import get_bq
     from etl.warehouse.build import build_all

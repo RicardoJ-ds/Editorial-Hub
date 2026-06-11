@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     google_application_credentials: str = "sa-key.json"
     bq_project: str = "graphite-data"
     bq_dataset: str = "graphite_bi_sandbox"
+    # Where the DASHBOARD read endpoints get their data: "postgres" (the
+    # original sheets→Postgres path) or "bq" (the layered BigQuery warehouse —
+    # see etl/WAREHOUSE_DESIGN.md). Per-request override via the X-Data-Source
+    # header (lets the parity harness diff both sources on one server).
+    dashboard_source: str = "postgres"
     cors_origins: list[str] = ["http://localhost:3000"]
     spreadsheet_id: str = ""
     master_tracker_id: str = ""

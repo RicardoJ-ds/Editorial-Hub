@@ -26,6 +26,9 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/sa-key.json
       BQ_PROJECT: ${BQ_PROJECT:-graphite-data}
       BQ_DATASET: ${BQ_DATASET:-graphite_bi_sandbox}
+      # Branch feature/etl-warehouse-refactor: dashboards read the BigQuery
+      # warehouse. Set to "postgres" to fall back to the original path.
+      DASHBOARD_SOURCE: ${DASHBOARD_SOURCE:-bq}
       CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:4050"]'}
       SPREADSHEET_ID: ${SPREADSHEET_ID:-}
       MASTER_TRACKER_ID: ${MASTER_TRACKER_ID:-}
