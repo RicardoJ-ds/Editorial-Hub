@@ -1,411 +1,455 @@
 raw_log_name,resolved_to,status,year,month,article_rows,where_to_validate_tabs
 83,83,junk,2021,Nov,1,Athena
 AND,AND,junk,2022,Dec,2,Contra
-Abby,Abby,confirmed,2022,Aug,10,Linktree · Dynamite
-Abby,Abby,confirmed,2022,Sep,36,Linktree · BetterUp
-Abby,Abby,confirmed,2022,Oct,36,Linktree · Bergdorf
-Abby,Abby,confirmed,2022,Nov,36,Neiman · Bergdorf
-Abby,Abby,confirmed,2022,Dec,13,Bergdorf · Neiman
-Abby,Abby,confirmed,2023,Jan,49,Bergdorf · Neiman
-Abby,Abby,confirmed,2023,Feb,60,Curology · Neiman
-Abby,Abby,confirmed,2023,Mar,20,Bergdorf · Neiman
-Abby,Abby,confirmed,2025,Apr,17,ThredUp · Webflow
-Abby,Abby,confirmed,2025,May,39,ThredUp · Engine
-Abby,Abby,confirmed,2025,Jun,65,Everand · Engine
-Abby,Abby,confirmed,2025,Jul,54,Engine · Everand
-Abby,Abby,confirmed,2025,Aug,16,Engine · ChatGPT
-Abby,Abby,confirmed,2025,Sep,2,Fivetran · ShareGate
-Abby,Abby,confirmed,2025,Oct,2,Front
-Abby,Abby,confirmed,2025,Nov,2,Front · Workleap
-Abby,Abby,confirmed,2025,Dec,15,Front · Fivetran
-Abby,Abby,confirmed,2026,Jan,10,HoneyBook · Fivetran
-Abby,Abby,confirmed,2026,Feb,21,Workleap · Fivetran
-Abby/Alyssa,Abby,folded_variant,2025,Apr,5,Gainbridge · Webflow
-Abby/Alyssa,Alyssa,folded_variant,2025,Apr,5,Gainbridge · Webflow
-Abby/Derrik,Abby,folded_variant,2022,Sep,3,Curology
-Abby/Derrik,Derrik,folded_variant,2022,Sep,3,Curology
-Abby/Maggie,Abby,folded_variant,2022,Oct,1,Practice
-Abby/Maggie,Maggie,folded_variant,2022,Oct,1,Practice
-Abby/Nicholas,Abby,folded_variant,2022,Dec,1,Linktree
-Abby/Nicholas,Nicholas,folded_variant,2022,Dec,1,Linktree
-Alyssa,Alyssa,confirmed,2022,Sep,16,Dynamite
-Alyssa,Alyssa,confirmed,2022,Oct,13,Flip · Dynamite
-Alyssa,Alyssa,confirmed,2022,Nov,19,Flip · Practice
-Alyssa,Alyssa,confirmed,2022,Dec,9,Flip · Practice
-Alyssa,Alyssa,confirmed,2023,Jan,20,BetterUp · Notion
-Alyssa,Alyssa,confirmed,2023,Feb,37,BetterUp · Notion
-Alyssa,Alyssa,confirmed,2023,Mar,44,BetterUp · Notion
-Alyssa,Alyssa,confirmed,2023,Apr,62,Notion · BetterUp
-Alyssa,Alyssa,confirmed,2023,May,61,BetterUp · Notion
-Alyssa,Alyssa,confirmed,2023,Jun,36,BetterUp · Notion
-Alyssa,Alyssa,confirmed,2023,Jul,45,BetterUp · Notion
-Alyssa,Alyssa,confirmed,2023,Aug,67,BetterUp · Tempo
-Alyssa,Alyssa,confirmed,2023,Sep,32,Tempo · Contra
-Alyssa,Alyssa,confirmed,2023,Oct,42,Tempo · Linktree
-Alyssa,Alyssa,confirmed,2023,Nov,20,IronVest · Taskrabbit
-Alyssa,Alyssa,confirmed,2023,Dec,24,Taskrabbit · IronVest
-Alyssa,Alyssa,confirmed,2024,Jan,18,Taskrabbit · Webflow
-Alyssa,Alyssa,confirmed,2024,Mar,11,Webflow · Fellow
-Alyssa,Alyssa,confirmed,2024,Apr,24,Webflow · Mirage
-Alyssa,Alyssa,confirmed,2024,May,50,Webflow · Mirage
-Alyssa,Alyssa,confirmed,2024,Jun,5,Mirage · Fellow
-Alyssa,Alyssa,confirmed,2024,Jul,3,ThredUp · Webflow
-Alyssa,Alyssa,confirmed,2024,Oct,17,Apartment List · Gainbridge
-Alyssa,Alyssa,confirmed,2024,Nov,17,ThredUp · Apartment List
-Alyssa,Alyssa,confirmed,2024,Dec,3,Blu · Gainbridge
-Alyssa,Alyssa,confirmed,2025,Jan,15,ThredUp · Webflow
-Alyssa,Alyssa,confirmed,2025,Feb,6,ThredUp
-Alyssa,Alyssa,confirmed,2025,Mar,17,Gainbridge · Onton
-Alyssa,Alyssa,confirmed,2025,Apr,12,Onton · Gainbridge
-Alyssa,Alyssa,confirmed,2025,May,2,Everand · Engine
-Alyssa,Alyssa,confirmed,2025,Jun,12,Onton
-Alyssa,Alyssa,confirmed,2025,Jul,10,Onton · Oyster
-Alyssa,Alyssa,confirmed,2025,Aug,5,Moss · Onton
-Alyssa,Alyssa,confirmed,2025,Sep,8,Webflow · Moss
-Alyssa,Alyssa,confirmed,2025,Dec,4,Pylon
-Alyssa,Alyssa,confirmed,2026,Feb,6,Pylon
-Alyssa,Alyssa,confirmed,2026,Mar,6,Pylon
-Alyssa,Alyssa,confirmed,2026,May,2,Boulevard
-Alyssa,Alyssa,confirmed,2026,Jun,3,Pylon
-Alyssa/Abby,Abby,folded_variant,2022,Nov,5,Linktree
-Alyssa/Abby,Alyssa,folded_variant,2022,Nov,5,Linktree
-Alyssa/Anabelle,Alyssa,folded_variant,2024,Jun,6,EarnIn
-Alyssa/Anabelle,Anabelle,folded_variant,2024,Jun,6,EarnIn
-Alyssa/Bryan,Alyssa,folded_variant,2023,Jan,2,Notion
-Alyssa/Bryan,Bryan,folded_variant,2023,Jan,2,Notion
-Alyssa/Chrissy,Alyssa,folded_variant,2022,Dec,1,Practice
-Alyssa/Chrissy,Chrissy,folded_variant,2022,Dec,1,Practice
-Alyssa/Derrik,Alyssa,folded_variant,2025,Mar,4,Oyster
-Alyssa/Derrik,Alyssa,folded_variant,2025,Apr,1,Oyster
-Alyssa/Derrik,Derrik,folded_variant,2025,Mar,4,Oyster
-Alyssa/Derrik,Derrik,folded_variant,2025,Apr,1,Oyster
-Alyssa/Maggie,Alyssa,folded_variant,2022,Oct,11,Flip · ESGgo
-Alyssa/Maggie,Alyssa,folded_variant,2022,Nov,33,Practice · Flip
-Alyssa/Maggie,Alyssa,folded_variant,2022,Dec,28,BetterUp
-Alyssa/Maggie,Alyssa,folded_variant,2023,Jan,24,BetterUp
-Alyssa/Maggie,Maggie,folded_variant,2022,Oct,11,Flip · ESGgo
-Alyssa/Maggie,Maggie,folded_variant,2022,Nov,33,Practice · Flip
-Alyssa/Maggie,Maggie,folded_variant,2022,Dec,28,BetterUp
-Alyssa/Maggie,Maggie,folded_variant,2023,Jan,24,BetterUp
-Anabelle,Anabelle,confirmed,2022,Dec,3,Linktree
-Anabelle,Anabelle,confirmed,2023,Jan,15,Webflow · Quinn
-Anabelle,Anabelle,confirmed,2023,Feb,33,BetterUp · Webflow
-Anabelle,Anabelle,confirmed,2023,Mar,50,Notion · BetterUp
-Anabelle,Anabelle,confirmed,2023,Apr,52,BetterUp · Notion
-Anabelle,Anabelle,confirmed,2023,May,59,BetterUp · Notion
-Anabelle,Anabelle,confirmed,2023,Jun,36,BetterUp · Notion
-Anabelle,Anabelle,confirmed,2023,Jul,40,BetterUp · Notion
-Anabelle,Anabelle,confirmed,2023,Aug,40,BetterUp · Tempo
-Anabelle,Anabelle,confirmed,2023,Sep,56,BetterUp · Notion
-Anabelle,Anabelle,confirmed,2023,Oct,56,BetterUp · Quinn
-Anabelle,Anabelle,confirmed,2023,Nov,41,BetterUp · Quinn
-Anabelle,Anabelle,confirmed,2023,Dec,41,Quinn · Mirage
-Anabelle,Anabelle,confirmed,2024,Jan,54,Mirage · IronVest
-Anabelle,Anabelle,confirmed,2024,Feb,30,Quinn · Landing
-Anabelle,Anabelle,confirmed,2024,Mar,37,Fishbowl · Landing
-Anabelle,Anabelle,confirmed,2024,Apr,34,EarnIn · Landing
-Anabelle,Anabelle,confirmed,2024,May,44,Invoice Simple · EarnIn
-Anabelle,Anabelle,confirmed,2024,Jun,47,Fishbowl · Invoice Simple
-Anabelle,Anabelle,confirmed,2024,Jul,49,GlossGenius · Fishbowl
-Anabelle,Anabelle,confirmed,2024,Aug,50,Invoice Simple · Fishbowl
-Anabelle,Anabelle,confirmed,2024,Sep,43,Invoice Simple · GlossGenius
-Anabelle,Anabelle,confirmed,2024,Oct,64,Invoice Simple · Otter
-Anabelle,Anabelle,confirmed,2024,Nov,64,Otter · Legit Security
-Anabelle,Anabelle,confirmed,2024,Dec,62,Invoice Simple · Otter
-Anabelle,Anabelle,confirmed,2025,Jan,57,GlossGenius · Legit Security
-Anabelle,Anabelle,confirmed,2025,Feb,45,Legit Security · Otter
-Anabelle,Anabelle,confirmed,2025,Mar,31,Legit Security · EarnIn
-Anabelle,Anabelle,confirmed,2025,Apr,40,Legit Security · Sermo
-Anabelle,Anabelle,confirmed,2025,May,51,Legit Security · Otter
-Anabelle,Anabelle,confirmed,2025,Jun,66,Better · Otter
-Anabelle,Anabelle,confirmed,2025,Jul,44,Rox · Otter
-Anabelle,Anabelle,confirmed,2025,Aug,36,Smartling · Legit Security
-Anabelle,Anabelle,confirmed,2025,Sep,28,Tempo · Engine
-Anabelle,Anabelle,confirmed,2025,Nov,9,Oyster · Rox
-Anabelle,Anabelle,confirmed,2025,Dec,5,Ellis
-Anabelle,Anabelle,confirmed,2026,Mar,3,Workleap
-Anabelle,Anabelle,confirmed,2026,Jun,3,n8n
-Anabelle/Alyssa,Alyssa,folded_variant,2025,Aug,1,Moss
-Anabelle/Alyssa,Anabelle,folded_variant,2025,Aug,1,Moss
-Anabelle/Alyssa/Maggie/Bryan,Alyssa,folded_variant,2023,Jan,1,Webflow
-Anabelle/Alyssa/Maggie/Bryan,Anabelle,folded_variant,2023,Jan,1,Webflow
-Anabelle/Alyssa/Maggie/Bryan,Bryan,folded_variant,2023,Jan,1,Webflow
-Anabelle/Alyssa/Maggie/Bryan,Maggie,folded_variant,2023,Jan,1,Webflow
-Anabelle/Chrissy,Anabelle,folded_variant,2022,Dec,4,Linktree
-Anabelle/Chrissy,Anabelle,folded_variant,2023,May,1,Linktree
-Anabelle/Chrissy,Chrissy,folded_variant,2022,Dec,4,Linktree
-Anabelle/Chrissy,Chrissy,folded_variant,2023,May,1,Linktree
-Anabelle/Derrik,Anabelle,folded_variant,2022,Dec,8,Curology
-Anabelle/Derrik,Derrik,folded_variant,2022,Dec,8,Curology
-Anabelle/Maggie,Anabelle,folded_variant,2022,Dec,3,Webflow
-Anabelle/Maggie,Anabelle,folded_variant,2023,Jan,13,Webflow · BetterUp
-Anabelle/Maggie,Maggie,folded_variant,2022,Dec,3,Webflow
-Anabelle/Maggie,Maggie,folded_variant,2023,Jan,13,Webflow · BetterUp
-Anabelle/Maggie/Bryan,Anabelle,folded_variant,2023,Jan,1,Webflow
-Anabelle/Maggie/Bryan,Bryan,folded_variant,2023,Jan,1,Webflow
-Anabelle/Maggie/Bryan,Maggie,folded_variant,2023,Jan,1,Webflow
-Anabelle/Nicholas,Anabelle,folded_variant,2025,Feb,1,Tempo
-Anabelle/Nicholas,Nicholas,folded_variant,2025,Feb,1,Tempo
-Bryan,Bryan,confirmed,2022,Jun,3,OpenSea · Linktree
-Bryan,Bryan,confirmed,2022,Jul,4,Mailgun
-Bryan,Bryan,confirmed,2022,Aug,3,Worldcoin
-Bryan/Eesha,Bryan,folded_variant,2022,Sep,1,Worldcoin
-Bryan/Eesha,Eesha,folded_variant,2022,Sep,1,Worldcoin
-Chelsea,Chelsea,confirmed,2024,Jan,47,Quinn · IronVest
-Chelsea,Chelsea,confirmed,2024,Feb,33,Quinn · EarnIn
-Chelsea/Maggie,Chelsea,folded_variant,2023,Nov,10,Mirage · Quinn
-Chelsea/Maggie,Chelsea,folded_variant,2023,Dec,22,Quinn · Mirage
-Chelsea/Maggie,Maggie,folded_variant,2023,Nov,10,Mirage · Quinn
-Chelsea/Maggie,Maggie,folded_variant,2023,Dec,22,Quinn · Mirage
-Chrissy,Chrissy,confirmed,2023,May,1,Linktree
-Chrissy,Chrissy,confirmed,2024,Feb,5,Invoice Simple
-Derriik,Derriik,confirmed,2025,Feb,3,Oyster
-Derrik,Derrik,confirmed,2021,Dec,8,Jaanuu
-Derrik,Derrik,confirmed,2022,Jan,2,Curology
-Derrik,Derrik,confirmed,2022,Feb,25,Curology · Email On Acid
-Derrik,Derrik,confirmed,2022,Mar,74,Shift · Jaanuu
-Derrik,Derrik,confirmed,2022,Apr,67,Shift · Jaanuu
-Derrik,Derrik,confirmed,2022,May,76,Shift · Jaanuu
-Derrik,Derrik,confirmed,2022,Jun,25,Curology · Practice
-Derrik,Derrik,confirmed,2022,Jul,31,Curology · Linktree
-Derrik,Derrik,confirmed,2022,Aug,53,Curology · Little Passports
-Derrik,Derrik,confirmed,2022,Sep,21,Curology
-Derrik,Derrik,confirmed,2022,Oct,41,Curology · Little Passports
-Derrik,Derrik,confirmed,2022,Nov,20,Curology
-Derrik,Derrik,confirmed,2023,Jan,13,Curology · Neiman
-Derrik,Derrik,confirmed,2023,Feb,1,Curology
-Derrik,Derrik,confirmed,2023,Mar,2,Contra
-Derrik,Derrik,confirmed,2023,May,36,Contra · Grindr
-Derrik,Derrik,confirmed,2023,Jun,18,Contra · Grindr
-Derrik,Derrik,confirmed,2023,Jul,8,Contra · Grindr
-Derrik,Derrik,confirmed,2023,Sep,29,Contra · Grindr
-Derrik,Derrik,confirmed,2023,Oct,3,Contra
-Derrik,Derrik,confirmed,2023,Dec,3,Grindr
-Derrik,Derrik,confirmed,2024,Jan,5,Grindr · dydx
-Derrik,Derrik,confirmed,2024,Mar,14,dydx · Oyster
-Derrik,Derrik,confirmed,2024,Apr,56,dydx · Oyster
-Derrik,Derrik,confirmed,2024,May,34,Oyster · dydx
-Derrik,Derrik,confirmed,2024,Jun,34,dydx · CoinTracker
-Derrik,Derrik,confirmed,2024,Jul,46,CoinTracker · dydx
-Derrik,Derrik,confirmed,2024,Aug,28,dydx · CoinTracker
-Derrik,Derrik,confirmed,2024,Sep,17,dydx · Smartling
-Derrik,Derrik,confirmed,2024,Oct,32,CoinTracker · Smartling
-Derrik,Derrik,confirmed,2024,Nov,28,Orderful 2 · CoinTracker
-Derrik,Derrik,confirmed,2024,Dec,34,CoinTracker · Orderful 2
-Derrik,Derrik,confirmed,2025,Jan,35,CoinTracker · Orderful 2
-Derrik,Derrik,confirmed,2025,Feb,50,CoinTracker · Orderful 2
-Derrik,Derrik,confirmed,2025,Mar,78,CoinTracker · Orderful 2
-Derrik,Derrik,confirmed,2025,Apr,39,Orderful 2 · CoinTracker
-Derrik,Derrik,confirmed,2025,May,48,Oyster · Orderful 2
-Derrik,Derrik,confirmed,2025,Jun,41,Oyster · Orderful 2
-Derrik,Derrik,confirmed,2025,Jul,53,Oyster · Onton
-Derrik,Derrik,confirmed,2025,Aug,55,Legit Security · CoinTracker
-Derrik,Derrik,confirmed,2025,Sep,2,CoinTracker
-Derrik/Abby,Abby,folded_variant,2022,Dec,1,Bergdorf
-Derrik/Abby,Derrik,folded_variant,2022,Dec,1,Bergdorf
-Eesha,Eesha,confirmed,2022,Jun,33,Jaanuu · Gopuff
-Eesha,Eesha,confirmed,2022,Jul,21,Jaanuu · Mailjet
-Eesha,Eesha,confirmed,2022,Aug,5,Worldcoin · Mailjet
-Eesha,Eesha,confirmed,2022,Sep,22,Email On Acid · Mailgun
-Eesha,Eesha,confirmed,2022,Oct,12,Email On Acid · Mailjet
-Eesha,Eesha,confirmed,2022,Nov,37,Mailgun · Mailjet
-Eesha,Eesha,confirmed,2023,Mar,12,Linktree · Practice
-Eesha,Eesha,confirmed,2023,Apr,3,Practice · Linktree
-Eesha,Eesha,confirmed,2023,May,9,Practice
-Eesha,Eesha,confirmed,2023,Jun,5,Practice
-Eesha,Eesha,confirmed,2023,Jul,4,Contra
-Eesha,Eesha,confirmed,2023,Sep,3,Contra
-Eesha,Eesha,confirmed,2024,Feb,10,dydx
-Eesha,Eesha,confirmed,2024,Mar,3,Tempo
-Eesha/Chrissy,Chrissy,folded_variant,2022,Dec,17,Practice · Worldcoin
-Eesha/Chrissy,Chrissy,folded_variant,2023,Jan,46,Worldcoin · Linktree
-Eesha/Chrissy,Chrissy,folded_variant,2023,Feb,45,Practice · Linktree
-Eesha/Chrissy,Chrissy,folded_variant,2023,Mar,43,Practice · dydx
-Eesha/Chrissy,Chrissy,folded_variant,2023,Apr,34,Linktree · Practice
-Eesha/Chrissy,Chrissy,folded_variant,2023,May,31,Practice · dydx
-Eesha/Chrissy,Chrissy,folded_variant,2023,Jun,13,Practice · dydx
-Eesha/Chrissy,Chrissy,folded_variant,2023,Sep,1,Practice
-Eesha/Chrissy,Chrissy,folded_variant,2023,Nov,1,Practice
-Eesha/Chrissy,Chrissy,folded_variant,2024,Jan,2,dydx
-Eesha/Chrissy,Eesha,folded_variant,2022,Dec,17,Practice · Worldcoin
-Eesha/Chrissy,Eesha,folded_variant,2023,Jan,46,Worldcoin · Linktree
-Eesha/Chrissy,Eesha,folded_variant,2023,Feb,45,Practice · Linktree
-Eesha/Chrissy,Eesha,folded_variant,2023,Mar,43,Practice · dydx
-Eesha/Chrissy,Eesha,folded_variant,2023,Apr,34,Linktree · Practice
-Eesha/Chrissy,Eesha,folded_variant,2023,May,31,Practice · dydx
-Eesha/Chrissy,Eesha,folded_variant,2023,Jun,13,Practice · dydx
-Eesha/Chrissy,Eesha,folded_variant,2023,Sep,1,Practice
-Eesha/Chrissy,Eesha,folded_variant,2023,Nov,1,Practice
-Eesha/Chrissy,Eesha,folded_variant,2024,Jan,2,dydx
-Eesha/Chrissy/Bryan,Bryan,folded_variant,2023,Feb,1,dydx
-Eesha/Chrissy/Bryan,Bryan,folded_variant,2023,May,2,FRC · Orderful
-Eesha/Chrissy/Bryan,Chrissy,folded_variant,2023,Feb,1,dydx
-Eesha/Chrissy/Bryan,Chrissy,folded_variant,2023,May,2,Orderful · FRC
-Eesha/Chrissy/Bryan,Eesha,folded_variant,2023,Feb,1,dydx
-Eesha/Chrissy/Bryan,Eesha,folded_variant,2023,May,2,Orderful · FRC
-Eesha/Chrissy/Bryan/Shelby,Bryan,folded_variant,2023,May,1,FRC
-Eesha/Chrissy/Bryan/Shelby,Chrissy,folded_variant,2023,May,1,FRC
-Eesha/Chrissy/Bryan/Shelby,Eesha,folded_variant,2023,May,1,FRC
-Eesha/Chrissy/Bryan/Shelby,Shelby,folded_variant,2023,May,1,FRC
-Eesha/Chrissy/Shelby,Chrissy,folded_variant,2023,Mar,2,Little Passports
-Eesha/Chrissy/Shelby,Eesha,folded_variant,2023,Mar,2,Little Passports
-Eesha/Chrissy/Shelby,Shelby,folded_variant,2023,Mar,2,Little Passports
-Eesha/Derrik,Derrik,folded_variant,2022,Jul,8,Jaanuu · Mailjet
-Eesha/Derrik,Derrik,folded_variant,2022,Aug,78,Worldcoin · Jaanuu
-Eesha/Derrik,Derrik,folded_variant,2022,Sep,43,Worldcoin · Jaanuu
-Eesha/Derrik,Derrik,folded_variant,2022,Oct,33,Worldcoin · Mailjet
-Eesha/Derrik,Derrik,folded_variant,2022,Nov,24,Worldcoin
-Eesha/Derrik,Derrik,folded_variant,2022,Dec,3,Worldcoin
-Eesha/Derrik,Derrik,folded_variant,2023,Jan,1,dydx
-Eesha/Derrik,Derrik,folded_variant,2023,Jun,31,Contra · dydx
-Eesha/Derrik,Derrik,folded_variant,2023,Jul,28,Contra · dydx
-Eesha/Derrik,Derrik,folded_variant,2023,Aug,64,Contra · dydx
-Eesha/Derrik,Derrik,folded_variant,2023,Oct,45,Contra
-Eesha/Derrik,Derrik,folded_variant,2023,Nov,18,dydx · Contra
-Eesha/Derrik,Derrik,folded_variant,2023,Dec,29,dydx · Composer
-Eesha/Derrik,Derrik,folded_variant,2024,Jan,86,dydx · Composer
-Eesha/Derrik,Derrik,folded_variant,2024,Feb,32,dydx · Composer
-Eesha/Derrik,Derrik,folded_variant,2024,Mar,6,dydx
-Eesha/Derrik,Eesha,folded_variant,2022,Jul,8,Jaanuu · Mailjet
-Eesha/Derrik,Eesha,folded_variant,2022,Aug,78,Worldcoin · Jaanuu
-Eesha/Derrik,Eesha,folded_variant,2022,Sep,43,Worldcoin · Jaanuu
-Eesha/Derrik,Eesha,folded_variant,2022,Oct,33,Worldcoin · Mailjet
-Eesha/Derrik,Eesha,folded_variant,2022,Nov,24,Worldcoin
-Eesha/Derrik,Eesha,folded_variant,2022,Dec,3,Worldcoin
-Eesha/Derrik,Eesha,folded_variant,2023,Jan,1,dydx
-Eesha/Derrik,Eesha,folded_variant,2023,Jun,31,Contra · dydx
-Eesha/Derrik,Eesha,folded_variant,2023,Jul,28,Contra · dydx
-Eesha/Derrik,Eesha,folded_variant,2023,Aug,64,Contra · dydx
-Eesha/Derrik,Eesha,folded_variant,2023,Oct,45,Contra
-Eesha/Derrik,Eesha,folded_variant,2023,Nov,18,dydx · Contra
-Eesha/Derrik,Eesha,folded_variant,2023,Dec,29,dydx · Composer
-Eesha/Derrik,Eesha,folded_variant,2024,Jan,86,dydx · Composer
-Eesha/Derrik,Eesha,folded_variant,2024,Feb,32,dydx · Composer
-Eesha/Derrik,Eesha,folded_variant,2024,Mar,6,dydx
-Eesha/Derrik/Chrissy,Chrissy,folded_variant,2022,Dec,7,Worldcoin
-Eesha/Derrik/Chrissy,Derrik,folded_variant,2022,Dec,7,Worldcoin
-Eesha/Derrik/Chrissy,Eesha,folded_variant,2022,Dec,7,Worldcoin
-Eesha/Maggie,Eesha,folded_variant,2022,Aug,2,ESGgo
-Eesha/Maggie,Eesha,folded_variant,2022,Sep,4,Mailgun · ESGgo
-Eesha/Maggie,Eesha,folded_variant,2022,Dec,1,Webflow
-Eesha/Maggie,Maggie,folded_variant,2022,Aug,2,ESGgo
-Eesha/Maggie,Maggie,folded_variant,2022,Sep,4,Mailgun · ESGgo
-Eesha/Maggie,Maggie,folded_variant,2022,Dec,1,Webflow
-Eesha/Maggie/Anabelle,Anabelle,folded_variant,2023,Jan,1,Webflow
-Eesha/Maggie/Anabelle,Eesha,folded_variant,2023,Jan,1,Webflow
-Eesha/Maggie/Anabelle,Maggie,folded_variant,2023,Jan,1,Webflow
-Eesha/Nicholas/Derrik,Derrik,folded_variant,2022,Oct,2,Little Passports
-Eesha/Nicholas/Derrik,Eesha,folded_variant,2022,Oct,2,Little Passports
-Eesha/Nicholas/Derrik,Nicholas,folded_variant,2022,Oct,2,Little Passports
-Eesha/Nicholas/Shelby/Derrik,Derrik,folded_variant,2022,Nov,1,Little Passports
-Eesha/Nicholas/Shelby/Derrik,Eesha,folded_variant,2022,Nov,1,Little Passports
-Eesha/Nicholas/Shelby/Derrik,Nicholas,folded_variant,2022,Nov,1,Little Passports
-Eesha/Nicholas/Shelby/Derrik,Shelby,folded_variant,2022,Nov,1,Little Passports
-Eesha/Shelby/Chrissy/Bryan,Bryan,folded_variant,2023,Feb,2,dydx
-Eesha/Shelby/Chrissy/Bryan,Chrissy,folded_variant,2023,Feb,2,dydx
-Eesha/Shelby/Chrissy/Bryan,Eesha,folded_variant,2023,Feb,2,dydx
-Eesha/Shelby/Chrissy/Bryan,Shelby,folded_variant,2023,Feb,2,dydx
-Elliot,Elliot,confirmed,2025,Feb,1,Fivetran
-Elliot,Elliot,confirmed,2025,Jul,6,Everand
-Elliot,Elliot,confirmed,2025,Aug,24,Everand · Workleap
-Elliot,Elliot,confirmed,2025,Sep,31,Workleap · Everand
-Elliot,Elliot,confirmed,2025,Oct,18,Everand · Workleap
-Elliot,Elliot,confirmed,2025,Nov,31,Everand · Workleap
-Elliot,Elliot,confirmed,2025,Dec,23,Workleap · Fivetran
-Elliot,Elliot,confirmed,2026,Jan,22,Fivetran · Front
-Elliot,Elliot,confirmed,2026,Feb,26,Fivetran · Workleap
-Elliot,Elliot,confirmed,2026,Mar,19,Workleap · Miter
-Elliot,Elliot,confirmed,2026,Apr,35,Miter · Mistplay
-Elliot,Elliot,confirmed,2026,May,31,Maven Clinic · Miter
-Elliot,Elliot,confirmed,2026,Jun,2,Maven Clinic
-Elliot/Abby,Abby,folded_variant,2025,Aug,3,Workleap
-Elliot/Abby,Elliot,folded_variant,2025,Aug,3,Workleap
-Haley,Haley,confirmed,2025,Sep,21,Moss · Webflow
-Haley,Haley,confirmed,2025,Oct,24,Legit Security · CoinTracker
-Haley,Haley,confirmed,2025,Nov,26,CoinTracker · Legit Security
-Haley,Haley,confirmed,2025,Dec,36,CoinTracker · Pylon
-Haley,Haley,confirmed,2026,Jan,37,Pylon · CoinTracker
-Haley,Haley,confirmed,2026,Feb,35,CoinTracker · Pylon
-Haley,Haley,confirmed,2026,Mar,40,Webflow · CoinTracker
-Haley,Haley,confirmed,2026,Apr,42,Boulevard · Leapsome
-Haley,Haley,confirmed,2026,May,36,Leapsome · Boulevard
-Haley,Haley,confirmed,2026,Jun,11,Leapsome · Boulevard
-Haley/Alyssa,Alyssa,folded_variant,2025,Sep,1,Webflow
-Haley/Alyssa,Haley,folded_variant,2025,Sep,1,Webflow
-Jared,Jared,confirmed,2024,Dec,1,Engine
-Jared,Jared,confirmed,2025,Jan,10,Oyster · Engine
-Jared,Jared,confirmed,2025,Feb,27,Engine · ThredUp
-Jared,Jared,confirmed,2025,Mar,40,ThredUp · Engine
-Jared,Jared,confirmed,2025,Apr,46,Engine · Gainbridge
-Jared,Jared,confirmed,2025,May,27,Onton · Webflow
-Jared,Jared,confirmed,2025,Jun,35,Tempo · Onton
-Jared,Jared,confirmed,2025,Jul,33,Better · Tempo
-Jared,Jared,confirmed,2025,Aug,4,Better
-Jared/Derrik,Derrik,folded_variant,2025,Jan,1,Engine
-Jared/Derrik,Jared,folded_variant,2025,Jan,1,Engine
-Jared/Maggie,Jared,folded_variant,2025,Jul,1,Rox
-Jared/Maggie,Maggie,folded_variant,2025,Jul,1,Rox
-Jimmy,Jimmy,confirmed,2025,Mar,1,Genstore
-Jimmy,Jimmy,confirmed,2025,Sep,13,Better · Rox
-Jimmy,Jimmy,confirmed,2025,Oct,21,Better · Mirage
-Jimmy,Jimmy,confirmed,2025,Nov,24,Moss · Mirage
-Jimmy,Jimmy,confirmed,2025,Dec,30,Felt · Better
-Jimmy,Jimmy,confirmed,2026,Jan,38,Mistplay · Better
-Jimmy,Jimmy,confirmed,2026,Feb,38,Mistplay · Miter
-Jimmy,Jimmy,confirmed,2026,Mar,42,Mistplay · Miter
-Jimmy,Jimmy,confirmed,2026,Apr,33,Felt · College HUNKS
-Jimmy,Jimmy,confirmed,2026,May,44,College HUNKS · Pylon
-Jimmy,Jimmy,confirmed,2026,Jun,11,College HUNKS · n8n
-Katie,Katie,confirmed,2025,Apr,8,Athena2
-Katie,Katie,confirmed,2025,May,34,Athena2 · Gainbridge
-Katie,Katie,confirmed,2025,Jun,48,Mirage · Athena2
-Katie,Katie,confirmed,2025,Jul,30,Mirage · Gainbridge
-Katie,Katie,confirmed,2025,Aug,43,Rox · Gainbridge
-Katie,Katie,confirmed,2025,Sep,38,Rox · Gainbridge
-Katie,Katie,confirmed,2025,Oct,29,Rox · Gainbridge
-Katie,Katie,confirmed,2025,Nov,8,Athena2 · Rox
-Kennedy,Kennedy,confirmed,2024,Mar,1,Mirage
-Kennedy,Kennedy,confirmed,2024,Jun,23,Webflow · Mirage
-Kennedy,Kennedy,confirmed,2024,Jul,38,Webflow · Mirage
-Kennedy,Kennedy,confirmed,2024,Aug,31,Webflow · Mirage
-Kennedy,Kennedy,confirmed,2024,Sep,26,Mirage · Scribe
-Kennedy,Kennedy,confirmed,2024,Oct,65,Mirage · Apartment List
-Kennedy,Kennedy,confirmed,2024,Nov,72,Mirage · Apartment List
-Kennedy,Kennedy,confirmed,2024,Dec,47,Mirage · ThredUp
-Kennedy,Kennedy,confirmed,2025,Jan,42,Mirage · Gainbridge
-Kennedy,Kennedy,confirmed,2025,Feb,44,Mirage · Gainbridge
-Kennedy,Kennedy,confirmed,2025,Mar,59,Mirage · Webflow
-Kennedy,Kennedy,confirmed,2025,Apr,68,Mirage · Athena2
-Kennedy,Kennedy,confirmed,2025,May,52,Mirage · Gainbridge
-Kennedy,Kennedy,confirmed,2025,Jun,34,Mirage · Gainbridge
-Kennedy,Kennedy,confirmed,2025,Jul,49,Mirage · Gainbridge
-Kennedy,Kennedy,confirmed,2025,Aug,8,Mirage · Smartling
-Kennedy,Kennedy,confirmed,2025,Sep,8,Smartling · Better
-Kennedy,Kennedy,confirmed,2025,Nov,6,Mirage · Mistplay
-Kennedy,Kennedy,confirmed,2025,Dec,15,Moss · Better
-Kennedy,Kennedy,confirmed,2026,Jan,10,Mistplay · Genstore
-Kennedy,Kennedy,confirmed,2026,Feb,8,Genstore · Mistplay
-Kennedy,Kennedy,confirmed,2026,Mar,17,Workleap · Maven Clinic
-Kennedy,Kennedy,confirmed,2026,Apr,8,Miter · Maven Clinic
-Kennedy,Kennedy,confirmed,2026,May,23,Miter · Flex
-Kennedy/Alyssa,Alyssa,folded_variant,2025,Aug,1,Webflow
-Kennedy/Alyssa,Alyssa,folded_variant,2025,Sep,1,Webflow
-Kennedy/Alyssa,Kennedy,folded_variant,2025,Aug,1,Webflow
-Kennedy/Alyssa,Kennedy,folded_variant,2025,Sep,1,Webflow
-Kimberly,Kimberly,confirmed,2025,Mar,4,Otter · Tempo
-Kimberly,Kimberly,confirmed,2025,Apr,32,Tempo · Otter
-Kimberly,Kimberly,confirmed,2025,May,9,ThredUp · Tempo
+Abby,Abby Norwood,confirmed,2022,Aug,11,Linktree · Dynamite
+Abby,Abby Norwood,confirmed,2022,Sep,37,Linktree · BetterUp
+Abby,Abby Norwood,confirmed,2022,Oct,36,Linktree · Bergdorf
+Abby,Abby Norwood,confirmed,2022,Nov,36,Neiman · Bergdorf
+Abby,Abby Norwood,confirmed,2022,Dec,13,Bergdorf · Neiman
+Abby,Abby Norwood,confirmed,2023,Jan,49,Bergdorf · Neiman
+Abby,Abby Norwood,confirmed,2023,Feb,60,Curology · Neiman
+Abby,Abby Norwood,confirmed,2023,Mar,20,Bergdorf · Neiman
+Abby,Abby Norwood,confirmed,2025,Apr,17,ThredUp · Webflow
+Abby,Abby Norwood,confirmed,2025,May,39,ThredUp · Engine
+Abby,Abby Norwood,confirmed,2025,Jun,65,Everand · Engine
+Abby,Abby Norwood,confirmed,2025,Jul,54,Engine · Everand
+Abby,Abby Norwood,confirmed,2025,Aug,16,Engine · ChatGPT
+Abby,Abby Norwood,confirmed,2025,Sep,2,Fivetran · ShareGate
+Abby,Abby Norwood,confirmed,2025,Oct,2,Front
+Abby,Abby Norwood,confirmed,2025,Nov,2,Workleap · Front
+Abby,Abby Norwood,confirmed,2025,Dec,15,Front · Fivetran
+Abby,Abby Norwood,confirmed,2026,Jan,10,HoneyBook · Front
+Abby,Abby Norwood,confirmed,2026,Feb,22,Workleap · ShareGate
+Abby,Abby Norwood,confirmed,2026,May,3,Everand · Engine
+Abby,Abby Norwood,confirmed,2026,Jun,1,ThredUp
+Abby,Abby Norwood,confirmed,2026,Aug,1,ChatGPT
+Abby,Abby Norwood,confirmed,2026,Dec,3,Bergdorf
+Abby/Alyssa,Abby Norwood,folded_variant,2025,Apr,5,Gainbridge · Webflow
+Abby/Alyssa,Alyssa Zacharias,folded_variant,2025,Apr,5,Gainbridge · Webflow
+Abby/Derrik,Abby Norwood,folded_variant,2022,Sep,3,Curology
+Abby/Derrik,Derrik Chinn,folded_variant,2022,Sep,3,Curology
+Abby/Maggie,Abby Norwood,folded_variant,2022,Oct,1,Practice
+Abby/Maggie,Maggie Gowland,folded_variant,2022,Oct,1,Practice
+Abby/Nicholas,Abby Norwood,folded_variant,2022,Dec,1,Linktree
+Abby/Nicholas,Nicholas Youngblood,folded_variant,2022,Dec,1,Linktree
+Alyssa,Alyssa Zacharias,confirmed,2022,Sep,16,Dynamite
+Alyssa,Alyssa Zacharias,confirmed,2022,Oct,13,Flip · Dynamite
+Alyssa,Alyssa Zacharias,confirmed,2022,Nov,19,Flip · Practice
+Alyssa,Alyssa Zacharias,confirmed,2022,Dec,9,Flip · Practice
+Alyssa,Alyssa Zacharias,confirmed,2023,Jan,20,BetterUp · Notion
+Alyssa,Alyssa Zacharias,confirmed,2023,Feb,37,BetterUp · Notion
+Alyssa,Alyssa Zacharias,confirmed,2023,Mar,44,BetterUp · Notion
+Alyssa,Alyssa Zacharias,confirmed,2023,Apr,62,Notion · BetterUp
+Alyssa,Alyssa Zacharias,confirmed,2023,May,61,BetterUp · Notion
+Alyssa,Alyssa Zacharias,confirmed,2023,Jun,36,Notion · BetterUp
+Alyssa,Alyssa Zacharias,confirmed,2023,Jul,45,BetterUp · Notion
+Alyssa,Alyssa Zacharias,confirmed,2023,Aug,67,BetterUp · Tempo
+Alyssa,Alyssa Zacharias,confirmed,2023,Sep,32,Tempo · Contra
+Alyssa,Alyssa Zacharias,confirmed,2023,Oct,42,Tempo · Linktree
+Alyssa,Alyssa Zacharias,confirmed,2023,Nov,20,IronVest · Taskrabbit
+Alyssa,Alyssa Zacharias,confirmed,2023,Dec,24,Taskrabbit · IronVest
+Alyssa,Alyssa Zacharias,confirmed,2024,Jan,18,Taskrabbit · Webflow
+Alyssa,Alyssa Zacharias,confirmed,2024,Mar,11,Webflow · Fellow
+Alyssa,Alyssa Zacharias,confirmed,2024,Apr,24,Webflow · Mirage
+Alyssa,Alyssa Zacharias,confirmed,2024,May,50,Webflow · Mirage
+Alyssa,Alyssa Zacharias,confirmed,2024,Jun,5,Mirage · Fellow
+Alyssa,Alyssa Zacharias,confirmed,2024,Jul,3,ThredUp · Webflow
+Alyssa,Alyssa Zacharias,confirmed,2024,Oct,17,Apartment List · Gainbridge
+Alyssa,Alyssa Zacharias,confirmed,2024,Nov,17,ThredUp · Gainbridge
+Alyssa,Alyssa Zacharias,confirmed,2024,Dec,3,Blu · Gainbridge
+Alyssa,Alyssa Zacharias,confirmed,2025,Jan,15,ThredUp · Webflow
+Alyssa,Alyssa Zacharias,confirmed,2025,Feb,6,ThredUp
+Alyssa,Alyssa Zacharias,confirmed,2025,Mar,17,Gainbridge · Onton
+Alyssa,Alyssa Zacharias,confirmed,2025,Apr,12,Onton · Gainbridge
+Alyssa,Alyssa Zacharias,confirmed,2025,May,2,Engine · Everand
+Alyssa,Alyssa Zacharias,confirmed,2025,Jun,12,Onton
+Alyssa,Alyssa Zacharias,confirmed,2025,Jul,10,Onton · Oyster
+Alyssa,Alyssa Zacharias,confirmed,2025,Aug,8,Vimeo · Moss
+Alyssa,Alyssa Zacharias,confirmed,2025,Sep,8,Onton · Webflow
+Alyssa,Alyssa Zacharias,confirmed,2025,Dec,4,Pylon
+Alyssa,Alyssa Zacharias,confirmed,2026,Feb,6,Pylon
+Alyssa,Alyssa Zacharias,confirmed,2026,Mar,8,Pylon · Athena2
+Alyssa,Alyssa Zacharias,confirmed,2026,May,3,Boulevard · Mirage
+Alyssa,Alyssa Zacharias,confirmed,2026,Jun,3,Pylon
+Alyssa,Alyssa Zacharias,confirmed,2026,Sep,1,Onton
+Alyssa,Alyssa Zacharias,confirmed,2026,Dec,1,Pylon
+Alyssa/Abby,Abby Norwood,folded_variant,2022,Nov,5,Linktree
+Alyssa/Abby,Alyssa Zacharias,folded_variant,2022,Nov,5,Linktree
+Alyssa/Anabelle,Alyssa Zacharias,folded_variant,2024,Jun,6,EarnIn
+Alyssa/Anabelle,Anabelle Zaluski,folded_variant,2024,Jun,6,EarnIn
+Alyssa/Bryan,Alyssa Zacharias,folded_variant,2023,Jan,2,Notion
+Alyssa/Bryan,Bryan Clark,folded_variant,2023,Jan,2,Notion
+Alyssa/Chrissy,Alyssa Zacharias,folded_variant,2022,Dec,1,Practice
+Alyssa/Chrissy,Chrissy Woods,folded_variant,2022,Dec,1,Practice
+Alyssa/Derrik,Alyssa Zacharias,folded_variant,2025,Mar,4,Oyster
+Alyssa/Derrik,Alyssa Zacharias,folded_variant,2025,Apr,1,Oyster
+Alyssa/Derrik,Derrik Chinn,folded_variant,2025,Mar,4,Oyster
+Alyssa/Derrik,Derrik Chinn,folded_variant,2025,Apr,1,Oyster
+Alyssa/Maggie,Alyssa Zacharias,folded_variant,2022,Oct,11,Flip · ESGgo
+Alyssa/Maggie,Alyssa Zacharias,folded_variant,2022,Nov,33,Practice · Flip
+Alyssa/Maggie,Alyssa Zacharias,folded_variant,2022,Dec,28,BetterUp
+Alyssa/Maggie,Alyssa Zacharias,folded_variant,2023,Jan,24,BetterUp
+Alyssa/Maggie,Maggie Gowland,folded_variant,2022,Oct,11,Flip · ESGgo
+Alyssa/Maggie,Maggie Gowland,folded_variant,2022,Nov,33,Practice · Flip
+Alyssa/Maggie,Maggie Gowland,folded_variant,2022,Dec,28,BetterUp
+Alyssa/Maggie,Maggie Gowland,folded_variant,2023,Jan,24,BetterUp
+Anabelle,Anabelle Zaluski,confirmed,2022,Dec,8,Linktree
+Anabelle,Anabelle Zaluski,confirmed,2023,Jan,13,Webflow · Quinn
+Anabelle,Anabelle Zaluski,confirmed,2023,Feb,33,BetterUp · Webflow
+Anabelle,Anabelle Zaluski,confirmed,2023,Mar,50,Notion · BetterUp
+Anabelle,Anabelle Zaluski,confirmed,2023,Apr,49,BetterUp · Notion
+Anabelle,Anabelle Zaluski,confirmed,2023,May,59,BetterUp · Notion
+Anabelle,Anabelle Zaluski,confirmed,2023,Jun,36,BetterUp · Notion
+Anabelle,Anabelle Zaluski,confirmed,2023,Jul,40,BetterUp · Notion
+Anabelle,Anabelle Zaluski,confirmed,2023,Aug,40,BetterUp · Tempo
+Anabelle,Anabelle Zaluski,confirmed,2023,Sep,56,BetterUp · Notion
+Anabelle,Anabelle Zaluski,confirmed,2023,Oct,56,BetterUp · Quinn
+Anabelle,Anabelle Zaluski,confirmed,2023,Nov,41,BetterUp · Quinn
+Anabelle,Anabelle Zaluski,confirmed,2023,Dec,41,Quinn · Mirage
+Anabelle,Anabelle Zaluski,confirmed,2024,Jan,54,Mirage · IronVest
+Anabelle,Anabelle Zaluski,confirmed,2024,Feb,30,Quinn · Mirage
+Anabelle,Anabelle Zaluski,confirmed,2024,Mar,37,Fishbowl · Landing
+Anabelle,Anabelle Zaluski,confirmed,2024,Apr,34,EarnIn · Landing
+Anabelle,Anabelle Zaluski,confirmed,2024,May,44,Invoice Simple · EarnIn
+Anabelle,Anabelle Zaluski,confirmed,2024,Jun,47,Fishbowl · Invoice Simple
+Anabelle,Anabelle Zaluski,confirmed,2024,Jul,50,GlossGenius · Fishbowl
+Anabelle,Anabelle Zaluski,confirmed,2024,Aug,50,Invoice Simple · Fishbowl
+Anabelle,Anabelle Zaluski,confirmed,2024,Sep,42,Invoice Simple · GlossGenius
+Anabelle,Anabelle Zaluski,confirmed,2024,Oct,64,Invoice Simple · Otter
+Anabelle,Anabelle Zaluski,confirmed,2024,Nov,64,Otter · Legit Security
+Anabelle,Anabelle Zaluski,confirmed,2024,Dec,62,Invoice Simple · Otter
+Anabelle,Anabelle Zaluski,confirmed,2025,Jan,57,GlossGenius · Otter
+Anabelle,Anabelle Zaluski,confirmed,2025,Feb,45,Otter · Legit Security
+Anabelle,Anabelle Zaluski,confirmed,2025,Mar,31,Legit Security · EarnIn
+Anabelle,Anabelle Zaluski,confirmed,2025,Apr,40,Legit Security · Sermo
+Anabelle,Anabelle Zaluski,confirmed,2025,May,51,Legit Security · Better
+Anabelle,Anabelle Zaluski,confirmed,2025,Jun,66,Otter · Better
+Anabelle,Anabelle Zaluski,confirmed,2025,Jul,44,Rox · Otter
+Anabelle,Anabelle Zaluski,confirmed,2025,Aug,36,Smartling · Legit Security
+Anabelle,Anabelle Zaluski,confirmed,2025,Sep,28,Tempo · Engine
+Anabelle,Anabelle Zaluski,confirmed,2025,Nov,9,Oyster · Rox
+Anabelle,Anabelle Zaluski,confirmed,2025,Dec,5,Ellis
+Anabelle,Anabelle Zaluski,confirmed,2026,Mar,4,Workleap · Webflow
+Anabelle,Anabelle Zaluski,confirmed,2026,Apr,1,Notion
+Anabelle,Anabelle Zaluski,confirmed,2026,Jun,3,n8n
+Anabelle/Alyssa,Alyssa Zacharias,folded_variant,2025,Aug,1,Moss
+Anabelle/Alyssa,Anabelle Zaluski,folded_variant,2025,Aug,1,Moss
+Anabelle/Alyssa/Maggie/Bryan,Alyssa Zacharias,folded_variant,2023,Jan,1,Webflow
+Anabelle/Alyssa/Maggie/Bryan,Anabelle Zaluski,folded_variant,2023,Jan,1,Webflow
+Anabelle/Alyssa/Maggie/Bryan,Bryan Clark,folded_variant,2023,Jan,1,Webflow
+Anabelle/Alyssa/Maggie/Bryan,Maggie Gowland,folded_variant,2023,Jan,1,Webflow
+Anabelle/Chrissy,Anabelle Zaluski,folded_variant,2022,Dec,5,Linktree
+Anabelle/Chrissy,Chrissy Woods,folded_variant,2022,Dec,5,Linktree
+Anabelle/Derrik,Anabelle Zaluski,folded_variant,2022,Dec,8,Curology
+Anabelle/Derrik,Derrik Chinn,folded_variant,2022,Dec,8,Curology
+Anabelle/Maggie,Anabelle Zaluski,folded_variant,2022,Dec,3,Webflow
+Anabelle/Maggie,Anabelle Zaluski,folded_variant,2023,Jan,13,Webflow · BetterUp
+Anabelle/Maggie,Maggie Gowland,folded_variant,2022,Dec,3,Webflow
+Anabelle/Maggie,Maggie Gowland,folded_variant,2023,Jan,13,Webflow · BetterUp
+Anabelle/Maggie/Bryan,Anabelle Zaluski,folded_variant,2023,Jan,1,Webflow
+Anabelle/Maggie/Bryan,Bryan Clark,folded_variant,2023,Jan,1,Webflow
+Anabelle/Maggie/Bryan,Maggie Gowland,folded_variant,2023,Jan,1,Webflow
+Anabelle/Nicholas,Anabelle Zaluski,folded_variant,2025,Feb,1,Tempo
+Anabelle/Nicholas,Nicholas Youngblood,folded_variant,2025,Feb,1,Tempo
+Bryan,Bryan Clark,confirmed,2022,Jun,3,OpenSea · Linktree
+Bryan,Bryan Clark,confirmed,2022,Jul,4,Mailgun
+Bryan,Bryan Clark,confirmed,2022,Aug,3,Worldcoin
+Bryan/Eesha,Bryan Clark,folded_variant,2022,Sep,1,Worldcoin
+Bryan/Eesha,Eesha Verma,folded_variant,2022,Sep,1,Worldcoin
+Chelsea,Chelsea Erhard,confirmed,2024,Jan,47,Quinn · IronVest
+Chelsea,Chelsea Erhard,confirmed,2024,Feb,33,Quinn · EarnIn
+Chelsea/Maggie,Chelsea Erhard,folded_variant,2023,Nov,10,Mirage · Quinn
+Chelsea/Maggie,Chelsea Erhard,folded_variant,2023,Dec,22,Quinn · Mirage
+Chelsea/Maggie,Chelsea Erhard,folded_variant,2026,Nov,1,Mirage
+Chelsea/Maggie,Maggie Gowland,folded_variant,2023,Nov,10,Mirage · Quinn
+Chelsea/Maggie,Maggie Gowland,folded_variant,2023,Dec,22,Quinn · Mirage
+Chelsea/Maggie,Maggie Gowland,folded_variant,2026,Nov,1,Mirage
+Chrissy,Chrissy Woods,confirmed,2022,Dec,1,Linktree
+Chrissy,Chrissy Woods,confirmed,2024,Feb,5,Invoice Simple
+Derriik,Derrik Chinn,confirmed,2025,Feb,3,Oyster
+Derrik,Derrik Chinn,confirmed,2021,Dec,8,Jaanuu
+Derrik,Derrik Chinn,confirmed,2022,Jan,2,Curology
+Derrik,Derrik Chinn,confirmed,2022,Feb,25,Curology · Email On Acid
+Derrik,Derrik Chinn,confirmed,2022,Mar,74,Shift · Jaanuu
+Derrik,Derrik Chinn,confirmed,2022,Apr,67,Shift · Jaanuu
+Derrik,Derrik Chinn,confirmed,2022,May,76,Shift · Jaanuu
+Derrik,Derrik Chinn,confirmed,2022,Jun,25,Curology · OpenSea
+Derrik,Derrik Chinn,confirmed,2022,Jul,31,Curology · Linktree
+Derrik,Derrik Chinn,confirmed,2022,Aug,53,Curology · Little Passports
+Derrik,Derrik Chinn,confirmed,2022,Sep,21,Curology
+Derrik,Derrik Chinn,confirmed,2022,Oct,41,Curology · Little Passports
+Derrik,Derrik Chinn,confirmed,2022,Nov,20,Curology
+Derrik,Derrik Chinn,confirmed,2023,Jan,13,Curology · Neiman
+Derrik,Derrik Chinn,confirmed,2023,Feb,1,Curology
+Derrik,Derrik Chinn,confirmed,2023,Mar,2,Contra
+Derrik,Derrik Chinn,confirmed,2023,May,36,Contra · Grindr
+Derrik,Derrik Chinn,confirmed,2023,Jun,18,Contra · Grindr
+Derrik,Derrik Chinn,confirmed,2023,Jul,8,Contra · Grindr
+Derrik,Derrik Chinn,confirmed,2023,Sep,29,Contra · Grindr
+Derrik,Derrik Chinn,confirmed,2023,Oct,3,Contra
+Derrik,Derrik Chinn,confirmed,2023,Dec,3,Grindr
+Derrik,Derrik Chinn,confirmed,2024,Jan,5,Grindr · dydx
+Derrik,Derrik Chinn,confirmed,2024,Mar,14,dydx · Oyster
+Derrik,Derrik Chinn,confirmed,2024,Apr,56,dydx · Oyster
+Derrik,Derrik Chinn,confirmed,2024,May,34,Oyster · dydx
+Derrik,Derrik Chinn,confirmed,2024,Jun,34,dydx · CoinTracker
+Derrik,Derrik Chinn,confirmed,2024,Jul,46,CoinTracker · dydx
+Derrik,Derrik Chinn,confirmed,2024,Aug,28,dydx · CoinTracker
+Derrik,Derrik Chinn,confirmed,2024,Sep,17,dydx · CoinTracker
+Derrik,Derrik Chinn,confirmed,2024,Oct,32,CoinTracker · Smartling
+Derrik,Derrik Chinn,confirmed,2024,Nov,28,CoinTracker · Orderful 2
+Derrik,Derrik Chinn,confirmed,2024,Dec,34,CoinTracker · Orderful 2
+Derrik,Derrik Chinn,confirmed,2025,Jan,35,CoinTracker · Orderful 2
+Derrik,Derrik Chinn,confirmed,2025,Feb,50,CoinTracker · Orderful 2
+Derrik,Derrik Chinn,confirmed,2025,Mar,78,CoinTracker · Orderful 2
+Derrik,Derrik Chinn,confirmed,2025,Apr,39,Orderful 2 · CoinTracker
+Derrik,Derrik Chinn,confirmed,2025,May,48,Oyster · Orderful 2
+Derrik,Derrik Chinn,confirmed,2025,Jun,41,Oyster · Orderful 2
+Derrik,Derrik Chinn,confirmed,2025,Jul,53,Onton · Oyster
+Derrik,Derrik Chinn,confirmed,2025,Aug,55,Legit Security · CoinTracker
+Derrik,Derrik Chinn,confirmed,2025,Sep,2,CoinTracker
+Derrik,Derrik Chinn,confirmed,2026,Jan,1,Curology
+Derrik,Derrik Chinn,confirmed,2026,May,3,Email On Acid · Shift
+Derrik,Derrik Chinn,confirmed,2026,Jun,4,Curology · CoinTracker
+Derrik,Derrik Chinn,confirmed,2026,Jul,4,dydx · CoinTracker
+Derrik,Derrik Chinn,confirmed,2026,Aug,1,CoinTracker
+Derrik,Derrik Chinn,confirmed,2026,Sep,1,Curology
+Derrik,Derrik Chinn,confirmed,2026,Oct,1,Little Passports
+Derrik,Derrik Chinn,confirmed,2026,Dec,1,Orderful 2
+Derrik/Abby,Abby Norwood,folded_variant,2022,Dec,1,Bergdorf
+Derrik/Abby,Derrik Chinn,folded_variant,2022,Dec,1,Bergdorf
+Eesha,Eesha Verma,confirmed,2022,Jun,33,Jaanuu · Gopuff
+Eesha,Eesha Verma,confirmed,2022,Jul,21,Jaanuu · Mailjet
+Eesha,Eesha Verma,confirmed,2022,Aug,5,Worldcoin · Mailjet
+Eesha,Eesha Verma,confirmed,2022,Sep,22,Mailgun · Email On Acid
+Eesha,Eesha Verma,confirmed,2022,Oct,12,Email On Acid · Mailjet
+Eesha,Eesha Verma,confirmed,2022,Nov,37,Mailgun · Mailjet
+Eesha,Eesha Verma,confirmed,2023,Mar,12,Linktree · Practice
+Eesha,Eesha Verma,confirmed,2023,Apr,3,Practice · Linktree
+Eesha,Eesha Verma,confirmed,2023,May,9,Practice
+Eesha,Eesha Verma,confirmed,2023,Jun,5,Practice
+Eesha,Eesha Verma,confirmed,2023,Jul,4,Contra
+Eesha,Eesha Verma,confirmed,2023,Sep,3,Contra
+Eesha,Eesha Verma,confirmed,2024,Feb,10,dydx
+Eesha,Eesha Verma,confirmed,2024,Mar,3,Tempo
+Eesha,Eesha Verma,confirmed,2026,Jul,1,Mailjet
+Eesha/Chrissy,Chrissy Woods,folded_variant,2022,Dec,18,Practice · Linktree
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Jan,48,Worldcoin · Linktree
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Feb,48,Practice · Linktree
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Mar,44,Practice · dydx
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Apr,31,Practice · Linktree
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,May,27,Practice · dydx
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Jun,13,Practice · dydx
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Sep,1,Practice
+Eesha/Chrissy,Chrissy Woods,folded_variant,2023,Nov,1,Practice
+Eesha/Chrissy,Chrissy Woods,folded_variant,2024,Jan,2,dydx
+Eesha/Chrissy,Chrissy Woods,folded_variant,2026,Jan,1,Practice
+Eesha/Chrissy,Chrissy Woods,folded_variant,2026,Dec,1,Practice
+Eesha/Chrissy,Eesha Verma,folded_variant,2022,Dec,18,Practice · Worldcoin
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Jan,48,Worldcoin · Linktree
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Feb,48,Practice · Linktree
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Mar,44,Practice · dydx
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Apr,31,Practice · Linktree
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,May,27,Practice · dydx
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Jun,13,Practice · dydx
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Sep,1,Practice
+Eesha/Chrissy,Eesha Verma,folded_variant,2023,Nov,1,Practice
+Eesha/Chrissy,Eesha Verma,folded_variant,2024,Jan,2,dydx
+Eesha/Chrissy,Eesha Verma,folded_variant,2026,Jan,1,Practice
+Eesha/Chrissy,Eesha Verma,folded_variant,2026,Dec,1,Practice
+Eesha/Chrissy/Bryan,Bryan Clark,folded_variant,2023,Feb,1,dydx
+Eesha/Chrissy/Bryan,Bryan Clark,folded_variant,2023,May,2,Orderful · FRC
+Eesha/Chrissy/Bryan,Chrissy Woods,folded_variant,2023,Feb,1,dydx
+Eesha/Chrissy/Bryan,Chrissy Woods,folded_variant,2023,May,2,Orderful · FRC
+Eesha/Chrissy/Bryan,Eesha Verma,folded_variant,2023,Feb,1,dydx
+Eesha/Chrissy/Bryan,Eesha Verma,folded_variant,2023,May,2,Orderful · FRC
+Eesha/Chrissy/Bryan/Shelby,Bryan Clark,folded_variant,2023,May,1,FRC
+Eesha/Chrissy/Bryan/Shelby,Chrissy Woods,folded_variant,2023,May,1,FRC
+Eesha/Chrissy/Bryan/Shelby,Eesha Verma,folded_variant,2023,May,1,FRC
+Eesha/Chrissy/Bryan/Shelby,Shelby Talbot,folded_variant,2023,May,1,FRC
+Eesha/Chrissy/Shelby,Chrissy Woods,folded_variant,2023,Mar,2,Little Passports
+Eesha/Chrissy/Shelby,Eesha Verma,folded_variant,2023,Mar,2,Little Passports
+Eesha/Chrissy/Shelby,Shelby Talbot,folded_variant,2023,Mar,2,Little Passports
+Eesha/Derrik,Derrik Chinn,folded_variant,2022,Jul,8,Jaanuu · Mailjet
+Eesha/Derrik,Derrik Chinn,folded_variant,2022,Aug,78,Worldcoin · Jaanuu
+Eesha/Derrik,Derrik Chinn,folded_variant,2022,Sep,43,Worldcoin · Jaanuu
+Eesha/Derrik,Derrik Chinn,folded_variant,2022,Oct,33,Worldcoin · Mailjet
+Eesha/Derrik,Derrik Chinn,folded_variant,2022,Nov,24,Worldcoin
+Eesha/Derrik,Derrik Chinn,folded_variant,2022,Dec,3,Worldcoin
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Jan,1,dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Jun,31,Contra · dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Jul,28,Contra · dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Aug,64,Contra · dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Oct,45,Contra
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Nov,18,dydx · Contra
+Eesha/Derrik,Derrik Chinn,folded_variant,2023,Dec,29,dydx · Composer
+Eesha/Derrik,Derrik Chinn,folded_variant,2024,Jan,86,dydx · Composer
+Eesha/Derrik,Derrik Chinn,folded_variant,2024,Feb,32,dydx · Composer
+Eesha/Derrik,Derrik Chinn,folded_variant,2024,Mar,6,dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2026,Jan,1,dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2026,Feb,1,dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2026,Aug,2,Worldcoin · dydx
+Eesha/Derrik,Derrik Chinn,folded_variant,2026,Dec,2,dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2022,Jul,8,Jaanuu · Mailjet
+Eesha/Derrik,Eesha Verma,folded_variant,2022,Aug,78,Worldcoin · Jaanuu
+Eesha/Derrik,Eesha Verma,folded_variant,2022,Sep,43,Worldcoin · Jaanuu
+Eesha/Derrik,Eesha Verma,folded_variant,2022,Oct,33,Worldcoin · Mailjet
+Eesha/Derrik,Eesha Verma,folded_variant,2022,Nov,24,Worldcoin
+Eesha/Derrik,Eesha Verma,folded_variant,2022,Dec,3,Worldcoin
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Jan,1,dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Jun,31,Contra · dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Jul,28,Contra · dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Aug,64,Contra · dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Oct,45,Contra
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Nov,18,dydx · Contra
+Eesha/Derrik,Eesha Verma,folded_variant,2023,Dec,29,dydx · Composer
+Eesha/Derrik,Eesha Verma,folded_variant,2024,Jan,86,dydx · Composer
+Eesha/Derrik,Eesha Verma,folded_variant,2024,Feb,32,dydx · Composer
+Eesha/Derrik,Eesha Verma,folded_variant,2024,Mar,6,dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2026,Jan,1,dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2026,Feb,1,dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2026,Aug,2,Worldcoin · dydx
+Eesha/Derrik,Eesha Verma,folded_variant,2026,Dec,2,dydx
+Eesha/Derrik/Chrissy,Chrissy Woods,folded_variant,2022,Dec,7,Worldcoin
+Eesha/Derrik/Chrissy,Derrik Chinn,folded_variant,2022,Dec,7,Worldcoin
+Eesha/Derrik/Chrissy,Eesha Verma,folded_variant,2022,Dec,7,Worldcoin
+Eesha/Maggie,Eesha Verma,folded_variant,2022,Aug,2,ESGgo
+Eesha/Maggie,Eesha Verma,folded_variant,2022,Sep,4,Mailgun · ESGgo
+Eesha/Maggie,Eesha Verma,folded_variant,2022,Dec,1,Webflow
+Eesha/Maggie,Maggie Gowland,folded_variant,2022,Aug,2,ESGgo
+Eesha/Maggie,Maggie Gowland,folded_variant,2022,Sep,4,Mailgun · ESGgo
+Eesha/Maggie,Maggie Gowland,folded_variant,2022,Dec,1,Webflow
+Eesha/Maggie/Anabelle,Anabelle Zaluski,folded_variant,2023,Jan,1,Webflow
+Eesha/Maggie/Anabelle,Eesha Verma,folded_variant,2023,Jan,1,Webflow
+Eesha/Maggie/Anabelle,Maggie Gowland,folded_variant,2023,Jan,1,Webflow
+Eesha/Nicholas/Derrik,Derrik Chinn,folded_variant,2022,Oct,2,Little Passports
+Eesha/Nicholas/Derrik,Derrik Chinn,folded_variant,2026,Oct,2,Little Passports
+Eesha/Nicholas/Derrik,Eesha Verma,folded_variant,2022,Oct,2,Little Passports
+Eesha/Nicholas/Derrik,Eesha Verma,folded_variant,2026,Oct,2,Little Passports
+Eesha/Nicholas/Derrik,Nicholas Youngblood,folded_variant,2022,Oct,2,Little Passports
+Eesha/Nicholas/Derrik,Nicholas Youngblood,folded_variant,2026,Oct,2,Little Passports
+Eesha/Nicholas/Shelby/Derrik,Derrik Chinn,folded_variant,2022,Nov,1,Little Passports
+Eesha/Nicholas/Shelby/Derrik,Eesha Verma,folded_variant,2022,Nov,1,Little Passports
+Eesha/Nicholas/Shelby/Derrik,Nicholas Youngblood,folded_variant,2022,Nov,1,Little Passports
+Eesha/Nicholas/Shelby/Derrik,Shelby Talbot,folded_variant,2022,Nov,1,Little Passports
+Eesha/Shelby/Chrissy/Bryan,Bryan Clark,folded_variant,2023,Feb,2,dydx
+Eesha/Shelby/Chrissy/Bryan,Chrissy Woods,folded_variant,2023,Feb,2,dydx
+Eesha/Shelby/Chrissy/Bryan,Eesha Verma,folded_variant,2023,Feb,2,dydx
+Eesha/Shelby/Chrissy/Bryan,Shelby Talbot,folded_variant,2023,Feb,2,dydx
+Elliot,Elliot Gardner,confirmed,2025,Feb,1,Fivetran
+Elliot,Elliot Gardner,confirmed,2025,Jul,6,Everand
+Elliot,Elliot Gardner,confirmed,2025,Aug,24,Everand · Workleap
+Elliot,Elliot Gardner,confirmed,2025,Sep,31,Workleap · Everand
+Elliot,Elliot Gardner,confirmed,2025,Oct,18,Everand · Fivetran
+Elliot,Elliot Gardner,confirmed,2025,Nov,31,Everand · Workleap
+Elliot,Elliot Gardner,confirmed,2025,Dec,23,Workleap · Fivetran
+Elliot,Elliot Gardner,confirmed,2026,Jan,22,Fivetran · Front
+Elliot,Elliot Gardner,confirmed,2026,Feb,26,Fivetran · Workleap
+Elliot,Elliot Gardner,confirmed,2026,Mar,19,Workleap · Miter
+Elliot,Elliot Gardner,confirmed,2026,Apr,35,Miter · Mistplay
+Elliot,Elliot Gardner,confirmed,2026,May,31,Maven Clinic · Miter
+Elliot,Elliot Gardner,confirmed,2026,Jun,2,Maven Clinic
+Elliot/Abby,Abby Norwood,folded_variant,2025,Aug,3,Workleap
+Elliot/Abby,Elliot Gardner,folded_variant,2025,Aug,3,Workleap
+Haley,Haley Drucker,confirmed,2025,Sep,32,Vimeo · Moss
+Haley,Haley Drucker,confirmed,2025,Oct,28,Legit Security · CoinTracker
+Haley,Haley Drucker,confirmed,2025,Nov,30,CoinTracker · Legit Security
+Haley,Haley Drucker,confirmed,2025,Dec,43,CoinTracker · Pylon
+Haley,Haley Drucker,confirmed,2026,Jan,45,Pylon · CoinTracker
+Haley,Haley Drucker,confirmed,2026,Feb,44,CoinTracker · Pylon
+Haley,Haley Drucker,confirmed,2026,Mar,50,Webflow · CoinTracker
+Haley,Haley Drucker,confirmed,2026,Apr,49,Boulevard · Leapsome
+Haley,Haley Drucker,confirmed,2026,May,43,Leapsome · Boulevard
+Haley,Haley Drucker,confirmed,2026,Jun,11,Leapsome · Photoroom
+Haley,Haley Drucker,confirmed,2026,Oct,1,Webflow
+Haley/Alyssa,Alyssa Zacharias,folded_variant,2025,Aug,1,Vimeo
+Haley/Alyssa,Alyssa Zacharias,folded_variant,2025,Sep,1,Webflow
+Haley/Alyssa,Haley Drucker,folded_variant,2025,Aug,1,Vimeo
+Haley/Alyssa,Haley Drucker,folded_variant,2025,Sep,1,Webflow
+Jared,Jared Maguire,confirmed,2024,Dec,1,Engine
+Jared,Jared Maguire,confirmed,2025,Jan,10,Oyster · Engine
+Jared,Jared Maguire,confirmed,2025,Feb,30,Engine · ThredUp
+Jared,Jared Maguire,confirmed,2025,Mar,50,ThredUp · Engine
+Jared,Jared Maguire,confirmed,2025,Apr,60,Engine · Gainbridge
+Jared,Jared Maguire,confirmed,2025,May,39,Onton · Vimeo
+Jared,Jared Maguire,confirmed,2025,Jun,48,Tempo · Onton
+Jared,Jared Maguire,confirmed,2025,Jul,43,Better · Tempo
+Jared,Jared Maguire,confirmed,2025,Aug,5,Better · Vimeo
+Jared,Jared Maguire,confirmed,2026,Feb,1,Engine
+Jared,Jared Maguire,confirmed,2026,Apr,2,Engine
+Jared,Jared Maguire,confirmed,2026,Jun,1,Webflow
+Jared,Jared Maguire,confirmed,2026,Jul,1,Tempo
+Jared/Derrik,Derrik Chinn,folded_variant,2025,Jan,1,Engine
+Jared/Derrik,Jared Maguire,folded_variant,2025,Jan,1,Engine
+Jared/Maggie,Jared Maguire,folded_variant,2025,Jul,1,Rox
+Jared/Maggie,Maggie Gowland,folded_variant,2025,Jul,1,Rox
+Jared/Nicholas,Jared Maguire,folded_variant,2024,Dec,4,Vimeo
+Jared/Nicholas,Jared Maguire,folded_variant,2025,Jan,3,Vimeo
+Jared/Nicholas,Jared Maguire,folded_variant,2025,Feb,1,Vimeo
+Jared/Nicholas,Nicholas Youngblood,folded_variant,2024,Dec,4,Vimeo
+Jared/Nicholas,Nicholas Youngblood,folded_variant,2025,Jan,3,Vimeo
+Jared/Nicholas,Nicholas Youngblood,folded_variant,2025,Feb,1,Vimeo
+Jimmy,Jimmy Bunes,confirmed,2025,Mar,1,Genstore
+Jimmy,Jimmy Bunes,confirmed,2025,Sep,13,Better · Rox
+Jimmy,Jimmy Bunes,confirmed,2025,Oct,21,Better · Mistplay
+Jimmy,Jimmy Bunes,confirmed,2025,Nov,24,Better · Mirage
+Jimmy,Jimmy Bunes,confirmed,2025,Dec,30,Felt · Better
+Jimmy,Jimmy Bunes,confirmed,2026,Jan,38,Better · Mistplay
+Jimmy,Jimmy Bunes,confirmed,2026,Feb,38,Mistplay · Miter
+Jimmy,Jimmy Bunes,confirmed,2026,Mar,42,Mistplay · Miter
+Jimmy,Jimmy Bunes,confirmed,2026,Apr,33,Felt · Pylon
+Jimmy,Jimmy Bunes,confirmed,2026,May,44,College HUNKS · Pylon
+Jimmy,Jimmy Bunes,confirmed,2026,Jun,11,College HUNKS · Gainbridge
+Katie,Katie Shevlin,confirmed,2025,Apr,8,Athena2
+Katie,Katie Shevlin,confirmed,2025,May,34,Athena2 · Gainbridge
+Katie,Katie Shevlin,confirmed,2025,Jun,48,Mirage · Athena2
+Katie,Katie Shevlin,confirmed,2025,Jul,30,Mirage · Gainbridge
+Katie,Katie Shevlin,confirmed,2025,Aug,43,Rox · Gainbridge
+Katie,Katie Shevlin,confirmed,2025,Sep,38,Rox · Gainbridge
+Katie,Katie Shevlin,confirmed,2025,Oct,29,Gainbridge · Rox
+Katie,Katie Shevlin,confirmed,2025,Nov,8,Athena2 · Felt
+Kennedy,Kennedy Stevens,confirmed,2024,Mar,1,Mirage
+Kennedy,Kennedy Stevens,confirmed,2024,Jun,23,Webflow · Mirage
+Kennedy,Kennedy Stevens,confirmed,2024,Jul,38,Webflow · Mirage
+Kennedy,Kennedy Stevens,confirmed,2024,Aug,31,Webflow · Mirage
+Kennedy,Kennedy Stevens,confirmed,2024,Sep,26,Mirage · Webflow
+Kennedy,Kennedy Stevens,confirmed,2024,Oct,65,Mirage · Apartment List
+Kennedy,Kennedy Stevens,confirmed,2024,Nov,72,Mirage · Apartment List
+Kennedy,Kennedy Stevens,confirmed,2024,Dec,47,Mirage · ThredUp
+Kennedy,Kennedy Stevens,confirmed,2025,Jan,42,Mirage · Gainbridge
+Kennedy,Kennedy Stevens,confirmed,2025,Feb,44,Mirage · Gainbridge
+Kennedy,Kennedy Stevens,confirmed,2025,Mar,59,Mirage · Webflow
+Kennedy,Kennedy Stevens,confirmed,2025,Apr,68,Mirage · Athena2
+Kennedy,Kennedy Stevens,confirmed,2025,May,52,Mirage · Gainbridge
+Kennedy,Kennedy Stevens,confirmed,2025,Jun,34,Mirage · Gainbridge
+Kennedy,Kennedy Stevens,confirmed,2025,Jul,49,Mirage · Gainbridge
+Kennedy,Kennedy Stevens,confirmed,2025,Aug,8,Mirage · EarnIn B2B
+Kennedy,Kennedy Stevens,confirmed,2025,Sep,8,Smartling · Better
+Kennedy,Kennedy Stevens,confirmed,2025,Nov,6,Better · Mistplay
+Kennedy,Kennedy Stevens,confirmed,2025,Dec,15,Moss · Better
+Kennedy,Kennedy Stevens,confirmed,2026,Jan,10,Mistplay · Genstore
+Kennedy,Kennedy Stevens,confirmed,2026,Feb,8,Mistplay · Genstore
+Kennedy,Kennedy Stevens,confirmed,2026,Mar,17,Workleap · Miter
+Kennedy,Kennedy Stevens,confirmed,2026,Apr,8,Miter · Mistplay
+Kennedy,Kennedy Stevens,confirmed,2026,May,23,Miter · Flex
+Kennedy/Alyssa,Alyssa Zacharias,folded_variant,2025,Aug,1,Webflow
+Kennedy/Alyssa,Alyssa Zacharias,folded_variant,2025,Sep,1,Webflow
+Kennedy/Alyssa,Kennedy Stevens,folded_variant,2025,Aug,1,Webflow
+Kennedy/Alyssa,Kennedy Stevens,folded_variant,2025,Sep,1,Webflow
+Kimberly,Kimberly Pavlovich,confirmed,2025,Mar,4,Tempo · Otter
+Kimberly,Kimberly Pavlovich,confirmed,2025,Apr,32,Tempo · Otter
+Kimberly,Kimberly Pavlovich,confirmed,2025,May,9,ThredUp · Tempo
 Kira,Kira,unresolved,2022,Jun,10,Jaanuu
 Kira,Kira,unresolved,2022,Jul,48,Practice · Dynamite
 Kira,Kira,unresolved,2022,Aug,24,Practice · Mailgun
 Kira,Kira,unresolved,2022,Sep,11,Email On Acid · Dynamite
-Kira/Eesha,Eesha,folded_variant,2022,Jul,2,Jaanuu
+Kira/Eesha,Eesha Verma,folded_variant,2022,Jul,2,Jaanuu
 Kira/Eesha,Kira,folded_variant,2022,Jul,2,Jaanuu
 Kira/Maggie,Kira,folded_variant,2022,Jun,9,Email On Acid · Practice
 Kira/Maggie,Kira,folded_variant,2022,Jul,3,Email On Acid · Practice
-Kira/Maggie,Maggie,folded_variant,2022,Jun,9,Email On Acid · Practice
-Kira/Maggie,Maggie,folded_variant,2022,Jul,3,Email On Acid · Practice
-Kira/Shalin/Eesha,Eesha,folded_variant,2022,Jul,2,Jaanuu
+Kira/Maggie,Maggie Gowland,folded_variant,2022,Jun,9,Email On Acid · Practice
+Kira/Maggie,Maggie Gowland,folded_variant,2022,Jul,3,Email On Acid · Practice
+Kira/Shalin/Eesha,Eesha Verma,folded_variant,2022,Jul,2,Jaanuu
 Kira/Shalin/Eesha,Kira,folded_variant,2022,Jul,2,Jaanuu
 Kira/Shalin/Eesha,Shalin,folded_variant,2022,Jul,2,Jaanuu
 Kristin,Kristin,unresolved,2022,Mar,1,Email On Acid
@@ -424,328 +468,373 @@ Lauren,Lauren Friar,confirmed,2026,Mar,27,Fivetran · Front
 Lauren,Lauren Friar,confirmed,2026,Apr,34,Fivetran · Front
 Lauren,Lauren Friar,confirmed,2026,May,12,HoneyBook · Front
 Lauren,Lauren Friar,confirmed,2026,Jun,4,Front
+Lauren,Lauren Friar,confirmed,2026,Oct,1,Engine
 Lauren Keleher,Lauren Keleher,unresolved,2026,Jun,4,Men's Wearhouse · Eventbrite
-Lee,Lee,confirmed,2025,Apr,1,Leapsome
-Lee,Lee,confirmed,2025,Aug,27,Oyster · Onton
-Lee,Lee,confirmed,2025,Sep,45,CoinTracker · Onton
-Lee,Lee,confirmed,2025,Oct,22,CoinTracker · Pylon
-Lee,Lee,confirmed,2025,Nov,27,CoinTracker · Legit Security
-Lee,Lee,confirmed,2025,Dec,29,CoinTracker · Pylon
-Lee,Lee,confirmed,2026,Jan,33,Pylon · CoinTracker
-Lee,Lee,confirmed,2026,Feb,13,Pylon · CoinTracker
-Lee,Lee,confirmed,2026,Mar,28,Boulevard · Pylon
-Lee,Lee,confirmed,2026,Apr,41,Boulevard · CoinTracker
-Lee,Lee,confirmed,2026,May,36,Leapsome · Boulevard
-Lee,Lee,confirmed,2026,Jun,10,Leapsome · Photoroom
-MAGGIE,Maggie,confirmed,2024,Jan,1,Landing
-MAGGIE,Maggie,confirmed,2024,Feb,2,Landing
-Magggie,Maggie,confirmed,2022,May,1,BetterUp
-Maggie,Maggie,confirmed,2021,Nov,1,Invoice Simple
-Maggie,Maggie,confirmed,2022,Feb,10,Athena · Mailgun
-Maggie,Maggie,confirmed,2022,Mar,63,BetterUp · Athena
-Maggie,Maggie,confirmed,2022,Apr,45,BetterUp · Gopuff
-Maggie,Maggie,confirmed,2022,May,81,BetterUp · Mailgun
-Maggie,Maggie,confirmed,2022,Jun,64,Flip · BetterUp
-Maggie,Maggie,confirmed,2022,Jul,62,BetterUp · Flip
-Maggie,Maggie,confirmed,2022,Aug,27,BetterUp · Mailgun
-Maggie,Maggie,confirmed,2022,Sep,39,BetterUp · Flip
-Maggie,Maggie,confirmed,2022,Oct,26,BetterUp
-Maggie,Maggie,confirmed,2022,Nov,25,BetterUp · Mailjet
-Maggie,Maggie,confirmed,2022,Dec,5,BetterUp
-Maggie,Maggie,confirmed,2023,Jan,1,BetterUp
-Maggie,Maggie,confirmed,2023,Feb,17,Notion · Webflow
-Maggie,Maggie,confirmed,2023,Mar,12,Notion · Webflow
-Maggie,Maggie,confirmed,2023,Apr,12,Notion · Webflow
-Maggie,Maggie,confirmed,2023,Aug,8,Tempo
-Maggie,Maggie,confirmed,2023,Sep,10,Notion
-Maggie,Maggie,confirmed,2023,Oct,36,BetterUp · Quinn
-Maggie,Maggie,confirmed,2023,Nov,14,BetterUp · Mirage
-Maggie,Maggie,confirmed,2023,Dec,10,Quinn · Mirage
-Maggie,Maggie,confirmed,2024,Jan,11,Mirage · Fishbowl
-Maggie,Maggie,confirmed,2024,Feb,15,Mirage · Landing
-Maggie,Maggie,confirmed,2024,Mar,16,EarnIn · Quinn
-Maggie,Maggie,confirmed,2024,Apr,21,Invoice Simple · EarnIn
-Maggie,Maggie,confirmed,2024,May,25,Invoice Simple · Webflow
-Maggie,Maggie,confirmed,2024,Jun,12,Invoice Simple · Fishbowl
-Maggie,Maggie,confirmed,2024,Jul,49,Invoice Simple · Fishbowl
-Maggie,Maggie,confirmed,2024,Aug,19,Fishbowl · Invoice Simple
-Maggie,Maggie,confirmed,2024,Sep,22,Invoice Simple · Fishbowl
-Maggie,Maggie,confirmed,2024,Oct,42,Fishbowl · Invoice Simple
-Maggie,Maggie,confirmed,2024,Nov,33,Fishbowl · Invoice Simple
-Maggie,Maggie,confirmed,2024,Dec,31,Invoice Simple · EarnIn
-Maggie,Maggie,confirmed,2025,Jan,27,EarnIn · Fishbowl
-Maggie,Maggie,confirmed,2025,Feb,23,EarnIn · Fishbowl
-Maggie,Maggie,confirmed,2025,Mar,12,Fishbowl · Otter
-Maggie,Maggie,confirmed,2025,Apr,12,Fishbowl · EarnIn
-Maggie,Maggie,confirmed,2025,Jun,7,Rox · Smartling
-Maggie,Maggie,confirmed,2025,Jul,17,Rox · Smartling
-Maggie,Maggie,confirmed,2025,Aug,32,Engine · Better
-Maggie,Maggie,confirmed,2025,Sep,13,Rox · Engine
-Maggie,Maggie,confirmed,2025,Oct,1,Ellis
-Maggie,Maggie,confirmed,2026,Mar,7,HoneyBook · Oyster
-Maggie,Maggie,confirmed,2026,Apr,3,Front · HoneyBook
-Maggie,Maggie,confirmed,2026,May,16,Front · HoneyBook
-Maggie,Maggie,confirmed,2026,Jun,1,Front
-Maggie/Alyssa,Alyssa,folded_variant,2022,Sep,36,Flip · Practice
-Maggie/Alyssa,Alyssa,folded_variant,2022,Oct,37,Flip
-Maggie/Alyssa,Alyssa,folded_variant,2022,Dec,10,Notion · Practice
-Maggie/Alyssa,Alyssa,folded_variant,2023,Nov,1,Taskrabbit
-Maggie/Alyssa,Alyssa,folded_variant,2026,May,1,HoneyBook
-Maggie/Alyssa,Maggie,folded_variant,2022,Sep,36,Flip · Practice
-Maggie/Alyssa,Maggie,folded_variant,2022,Oct,37,Flip
-Maggie/Alyssa,Maggie,folded_variant,2022,Dec,10,Notion · Practice
-Maggie/Alyssa,Maggie,folded_variant,2023,Nov,1,Taskrabbit
-Maggie/Alyssa,Maggie,folded_variant,2026,May,1,HoneyBook
-Maggie/Nicholas,Maggie,folded_variant,2024,Nov,1,Oyster
-Maggie/Nicholas,Maggie,folded_variant,2025,Feb,1,Tempo
-Maggie/Nicholas,Nicholas,folded_variant,2024,Nov,1,Oyster
-Maggie/Nicholas,Nicholas,folded_variant,2025,Feb,1,Tempo
-Maggie/Shelby,Maggie,folded_variant,2022,Oct,13,Webflow · Practice
-Maggie/Shelby,Maggie,folded_variant,2022,Nov,4,Webflow
-Maggie/Shelby,Maggie,folded_variant,2022,Dec,1,Practice
-Maggie/Shelby,Shelby,folded_variant,2022,Oct,13,Webflow · Practice
-Maggie/Shelby,Shelby,folded_variant,2022,Nov,4,Webflow
-Maggie/Shelby,Shelby,folded_variant,2022,Dec,1,Practice
-Magie,Maggie,confirmed,2024,Sep,1,Fishbowl
-Micki,Micki,confirmed,2025,Aug,4,Everand
-Micki,Micki,confirmed,2025,Sep,14,Everand
-Micki,Micki,confirmed,2025,Oct,2,Everand
-Mike,Mike,confirmed,2023,Mar,8,Neiman
-Mike,Mike,confirmed,2023,Apr,29,Neiman · Contra
-Mike,Mike,confirmed,2023,May,7,Contra
-Mike/Derrik,Derrik,folded_variant,2023,May,1,Contra
-Mike/Derrik,Mike,folded_variant,2023,May,1,Contra
-Mike/Nicholas,Mike,folded_variant,2023,Apr,1,Neiman
-Mike/Nicholas,Mike,folded_variant,2023,May,9,Neiman · Contra
-Mike/Nicholas,Nicholas,folded_variant,2023,Apr,1,Neiman
-Mike/Nicholas,Nicholas,folded_variant,2023,May,9,Neiman · Contra
-NIcholas,Nicholas,confirmed,2022,Dec,1,Linktree
-NIcholas/Abby,Abby,folded_variant,2022,Nov,11,Linktree
-NIcholas/Abby,Nicholas,folded_variant,2022,Nov,11,Linktree
-Nicholas,Nicholas,confirmed,2022,Dec,11,Neiman · Linktree
-Nicholas,Nicholas,confirmed,2023,Jan,54,Curology · Bergdorf
-Nicholas,Nicholas,confirmed,2023,Feb,60,Curology · Contra
-Nicholas,Nicholas,confirmed,2023,Mar,34,Contra · Bergdorf
-Nicholas,Nicholas,confirmed,2023,Apr,30,Bergdorf · Contra
-Nicholas,Nicholas,confirmed,2023,May,6,Bergdorf · Contra
-Nicholas,Nicholas,confirmed,2023,Jun,23,Orderful · Grindr
-Nicholas,Nicholas,confirmed,2023,Jul,39,Orderful · Contra
-Nicholas,Nicholas,confirmed,2023,Aug,37,Orderful · Contra
-Nicholas,Nicholas,confirmed,2023,Sep,45,Orderful · EarnIn
-Nicholas,Nicholas,confirmed,2023,Oct,68,Grindr · Orderful
-Nicholas,Nicholas,confirmed,2023,Nov,24,Grindr · EarnIn
-Nicholas,Nicholas,confirmed,2023,Dec,37,Grindr · Composer
-Nicholas,Nicholas,confirmed,2024,Jan,55,Grindr · Composer
-Nicholas,Nicholas,confirmed,2024,Feb,15,Grindr · Composer
-Nicholas,Nicholas,confirmed,2024,Mar,37,Grindr · Tempo
-Nicholas,Nicholas,confirmed,2024,Apr,41,Tempo · Grindr
-Nicholas,Nicholas,confirmed,2024,May,38,Tempo · Grindr
-Nicholas,Nicholas,confirmed,2024,Jun,35,Tempo · Oyster
-Nicholas,Nicholas,confirmed,2024,Jul,64,Tempo · Grindr
-Nicholas,Nicholas,confirmed,2024,Aug,44,Grindr · Tempo
-Nicholas,Nicholas,confirmed,2024,Sep,44,Grindr · Oyster
-Nicholas,Nicholas,confirmed,2024,Oct,44,Grindr · Oyster
-Nicholas,Nicholas,confirmed,2024,Nov,38,Grindr · Oyster
-Nicholas,Nicholas,confirmed,2024,Dec,58,Grindr · Smartling
-Nicholas,Nicholas,confirmed,2025,Jan,39,Tempo · Smartling
-Nicholas,Nicholas,confirmed,2025,Feb,43,Tempo · Smartling
-Nicholas,Nicholas,confirmed,2025,Mar,49,Tempo · Smartling
-Nicholas,Nicholas,confirmed,2025,Apr,41,Smartling · EarnIn B2B
-Nicholas,Nicholas,confirmed,2025,May,41,Smartling · EarnIn B2B
-Nicholas,Nicholas,confirmed,2025,Jun,36,Smartling · EarnIn B2B
-Nicholas,Nicholas,confirmed,2025,Jul,28,Smartling · EarnIn B2B
-Nicholas/Abby,Abby,folded_variant,2022,Nov,6,Linktree
-Nicholas/Abby,Abby,folded_variant,2023,Jan,2,Neiman
-Nicholas/Abby,Nicholas,folded_variant,2022,Nov,6,Linktree
-Nicholas/Abby,Nicholas,folded_variant,2023,Jan,2,Neiman
-Nicholas/Anabelle,Anabelle,folded_variant,2022,Dec,1,Linktree
-Nicholas/Anabelle,Nicholas,folded_variant,2022,Dec,1,Linktree
-Nicholas/Derrik,Derrik,folded_variant,2022,Jan,1,Curology
-Nicholas/Derrik,Derrik,folded_variant,2022,Nov,4,Curology
-Nicholas/Derrik,Derrik,folded_variant,2022,Dec,25,Curology · Contra
-Nicholas/Derrik,Derrik,folded_variant,2023,Jan,5,Curology
-Nicholas/Derrik,Derrik,folded_variant,2023,Jul,1,Contra
-Nicholas/Derrik,Nicholas,folded_variant,2022,Jan,1,Curology
-Nicholas/Derrik,Nicholas,folded_variant,2022,Nov,4,Curology
-Nicholas/Derrik,Nicholas,folded_variant,2022,Dec,25,Curology · Contra
-Nicholas/Derrik,Nicholas,folded_variant,2023,Jan,5,Curology
-Nicholas/Derrik,Nicholas,folded_variant,2023,Jul,1,Contra
-Nicholas/Shelby/Derrik,Derrik,folded_variant,2022,Nov,3,Little Passports
-Nicholas/Shelby/Derrik,Nicholas,folded_variant,2022,Nov,3,Little Passports
-Nicholas/Shelby/Derrik,Shelby,folded_variant,2022,Nov,3,Little Passports
-Nina,Nina,confirmed,2020,Oct,1,Athena2
-Nina,Nina,confirmed,2021,Oct,1,Webflow
-Nina,Nina,confirmed,2022,Oct,1,Apartment List
-Nina,Nina,confirmed,2023,Oct,54,Notion · Tempo
-Nina,Nina,confirmed,2023,Nov,7,Webflow · Tempo
-Nina,Nina,confirmed,2023,Dec,22,Tempo · Webflow
-Nina,Nina,confirmed,2024,Jan,37,Taskrabbit · Webflow
-Nina,Nina,confirmed,2024,Feb,30,Webflow · Fishbowl
-Nina,Nina,confirmed,2024,Mar,31,Mirage · Webflow
-Nina,Nina,confirmed,2024,Apr,49,Webflow · Mirage
-Nina,Nina,confirmed,2024,May,1,Webflow
-Nina,Nina,confirmed,2024,Jun,25,Webflow · Mirage
-Nina,Nina,confirmed,2024,Jul,36,Webflow · Mirage
-Nina,Nina,confirmed,2024,Aug,31,Webflow · Mirage
-Nina,Nina,confirmed,2024,Sep,36,ThredUp · Mirage
-Nina,Nina,confirmed,2024,Oct,52,Mirage · ThredUp
-Nina,Nina,confirmed,2024,Nov,52,Apartment List · Mirage
-Nina,Nina,confirmed,2024,Dec,41,Mirage · ThredUp
-Nina,Nina,confirmed,2025,Jan,37,Mirage · Gainbridge
-Nina,Nina,confirmed,2025,Feb,45,Mirage · Blu
-Nina,Nina,confirmed,2025,Mar,28,Mirage · Athena2
-Nina,Nina,confirmed,2025,Apr,16,Mirage · Athena2
-Nina,Nina,confirmed,2025,May,6,Mirage
-Nina,Nina,confirmed,2025,Jun,7,Mirage · TravelJoy
-Nina,Nina,confirmed,2025,Jul,4,Athena2 · Mirage
-Nina,Nina,confirmed,2025,Aug,3,Athena2
-Nina,Nina,confirmed,2025,Sep,11,Athena2
-Nina,Nina,confirmed,2025,Oct,13,Athena2
-Nina,Nina,confirmed,2025,Dec,3,Oyster · Gainbridge
-Nina,Nina,confirmed,2026,May,14,Men's Wearhouse · College HUNKS
-Robert,Robert,confirmed,2020,Oct,3,Athena2
-Robert,Robert,confirmed,2025,Jul,3,Athena2
-Robert,Robert,confirmed,2025,Aug,11,Athena2 · Gainbridge
-Robert,Robert,confirmed,2025,Sep,37,Gainbridge · Rox
-Robert,Robert,confirmed,2025,Oct,29,Gainbridge · Rox
-Robert,Robert,confirmed,2025,Nov,36,Rox · Felt
-Robert,Robert,confirmed,2025,Dec,39,Gainbridge · Felt
-Robert,Robert,confirmed,2026,Jan,34,Gainbridge · Felt
-Robert,Robert,confirmed,2026,Feb,33,Gainbridge · Felt
-Robert,Robert,confirmed,2026,Mar,28,Gainbridge · College HUNKS
-Robert,Robert,confirmed,2026,Apr,26,Pylon · Felt
-Robert,Robert,confirmed,2026,May,44,College HUNKS · Pylon
-Robert,Robert,confirmed,2026,Jun,12,Gainbridge · College HUNKS
+Lee,Lee Anderson,confirmed,2025,Apr,1,Leapsome
+Lee,Lee Anderson,confirmed,2025,Aug,33,Oyster · Onton
+Lee,Lee Anderson,confirmed,2025,Sep,49,CoinTracker · Onton
+Lee,Lee Anderson,confirmed,2025,Oct,29,CoinTracker · Vimeo
+Lee,Lee Anderson,confirmed,2025,Nov,31,CoinTracker · Legit Security
+Lee,Lee Anderson,confirmed,2025,Dec,39,CoinTracker · Pylon
+Lee,Lee Anderson,confirmed,2026,Jan,37,Pylon · CoinTracker
+Lee,Lee Anderson,confirmed,2026,Feb,16,Pylon · CoinTracker
+Lee,Lee Anderson,confirmed,2026,Mar,31,Boulevard · CoinTracker
+Lee,Lee Anderson,confirmed,2026,Apr,48,Boulevard · CoinTracker
+Lee,Lee Anderson,confirmed,2026,May,40,Leapsome · Boulevard
+Lee,Lee Anderson,confirmed,2026,Jun,11,Leapsome · Photoroom
+Lee,Lee Anderson,confirmed,2026,Aug,1,Onton
+Lee,Lee Anderson,confirmed,2026,Sep,1,Webflow
+Lee,Lee Anderson,confirmed,2026,Oct,2,CoinTracker · Webflow
+MAGGIE,Maggie Gowland,confirmed,2024,Jan,1,Landing
+MAGGIE,Maggie Gowland,confirmed,2024,Feb,2,Landing
+Magggie,Maggie Gowland,confirmed,2022,May,1,BetterUp
+Maggie,Maggie Gowland,confirmed,2021,Nov,1,Invoice Simple
+Maggie,Maggie Gowland,confirmed,2022,Feb,10,Athena · Mailgun
+Maggie,Maggie Gowland,confirmed,2022,Mar,63,BetterUp · Athena
+Maggie,Maggie Gowland,confirmed,2022,Apr,45,BetterUp · Gopuff
+Maggie,Maggie Gowland,confirmed,2022,May,81,BetterUp · Mailgun
+Maggie,Maggie Gowland,confirmed,2022,Jun,64,Flip · BetterUp
+Maggie,Maggie Gowland,confirmed,2022,Jul,62,BetterUp · Flip
+Maggie,Maggie Gowland,confirmed,2022,Aug,27,BetterUp · Mailgun
+Maggie,Maggie Gowland,confirmed,2022,Sep,39,BetterUp · Flip
+Maggie,Maggie Gowland,confirmed,2022,Oct,26,BetterUp
+Maggie,Maggie Gowland,confirmed,2022,Nov,25,BetterUp · Mailjet
+Maggie,Maggie Gowland,confirmed,2022,Dec,5,BetterUp
+Maggie,Maggie Gowland,confirmed,2023,Jan,1,BetterUp
+Maggie,Maggie Gowland,confirmed,2023,Feb,17,Notion · Webflow
+Maggie,Maggie Gowland,confirmed,2023,Mar,12,Notion · Webflow
+Maggie,Maggie Gowland,confirmed,2023,Apr,12,Notion · Webflow
+Maggie,Maggie Gowland,confirmed,2023,Aug,8,Tempo
+Maggie,Maggie Gowland,confirmed,2023,Sep,10,Notion
+Maggie,Maggie Gowland,confirmed,2023,Oct,36,BetterUp · Quinn
+Maggie,Maggie Gowland,confirmed,2023,Nov,14,Mirage · BetterUp
+Maggie,Maggie Gowland,confirmed,2023,Dec,10,Quinn · Mirage
+Maggie,Maggie Gowland,confirmed,2024,Jan,11,Mirage · Fishbowl
+Maggie,Maggie Gowland,confirmed,2024,Feb,15,Mirage · Landing
+Maggie,Maggie Gowland,confirmed,2024,Mar,16,Quinn · EarnIn
+Maggie,Maggie Gowland,confirmed,2024,Apr,21,Invoice Simple · EarnIn
+Maggie,Maggie Gowland,confirmed,2024,May,25,Invoice Simple · Webflow
+Maggie,Maggie Gowland,confirmed,2024,Jun,12,Invoice Simple · Fishbowl
+Maggie,Maggie Gowland,confirmed,2024,Jul,50,Invoice Simple · Fishbowl
+Maggie,Maggie Gowland,confirmed,2024,Aug,19,Fishbowl · Invoice Simple
+Maggie,Maggie Gowland,confirmed,2024,Sep,21,Invoice Simple · Fishbowl
+Maggie,Maggie Gowland,confirmed,2024,Oct,42,Fishbowl · Invoice Simple
+Maggie,Maggie Gowland,confirmed,2024,Nov,33,Fishbowl · Invoice Simple
+Maggie,Maggie Gowland,confirmed,2024,Dec,31,Invoice Simple · EarnIn
+Maggie,Maggie Gowland,confirmed,2025,Jan,27,EarnIn · Fishbowl
+Maggie,Maggie Gowland,confirmed,2025,Feb,23,EarnIn · Fishbowl
+Maggie,Maggie Gowland,confirmed,2025,Mar,12,Fishbowl · Otter
+Maggie,Maggie Gowland,confirmed,2025,Apr,12,Fishbowl · EarnIn
+Maggie,Maggie Gowland,confirmed,2025,Jun,7,Rox · Smartling
+Maggie,Maggie Gowland,confirmed,2025,Jul,17,Rox · EarnIn B2B
+Maggie,Maggie Gowland,confirmed,2025,Aug,32,Engine · Better
+Maggie,Maggie Gowland,confirmed,2025,Sep,13,Rox · Engine
+Maggie,Maggie Gowland,confirmed,2025,Oct,1,Ellis
+Maggie,Maggie Gowland,confirmed,2026,Mar,7,HoneyBook · Oyster
+Maggie,Maggie Gowland,confirmed,2026,Apr,3,Front · HoneyBook
+Maggie,Maggie Gowland,confirmed,2026,May,16,Front · HoneyBook
+Maggie,Maggie Gowland,confirmed,2026,Jun,1,Front
+Maggie,Maggie Gowland,confirmed,2026,Oct,1,Notion
+Maggie,Maggie Gowland,confirmed,2026,Nov,1,Ellis
+Maggie/Alyssa,Alyssa Zacharias,folded_variant,2022,Sep,36,Flip · Practice
+Maggie/Alyssa,Alyssa Zacharias,folded_variant,2022,Oct,37,Flip
+Maggie/Alyssa,Alyssa Zacharias,folded_variant,2022,Dec,10,Practice · Notion
+Maggie/Alyssa,Alyssa Zacharias,folded_variant,2023,Nov,1,Taskrabbit
+Maggie/Alyssa,Alyssa Zacharias,folded_variant,2026,May,1,HoneyBook
+Maggie/Alyssa,Maggie Gowland,folded_variant,2022,Sep,36,Flip · Practice
+Maggie/Alyssa,Maggie Gowland,folded_variant,2022,Oct,37,Flip
+Maggie/Alyssa,Maggie Gowland,folded_variant,2022,Dec,10,Notion · Practice
+Maggie/Alyssa,Maggie Gowland,folded_variant,2023,Nov,1,Taskrabbit
+Maggie/Alyssa,Maggie Gowland,folded_variant,2026,May,1,HoneyBook
+Maggie/Nicholas,Maggie Gowland,folded_variant,2024,Nov,1,Oyster
+Maggie/Nicholas,Maggie Gowland,folded_variant,2025,Feb,1,Tempo
+Maggie/Nicholas,Nicholas Youngblood,folded_variant,2024,Nov,1,Oyster
+Maggie/Nicholas,Nicholas Youngblood,folded_variant,2025,Feb,1,Tempo
+Maggie/Shelby,Maggie Gowland,folded_variant,2022,Oct,13,Webflow · Practice
+Maggie/Shelby,Maggie Gowland,folded_variant,2022,Nov,4,Webflow
+Maggie/Shelby,Maggie Gowland,folded_variant,2022,Dec,1,Practice
+Maggie/Shelby,Maggie Gowland,folded_variant,2026,Nov,1,Webflow
+Maggie/Shelby,Shelby Talbot,folded_variant,2022,Oct,13,Webflow · Practice
+Maggie/Shelby,Shelby Talbot,folded_variant,2022,Nov,4,Webflow
+Maggie/Shelby,Shelby Talbot,folded_variant,2022,Dec,1,Practice
+Maggie/Shelby,Shelby Talbot,folded_variant,2026,Nov,1,Webflow
+Magie,Maggie Gowland,confirmed,2024,Sep,1,Fishbowl
+Micki,Micki Cottam,confirmed,2025,Aug,4,Everand
+Micki,Micki Cottam,confirmed,2025,Sep,14,Everand
+Micki,Micki Cottam,confirmed,2025,Oct,2,Everand
+Mike,Michael Doyle,confirmed,2023,Mar,8,Neiman
+Mike,Michael Doyle,confirmed,2023,Apr,29,Neiman · Contra
+Mike,Michael Doyle,confirmed,2023,May,7,Contra
+Mike/Derrik,Derrik Chinn,folded_variant,2023,May,1,Contra
+Mike/Derrik,Michael Doyle,folded_variant,2023,May,1,Contra
+Mike/Nicholas,Michael Doyle,folded_variant,2023,Apr,1,Neiman
+Mike/Nicholas,Michael Doyle,folded_variant,2023,May,9,Neiman · Contra
+Mike/Nicholas,Nicholas Youngblood,folded_variant,2023,Apr,1,Neiman
+Mike/Nicholas,Nicholas Youngblood,folded_variant,2023,May,9,Neiman · Contra
+NIcholas,Nicholas Youngblood,confirmed,2022,Dec,1,Linktree
+NIcholas/Abby,Abby Norwood,folded_variant,2022,Nov,11,Linktree
+NIcholas/Abby,Nicholas Youngblood,folded_variant,2022,Nov,11,Linktree
+Nicholas,Nicholas Youngblood,confirmed,2022,Dec,13,Neiman · Linktree
+Nicholas,Nicholas Youngblood,confirmed,2023,Jan,52,Curology · Bergdorf
+Nicholas,Nicholas Youngblood,confirmed,2023,Feb,60,Curology · Neiman
+Nicholas,Nicholas Youngblood,confirmed,2023,Mar,34,Contra · Bergdorf
+Nicholas,Nicholas Youngblood,confirmed,2023,Apr,30,Bergdorf · Contra
+Nicholas,Nicholas Youngblood,confirmed,2023,May,6,Bergdorf · Contra
+Nicholas,Nicholas Youngblood,confirmed,2023,Jun,23,Orderful · Grindr
+Nicholas,Nicholas Youngblood,confirmed,2023,Jul,39,Orderful · Contra
+Nicholas,Nicholas Youngblood,confirmed,2023,Aug,37,Orderful · Contra
+Nicholas,Nicholas Youngblood,confirmed,2023,Sep,45,Orderful · EarnIn
+Nicholas,Nicholas Youngblood,confirmed,2023,Oct,68,Grindr · Orderful
+Nicholas,Nicholas Youngblood,confirmed,2023,Nov,24,Grindr · Composer
+Nicholas,Nicholas Youngblood,confirmed,2023,Dec,37,Grindr · Composer
+Nicholas,Nicholas Youngblood,confirmed,2024,Jan,55,Grindr · Composer
+Nicholas,Nicholas Youngblood,confirmed,2024,Feb,15,Grindr · Composer
+Nicholas,Nicholas Youngblood,confirmed,2024,Mar,37,Grindr · Tempo
+Nicholas,Nicholas Youngblood,confirmed,2024,Apr,41,Tempo · Grindr
+Nicholas,Nicholas Youngblood,confirmed,2024,May,38,Tempo · Grindr
+Nicholas,Nicholas Youngblood,confirmed,2024,Jun,35,Tempo · Oyster
+Nicholas,Nicholas Youngblood,confirmed,2024,Jul,64,Tempo · Grindr
+Nicholas,Nicholas Youngblood,confirmed,2024,Aug,44,Grindr · Tempo
+Nicholas,Nicholas Youngblood,confirmed,2024,Sep,44,Grindr · Oyster
+Nicholas,Nicholas Youngblood,confirmed,2024,Oct,44,Grindr · Oyster
+Nicholas,Nicholas Youngblood,confirmed,2024,Nov,40,Grindr · Oyster
+Nicholas,Nicholas Youngblood,confirmed,2024,Dec,58,Grindr · Smartling
+Nicholas,Nicholas Youngblood,confirmed,2025,Jan,39,Tempo · Smartling
+Nicholas,Nicholas Youngblood,confirmed,2025,Feb,43,Tempo · Smartling
+Nicholas,Nicholas Youngblood,confirmed,2025,Mar,49,Tempo · Smartling
+Nicholas,Nicholas Youngblood,confirmed,2025,Apr,41,Smartling · EarnIn B2B
+Nicholas,Nicholas Youngblood,confirmed,2025,May,41,Smartling · EarnIn B2B
+Nicholas,Nicholas Youngblood,confirmed,2025,Jun,36,Smartling · EarnIn B2B
+Nicholas,Nicholas Youngblood,confirmed,2025,Jul,28,Smartling · EarnIn B2B
+Nicholas,Nicholas Youngblood,confirmed,2026,Jan,2,Composer
+Nicholas,Nicholas Youngblood,confirmed,2026,Feb,1,Neeva
+Nicholas,Nicholas Youngblood,confirmed,2026,Mar,1,Tempo
+Nicholas,Nicholas Youngblood,confirmed,2026,Apr,1,Bergdorf
+Nicholas,Nicholas Youngblood,confirmed,2026,May,1,Tempo
+Nicholas,Nicholas Youngblood,confirmed,2026,Jun,1,Tempo
+Nicholas,Nicholas Youngblood,confirmed,2026,Jul,2,Contra · Orderful
+Nicholas,Nicholas Youngblood,confirmed,2026,Aug,1,Grindr
+Nicholas,Nicholas Youngblood,confirmed,2026,Sep,1,Orderful
+Nicholas,Nicholas Youngblood,confirmed,2026,Oct,4,Grindr · Orderful
+Nicholas,Nicholas Youngblood,confirmed,2026,Nov,1,Grindr
+Nicholas,Nicholas Youngblood,confirmed,2026,Dec,1,Bergdorf
+Nicholas/Abby,Abby Norwood,folded_variant,2022,Nov,6,Linktree
+Nicholas/Abby,Abby Norwood,folded_variant,2023,Jan,2,Neiman
+Nicholas/Abby,Nicholas Youngblood,folded_variant,2022,Nov,6,Linktree
+Nicholas/Abby,Nicholas Youngblood,folded_variant,2023,Jan,2,Neiman
+Nicholas/Anabelle,Anabelle Zaluski,folded_variant,2022,Dec,1,Linktree
+Nicholas/Anabelle,Nicholas Youngblood,folded_variant,2022,Dec,1,Linktree
+Nicholas/Derrik,Derrik Chinn,folded_variant,2022,Jan,1,Curology
+Nicholas/Derrik,Derrik Chinn,folded_variant,2022,Nov,4,Curology
+Nicholas/Derrik,Derrik Chinn,folded_variant,2022,Dec,25,Curology · Contra
+Nicholas/Derrik,Derrik Chinn,folded_variant,2023,Jan,5,Curology
+Nicholas/Derrik,Derrik Chinn,folded_variant,2023,Jul,1,Contra
+Nicholas/Derrik,Nicholas Youngblood,folded_variant,2022,Jan,1,Curology
+Nicholas/Derrik,Nicholas Youngblood,folded_variant,2022,Nov,4,Curology
+Nicholas/Derrik,Nicholas Youngblood,folded_variant,2022,Dec,25,Curology · Contra
+Nicholas/Derrik,Nicholas Youngblood,folded_variant,2023,Jan,5,Curology
+Nicholas/Derrik,Nicholas Youngblood,folded_variant,2023,Jul,1,Contra
+Nicholas/Shelby/Derrik,Derrik Chinn,folded_variant,2022,Nov,3,Little Passports
+Nicholas/Shelby/Derrik,Nicholas Youngblood,folded_variant,2022,Nov,3,Little Passports
+Nicholas/Shelby/Derrik,Shelby Talbot,folded_variant,2022,Nov,3,Little Passports
+Nina,Nina Denison,confirmed,2020,Oct,1,Athena2
+Nina,Nina Denison,confirmed,2021,Oct,1,Webflow
+Nina,Nina Denison,confirmed,2022,Oct,1,Apartment List
+Nina,Nina Denison,confirmed,2023,Oct,54,Notion · Tempo
+Nina,Nina Denison,confirmed,2023,Nov,7,Webflow · Tempo
+Nina,Nina Denison,confirmed,2023,Dec,22,Tempo · Webflow
+Nina,Nina Denison,confirmed,2024,Jan,37,Taskrabbit · Webflow
+Nina,Nina Denison,confirmed,2024,Feb,30,Webflow · Fishbowl
+Nina,Nina Denison,confirmed,2024,Mar,31,Mirage · Webflow
+Nina,Nina Denison,confirmed,2024,Apr,49,Webflow · Mirage
+Nina,Nina Denison,confirmed,2024,May,1,Webflow
+Nina,Nina Denison,confirmed,2024,Jun,25,Webflow · Mirage
+Nina,Nina Denison,confirmed,2024,Jul,36,Webflow · Mirage
+Nina,Nina Denison,confirmed,2024,Aug,31,Webflow · Mirage
+Nina,Nina Denison,confirmed,2024,Sep,36,ThredUp · Mirage
+Nina,Nina Denison,confirmed,2024,Oct,52,Mirage · ThredUp
+Nina,Nina Denison,confirmed,2024,Nov,52,Apartment List · Mirage
+Nina,Nina Denison,confirmed,2024,Dec,41,Mirage · ThredUp
+Nina,Nina Denison,confirmed,2025,Jan,37,Mirage · Gainbridge
+Nina,Nina Denison,confirmed,2025,Feb,45,Mirage · Blu
+Nina,Nina Denison,confirmed,2025,Mar,28,Mirage · Athena2
+Nina,Nina Denison,confirmed,2025,Apr,16,Mirage · Athena2
+Nina,Nina Denison,confirmed,2025,May,6,Mirage
+Nina,Nina Denison,confirmed,2025,Jun,7,Mirage · TravelJoy
+Nina,Nina Denison,confirmed,2025,Jul,4,Athena2 · Mirage
+Nina,Nina Denison,confirmed,2025,Aug,3,Athena2
+Nina,Nina Denison,confirmed,2025,Sep,11,Athena2
+Nina,Nina Denison,confirmed,2025,Oct,13,Athena2
+Nina,Nina Denison,confirmed,2025,Dec,3,Oyster · Gainbridge
+Nina,Nina Denison,confirmed,2026,Jan,4,Webflow
+Nina,Nina Denison,confirmed,2026,May,14,Men's Wearhouse · College HUNKS
+Nina,Nina Denison,confirmed,2026,Nov,6,Webflow
+Nina,Nina Denison,confirmed,2026,Dec,4,Webflow
+Robert,Robert Thorpe,confirmed,2020,Oct,3,Athena2
+Robert,Robert Thorpe,confirmed,2025,Jul,3,Athena2
+Robert,Robert Thorpe,confirmed,2025,Aug,11,Athena2 · Gainbridge
+Robert,Robert Thorpe,confirmed,2025,Sep,37,Gainbridge · Rox
+Robert,Robert Thorpe,confirmed,2025,Oct,29,Gainbridge · Rox
+Robert,Robert Thorpe,confirmed,2025,Nov,36,Rox · Felt
+Robert,Robert Thorpe,confirmed,2025,Dec,39,Gainbridge · Felt
+Robert,Robert Thorpe,confirmed,2026,Jan,34,Gainbridge · Felt
+Robert,Robert Thorpe,confirmed,2026,Feb,33,Felt · Gainbridge
+Robert,Robert Thorpe,confirmed,2026,Mar,28,Gainbridge · College HUNKS
+Robert,Robert Thorpe,confirmed,2026,Apr,26,Pylon · College HUNKS
+Robert,Robert Thorpe,confirmed,2026,May,44,College HUNKS · Pylon
+Robert,Robert Thorpe,confirmed,2026,Jun,12,Gainbridge · Eventbrite
+Robert,Robert Thorpe,confirmed,2026,Aug,4,Gainbridge · Athena2
+Robert,Robert Thorpe,confirmed,2026,Sep,1,Gainbridge
 Sam,Samantha Marceau,confirmed_windowed,2026,May,21,Mistplay · Miter
 Sam,Samantha Marceau,confirmed_windowed,2026,Jun,11,Mistplay · Maven Clinic
+Sam,Samantha Marceau,confirmed_windowed,2026,Aug,1,Mirage
+Sam,Samantha Marceau,confirmed_windowed,2026,Dec,1,Mirage
 Sam,Samantha McGrail,confirmed_windowed,2025,Aug,12,EarnIn B2B · Mirage
 Sam,Samantha McGrail,confirmed_windowed,2025,Sep,29,Better · EarnIn B2B
 Sam,Samantha McGrail,confirmed_windowed,2025,Oct,13,Better · Mirage
 Sam,Samantha McGrail,confirmed_windowed,2025,Nov,27,Better · Mistplay
 Sam,Samantha McGrail,confirmed_windowed,2025,Dec,38,Better · Moss
 Sam,Samantha McGrail,confirmed_windowed,2026,Jan,12,Moss · Mistplay
-Sam/Alyssa,Alyssa,folded_variant,2025,Sep,3,Moss
+Sam/Alyssa,Alyssa Zacharias,folded_variant,2025,Sep,3,Moss
 Sam/Alyssa,Samantha McGrail,folded_variant,2025,Sep,3,Moss
 Shain,Shain,unresolved,2022,Jul,1,Flip
 Shalin,Shalin,unresolved,2022,Jul,25,Flip · Linktree
 Shalin,Shalin,unresolved,2022,Aug,65,Practice · Dynamite
 Shalin,Shalin,unresolved,2022,Sep,33,Practice · Little Passports
 Shalin,Shalin,unresolved,2022,Nov,1,Mailgun
-Shalin/Eesha,Eesha,folded_variant,2022,Jul,5,Jaanuu
+Shalin,Shalin,unresolved,2026,Jul,8,OpenSea
+Shalin/Eesha,Eesha Verma,folded_variant,2022,Jul,5,Jaanuu
 Shalin/Eesha,Shalin,folded_variant,2022,Jul,5,Jaanuu
-Shalin/Eesha/Maggie,Eesha,folded_variant,2022,Sep,1,ESGgo
-Shalin/Eesha/Maggie,Maggie,folded_variant,2022,Sep,1,ESGgo
+Shalin/Eesha/Maggie,Eesha Verma,folded_variant,2022,Sep,1,ESGgo
+Shalin/Eesha/Maggie,Maggie Gowland,folded_variant,2022,Sep,1,ESGgo
 Shalin/Eesha/Maggie,Shalin,folded_variant,2022,Sep,1,ESGgo
-Shelby,Shelby,confirmed,2021,Mar,5,Practice · Linktree
-Shelby,Shelby,confirmed,2022,Feb,3,Little Passports
-Shelby,Shelby,confirmed,2022,Aug,2,Flip · BetterUp
-Shelby,Shelby,confirmed,2022,Sep,5,Little Passports · Practice
-Shelby,Shelby,confirmed,2022,Oct,4,Little Passports
-Shelby,Shelby,confirmed,2022,Nov,12,Little Passports · Webflow
-Shelby,Shelby,confirmed,2022,Dec,15,Little Passports
-Shelby,Shelby,confirmed,2023,Jan,12,Little Passports
-Shelby,Shelby,confirmed,2023,Feb,9,Little Passports
-Shelby,Shelby,confirmed,2023,Mar,17,Linktree · Practice
-Shelby,Shelby,confirmed,2023,Apr,10,Practice · Linktree
-Shelby,Shelby,confirmed,2023,May,17,Practice · BetterUp
-Shelby,Shelby,confirmed,2023,Jun,33,BetterUp · Notion
-Shelby,Shelby,confirmed,2023,Jul,22,Notion · BetterUp
-Shelby,Shelby,confirmed,2023,Aug,55,BetterUp · Tempo
-Shelby,Shelby,confirmed,2023,Sep,44,BetterUp · Notion
-Shelby,Shelby,confirmed,2023,Oct,14,Quinn · BetterUp
-Shelby/Chrissy,Chrissy,folded_variant,2021,Mar,2,Linktree
-Shelby/Chrissy,Chrissy,folded_variant,2023,Jan,37,Practice · Linktree
-Shelby/Chrissy,Chrissy,folded_variant,2023,Feb,26,Linktree · Practice
-Shelby/Chrissy,Chrissy,folded_variant,2023,Mar,11,dydx · Linktree
-Shelby/Chrissy,Chrissy,folded_variant,2023,Apr,8,Linktree · Neeva
-Shelby/Chrissy,Chrissy,folded_variant,2023,May,20,dydx · Orderful
-Shelby/Chrissy,Chrissy,folded_variant,2023,Jun,3,dydx
-Shelby/Chrissy,Chrissy,folded_variant,2024,Jan,2,dydx
-Shelby/Chrissy,Shelby,folded_variant,2021,Mar,2,Linktree
-Shelby/Chrissy,Shelby,folded_variant,2023,Jan,37,Practice · Linktree
-Shelby/Chrissy,Shelby,folded_variant,2023,Feb,26,Linktree · Practice
-Shelby/Chrissy,Shelby,folded_variant,2023,Mar,11,dydx · Linktree
-Shelby/Chrissy,Shelby,folded_variant,2023,Apr,8,Linktree · Neeva
-Shelby/Chrissy,Shelby,folded_variant,2023,May,20,dydx · Orderful
-Shelby/Chrissy,Shelby,folded_variant,2023,Jun,3,dydx
-Shelby/Chrissy,Shelby,folded_variant,2024,Jan,2,dydx
-Shelby/Chrissy/Bryan,Bryan,folded_variant,2023,Feb,1,dydx
-Shelby/Chrissy/Bryan,Bryan,folded_variant,2023,May,2,FRC · Orderful
-Shelby/Chrissy/Bryan,Chrissy,folded_variant,2023,Feb,1,dydx
-Shelby/Chrissy/Bryan,Chrissy,folded_variant,2023,May,2,FRC · Orderful
-Shelby/Chrissy/Bryan,Shelby,folded_variant,2023,Feb,1,dydx
-Shelby/Chrissy/Bryan,Shelby,folded_variant,2023,May,2,Orderful · FRC
-Shelby/Derrik,Derrik,folded_variant,2022,Aug,7,Linktree
-Shelby/Derrik,Derrik,folded_variant,2022,Sep,1,Little Passports
-Shelby/Derrik,Derrik,folded_variant,2022,Oct,1,Little Passports
-Shelby/Derrik,Derrik,folded_variant,2022,Nov,1,Little Passports
-Shelby/Derrik,Derrik,folded_variant,2023,May,1,Webflow
-Shelby/Derrik,Shelby,folded_variant,2022,Aug,7,Linktree
-Shelby/Derrik,Shelby,folded_variant,2022,Sep,1,Little Passports
-Shelby/Derrik,Shelby,folded_variant,2022,Oct,1,Little Passports
-Shelby/Derrik,Shelby,folded_variant,2022,Nov,1,Little Passports
-Shelby/Derrik,Shelby,folded_variant,2023,May,1,Webflow
-Shelby/Maggie,Maggie,folded_variant,2022,Aug,38,Flip · BetterUp
-Shelby/Maggie,Maggie,folded_variant,2022,Sep,9,Practice · Webflow
-Shelby/Maggie,Maggie,folded_variant,2022,Oct,12,Practice · Webflow
-Shelby/Maggie,Maggie,folded_variant,2022,Nov,13,Webflow · Practice
-Shelby/Maggie,Maggie,folded_variant,2022,Dec,11,BetterUp · Webflow
-Shelby/Maggie,Maggie,folded_variant,2023,Jun,1,Practice
-Shelby/Maggie,Shelby,folded_variant,2022,Aug,38,Flip · BetterUp
-Shelby/Maggie,Shelby,folded_variant,2022,Sep,9,Practice · Webflow
-Shelby/Maggie,Shelby,folded_variant,2022,Oct,12,Practice · Webflow
-Shelby/Maggie,Shelby,folded_variant,2022,Nov,13,Webflow · Practice
-Shelby/Maggie,Shelby,folded_variant,2022,Dec,11,BetterUp · Webflow
-Shelby/Maggie,Shelby,folded_variant,2023,Jun,1,Practice
-Shelby/Nicholas/Derrik,Derrik,folded_variant,2022,Nov,1,Little Passports
-Shelby/Nicholas/Derrik,Nicholas,folded_variant,2022,Nov,1,Little Passports
-Shelby/Nicholas/Derrik,Shelby,folded_variant,2022,Nov,1,Little Passports
-Shivani,Shivani,confirmed,2025,Sep,1,Tempo
-Shivani,Shivani,confirmed,2025,Oct,16,Moss · Ellis
-Shivani,Shivani,confirmed,2025,Nov,13,Gainbridge · Moss
-Shivani,Shivani,confirmed,2025,Dec,2,Ellis
-Shivani,Shivani,confirmed,2026,Jan,6,Oyster · Miter
-Shivani,Shivani,confirmed,2026,Feb,22,Front · HoneyBook
-Shivani,Shivani,confirmed,2026,Mar,34,Fivetran · Front
-Shivani,Shivani,confirmed,2026,Apr,39,HoneyBook · Fivetran
-Shivani,Shivani,confirmed,2026,May,35,Fivetran · HoneyBook
-Shivani,Shivani,confirmed,2026,Jun,12,HoneyBook · Fivetran
-Tiffany,Tiffany,confirmed,2025,Jan,1,Fivetran
-Tiffany,Tiffany,confirmed,2025,Sep,2,Everand
-Tiffany,Tiffany,confirmed,2025,Oct,15,Everand · Workleap
-Tiffany,Tiffany,confirmed,2025,Nov,15,Everand · Workleap
-Tiffany,Tiffany,confirmed,2025,Dec,26,Workleap · ShareGate
-Tiffany,Tiffany,confirmed,2026,Jan,24,Workleap · Fivetran
-Tiffany,Tiffany,confirmed,2026,Feb,30,Workleap · Mistplay
-Tiffany,Tiffany,confirmed,2026,Mar,23,Workleap · Huntress
-Tiffany,Tiffany,confirmed,2026,Apr,27,Mistplay · ShareGate
-Tiffany/Abby,Abby,folded_variant,2025,Nov,1,Workleap
-Tiffany/Abby,Abby,folded_variant,2025,Dec,2,Front · Workleap
-Tiffany/Abby,Tiffany,folded_variant,2025,Nov,1,Workleap
-Tiffany/Abby,Tiffany,folded_variant,2025,Dec,2,Workleap · Front
-Vince,Vince,confirmed,2019,Sep,5,Webflow
-Vince,Vince,confirmed,2020,Dec,1,Webflow
-Vince,Vince,confirmed,2021,Dec,2,Webflow
-Vince,Vince,confirmed,2022,Aug,5,Webflow
-Vince,Vince,confirmed,2023,Mar,8,Bergdorf · Neiman
-Vince,Vince,confirmed,2023,Apr,5,Contra · Neeva
-Vince,Vince,confirmed,2023,Jun,26,Webflow
-Vince,Vince,confirmed,2023,Jul,21,Webflow
-Vince,Vince,confirmed,2023,Dec,8,Tempo
-Vince,Vince,confirmed,2024,Jan,28,Taskrabbit · Webflow
-Vince,Vince,confirmed,2024,Feb,29,Webflow · Fishbowl
-Vince,Vince,confirmed,2024,Mar,2,Webflow
-Vince,Vince,confirmed,2024,Oct,6,Webflow
-Vince,Vince,confirmed,2026,Sep,6,Webflow
-Vince/Derrik,Derrik,folded_variant,2023,Apr,16,Webflow
-Vince/Derrik,Derrik,folded_variant,2023,May,30,Webflow
-Vince/Derrik,Vince,folded_variant,2023,Apr,16,Webflow
-Vince/Derrik,Vince,folded_variant,2023,May,30,Webflow
-Vince/Derrik/Bryan,Bryan,folded_variant,2023,May,1,Webflow
-Vince/Derrik/Bryan,Derrik,folded_variant,2023,May,1,Webflow
-Vince/Derrik/Bryan,Vince,folded_variant,2023,May,1,Webflow
-Vince/Derrik/Chrissy,Chrissy,folded_variant,2023,May,2,Webflow
-Vince/Derrik/Chrissy,Derrik,folded_variant,2023,May,2,Webflow
-Vince/Derrik/Chrissy,Vince,folded_variant,2023,May,2,Webflow
-maggie,Maggie,confirmed,2022,Mar,1,Cadre
+Shelby,Shelby Talbot,confirmed,2021,Mar,3,Practice
+Shelby,Shelby Talbot,confirmed,2022,Feb,3,Little Passports
+Shelby,Shelby Talbot,confirmed,2022,Aug,2,Flip · BetterUp
+Shelby,Shelby Talbot,confirmed,2022,Sep,5,Little Passports · Practice
+Shelby,Shelby Talbot,confirmed,2022,Oct,4,Little Passports
+Shelby,Shelby Talbot,confirmed,2022,Nov,12,Little Passports · Webflow
+Shelby,Shelby Talbot,confirmed,2022,Dec,15,Little Passports
+Shelby,Shelby Talbot,confirmed,2023,Jan,12,Little Passports
+Shelby,Shelby Talbot,confirmed,2023,Feb,9,Little Passports
+Shelby,Shelby Talbot,confirmed,2023,Mar,19,Linktree · Practice
+Shelby,Shelby Talbot,confirmed,2023,Apr,13,Practice · Linktree
+Shelby,Shelby Talbot,confirmed,2023,May,17,Practice · BetterUp
+Shelby,Shelby Talbot,confirmed,2023,Jun,33,BetterUp · Notion
+Shelby,Shelby Talbot,confirmed,2023,Jul,22,Notion · BetterUp
+Shelby,Shelby Talbot,confirmed,2023,Aug,55,BetterUp · Tempo
+Shelby,Shelby Talbot,confirmed,2023,Sep,44,BetterUp · Notion
+Shelby,Shelby Talbot,confirmed,2023,Oct,14,Quinn · BetterUp
+Shelby,Shelby Talbot,confirmed,2026,Feb,1,Little Passports
+Shelby,Shelby Talbot,confirmed,2026,Mar,2,Practice
+Shelby,Shelby Talbot,confirmed,2026,Apr,3,Practice
+Shelby,Shelby Talbot,confirmed,2026,Jul,1,Quinn
+Shelby,Shelby Talbot,confirmed,2026,Sep,2,Practice
+Shelby,Shelby Talbot,confirmed,2026,Oct,2,Little Passports
+Shelby,Shelby Talbot,confirmed,2026,Nov,1,Little Passports
+Shelby/Chrissy,Chrissy Woods,folded_variant,2023,Jan,39,Linktree · Practice
+Shelby/Chrissy,Chrissy Woods,folded_variant,2023,Feb,26,Linktree · Practice
+Shelby/Chrissy,Chrissy Woods,folded_variant,2023,Mar,13,dydx · Linktree
+Shelby/Chrissy,Chrissy Woods,folded_variant,2023,Apr,9,Linktree · Neeva
+Shelby/Chrissy,Chrissy Woods,folded_variant,2023,May,17,dydx · Orderful
+Shelby/Chrissy,Chrissy Woods,folded_variant,2023,Jun,3,dydx
+Shelby/Chrissy,Chrissy Woods,folded_variant,2024,Jan,2,dydx
+Shelby/Chrissy,Chrissy Woods,folded_variant,2026,Apr,1,Practice
+Shelby/Chrissy,Shelby Talbot,folded_variant,2023,Jan,39,Linktree · Practice
+Shelby/Chrissy,Shelby Talbot,folded_variant,2023,Feb,26,Linktree · Practice
+Shelby/Chrissy,Shelby Talbot,folded_variant,2023,Mar,13,dydx · Linktree
+Shelby/Chrissy,Shelby Talbot,folded_variant,2023,Apr,9,Linktree · Neeva
+Shelby/Chrissy,Shelby Talbot,folded_variant,2023,May,17,dydx · Orderful
+Shelby/Chrissy,Shelby Talbot,folded_variant,2023,Jun,3,dydx
+Shelby/Chrissy,Shelby Talbot,folded_variant,2024,Jan,2,dydx
+Shelby/Chrissy,Shelby Talbot,folded_variant,2026,Apr,1,Practice
+Shelby/Chrissy/Bryan,Bryan Clark,folded_variant,2023,Feb,1,dydx
+Shelby/Chrissy/Bryan,Bryan Clark,folded_variant,2023,May,2,Orderful · FRC
+Shelby/Chrissy/Bryan,Chrissy Woods,folded_variant,2023,Feb,1,dydx
+Shelby/Chrissy/Bryan,Chrissy Woods,folded_variant,2023,May,2,FRC · Orderful
+Shelby/Chrissy/Bryan,Shelby Talbot,folded_variant,2023,Feb,1,dydx
+Shelby/Chrissy/Bryan,Shelby Talbot,folded_variant,2023,May,2,Orderful · FRC
+Shelby/Derrik,Derrik Chinn,folded_variant,2022,Aug,7,Linktree
+Shelby/Derrik,Derrik Chinn,folded_variant,2022,Sep,1,Little Passports
+Shelby/Derrik,Derrik Chinn,folded_variant,2022,Oct,1,Little Passports
+Shelby/Derrik,Derrik Chinn,folded_variant,2022,Nov,1,Little Passports
+Shelby/Derrik,Derrik Chinn,folded_variant,2023,May,1,Webflow
+Shelby/Derrik,Shelby Talbot,folded_variant,2022,Aug,7,Linktree
+Shelby/Derrik,Shelby Talbot,folded_variant,2022,Sep,1,Little Passports
+Shelby/Derrik,Shelby Talbot,folded_variant,2022,Oct,1,Little Passports
+Shelby/Derrik,Shelby Talbot,folded_variant,2022,Nov,1,Little Passports
+Shelby/Derrik,Shelby Talbot,folded_variant,2023,May,1,Webflow
+Shelby/Maggie,Maggie Gowland,folded_variant,2022,Aug,38,Flip · BetterUp
+Shelby/Maggie,Maggie Gowland,folded_variant,2022,Sep,9,Practice · Webflow
+Shelby/Maggie,Maggie Gowland,folded_variant,2022,Oct,12,Practice · Webflow
+Shelby/Maggie,Maggie Gowland,folded_variant,2022,Nov,13,Webflow · Practice
+Shelby/Maggie,Maggie Gowland,folded_variant,2022,Dec,11,BetterUp · Webflow
+Shelby/Maggie,Maggie Gowland,folded_variant,2023,Jun,1,Practice
+Shelby/Maggie,Shelby Talbot,folded_variant,2022,Aug,38,Flip · BetterUp
+Shelby/Maggie,Shelby Talbot,folded_variant,2022,Sep,9,Practice · Webflow
+Shelby/Maggie,Shelby Talbot,folded_variant,2022,Oct,12,Practice · Webflow
+Shelby/Maggie,Shelby Talbot,folded_variant,2022,Nov,13,Webflow · Practice
+Shelby/Maggie,Shelby Talbot,folded_variant,2022,Dec,11,BetterUp · Webflow
+Shelby/Maggie,Shelby Talbot,folded_variant,2023,Jun,1,Practice
+Shelby/Nicholas/Derrik,Derrik Chinn,folded_variant,2022,Nov,1,Little Passports
+Shelby/Nicholas/Derrik,Nicholas Youngblood,folded_variant,2022,Nov,1,Little Passports
+Shelby/Nicholas/Derrik,Shelby Talbot,folded_variant,2022,Nov,1,Little Passports
+Shivani,Shivani Verma,confirmed,2025,Sep,1,Tempo
+Shivani,Shivani Verma,confirmed,2025,Oct,16,Moss · Ellis
+Shivani,Shivani Verma,confirmed,2025,Nov,13,Gainbridge · Moss
+Shivani,Shivani Verma,confirmed,2025,Dec,2,Ellis
+Shivani,Shivani Verma,confirmed,2026,Jan,6,Oyster · Miter
+Shivani,Shivani Verma,confirmed,2026,Feb,22,Front · HoneyBook
+Shivani,Shivani Verma,confirmed,2026,Mar,34,Fivetran · Front
+Shivani,Shivani Verma,confirmed,2026,Apr,39,HoneyBook · Fivetran
+Shivani,Shivani Verma,confirmed,2026,May,35,Fivetran · HoneyBook
+Shivani,Shivani Verma,confirmed,2026,Jun,12,Fivetran · HoneyBook
+Tiffany,Tiffany Anderson,confirmed,2025,Jan,1,Fivetran
+Tiffany,Tiffany Anderson,confirmed,2025,Sep,2,Everand
+Tiffany,Tiffany Anderson,confirmed,2025,Oct,15,Everand · Workleap
+Tiffany,Tiffany Anderson,confirmed,2025,Nov,15,Everand · Workleap
+Tiffany,Tiffany Anderson,confirmed,2025,Dec,26,Workleap · ShareGate
+Tiffany,Tiffany Anderson,confirmed,2026,Jan,25,Workleap · Fivetran
+Tiffany,Tiffany Anderson,confirmed,2026,Feb,30,Workleap · Mistplay
+Tiffany,Tiffany Anderson,confirmed,2026,Mar,23,Workleap · Huntress
+Tiffany,Tiffany Anderson,confirmed,2026,Apr,27,Mistplay · ShareGate
+Tiffany,Tiffany Anderson,confirmed,2026,Oct,1,Workleap
+Tiffany,Tiffany Anderson,confirmed,2026,Nov,2,Workleap · Fivetran
+Tiffany/Abby,Abby Norwood,folded_variant,2025,Nov,1,Workleap
+Tiffany/Abby,Abby Norwood,folded_variant,2025,Dec,2,Workleap · Front
+Tiffany/Abby,Tiffany Anderson,folded_variant,2025,Nov,1,Workleap
+Tiffany/Abby,Tiffany Anderson,folded_variant,2025,Dec,2,Front · Workleap
+Vince,Vincent Lee,confirmed,2019,Sep,5,Webflow
+Vince,Vincent Lee,confirmed,2020,Dec,1,Webflow
+Vince,Vincent Lee,confirmed,2021,Dec,2,Webflow
+Vince,Vincent Lee,confirmed,2022,Aug,5,Webflow
+Vince,Vincent Lee,confirmed,2023,Mar,8,Bergdorf · Contra
+Vince,Vincent Lee,confirmed,2023,Apr,5,Contra · Neeva
+Vince,Vincent Lee,confirmed,2023,Jun,26,Webflow
+Vince,Vincent Lee,confirmed,2023,Jul,21,Webflow
+Vince,Vincent Lee,confirmed,2023,Dec,8,Tempo
+Vince,Vincent Lee,confirmed,2024,Jan,28,Taskrabbit · Webflow
+Vince,Vincent Lee,confirmed,2024,Feb,29,Webflow · Fishbowl
+Vince,Vincent Lee,confirmed,2024,Mar,2,Webflow
+Vince,Vincent Lee,confirmed,2024,Oct,6,Webflow
+Vince,Vincent Lee,confirmed,2026,Jan,8,Webflow
+Vince,Vincent Lee,confirmed,2026,Jul,7,Webflow
+Vince,Vincent Lee,confirmed,2026,Aug,20,Webflow
+Vince,Vincent Lee,confirmed,2026,Sep,11,Webflow
+Vince,Vincent Lee,confirmed,2026,Oct,27,Webflow
+Vince,Vincent Lee,confirmed,2026,Nov,14,Webflow
+Vince,Vincent Lee,confirmed,2026,Dec,16,Webflow · Tempo
+Vince/Derrik,Derrik Chinn,folded_variant,2023,Apr,16,Webflow
+Vince/Derrik,Derrik Chinn,folded_variant,2023,May,30,Webflow
+Vince/Derrik,Derrik Chinn,folded_variant,2026,Apr,1,Webflow
+Vince/Derrik,Vincent Lee,folded_variant,2023,Apr,16,Webflow
+Vince/Derrik,Vincent Lee,folded_variant,2023,May,30,Webflow
+Vince/Derrik,Vincent Lee,folded_variant,2026,Apr,1,Webflow
+Vince/Derrik/Bryan,Bryan Clark,folded_variant,2023,May,1,Webflow
+Vince/Derrik/Bryan,Derrik Chinn,folded_variant,2023,May,1,Webflow
+Vince/Derrik/Bryan,Vincent Lee,folded_variant,2023,May,1,Webflow
+Vince/Derrik/Chrissy,Chrissy Woods,folded_variant,2023,May,2,Webflow
+Vince/Derrik/Chrissy,Derrik Chinn,folded_variant,2023,May,2,Webflow
+Vince/Derrik/Chrissy,Vincent Lee,folded_variant,2023,May,2,Webflow
+maggie,Maggie Gowland,confirmed,2022,Mar,1,Cadre
 no edits,no edits,junk,2024,May,1,Mirage

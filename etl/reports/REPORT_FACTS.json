@@ -3,53 +3,83 @@
     {
       "month": "Jan",
       "operating_model": 274,
-      "log_editorial": 216,
-      "log_calendar": 158
+      "log_editorial": 245,
+      "log_calendar": 185
     },
     {
       "month": "Feb",
       "operating_model": 294,
-      "log_editorial": 234,
-      "log_calendar": 225
+      "log_editorial": 249,
+      "log_calendar": 240
     },
     {
       "month": "Mar",
       "operating_model": 324,
-      "log_editorial": 262,
-      "log_calendar": 329
+      "log_editorial": 280,
+      "log_calendar": 349
     },
     {
       "month": "Apr",
       "operating_model": 339,
-      "log_editorial": 274,
-      "log_calendar": 197
+      "log_editorial": 296,
+      "log_calendar": 214
     },
     {
       "month": "May",
       "operating_model": 364,
-      "log_editorial": 315,
-      "log_calendar": 288
+      "log_editorial": 331,
+      "log_calendar": 306
     },
     {
       "month": "Jun",
       "operating_model": 0,
-      "log_editorial": 84,
-      "log_calendar": 188
+      "log_editorial": 90,
+      "log_calendar": 197
+    },
+    {
+      "month": "Jul",
+      "operating_model": 0,
+      "log_editorial": 13,
+      "log_calendar": 6
+    },
+    {
+      "month": "Aug",
+      "operating_model": 0,
+      "log_editorial": 28,
+      "log_calendar": 35
     },
     {
       "month": "Sep",
       "operating_model": 0,
-      "log_editorial": 6,
-      "log_calendar": 6
+      "log_editorial": 16,
+      "log_calendar": 16
+    },
+    {
+      "month": "Oct",
+      "operating_model": 0,
+      "log_editorial": 36,
+      "log_calendar": 36
+    },
+    {
+      "month": "Nov",
+      "operating_model": 0,
+      "log_editorial": 25,
+      "log_calendar": 25
+    },
+    {
+      "month": "Dec",
+      "operating_model": 0,
+      "log_editorial": 24,
+      "log_calendar": 24
     }
   ],
   "month_basis_verdicts": {
-    "exact_match": 183,
-    "gap": 182,
-    "close": 177,
-    "missing_from_log": 153,
-    "no_operating_model": 108,
-    "month_boundary": 3
+    "exact_match": 193,
+    "close": 183,
+    "gap": 183,
+    "no_operating_model": 158,
+    "missing_from_log": 135,
+    "month_boundary": 4
   },
   "miter_example": [
     {
@@ -94,21 +124,21 @@
     {
       "tab": "Mirage",
       "articles": 759,
-      "span": "2023-10\u20262025-12",
+      "span": "2023-10\u20262026-12",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Curology",
       "articles": 370,
-      "span": "2022-01\u20262023-02",
+      "span": "2022-01\u20262026-09",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
     {
       "tab": "Worldcoin",
       "articles": 333,
-      "span": "2022-07\u20262023-02",
+      "span": "2022-07\u20262026-08",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
@@ -136,14 +166,14 @@
     {
       "tab": "Workleap",
       "articles": 194,
-      "span": "2025-05\u20262026-03",
+      "span": "2025-05\u20262026-11",
       "proposed": "Workleap + Sharegate",
       "sf_years": "2025\u20132026"
     },
     {
       "tab": "Little Passports",
       "articles": 159,
-      "span": "2022-02\u20262023-03",
+      "span": "2022-02\u20262026-11",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
@@ -164,42 +194,42 @@
     {
       "tab": "Athena2",
       "articles": 145,
-      "span": "2020-10\u20262025-11",
+      "span": "2020-10\u20262026-08",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Orderful 2",
       "articles": 135,
-      "span": "2024-10\u20262025-06",
+      "span": "2024-10\u20262026-12",
       "proposed": "Orderful (II)",
       "sf_years": ""
     },
     {
       "tab": "Bergdorf",
       "articles": 134,
-      "span": "2022-10\u20262023-05",
+      "span": "2022-10\u20262026-12",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Mailjet",
       "articles": 128,
-      "span": "2022-02\u20262025-02",
+      "span": "2022-02\u20262026-07",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Email On Acid",
       "articles": 112,
-      "span": "2022-02\u20262022-11",
+      "span": "2022-02\u20262026-05",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Orderful",
       "articles": 111,
-      "span": "2023-05\u20262023-10",
+      "span": "2023-05\u20262026-10",
       "proposed": "Orderful (I)",
       "sf_years": "2024\u20132025"
     },
@@ -213,7 +243,7 @@
     {
       "tab": "Shift",
       "articles": 87,
-      "span": "2022-03\u20262022-05",
+      "span": "2022-03\u20262026-05",
       "proposed": "",
       "sf_years": "2021\u20132022"
     },
@@ -262,7 +292,7 @@
     {
       "tab": "OpenSea",
       "articles": 15,
-      "span": "2022-06\u20262022-08",
+      "span": "2022-06\u20262026-07",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
@@ -290,23 +320,23 @@
   ],
   "mapping_by_month": {
     "editors": {
-      "dated_rows": 14654,
-      "undated_rows": 502,
+      "dated_rows": 15100,
+      "undated_rows": 56,
       "total_log_rows": 15156,
-      "distinct_raw_to_resolved": 186,
-      "csv_rows": 750
+      "distinct_raw_to_resolved": 188,
+      "csv_rows": 839
     },
     "writers": {
-      "dated_rows": 14643,
-      "undated_rows": 500,
+      "dated_rows": 15088,
+      "undated_rows": 55,
       "total_log_rows": 15143,
-      "distinct_raw_to_resolved": 243,
-      "csv_rows": 1313
+      "distinct_raw_to_resolved": 244,
+      "csv_rows": 1401
     },
     "clients": {
-      "csv_rows": 847,
-      "clients": 90,
-      "dated_articles": 13167
+      "csv_rows": 939,
+      "clients": 91,
+      "dated_articles": 13588
     }
   },
   "mapping_impact": {
