@@ -3,38 +3,38 @@
     {
       "month": "Jan",
       "operating_model": 274,
-      "log_editorial": 201,
-      "log_calendar": 147
+      "log_editorial": 216,
+      "log_calendar": 158
     },
     {
       "month": "Feb",
       "operating_model": 294,
-      "log_editorial": 224,
-      "log_calendar": 213
+      "log_editorial": 234,
+      "log_calendar": 225
     },
     {
       "month": "Mar",
       "operating_model": 324,
-      "log_editorial": 252,
-      "log_calendar": 317
+      "log_editorial": 262,
+      "log_calendar": 329
     },
     {
       "month": "Apr",
       "operating_model": 339,
-      "log_editorial": 259,
-      "log_calendar": 185
+      "log_editorial": 274,
+      "log_calendar": 197
     },
     {
       "month": "May",
       "operating_model": 364,
-      "log_editorial": 123,
-      "log_calendar": 197
+      "log_editorial": 315,
+      "log_calendar": 288
     },
     {
       "month": "Jun",
       "operating_model": 0,
-      "log_editorial": 1,
-      "log_calendar": 1
+      "log_editorial": 84,
+      "log_calendar": 188
     },
     {
       "month": "Sep",
@@ -44,12 +44,12 @@
     }
   ],
   "month_basis_verdicts": {
-    "gap": 180,
-    "close": 171,
-    "missing_from_log": 166,
-    "exact_match": 163,
-    "no_operating_model": 87,
-    "month_boundary": 18
+    "exact_match": 183,
+    "gap": 182,
+    "close": 177,
+    "missing_from_log": 153,
+    "no_operating_model": 108,
+    "month_boundary": 3
   },
   "miter_example": [
     {
@@ -79,8 +79,14 @@
     {
       "month": "May",
       "operating_model": 28,
-      "log_editorial": 11,
-      "log_calendar": 25
+      "log_editorial": 28,
+      "log_calendar": 29
+    },
+    {
+      "month": "Jun",
+      "operating_model": 0,
+      "log_editorial": 1,
+      "log_calendar": 14
     }
   ],
   "caret_row_count": 28,
@@ -263,7 +269,7 @@
     {
       "tab": "Men's Warehouse",
       "articles": 12,
-      "span": "2026-04\u20262026-05",
+      "span": "\u2026",
       "proposed": "Men's Wearhouse",
       "sf_years": ""
     },
@@ -284,23 +290,23 @@
   ],
   "mapping_by_month": {
     "editors": {
-      "dated_rows": 14293,
-      "undated_rows": 496,
-      "total_log_rows": 14789,
-      "distinct_raw_to_resolved": 184,
-      "csv_rows": 736
+      "dated_rows": 14654,
+      "undated_rows": 502,
+      "total_log_rows": 15156,
+      "distinct_raw_to_resolved": 185,
+      "csv_rows": 750
     },
     "writers": {
-      "dated_rows": 14282,
-      "undated_rows": 494,
-      "total_log_rows": 14776,
-      "distinct_raw_to_resolved": 241,
-      "csv_rows": 1279
+      "dated_rows": 14643,
+      "undated_rows": 500,
+      "total_log_rows": 15143,
+      "distinct_raw_to_resolved": 243,
+      "csv_rows": 1313
     },
     "clients": {
-      "csv_rows": 815,
-      "clients": 88,
-      "dated_articles": 12807
+      "csv_rows": 847,
+      "clients": 90,
+      "dated_articles": 13167
     }
   },
   "mapping_impact": {

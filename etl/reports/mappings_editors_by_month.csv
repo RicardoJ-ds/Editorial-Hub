@@ -65,6 +65,8 @@ Alyssa,Alyssa,confirmed,2025,Sep,8,Webflow · Moss
 Alyssa,Alyssa,confirmed,2025,Dec,4,Pylon
 Alyssa,Alyssa,confirmed,2026,Feb,6,Pylon
 Alyssa,Alyssa,confirmed,2026,Mar,6,Pylon
+Alyssa,Alyssa,confirmed,2026,May,2,Boulevard
+Alyssa,Alyssa,confirmed,2026,Jun,3,Pylon
 Alyssa/Abby,Abby,folded_variant,2022,Nov,5,Linktree
 Alyssa/Abby,Alyssa,folded_variant,2022,Nov,5,Linktree
 Alyssa/Anabelle,Alyssa,folded_variant,2024,Jun,6,EarnIn
@@ -122,6 +124,7 @@ Anabelle,Anabelle,confirmed,2025,Sep,28,Tempo · Engine
 Anabelle,Anabelle,confirmed,2025,Nov,9,Oyster · Rox
 Anabelle,Anabelle,confirmed,2025,Dec,5,Ellis
 Anabelle,Anabelle,confirmed,2026,Mar,3,Workleap
+Anabelle,Anabelle,confirmed,2026,Jun,3,n8n
 Anabelle/Alyssa,Alyssa,folded_variant,2025,Aug,1,Moss
 Anabelle/Alyssa,Anabelle,folded_variant,2025,Aug,1,Moss
 Anabelle/Alyssa/Maggie/Bryan,Alyssa,folded_variant,2023,Jan,1,Webflow
@@ -313,7 +316,8 @@ Elliot,Elliot,confirmed,2026,Jan,22,Fivetran · Front
 Elliot,Elliot,confirmed,2026,Feb,26,Fivetran · Workleap
 Elliot,Elliot,confirmed,2026,Mar,19,Workleap · Miter
 Elliot,Elliot,confirmed,2026,Apr,35,Miter · Mistplay
-Elliot,Elliot,confirmed,2026,May,12,Miter · Maven Clinic
+Elliot,Elliot,confirmed,2026,May,31,Maven Clinic · Miter
+Elliot,Elliot,confirmed,2026,Jun,2,Maven Clinic
 Elliot/Abby,Abby,folded_variant,2025,Aug,3,Workleap
 Elliot/Abby,Elliot,folded_variant,2025,Aug,3,Workleap
 Haley,Haley,confirmed,2025,Sep,21,Moss · Webflow
@@ -323,8 +327,9 @@ Haley,Haley,confirmed,2025,Dec,36,CoinTracker · Pylon
 Haley,Haley,confirmed,2026,Jan,37,Pylon · CoinTracker
 Haley,Haley,confirmed,2026,Feb,35,CoinTracker · Pylon
 Haley,Haley,confirmed,2026,Mar,40,Webflow · CoinTracker
-Haley,Haley,confirmed,2026,Apr,43,Leapsome · Boulevard
-Haley,Haley,confirmed,2026,May,16,Leapsome · Boulevard
+Haley,Haley,confirmed,2026,Apr,42,Boulevard · Leapsome
+Haley,Haley,confirmed,2026,May,36,Leapsome · Boulevard
+Haley,Haley,confirmed,2026,Jun,11,Leapsome · Boulevard
 Haley/Alyssa,Alyssa,folded_variant,2025,Sep,1,Webflow
 Haley/Alyssa,Haley,folded_variant,2025,Sep,1,Webflow
 Jared,Jared,confirmed,2024,Dec,1,Engine
@@ -344,20 +349,21 @@ Jimmy,Jimmy,confirmed,2025,Mar,1,Genstore
 Jimmy,Jimmy,confirmed,2025,Sep,13,Better · Rox
 Jimmy,Jimmy,confirmed,2025,Oct,21,Better · Mirage
 Jimmy,Jimmy,confirmed,2025,Nov,24,Moss · Mirage
-Jimmy,Jimmy,confirmed,2025,Dec,23,Better · Mistplay
-Jimmy,Jimmy,confirmed,2026,Jan,32,Mistplay · Better
+Jimmy,Jimmy,confirmed,2025,Dec,30,Felt · Better
+Jimmy,Jimmy,confirmed,2026,Jan,38,Mistplay · Better
 Jimmy,Jimmy,confirmed,2026,Feb,38,Mistplay · Miter
-Jimmy,Jimmy,confirmed,2026,Mar,36,Mistplay · Miter
-Jimmy,Jimmy,confirmed,2026,Apr,26,College HUNKS · n8n
-Jimmy,Jimmy,confirmed,2026,May,20,College HUNKS · n8n
+Jimmy,Jimmy,confirmed,2026,Mar,42,Mistplay · Miter
+Jimmy,Jimmy,confirmed,2026,Apr,33,Felt · College HUNKS
+Jimmy,Jimmy,confirmed,2026,May,44,College HUNKS · Pylon
+Jimmy,Jimmy,confirmed,2026,Jun,11,College HUNKS · n8n
 Katie,Katie,confirmed,2025,Apr,8,Athena2
 Katie,Katie,confirmed,2025,May,34,Athena2 · Gainbridge
 Katie,Katie,confirmed,2025,Jun,48,Mirage · Athena2
 Katie,Katie,confirmed,2025,Jul,30,Mirage · Gainbridge
-Katie,Katie,confirmed,2025,Aug,42,Rox · Gainbridge
-Katie,Katie,confirmed,2025,Sep,35,Rox · Gainbridge
-Katie,Katie,confirmed,2025,Oct,25,Rox · Gainbridge
-Katie,Katie,confirmed,2025,Nov,6,Athena2 · Rox
+Katie,Katie,confirmed,2025,Aug,43,Rox · Gainbridge
+Katie,Katie,confirmed,2025,Sep,38,Rox · Gainbridge
+Katie,Katie,confirmed,2025,Oct,29,Rox · Gainbridge
+Katie,Katie,confirmed,2025,Nov,8,Athena2 · Rox
 Kennedy,Kennedy,confirmed,2024,Mar,1,Mirage
 Kennedy,Kennedy,confirmed,2024,Jun,23,Webflow · Mirage
 Kennedy,Kennedy,confirmed,2024,Jul,38,Webflow · Mirage
@@ -381,7 +387,7 @@ Kennedy,Kennedy,confirmed,2026,Jan,10,Mistplay · Genstore
 Kennedy,Kennedy,confirmed,2026,Feb,8,Genstore · Mistplay
 Kennedy,Kennedy,confirmed,2026,Mar,17,Workleap · Maven Clinic
 Kennedy,Kennedy,confirmed,2026,Apr,8,Miter · Maven Clinic
-Kennedy,Kennedy,confirmed,2026,May,8,Miter · Dr. Squatch
+Kennedy,Kennedy,confirmed,2026,May,23,Miter · Flex
 Kennedy/Alyssa,Alyssa,folded_variant,2025,Aug,1,Webflow
 Kennedy/Alyssa,Alyssa,folded_variant,2025,Sep,1,Webflow
 Kennedy/Alyssa,Kennedy,folded_variant,2025,Aug,1,Webflow
@@ -416,7 +422,9 @@ Lauren,Lauren,ambiguous,2026,Jan,8,Oyster · Mistplay
 Lauren,Lauren,ambiguous,2026,Feb,20,Front · HoneyBook
 Lauren,Lauren,ambiguous,2026,Mar,27,Fivetran · Front
 Lauren,Lauren,ambiguous,2026,Apr,34,Front · HoneyBook
-Lauren,Lauren,ambiguous,2026,May,8,HoneyBook · Front
+Lauren,Lauren,ambiguous,2026,May,12,HoneyBook · Front
+Lauren,Lauren,ambiguous,2026,Jun,4,Front
+Lauren Keleher,Lauren Keleher,folded_variant,2026,Jun,4,Men's Wearhouse · Eventbrite
 Lee,Lee,confirmed,2025,Apr,1,Leapsome
 Lee,Lee,confirmed,2025,Aug,27,Oyster · Onton
 Lee,Lee,confirmed,2025,Sep,45,CoinTracker · Onton
@@ -427,7 +435,8 @@ Lee,Lee,confirmed,2026,Jan,33,Pylon · CoinTracker
 Lee,Lee,confirmed,2026,Feb,13,Pylon · CoinTracker
 Lee,Lee,confirmed,2026,Mar,28,Boulevard · Pylon
 Lee,Lee,confirmed,2026,Apr,41,Boulevard · CoinTracker
-Lee,Lee,confirmed,2026,May,18,Leapsome · Boulevard
+Lee,Lee,confirmed,2026,May,36,Leapsome · Boulevard
+Lee,Lee,confirmed,2026,Jun,10,Leapsome · Photoroom
 MAGGIE,Maggie,confirmed,2024,Jan,1,Landing
 MAGGIE,Maggie,confirmed,2024,Feb,2,Landing
 Magggie,Maggie,confirmed,2022,May,1,BetterUp
@@ -475,16 +484,18 @@ Maggie,Maggie,confirmed,2025,Sep,13,Rox · Engine
 Maggie,Maggie,confirmed,2025,Oct,1,Ellis
 Maggie,Maggie,confirmed,2026,Mar,7,HoneyBook · Oyster
 Maggie,Maggie,confirmed,2026,Apr,3,Front · HoneyBook
-Maggie,Maggie,confirmed,2026,May,1,Front
+Maggie,Maggie,confirmed,2026,May,16,Front · HoneyBook
 Maggie,Maggie,confirmed,2026,Jun,1,Front
 Maggie/Alyssa,Alyssa,folded_variant,2022,Sep,36,Flip · Practice
 Maggie/Alyssa,Alyssa,folded_variant,2022,Oct,37,Flip
 Maggie/Alyssa,Alyssa,folded_variant,2022,Dec,10,Notion · Practice
 Maggie/Alyssa,Alyssa,folded_variant,2023,Nov,1,Taskrabbit
+Maggie/Alyssa,Alyssa,folded_variant,2026,May,1,HoneyBook
 Maggie/Alyssa,Maggie,folded_variant,2022,Sep,36,Flip · Practice
 Maggie/Alyssa,Maggie,folded_variant,2022,Oct,37,Flip
 Maggie/Alyssa,Maggie,folded_variant,2022,Dec,10,Notion · Practice
 Maggie/Alyssa,Maggie,folded_variant,2023,Nov,1,Taskrabbit
+Maggie/Alyssa,Maggie,folded_variant,2026,May,1,HoneyBook
 Maggie/Nicholas,Maggie,folded_variant,2024,Nov,1,Oyster
 Maggie/Nicholas,Maggie,folded_variant,2025,Feb,1,Tempo
 Maggie/Nicholas,Nicholas,folded_variant,2024,Nov,1,Oyster
@@ -591,26 +602,28 @@ Nina,Nina,confirmed,2025,Aug,3,Athena2
 Nina,Nina,confirmed,2025,Sep,11,Athena2
 Nina,Nina,confirmed,2025,Oct,13,Athena2
 Nina,Nina,confirmed,2025,Dec,3,Oyster · Gainbridge
-Nina,Nina,confirmed,2026,May,5,Pylon · Men's Warehouse
+Nina,Nina,confirmed,2026,May,14,Men's Wearhouse · College HUNKS
 Robert,Robert,confirmed,2020,Oct,3,Athena2
 Robert,Robert,confirmed,2025,Jul,3,Athena2
 Robert,Robert,confirmed,2025,Aug,11,Athena2 · Gainbridge
-Robert,Robert,confirmed,2025,Sep,34,Gainbridge · Rox
-Robert,Robert,confirmed,2025,Oct,25,Gainbridge · Rox
-Robert,Robert,confirmed,2025,Nov,26,Rox · Gainbridge
-Robert,Robert,confirmed,2025,Dec,26,Gainbridge · Rox
-Robert,Robert,confirmed,2026,Jan,25,Gainbridge · Rox
-Robert,Robert,confirmed,2026,Feb,23,Gainbridge · Eventbrite
-Robert,Robert,confirmed,2026,Mar,24,Gainbridge · College HUNKS
-Robert,Robert,confirmed,2026,Apr,22,Pylon · College HUNKS
-Robert,Robert,confirmed,2026,May,20,College HUNKS · n8n
+Robert,Robert,confirmed,2025,Sep,37,Gainbridge · Rox
+Robert,Robert,confirmed,2025,Oct,29,Gainbridge · Rox
+Robert,Robert,confirmed,2025,Nov,36,Rox · Felt
+Robert,Robert,confirmed,2025,Dec,39,Gainbridge · Felt
+Robert,Robert,confirmed,2026,Jan,34,Gainbridge · Felt
+Robert,Robert,confirmed,2026,Feb,33,Gainbridge · Felt
+Robert,Robert,confirmed,2026,Mar,28,Gainbridge · College HUNKS
+Robert,Robert,confirmed,2026,Apr,26,Pylon · Felt
+Robert,Robert,confirmed,2026,May,44,College HUNKS · Pylon
+Robert,Robert,confirmed,2026,Jun,12,Gainbridge · College HUNKS
 Sam,Sam,ambiguous,2025,Aug,12,EarnIn B2B · Mirage
 Sam,Sam,ambiguous,2025,Sep,29,Better · EarnIn B2B
 Sam,Sam,ambiguous,2025,Oct,13,Better · Mirage
 Sam,Sam,ambiguous,2025,Nov,27,Better · Mistplay
 Sam,Sam,ambiguous,2025,Dec,38,Better · Moss
 Sam,Sam,ambiguous,2026,Jan,12,Moss · Mistplay
-Sam,Sam,ambiguous,2026,May,4,Mistplay · Huntress
+Sam,Sam,ambiguous,2026,May,21,Mistplay · Miter
+Sam,Sam,ambiguous,2026,Jun,11,Mistplay · Dr. Squatch
 Sam/Alyssa,Alyssa,folded_variant,2025,Sep,3,Moss
 Sam/Alyssa,Sam,folded_variant,2025,Sep,3,Moss
 Shain,Shain,unresolved,2022,Jul,1,Flip
@@ -695,7 +708,8 @@ Shivani,Shivani,confirmed,2026,Jan,6,Oyster · Miter
 Shivani,Shivani,confirmed,2026,Feb,22,Front · HoneyBook
 Shivani,Shivani,confirmed,2026,Mar,34,Fivetran · Front
 Shivani,Shivani,confirmed,2026,Apr,39,HoneyBook · Fivetran
-Shivani,Shivani,confirmed,2026,May,18,Fivetran · HoneyBook
+Shivani,Shivani,confirmed,2026,May,35,Fivetran · HoneyBook
+Shivani,Shivani,confirmed,2026,Jun,12,HoneyBook · Fivetran
 Tiffany,Tiffany,confirmed,2025,Jan,1,Fivetran
 Tiffany,Tiffany,confirmed,2025,Sep,2,Everand
 Tiffany,Tiffany,confirmed,2025,Oct,15,Everand · Workleap

@@ -5608,10 +5608,20 @@ def import_monthly_article_count(session: Session) -> ImportResult:
     }
     for tab, vr in zip(tabs, value_ranges):
         values = vr.get("values", [])
-        if len(values) < 3:
+        if len(values) < 2:
             continue
-        hmap = _article_build_header_map(values[1])
-        if "EDITOR" not in hmap:
+        # Detect the header row instead of assuming row 2: most tabs carry a
+        # banner ("MONTHLY ARTICLES COUNT 🔎 [CLIENT]") on row 1 with headers on
+        # row 2, but some (e.g. Felt) put headers on row 1 with no banner. Scan
+        # the first few rows for the one that maps an EDITOR column.
+        header_idx = None
+        hmap: dict = {}
+        for hi in range(min(5, len(values))):
+            cand = _article_build_header_map(values[hi])
+            if "EDITOR" in cand:
+                header_idx, hmap = hi, cand
+                break
+        if header_idx is None:
             continue
         client_obj = _resolve_client(lookup, tab)
         if client_obj is not None:
@@ -5623,7 +5633,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         else:
             client_name, client_id, gpod = tab.strip(), None, None
 
-        for r_idx, row in enumerate(values[2:], start=3):
+        for r_idx, row in enumerate(values[header_idx + 1 :], start=header_idx + 2):
             if not row:
                 continue
 

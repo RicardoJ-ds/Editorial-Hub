@@ -1,5 +1,5 @@
 before_log_name,after_hr_name,status,article_rows,candidates,where_to_validate,note
-Sam,Samantha Marceau,ambiguous,142,"Samantha Marceau, Samantha McGrail",Monthly Article Count → EDITOR column in: Better · Moss · Mistplay,McGrail terminated 2026-01-27 — articles after that are Marceau; earlier ones ambiguous. Proposed: Marceau unless dated before Feb 2026.
+Sam,Samantha Marceau,ambiguous,142,"Samantha Marceau, Samantha McGrail",Monthly Article Count → EDITOR column in: Mistplay · Better · Moss,McGrail terminated 2026-01-27 — articles after that are Marceau; earlier ones ambiguous. Proposed: Marceau unless dated before Feb 2026.
 Lauren,,ambiguous,141,"Lauren Friar, Lauren Keleher",Monthly Article Count → EDITOR column in: Front · HoneyBook · Oyster,Both active. Needs a split rule (by pod/client) from DaniQ.
 Derrik,Derrik Chinn,confirmed,1972,,Monthly Article Count → EDITOR column in: dydx · Curology · CoinTracker,
 Anabelle,Anabelle Zaluski,confirmed,1558,,Monthly Article Count → EDITOR column in: BetterUp · Legit Security · Invoice Simple,
@@ -12,16 +12,16 @@ Nina,Nina Denison,confirmed,700,,Monthly Article Count → EDITOR column in: Mir
 Abby,Abby Norwood,confirmed,558,,Monthly Article Count → EDITOR column in: Linktree · Neiman · Bergdorf,
 Shelby,Shelby Talbot,confirmed,531,,Monthly Article Count → EDITOR column in: BetterUp · Practice · Little Passports,
 Chrissy,Chrissy Woods,confirmed,377,,Monthly Article Count → EDITOR column in: Practice · Linktree · dydx,
-Haley,Haley Drucker,confirmed,346,,Monthly Article Count → EDITOR column in: CoinTracker · Vimeo · Pylon,
-Lee,Lee Anderson,confirmed,337,,Monthly Article Count → EDITOR column in: CoinTracker · Pylon · Vimeo,
+Haley,Haley Drucker,confirmed,346,,Monthly Article Count → EDITOR column in: CoinTracker · Vimeo · Webflow,
+Lee,Lee Anderson,confirmed,337,,Monthly Article Count → EDITOR column in: CoinTracker · Vimeo · Pylon,
 Jared,Jared Maguire,confirmed,301,,Monthly Article Count → EDITOR column in: Vimeo · Engine · ThredUp,
 Vince,Vincent Lee,confirmed,299,,Monthly Article Count → EDITOR column in: Webflow · Tempo · Taskrabbit,
-Robert,Robert Thorpe,confirmed,252,,Monthly Article Count → EDITOR column in: Gainbridge · Rox · Oyster,
+Robert,Robert Thorpe,confirmed,252,,Monthly Article Count → EDITOR column in: Gainbridge · Felt · Rox,
 Elliot,Elliot Gardner,confirmed,251,,Monthly Article Count → EDITOR column in: Workleap · Everand · Fivetran,
-Jimmy,Jimmy Bunes,confirmed,235,,Monthly Article Count → EDITOR column in: Mistplay · Better · Miter,
+Jimmy,Jimmy Bunes,confirmed,235,,Monthly Article Count → EDITOR column in: Mistplay · Better · Felt,
 Katie,Katie Shevlin,confirmed,228,,Monthly Article Count → EDITOR column in: Athena2 · Gainbridge · Mirage,
 Tiffany,Tiffany Anderson,confirmed,170,,Monthly Article Count → EDITOR column in: Workleap · Fivetran · ShareGate,
-Shivani,Shivani Verma,confirmed,151,,Monthly Article Count → EDITOR column in: Front · HoneyBook · Fivetran,
+Shivani,Shivani Verma,confirmed,151,,Monthly Article Count → EDITOR column in: Fivetran · Front · HoneyBook,
 Chelsea,Chelsea Erhard,confirmed,113,,Monthly Article Count → EDITOR column in: Quinn · IronVest · EarnIn,
 Mike,Michael Doyle,confirmed,55,,Monthly Article Count → EDITOR column in: Neiman · Contra · Bergdorf,
 Kimberly,Kimberly Pavlovich,confirmed,45,,Monthly Article Count → EDITOR column in: Tempo · Otter · ThredUp,

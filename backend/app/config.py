@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Drives the Team KPIs → Monthly Articles tab (per-editor productivity).
     # Read by the same Hub service account that the standalone editorial
     # dashboard already uses, so no extra ACL is required.
-    article_count_id: str = "1FWykZmeG2jznUYn-ng6glN4wjvc1Swb6hHmSHzGZ7dU"
+    article_count_id: str = "1eRmZFnrhhPdHwkvLm9Ho1aNMq4WoyeggVhpShrW0kL0"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

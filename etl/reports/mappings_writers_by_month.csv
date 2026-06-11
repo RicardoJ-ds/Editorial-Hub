@@ -30,7 +30,8 @@ Abby,Abby Norwood,confirmed_first_name,2025,Mar,12,EarnIn
 Abby,Abby Norwood,confirmed_first_name,2025,Apr,10,EarnIn
 Abby,Abby Norwood,confirmed_first_name,2026,Mar,17,Workleap · College HUNKS
 Abby,Abby Norwood,confirmed_first_name,2026,Apr,16,n8n · College HUNKS
-Abby,Abby Norwood,confirmed_first_name,2026,May,11,College HUNKS · Serval
+Abby,Abby Norwood,confirmed_first_name,2026,May,21,Serval · n8n
+Abby,Abby Norwood,confirmed_first_name,2026,Jun,4,n8n · Serval
 Aby,Aby,first_name_only,2026,May,1,College HUNKS
 Adaeze,Adaeze Nwakaeze,confirmed_first_name,2024,Nov,3,EarnIn · Fishbowl
 Adaeze,Adaeze Nwakaeze,confirmed_first_name,2024,Dec,21,Mirage · Fishbowl
@@ -49,6 +50,8 @@ Adaeze,Adaeze Nwakaeze,confirmed_first_name,2025,Dec,3,Front
 Adaeze,Adaeze Nwakaeze,confirmed_first_name,2026,Jan,1,Front
 Adaeze,Adaeze Nwakaeze,confirmed_first_name,2026,Mar,2,Oyster
 Adaeze,Adaeze Nwakaeze,confirmed_first_name,2026,Apr,8,Oyster
+Adaeze,Adaeze Nwakaeze,confirmed_first_name,2026,May,3,Pebl
+Adaeze,Adaeze Nwakaeze,confirmed_first_name,2026,Jun,1,Pebl
 Adaeze*,Adaeze Nwakaeze,confirmed_first_name,2024,Nov,1,Fishbowl
 Alex,Alex Shoemaker,confirmed_first_name,2024,Nov,2,Mirage · Smartling
 Alex,Alex Shoemaker,confirmed_first_name,2024,Dec,17,Smartling
@@ -84,7 +87,8 @@ Anabelle,Anabelle Zaluski,confirmed_first_name,2024,Jan,1,Mirage
 Anabelle,Anabelle Zaluski,confirmed_first_name,2024,Feb,4,Mirage
 Anabelle,Anabelle Zaluski,confirmed_first_name,2025,Apr,1,HoneyBook
 Anabelle,Anabelle Zaluski,confirmed_first_name,2026,Apr,6,Miter · Front
-Anabelle,Anabelle Zaluski,confirmed_first_name,2026,May,6,HoneyBook · Miter
+Anabelle,Anabelle Zaluski,confirmed_first_name,2026,May,16,HoneyBook · Miter
+Anabelle,Anabelle Zaluski,confirmed_first_name,2026,Jun,1,HoneyBook
 Andre,Andrew Blackman,confirmed_first_name,2022,Feb,1,Mailjet
 Andre,Andrew Blackman,confirmed_first_name,2022,Mar,2,Mailjet
 Andre,Andrew Blackman,confirmed_first_name,2025,Feb,1,Mailjet
@@ -94,7 +98,8 @@ Andrew,Andrew Blackman,confirmed_first_name,2026,Jan,10,Pylon · Moss
 Andrew,Andrew Blackman,confirmed_first_name,2026,Feb,15,Front · Pylon
 Andrew,Andrew Blackman,confirmed_first_name,2026,Mar,14,Front · Pylon
 Andrew,Andrew Blackman,confirmed_first_name,2026,Apr,13,Pylon · Front
-Andrew,Andrew Blackman,confirmed_first_name,2026,May,7,Pylon · Front
+Andrew,Andrew Blackman,confirmed_first_name,2026,May,16,Pylon · Front
+Andrew,Andrew Blackman,confirmed_first_name,2026,Jun,3,Front · Pylon
 Annabelle,Annabelle,first_name_only,2026,Apr,1,Miter
 Annabelle,Annabelle,first_name_only,2026,May,2,Miter · HoneyBook
 Aranyak,Aranyak Nanda,confirmed_first_name,2019,Sep,1,Webflow
@@ -139,14 +144,15 @@ Aranyak,Aranyak Nanda,confirmed_first_name,2025,Jun,7,Mirage · Webflow
 Aranyak,Aranyak Nanda,confirmed_first_name,2025,Jul,10,Mirage · Webflow
 Aranyak,Aranyak Nanda,confirmed_first_name,2025,Aug,7,Webflow · Mirage
 Aranyak,Aranyak Nanda,confirmed_first_name,2025,Sep,8,Webflow · Smartling
-Aranyak,Aranyak Nanda,confirmed_first_name,2025,Oct,7,Webflow · Mirage
-Aranyak,Aranyak Nanda,confirmed_first_name,2025,Nov,4,Webflow
-Aranyak,Aranyak Nanda,confirmed_first_name,2025,Dec,6,Webflow · Mirage
-Aranyak,Aranyak Nanda,confirmed_first_name,2026,Jan,5,Webflow · Genstore
-Aranyak,Aranyak Nanda,confirmed_first_name,2026,Feb,6,Webflow · Genstore
-Aranyak,Aranyak Nanda,confirmed_first_name,2026,Mar,8,Webflow · Genstore
-Aranyak,Aranyak Nanda,confirmed_first_name,2026,Apr,7,Webflow · ShareGate
-Aranyak,Aranyak Nanda,confirmed_first_name,2026,May,1,Webflow
+Aranyak,Aranyak Nanda,confirmed_first_name,2025,Oct,9,Webflow · Mirage
+Aranyak,Aranyak Nanda,confirmed_first_name,2025,Nov,7,Webflow · Felt
+Aranyak,Aranyak Nanda,confirmed_first_name,2025,Dec,10,Felt · Webflow
+Aranyak,Aranyak Nanda,confirmed_first_name,2026,Jan,9,Felt · Webflow
+Aranyak,Aranyak Nanda,confirmed_first_name,2026,Feb,7,Webflow · Genstore
+Aranyak,Aranyak Nanda,confirmed_first_name,2026,Mar,10,Webflow · Genstore
+Aranyak,Aranyak Nanda,confirmed_first_name,2026,Apr,12,Webflow · Felt
+Aranyak,Aranyak Nanda,confirmed_first_name,2026,May,16,Felt · Webflow
+Aranyak,Aranyak Nanda,confirmed_first_name,2026,Jun,4,Eventbrite · Webflow
 Aranyak,Aranyak Nanda,confirmed_first_name,2026,Sep,3,Webflow
 Ashton,Ashton Playsted,confirmed_first_name,2021,Nov,1,Invoice Simple
 Ashton,Ashton Playsted,confirmed_first_name,2024,Jan,10,dydx
@@ -177,7 +183,8 @@ Ashton,Ashton Playsted,confirmed_first_name,2026,Jan,13,Genstore · Better
 Ashton,Ashton Playsted,confirmed_first_name,2026,Feb,16,Genstore · Miter
 Ashton,Ashton Playsted,confirmed_first_name,2026,Mar,15,Leapsome · Miter
 Ashton,Ashton Playsted,confirmed_first_name,2026,Apr,17,Miter · Leapsome
-Ashton,Ashton Playsted,confirmed_first_name,2026,May,6,Leapsome · Miter
+Ashton,Ashton Playsted,confirmed_first_name,2026,May,14,Leapsome · Miter
+Ashton,Ashton Playsted,confirmed_first_name,2026,Jun,4,Leapsome · Front
 Auditioning writer (Kimberly),Auditioning writer (Kimberly),trial,2025,Jun,1,Oyster
 Austin,Austin,first_name_only,2023,Jul,4,BetterUp
 Austin,Austin,first_name_only,2023,Aug,10,BetterUp
@@ -199,8 +206,8 @@ Aysenur,Aysenur Zaza,confirmed_first_name,2026,Jan,12,Front · HoneyBook
 Aysenur,Aysenur Zaza,confirmed_first_name,2026,Feb,12,Front
 Aysenur,Aysenur Zaza,confirmed_first_name,2026,Mar,11,Front · Fivetran
 Aysenur,Aysenur Zaza,confirmed_first_name,2026,Apr,10,Front · Fivetran
-Aysenur,Aysenur Zaza,confirmed_first_name,2026,May,4,Front
-Aysenur,Aysenur Zaza,confirmed_first_name,2026,Jun,1,Front
+Aysenur,Aysenur Zaza,confirmed_first_name,2026,May,11,Front · Fivetran
+Aysenur,Aysenur Zaza,confirmed_first_name,2026,Jun,2,Front
 Ayşenur,Ayşenur,first_name_only,2025,Aug,1,Smartling
 Blain,Blain,first_name_only,2024,Oct,1,Mirage
 Bonniey,Bonniey,first_name_only,2024,Oct,5,Orderful 2
@@ -218,7 +225,8 @@ Braden,Braden,first_name_only,2024,Aug,12,EarnIn · CoinTracker
 Braden (REWRITTEN BY ERIC 6/3/25),Braden (REWRITTEN BY ERIC 6/3/25),unresolved,2024,Jul,1,CoinTracker
 Braden*,Braden*,first_name_only,2024,Jun,3,EarnIn · Webflow
 Brandon,Brandon Morgan,confirmed_first_name,2026,Apr,7,Flex · Oyster
-Brandon,Brandon Morgan,confirmed_first_name,2026,May,6,College HUNKS · Flex
+Brandon,Brandon Morgan,confirmed_first_name,2026,May,20,College HUNKS · Flex
+Brandon,Brandon Morgan,confirmed_first_name,2026,Jun,3,College HUNKS · Men's Wearhouse
 Brandon*,Brandon Morgan,confirmed_first_name,2025,Jun,1,Otter
 Brian,Brian Abrams,confirmed_first_name,2025,Aug,3,ChatGPT
 Brian,Brian Abrams,confirmed_first_name,2025,Sep,20,Moss · Engine
@@ -385,7 +393,8 @@ Chelsea,Chelsea Oliver,confirmed_first_name,2026,Jan,13,Mistplay · Workleap
 Chelsea,Chelsea Oliver,confirmed_first_name,2026,Feb,23,Mistplay · Workleap
 Chelsea,Chelsea Oliver,confirmed_first_name,2026,Mar,14,College HUNKS · Mistplay
 Chelsea,Chelsea Oliver,confirmed_first_name,2026,Apr,11,College HUNKS · Mistplay
-Chelsea,Chelsea Oliver,confirmed_first_name,2026,May,8,Mistplay · College HUNKS
+Chelsea,Chelsea Oliver,confirmed_first_name,2026,May,18,College HUNKS · Mistplay
+Chelsea,Chelsea Oliver,confirmed_first_name,2026,Jun,5,Photoroom · Mistplay
 Cheslea,Cheslea,first_name_only,2024,Apr,1,Quinn
 Chris Tepedino*,Chris Tepedino*,unresolved,2025,Feb,2,CoinTracker
 Christy,Christy,first_name_only,2024,Apr,3,Fishbowl · EarnIn
@@ -469,7 +478,8 @@ Eleanor,Eleanor Pitkin,confirmed_first_name,2026,Jan,5,Boulevard · Miter
 Eleanor,Eleanor Pitkin,confirmed_first_name,2026,Feb,8,Miter · Boulevard
 Eleanor,Eleanor Pitkin,confirmed_first_name,2026,Mar,11,Boulevard · Oyster
 Eleanor,Eleanor Pitkin,confirmed_first_name,2026,Apr,13,Boulevard · Miter
-Eleanor,Eleanor Pitkin,confirmed_first_name,2026,May,6,Boulevard · Miter
+Eleanor,Eleanor Pitkin,confirmed_first_name,2026,May,14,Boulevard · Miter
+Eleanor,Eleanor Pitkin,confirmed_first_name,2026,Jun,3,Boulevard · Eventbrite
 Ellie*,Ellie*,first_name_only,2025,Mar,1,Mirage
 Ellie*,Ellie*,first_name_only,2025,Apr,1,Mirage
 Emeka,Emeka,first_name_only,2023,Nov,4,Webflow
@@ -501,7 +511,8 @@ Emily,Emily Pitkin,confirmed_first_name,2026,Jan,5,Better
 Emily,Emily Pitkin,confirmed_first_name,2026,Feb,2,Workleap · Better
 Emily,Emily Pitkin,confirmed_first_name,2026,Mar,5,Workleap · Miter
 Emily,Emily Pitkin,confirmed_first_name,2026,Apr,3,Miter · Credit Karma
-Emily,Emily Pitkin,confirmed_first_name,2026,May,2,Miter
+Emily,Emily Pitkin,confirmed_first_name,2026,May,5,Miter
+Emily,Emily Pitkin,confirmed_first_name,2026,Jun,2,Front
 Emle,Emle,first_name_only,2024,Oct,1,Webflow
 Eric,Eric Esposito,confirmed_first_name,2022,Mar,9,BetterUp
 Eric,Eric Esposito,confirmed_first_name,2022,Apr,18,BetterUp
@@ -553,7 +564,8 @@ Eric,Eric Esposito,confirmed_first_name,2026,Jan,11,CoinTracker
 Eric,Eric Esposito,confirmed_first_name,2026,Feb,12,CoinTracker · Miter
 Eric,Eric Esposito,confirmed_first_name,2026,Mar,7,CoinTracker
 Eric,Eric Esposito,confirmed_first_name,2026,Apr,13,CoinTracker
-Eric,Eric Esposito,confirmed_first_name,2026,May,5,Leapsome
+Eric,Eric Esposito,confirmed_first_name,2026,May,9,Leapsome
+Eric,Eric Esposito,confirmed_first_name,2026,Jun,8,Leapsome · Gainbridge
 Eric E,Eric Esposito,confirmed_first_name,2023,Oct,5,Notion
 Eric E,Eric Esposito,confirmed_first_name,2024,Oct,6,Gainbridge
 Eric E,Eric Esposito,confirmed_first_name,2024,Nov,6,Gainbridge · Blu
@@ -605,7 +617,8 @@ Jack,Jack Limebear,confirmed_first_name,2026,Jan,19,Fivetran · ShareGate
 Jack,Jack Limebear,confirmed_first_name,2026,Feb,13,Fivetran
 Jack,Jack Limebear,confirmed_first_name,2026,Mar,8,Fivetran · Mistplay
 Jack,Jack Limebear,confirmed_first_name,2026,Apr,9,Oyster · Fivetran
-Jack,Jack Limebear,confirmed_first_name,2026,May,1,Fivetran
+Jack,Jack Limebear,confirmed_first_name,2026,May,5,Fivetran
+Jack,Jack Limebear,confirmed_first_name,2026,Jun,2,Fivetran
 Jacob,Jacob McPhail,confirmed_first_name,2025,Jan,6,Gainbridge · Sermo
 Jacob,Jacob McPhail,confirmed_first_name,2025,Feb,18,Sermo · Gainbridge
 Jacob,Jacob McPhail,confirmed_first_name,2025,Mar,7,Sermo
@@ -621,7 +634,8 @@ Jacob,Jacob McPhail,confirmed_first_name,2025,Dec,3,Rox
 Jacob,Jacob McPhail,confirmed_first_name,2026,Jan,3,Rox
 Jacob,Jacob McPhail,confirmed_first_name,2026,Mar,4,Maven Clinic
 Jacob,Jacob McPhail,confirmed_first_name,2026,Apr,2,Maven Clinic
-Jacob,Jacob McPhail,confirmed_first_name,2026,May,1,Maven Clinic
+Jacob,Jacob McPhail,confirmed_first_name,2026,May,7,Maven Clinic
+Jacob,Jacob McPhail,confirmed_first_name,2026,Jun,1,Maven Clinic
 Jacob*,Jacob McPhail,confirmed_first_name,2025,Jan,2,Sermo · Gainbridge
 James,James,first_name_only,2023,May,4,Orderful
 James,James,first_name_only,2024,Apr,2,Fellow
@@ -660,8 +674,8 @@ Jimmy,Jimmy Bunes,confirmed_first_name,2025,Apr,19,Mirage
 Jimmy,Jimmy Bunes,confirmed_first_name,2025,May,14,Mirage · ThredUp
 Jimmy,Jimmy Bunes,confirmed_first_name,2025,Jun,12,Mirage · ThredUp
 Jimmy,Jimmy Bunes,confirmed_first_name,2025,Jul,17,Mirage · TravelJoy
-Jimmy,Jimmy Bunes,confirmed_first_name,2025,Aug,11,Mirage · Rox
-Jimmy,Jimmy Bunes,confirmed_first_name,2025,Sep,2,Tempo
+Jimmy,Jimmy Bunes,confirmed_first_name,2025,Aug,12,Mirage · Rox
+Jimmy,Jimmy Bunes,confirmed_first_name,2025,Sep,4,Felt · Tempo
 Jimmy,Jimmy Bunes,confirmed_first_name,2025,Oct,1,Mirage
 Jimmy,Jimmy Bunes,confirmed_first_name,2025,Nov,1,Mirage
 Jimmy*,Jimmy Bunes,confirmed_first_name,2024,May,1,Fishbowl
@@ -756,15 +770,16 @@ Kevin,Kevin Vaughn,confirmed_first_name,2025,May,17,Onton · Blu
 Kevin,Kevin Vaughn,confirmed_first_name,2025,Jun,22,Onton
 Kevin,Kevin Vaughn,confirmed_first_name,2025,Jul,17,Onton
 Kevin,Kevin Vaughn,confirmed_first_name,2025,Aug,15,Onton
-Kevin,Kevin Vaughn,confirmed_first_name,2025,Sep,17,Onton
-Kevin,Kevin Vaughn,confirmed_first_name,2025,Oct,1,Mistplay
-Kevin,Kevin Vaughn,confirmed_first_name,2025,Nov,2,Mistplay
-Kevin,Kevin Vaughn,confirmed_first_name,2025,Dec,12,Mistplay · Pylon
-Kevin,Kevin Vaughn,confirmed_first_name,2026,Jan,9,Eventbrite · Mistplay
-Kevin,Kevin Vaughn,confirmed_first_name,2026,Feb,8,Boulevard
+Kevin,Kevin Vaughn,confirmed_first_name,2025,Sep,18,Onton · Felt
+Kevin,Kevin Vaughn,confirmed_first_name,2025,Oct,5,Felt · Mistplay
+Kevin,Kevin Vaughn,confirmed_first_name,2025,Nov,3,Mistplay · Felt
+Kevin,Kevin Vaughn,confirmed_first_name,2025,Dec,18,Mistplay · Felt
+Kevin,Kevin Vaughn,confirmed_first_name,2026,Jan,10,Eventbrite · Mistplay
+Kevin,Kevin Vaughn,confirmed_first_name,2026,Feb,11,Boulevard · Felt
 Kevin,Kevin Vaughn,confirmed_first_name,2026,Mar,11,Boulevard
 Kevin,Kevin Vaughn,confirmed_first_name,2026,Apr,14,Boulevard
-Kevin,Kevin Vaughn,confirmed_first_name,2026,May,6,Boulevard
+Kevin,Kevin Vaughn,confirmed_first_name,2026,May,11,Boulevard
+Kevin,Kevin Vaughn,confirmed_first_name,2026,Jun,1,Boulevard
 Kevin`,Kevin Vaughn,confirmed_first_name,2024,Apr,1,Grindr
 Kim,Kimberly Kruge,confirmed_first_name,2022,Jul,1,Linktree
 Kim,Kimberly Kruge,confirmed_first_name,2025,Nov,1,Mirage
@@ -811,7 +826,8 @@ Kory,Kory,first_name_only,2022,Nov,6,ESGgo · Mailjet
 Kyle,Kyle,first_name_only,2023,Mar,2,Contra
 Kyle,Kyle,first_name_only,2023,Apr,1,Contra
 Laura,Laura Soler,confirmed_first_name,2026,Apr,8,Maven Clinic
-Laura,Laura Soler,confirmed_first_name,2026,May,4,Maven Clinic
+Laura,Laura Soler,confirmed_first_name,2026,May,8,Maven Clinic
+Laura,Laura Soler,confirmed_first_name,2026,Jun,3,Maven Clinic
 Lauren,Lauren,first_name_only,2024,Dec,1,Tempo
 Lee,Lee Anderson,confirmed_first_name,2025,Nov,2,Mirage
 Liam,Liam,first_name_only,2025,May,1,EarnIn B2B
@@ -820,7 +836,8 @@ Linda,Linda L. Armstrong,confirmed_first_name,2026,Jan,4,Mistplay
 Linda,Linda L. Armstrong,confirmed_first_name,2026,Feb,8,Workleap · Mistplay
 Linda,Linda L. Armstrong,confirmed_first_name,2026,Mar,13,Workleap · Mistplay
 Linda,Linda L. Armstrong,confirmed_first_name,2026,Apr,9,Webflow · Mistplay
-Linda,Linda L. Armstrong,confirmed_first_name,2026,May,4,Webflow · Mistplay
+Linda,Linda L. Armstrong,confirmed_first_name,2026,May,10,Flex · Mistplay
+Linda,Linda L. Armstrong,confirmed_first_name,2026,Jun,3,Eventbrite · Mistplay
 Lisa,Lisa,first_name_only,2024,May,2,Tempo
 Lisa,Lisa,first_name_only,2024,Jun,7,Invoice Simple · Tempo
 Lisa,Lisa,first_name_only,2024,Jul,15,Invoice Simple · Oyster
@@ -883,15 +900,16 @@ Meredith,Meredith Kane,confirmed_first_name,2025,May,11,Athena2 · TravelJoy
 Meredith,Meredith Kane,confirmed_first_name,2025,Jun,12,Athena2 · TravelJoy
 Meredith,Meredith Kane,confirmed_first_name,2025,Jul,16,Athena2 · TravelJoy
 Meredith,Meredith Kane,confirmed_first_name,2025,Aug,17,Athena2 · Rox
-Meredith,Meredith Kane,confirmed_first_name,2025,Sep,15,Athena2 · Rox
-Meredith,Meredith Kane,confirmed_first_name,2025,Oct,6,Athena2
-Meredith,Meredith Kane,confirmed_first_name,2025,Nov,7,Gainbridge · Athena2
-Meredith,Meredith Kane,confirmed_first_name,2025,Dec,9,Gainbridge
-Meredith,Meredith Kane,confirmed_first_name,2026,Jan,5,Gainbridge · Front
-Meredith,Meredith Kane,confirmed_first_name,2026,Feb,10,Gainbridge · Front
-Meredith,Meredith Kane,confirmed_first_name,2026,Mar,7,Gainbridge · Front
-Meredith,Meredith Kane,confirmed_first_name,2026,Apr,10,Men's Warehouse · Front
-Meredith,Meredith Kane,confirmed_first_name,2026,May,7,Men's Warehouse
+Meredith,Meredith Kane,confirmed_first_name,2025,Sep,18,Athena2 · Felt
+Meredith,Meredith Kane,confirmed_first_name,2025,Oct,8,Athena2 · Felt
+Meredith,Meredith Kane,confirmed_first_name,2025,Nov,15,Felt · Gainbridge
+Meredith,Meredith Kane,confirmed_first_name,2025,Dec,18,Felt · Gainbridge
+Meredith,Meredith Kane,confirmed_first_name,2026,Jan,15,Felt · Gainbridge
+Meredith,Meredith Kane,confirmed_first_name,2026,Feb,14,Gainbridge · Felt
+Meredith,Meredith Kane,confirmed_first_name,2026,Mar,15,Felt · Gainbridge
+Meredith,Meredith Kane,confirmed_first_name,2026,Apr,16,Felt · Men's Wearhouse
+Meredith,Meredith Kane,confirmed_first_name,2026,May,11,Men's Wearhouse · Felt
+Meredith,Meredith Kane,confirmed_first_name,2026,Jun,4,Gainbridge · Men's Wearhouse
 Meredith*,Meredith Kane,confirmed_first_name,2025,Mar,1,Otter
 Meredith*,Meredith Kane,confirmed_first_name,2025,Jun,1,Otter
 Micah,Micah,first_name_only,2024,May,3,Invoice Simple · dydx
@@ -942,7 +960,8 @@ Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,Jan,6,Mistplay
 Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,Feb,17,Mistplay · HoneyBook
 Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,Mar,11,HoneyBook · Mistplay
 Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,Apr,18,HoneyBook · Mistplay
-Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,May,5,HoneyBook · Mistplay
+Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,May,14,HoneyBook · Mistplay
+Nadia,Nadia Hlebowitsh,confirmed_first_name,2026,Jun,4,HoneyBook · Mistplay
 Naomi *,Naomi *,unresolved,2025,May,1,Smartling
 Naomi *,Naomi *,unresolved,2025,Jun,1,Smartling
 Neil,Neil,first_name_only,2022,Aug,2,OpenSea
@@ -955,7 +974,8 @@ Owen,Owen Murray,confirmed_first_name,2026,Jan,12,Fivetran · Pylon
 Owen,Owen Murray,confirmed_first_name,2026,Feb,18,Pylon · Fivetran
 Owen,Owen Murray,confirmed_first_name,2026,Mar,16,Pylon · Fivetran
 Owen,Owen Murray,confirmed_first_name,2026,Apr,20,Pylon · Fivetran
-Owen,Owen Murray,confirmed_first_name,2026,May,9,Pylon · Fivetran
+Owen,Owen Murray,confirmed_first_name,2026,May,20,Pylon · Fivetran
+Owen,Owen Murray,confirmed_first_name,2026,Jun,6,Pylon · Fivetran
 Paige,Paige,first_name_only,2024,Aug,4,Fishbowl
 Paige,Paige,first_name_only,2024,Sep,9,GlossGenius · Fishbowl
 Paige,Paige,first_name_only,2024,Oct,16,GlossGenius · Fishbowl
@@ -1027,7 +1047,8 @@ Rich,Rich Dezso,confirmed_first_name,2025,Dec,11,Legit Security · Oyster
 Rich,Rich Dezso,confirmed_first_name,2026,Jan,4,Workleap · Oyster
 Rich,Rich Dezso,confirmed_first_name,2026,Feb,11,Workleap · Oyster
 Rich,Rich Dezso,confirmed_first_name,2026,Mar,7,Huntress · Workleap
-Rich,Rich Dezso,confirmed_first_name,2026,May,2,Huntress
+Rich,Rich Dezso,confirmed_first_name,2026,May,3,Huntress
+Rich,Rich Dezso,confirmed_first_name,2026,Jun,1,Huntress
 Richard,Rich Dezso,confirmed_first_name,2024,Oct,1,Legit Security
 Richard,Rich Dezso,confirmed_first_name,2024,Nov,10,Legit Security
 Richard,Rich Dezso,confirmed_first_name,2024,Dec,11,Legit Security
@@ -1039,6 +1060,8 @@ Richard,Rich Dezso,confirmed_first_name,2025,Oct,9,Legit Security · Oyster
 Richard,Rich Dezso,confirmed_first_name,2025,Nov,3,Oyster
 Richard,Rich Dezso,confirmed_first_name,2025,Dec,3,Oyster
 Richard,Rich Dezso,confirmed_first_name,2026,Feb,1,Oyster
+Richard,Rich Dezso,confirmed_first_name,2026,May,3,College HUNKS
+Richard,Rich Dezso,confirmed_first_name,2026,Jun,1,College HUNKS
 Richard*,Rich Dezso,confirmed_first_name,2024,Oct,2,Legit Security
 Rob,Rob Harper,confirmed_first_name,2021,Oct,1,Webflow
 Rob,Rob Harper,confirmed_first_name,2024,Jan,2,Webflow
@@ -1069,7 +1092,8 @@ Rob,Rob Harper,confirmed_first_name,2026,Jan,3,Mistplay
 Rob,Rob Harper,confirmed_first_name,2026,Feb,8,Mistplay · Huntress
 Rob,Rob Harper,confirmed_first_name,2026,Mar,13,Webflow · Huntress
 Rob,Rob Harper,confirmed_first_name,2026,Apr,10,Webflow · Mistplay
-Rob,Rob Harper,confirmed_first_name,2026,May,4,Huntress · Dr. Squatch
+Rob,Rob Harper,confirmed_first_name,2026,May,12,Mistplay · Dr. Squatch
+Rob,Rob Harper,confirmed_first_name,2026,Jun,2,Dr. Squatch · Webflow
 Rob Harper - audtition,Rob Harper,confirmed_first_name,2023,Dec,2,Webflow
 Robert,Robert Thorpe,confirmed_first_name,2022,Oct,5,Bergdorf
 Robert,Robert Thorpe,confirmed_first_name,2022,Nov,10,Bergdorf
@@ -1095,6 +1119,7 @@ Rocco,Rocco Pendola,confirmed_first_name,2025,Dec,11,Gainbridge · Rox
 Rocco,Rocco Pendola,confirmed_first_name,2026,Jan,13,Gainbridge · Oyster
 Rocco,Rocco Pendola,confirmed_first_name,2026,Feb,1,Oyster
 Rocco,Rocco Pendola,confirmed_first_name,2026,Mar,2,Gainbridge · Oyster
+Rocco,Rocco Pendola,confirmed_first_name,2026,Jun,2,Gainbridge
 Rocco*,Rocco Pendola,confirmed_first_name,2025,Feb,2,Gainbridge · Mirage
 Roxana,Roxana,first_name_only,2024,Oct,9,Mirage
 Roxana,Roxana,first_name_only,2024,Nov,4,Mirage
@@ -1153,7 +1178,8 @@ Sarah,Sarah Foley,confirmed_first_name,2026,Jan,4,Rox
 Sarah,Sarah Foley,confirmed_first_name,2026,Feb,7,HoneyBook · Rox
 Sarah,Sarah Foley,confirmed_first_name,2026,Mar,9,HoneyBook
 Sarah,Sarah Foley,confirmed_first_name,2026,Apr,10,HoneyBook
-Sarah,Sarah Foley,confirmed_first_name,2026,May,3,HoneyBook
+Sarah,Sarah Foley,confirmed_first_name,2026,May,13,HoneyBook · Eventbrite
+Sarah,Sarah Foley,confirmed_first_name,2026,Jun,2,HoneyBook · Eventbrite
 Sarah H,Sarah Foley,confirmed_first_name,2023,Aug,1,BetterUp
 Sarah H,Sarah Foley,confirmed_first_name,2023,Sep,4,BetterUp
 Sarah H,Sarah Foley,confirmed_first_name,2023,Oct,8,BetterUp
@@ -1189,8 +1215,9 @@ Tamara,Tamara Siklosi,confirmed_first_name,2025,Dec,11,CoinTracker
 Tamara,Tamara Siklosi,confirmed_first_name,2026,Jan,13,CoinTracker
 Tamara,Tamara Siklosi,confirmed_first_name,2026,Feb,6,CoinTracker · Miter
 Tamara,Tamara Siklosi,confirmed_first_name,2026,Mar,15,CoinTracker · Miter
-Tamara,Tamara Siklosi,confirmed_first_name,2026,Apr,22,Leapsome · CoinTracker
-Tamara,Tamara Siklosi,confirmed_first_name,2026,May,9,Leapsome · Miter
+Tamara,Tamara Siklosi,confirmed_first_name,2026,Apr,21,Leapsome · CoinTracker
+Tamara,Tamara Siklosi,confirmed_first_name,2026,May,16,Leapsome · Miter
+Tamara,Tamara Siklosi,confirmed_first_name,2026,Jun,5,Leapsome · Miter
 Tara*,Tara*,first_name_only,2024,Sep,1,EarnIn
 Telisa,Telisa Faye,confirmed_first_name,2025,Jun,22,Tempo · Otter
 Telisa,Telisa Faye,confirmed_first_name,2025,Jul,16,Tempo · Otter
@@ -1209,7 +1236,8 @@ Tessina,Tessina Grant,confirmed_first_name,2025,Dec,3,Legit Security
 Tessina,Tessina Grant,confirmed_first_name,2026,Feb,7,Huntress · Workleap
 Tessina,Tessina Grant,confirmed_first_name,2026,Mar,7,n8n · Fivetran
 Tessina,Tessina Grant,confirmed_first_name,2026,Apr,15,Fivetran · Huntress
-Tessina,Tessina Grant,confirmed_first_name,2026,May,6,Fivetran · n8n
+Tessina,Tessina Grant,confirmed_first_name,2026,May,11,Fivetran · Serval
+Tessina,Tessina Grant,confirmed_first_name,2026,Jun,4,n8n · Serval
 Thea,Thea,first_name_only,2025,Apr,1,ThredUp
 Thea,Thea,first_name_only,2025,May,3,Athena2
 Thea,Thea,first_name_only,2025,Jun,7,Athena2 · Onton
@@ -1218,7 +1246,8 @@ Thomas Hinds,Thomas Hinds,unresolved,2025,Jan,1,Tempo
 Tim,Tim Suleyman,confirmed_first_name,2023,Aug,5,Tempo · Notion
 Tim,Tim Suleyman,confirmed_first_name,2023,Sep,16,Notion · Tempo
 Tim,Tim Suleyman,confirmed_first_name,2023,Oct,23,Notion · Tempo
-Tim,Tim Suleyman,confirmed_first_name,2026,May,3,n8n
+Tim,Tim Suleyman,confirmed_first_name,2026,May,4,n8n
+Tim,Tim Suleyman,confirmed_first_name,2026,Jun,1,n8n
 Tom,Tom,first_name_only,2022,Dec,8,BetterUp
 Tom,Tom,first_name_only,2023,Jan,42,BetterUp · Contra
 Tom,Tom,first_name_only,2023,Feb,22,Contra · BetterUp
@@ -1229,6 +1258,7 @@ Trial Writer,Trial Writer,trial,2026,Jan,4,Fivetran · Workleap
 Trial Writer,Trial Writer,trial,2026,Feb,4,Fivetran · Workleap
 Trial Writer,Trial Writer,trial,2026,Mar,1,Oyster
 Trial Writer,Trial Writer,trial,2026,Apr,3,ShareGate · HoneyBook
+Trial Writer,Trial Writer,trial,2026,Jun,1,Gainbridge
 Trial writer,Trial writer,trial,2025,Sep,1,CoinTracker
 Trial writer,Trial writer,trial,2025,Nov,11,Moss · Mistplay
 Trial writer,Trial writer,trial,2025,Dec,9,Pylon · Mistplay
@@ -1264,10 +1294,14 @@ crowd content,crowd content,unresolved,2023,Apr,18,Notion
 freelance test,freelance test,unresolved,2023,Aug,1,Tempo
 freelancer,freelancer,first_name_only,2025,Sep,3,Tempo · Engine
 https://docs.google.com/document/d/1ic2n_uoNdMktXBDNhhrWDsjYfT3g-1Vdf9HJolyTeyE/edit,https://docs.google.com/document/d/1ic2n_uoNdMktXBDNhhrWDsjYfT3g-1Vdf9HJolyTeyE/edit,first_name_only,2021,Nov,1,Athena
+kevin,Kevin Vaughn,folded_variant,2025,Dec,1,Felt
+kevin,Kevin Vaughn,folded_variant,2026,Feb,2,Felt
+meredith,Meredith Kane,folded_variant,2026,Jun,1,Felt
 michael davis,michael davis,unresolved,2025,Mar,1,CoinTracker
 trial,trial,trial,2025,Apr,1,Athena2
 trial writer,trial writer,trial,2025,Sep,1,Moss
 trial writer,trial writer,trial,2025,Oct,2,Moss · Legit Security
+trial writer,trial writer,trial,2026,May,1,Boulevard
 trial writer (no name in doc),trial writer (no name in doc),trial,2025,Aug,1,CoinTracker
 trial writer (no name in doc),trial writer (no name in doc),trial,2025,Sep,2,CoinTracker
 trial writer Genie Davis,trial writer Genie Davis,trial,2025,May,1,Oyster

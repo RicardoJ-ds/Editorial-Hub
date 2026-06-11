@@ -60,7 +60,8 @@ Boulevard,2026,Jan,5,5,3,0,exact_match
 Boulevard,2026,Feb,10,10,10,0,exact_match
 Boulevard,2026,Mar,15,15,17,0,exact_match
 Boulevard,2026,Apr,25,23,19,-2,close
-Boulevard,2026,May,26,10,14,-16,month_boundary
+Boulevard,2026,May,26,24,21,-2,close
+Boulevard,2026,Jun,0,3,10,3,no_operating_model
 Captions,2023,Oct,5,0,0,-5,missing_from_log
 Captions,2023,Nov,20,0,0,-20,missing_from_log
 Captions,2023,Dec,25,0,0,-25,missing_from_log
@@ -117,7 +118,8 @@ College HUNKS,2026,Jan,1,1,0,0,exact_match
 College HUNKS,2026,Feb,5,5,5,0,exact_match
 College HUNKS,2026,Mar,10,10,11,0,exact_match
 College HUNKS,2026,Apr,10,10,8,0,exact_match
-College HUNKS,2026,May,29,11,13,-18,month_boundary
+College HUNKS,2026,May,29,30,22,1,close
+College HUNKS,2026,Jun,0,5,15,5,no_operating_model
 Composer,2023,Aug,1,1,1,0,exact_match
 Composer,2023,Sep,5,5,5,0,exact_match
 Composer,2023,Oct,10,13,13,3,gap
@@ -144,7 +146,8 @@ Contra,2023,Aug,33,43,43,10,gap
 Contra,2023,Sep,30,32,32,2,close
 Contra,2023,Oct,40,48,48,8,gap
 Contra,2023,Nov,17,7,7,-10,gap
-Dr Squatch,2026,May,5,1,1,-4,gap
+Dr Squatch,2026,May,5,5,3,0,exact_match
+Dr Squatch,2026,Jun,0,2,4,2,no_operating_model
 EarnIn B2C,2023,Jul,5,0,0,-5,missing_from_log
 EarnIn B2C,2023,Aug,10,0,0,-10,missing_from_log
 EarnIn B2C,2023,Sep,10,0,0,-10,missing_from_log
@@ -200,7 +203,8 @@ Eventbrite,2025,Dec,2,2,2,0,exact_match
 Eventbrite,2026,Jan,4,4,4,0,exact_match
 Eventbrite,2026,Feb,5,5,2,0,exact_match
 Eventbrite,2026,Mar,0,0,3,0,no_operating_model
-Eventbrite,2026,May,6,0,0,-6,missing_from_log
+Eventbrite,2026,May,6,6,2,0,exact_match
+Eventbrite,2026,Jun,0,6,10,6,no_operating_model
 Everand,2025,Apr,3,2,2,-1,close
 Everand,2025,May,12,5,5,-7,gap
 Everand,2025,Jun,20,21,21,1,close
@@ -214,16 +218,17 @@ Fellow,2024,Apr,9,12,12,3,gap
 Fellow,2024,May,10,10,10,0,exact_match
 Fellow,2024,Jun,10,8,8,-2,close
 Fellow,2024,Jul,1,2,2,1,close
-Felt,2025,Aug,2,0,0,-2,close
-Felt,2025,Sep,5,0,0,-5,missing_from_log
-Felt,2025,Oct,10,0,0,-10,missing_from_log
-Felt,2025,Nov,15,0,0,-15,missing_from_log
-Felt,2025,Dec,15,0,0,-15,missing_from_log
-Felt,2026,Jan,15,0,0,-15,missing_from_log
-Felt,2026,Feb,9,0,0,-9,missing_from_log
-Felt,2026,Mar,10,0,0,-10,missing_from_log
-Felt,2026,Apr,11,0,0,-11,missing_from_log
-Felt,2026,May,10,0,0,-10,missing_from_log
+Felt,2025,Aug,2,1,1,-1,close
+Felt,2025,Sep,5,6,6,1,close
+Felt,2025,Oct,10,8,8,-2,close
+Felt,2025,Nov,15,12,12,-3,gap
+Felt,2025,Dec,15,20,20,5,gap
+Felt,2026,Jan,15,15,11,0,exact_match
+Felt,2026,Feb,9,10,12,1,close
+Felt,2026,Mar,10,10,12,0,exact_match
+Felt,2026,Apr,11,11,10,0,exact_match
+Felt,2026,May,10,10,8,0,exact_match
+Felt,2026,Jun,0,2,5,2,no_operating_model
 First Round Capital,2023,May,5,0,0,-5,missing_from_log
 First Round Capital,2023,Jun,1,0,0,-1,close
 Fishbowl,2024,Jan,5,5,5,0,exact_match
@@ -254,9 +259,11 @@ Fivetran,2026,Jan,22,20,12,-2,close
 Fivetran,2026,Feb,23,22,22,-1,close
 Fivetran,2026,Mar,20,20,28,0,exact_match
 Fivetran,2026,Apr,22,20,17,-2,close
-Fivetran,2026,May,16,7,10,-9,month_boundary
+Fivetran,2026,May,16,16,14,0,exact_match
+Fivetran,2026,Jun,0,4,9,4,no_operating_model
 Flex,2026,Apr,5,5,2,0,exact_match
-Flex,2026,May,10,2,5,-8,month_boundary
+Flex,2026,May,10,10,6,0,exact_match
+Flex,2026,Jun,0,0,7,0,no_operating_model
 Front,2025,Oct,2,2,2,0,exact_match
 Front,2025,Nov,5,2,2,-3,gap
 Front,2025,Dec,10,13,13,3,gap
@@ -264,8 +271,8 @@ Front,2026,Jan,9,9,4,0,exact_match
 Front,2026,Feb,24,24,21,0,exact_match
 Front,2026,Mar,17,17,25,0,exact_match
 Front,2026,Apr,19,19,12,0,exact_match
-Front,2026,May,20,8,15,-12,month_boundary
-Front,2026,Jun,0,1,1,1,no_operating_model
+Front,2026,May,20,19,18,-1,close
+Front,2026,Jun,0,8,16,8,no_operating_model
 Gainbridge,2024,Oct,6,6,6,0,exact_match
 Gainbridge,2024,Nov,6,6,6,0,exact_match
 Gainbridge,2024,Dec,6,6,6,0,exact_match
@@ -284,6 +291,7 @@ Gainbridge,2025,Dec,16,16,16,0,exact_match
 Gainbridge,2026,Jan,15,15,11,0,exact_match
 Gainbridge,2026,Feb,10,10,14,0,exact_match
 Gainbridge,2026,Mar,15,16,16,1,close
+Gainbridge,2026,Jun,0,7,7,7,no_operating_model
 GenstoreAI,2025,Dec,5,0,0,-5,missing_from_log
 GenstoreAI,2026,Jan,10,0,0,-10,missing_from_log
 GenstoreAI,2026,Feb,15,0,0,-15,missing_from_log
@@ -323,11 +331,13 @@ Honeybook,2026,Jan,5,5,5,0,exact_match
 Honeybook,2026,Feb,10,10,8,0,exact_match
 Honeybook,2026,Mar,15,15,17,0,exact_match
 Honeybook,2026,Apr,25,22,14,-3,gap
-Honeybook,2026,May,26,12,20,-14,month_boundary
+Honeybook,2026,May,26,26,26,0,exact_match
+Honeybook,2026,Jun,0,4,12,4,no_operating_model
 Huntress,2026,Feb,5,5,3,0,exact_match
 Huntress,2026,Mar,10,10,12,0,exact_match
 Huntress,2026,Apr,5,5,3,0,exact_match
-Huntress,2026,May,5,3,5,-2,close
+Huntress,2026,May,5,5,7,0,exact_match
+Huntress,2026,Jun,0,2,2,2,no_operating_model
 Invoice Simple,2021,Nov,0,1,1,1,no_operating_model
 Invoice Simple,2024,Feb,5,5,5,0,exact_match
 Invoice Simple,2024,Mar,10,9,9,-1,close
@@ -358,8 +368,9 @@ Leapsome,2025,Apr,0,1,1,1,no_operating_model
 Leapsome,2026,Jan,1,1,0,0,exact_match
 Leapsome,2026,Feb,1,1,1,0,exact_match
 Leapsome,2026,Mar,9,8,9,-1,close
-Leapsome,2026,Apr,19,18,15,-1,close
-Leapsome,2026,May,31,17,20,-14,month_boundary
+Leapsome,2026,Apr,19,17,14,-2,close
+Leapsome,2026,May,31,31,27,0,exact_match
+Leapsome,2026,Jun,0,12,19,12,no_operating_model
 Legit Security,2024,Aug,3,1,1,-2,close
 Legit Security,2024,Sep,6,6,6,0,exact_match
 Legit Security,2024,Oct,6,8,8,2,close
@@ -396,9 +407,11 @@ Linktree,2023,Oct,19,25,0,6,gap
 Linktree,2023,Nov,6,0,0,-6,missing_from_log
 Maven Clinic,2026,Mar,5,5,5,0,exact_match
 Maven Clinic,2026,Apr,10,10,4,0,exact_match
-Maven Clinic,2026,May,15,5,11,-10,month_boundary
-Men's Wearhouse,2026,Apr,5,0,0,-5,missing_from_log
-Men's Wearhouse,2026,May,10,0,0,-10,missing_from_log
+Maven Clinic,2026,May,15,15,14,0,exact_match
+Maven Clinic,2026,Jun,0,4,11,4,no_operating_model
+Men's Wearhouse,2026,Apr,5,5,3,0,exact_match
+Men's Wearhouse,2026,May,10,10,10,0,exact_match
+Men's Wearhouse,2026,Jun,0,2,4,2,no_operating_model
 Meta AI,2025,Nov,7,0,0,-7,missing_from_log
 Meta AI,2025,Dec,2,0,0,-2,close
 Meta AI,2026,Jan,10,0,0,-10,missing_from_log
@@ -423,13 +436,15 @@ Mistplay,2026,Jan,24,24,16,0,exact_match
 Mistplay,2026,Feb,22,26,28,4,gap
 Mistplay,2026,Mar,18,18,24,0,exact_match
 Mistplay,2026,Apr,18,18,10,0,exact_match
-Mistplay,2026,May,18,6,14,-12,month_boundary
+Mistplay,2026,May,18,18,20,0,exact_match
+Mistplay,2026,Jun,0,4,10,4,no_operating_model
 Miter,2025,Dec,2,2,2,0,exact_match
 Miter,2026,Jan,5,5,4,0,exact_match
 Miter,2026,Feb,15,15,11,0,exact_match
 Miter,2026,Mar,15,15,20,0,exact_match
 Miter,2026,Apr,25,25,11,0,exact_match
-Miter,2026,May,28,11,25,-17,month_boundary
+Miter,2026,May,28,28,29,0,exact_match
+Miter,2026,Jun,0,1,14,1,no_operating_model
 Moss,2025,Aug,5,3,3,-2,close
 Moss,2025,Sep,10,12,12,2,close
 Moss,2025,Oct,26,19,19,-7,gap
@@ -519,10 +534,12 @@ Oyster,2026,Jan,10,10,10,0,exact_match
 Oyster,2026,Feb,8,8,8,0,exact_match
 Oyster,2026,Mar,15,15,15,0,exact_match
 Oyster,2026,Apr,15,15,15,0,exact_match
-Pebl,2026,May,3,0,0,-3,missing_from_log
+Pebl,2026,May,3,3,0,0,exact_match
+Pebl,2026,Jun,0,1,4,1,no_operating_model
 Photoroom,2026,Mar,1,1,1,0,exact_match
 Photoroom,2026,Apr,5,3,2,-2,close
-Photoroom,2026,May,10,3,4,-7,month_boundary
+Photoroom,2026,May,10,9,6,-1,close
+Photoroom,2026,Jun,0,4,8,4,no_operating_model
 Practice,2021,Mar,0,3,3,3,no_operating_model
 Practice,2022,Jun,0,5,5,5,no_operating_model
 Practice,2022,Jul,0,23,23,23,no_operating_model
@@ -547,7 +564,8 @@ Pylon,2026,Jan,26,26,22,0,exact_match
 Pylon,2026,Feb,20,20,19,0,exact_match
 Pylon,2026,Mar,18,18,23,0,exact_match
 Pylon,2026,Apr,18,18,15,0,exact_match
-Pylon,2026,May,18,10,13,-8,month_boundary
+Pylon,2026,May,18,18,18,0,exact_match
+Pylon,2026,Jun,0,3,6,3,no_operating_model
 Quinn,2023,Jan,0,4,4,4,no_operating_model
 Quinn,2023,Mar,0,6,6,6,no_operating_model
 Quinn,2023,Apr,0,1,1,1,no_operating_model
@@ -590,7 +608,8 @@ Sermo,2025,Apr,1,5,5,4,gap
 Sermo,2025,May,6,4,4,-2,close
 Sermo,2025,Jun,0,2,2,2,no_operating_model
 Serval,2026,Apr,5,5,2,0,exact_match
-Serval,2026,May,10,4,7,-6,month_boundary
+Serval,2026,May,10,10,11,0,exact_match
+Serval,2026,Jun,0,2,4,2,no_operating_model
 Smartling,2024,Sep,4,3,3,-1,close
 Smartling,2024,Oct,8,9,9,1,close
 Smartling,2024,Nov,6,6,6,0,exact_match
@@ -746,7 +765,8 @@ Webflow,2026,Jan,10,9,8,-1,close
 Webflow,2026,Feb,10,7,6,-3,gap
 Webflow,2026,Mar,15,15,17,0,exact_match
 Webflow,2026,Apr,15,15,12,0,exact_match
-Webflow,2026,May,10,4,7,-6,month_boundary
+Webflow,2026,May,10,10,11,0,exact_match
+Webflow,2026,Jun,0,2,4,2,no_operating_model
 Webflow,2026,Sep,0,6,6,6,no_operating_model
 Workleap + Sharegate,2025,May,5,2,2,-3,gap
 Workleap + Sharegate,2025,Jun,10,9,9,-1,close
@@ -783,4 +803,5 @@ dYdX,2024,Sep,10,11,11,1,close
 dYdX,2024,Oct,0,2,2,2,no_operating_model
 n8n,2026,Mar,6,4,4,-2,close
 n8n,2026,Apr,10,9,8,-1,close
-n8n,2026,May,15,9,10,-6,month_boundary
+n8n,2026,May,15,12,12,-3,gap
+n8n,2026,Jun,0,6,7,6,no_operating_model
