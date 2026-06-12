@@ -9,22 +9,22 @@ Bold,Bold,confirmed,,,Salesforce account name; SOW Overview client list,exact ma
 Boulevard,Boulevard,confirmed,2026-01,2026-06,Salesforce account name; SOW Overview client list,exact match
 Captions,Captions,confirmed,,,Salesforce account name; SOW Overview client list,exact match
 Chapter,Chapter,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-ChatGPT,OpenAI,proposed,2025-08,2026-08,Salesforce account name; SOW Overview client list,company renamed — confirm OpenAI is the account
+ChatGPT,OpenAI,confirmed,2025-08,2026-08,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Ok
 Cointracker,Cointracker,confirmed,2024-06,2026-10,Salesforce account name; SOW Overview client list,exact match
 College HUNKS,College HUNKS,confirmed,2026-01,2026-06,Salesforce account name; SOW Overview client list,exact match
 Composer,Composer,confirmed,2023-08,2026-01,Salesforce account name; SOW Overview client list,exact match
 Comun,Comun,confirmed,,,Salesforce account name; SOW Overview client list,exact match
 Contra,Contra,confirmed,2022-12,2026-07,Salesforce account name; SOW Overview client list,exact match
 Dr Squatch,Dr. Squatch,confirmed,2026-05,2026-06,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-EarnIn B2C,EarnIn,decision_split,,,Salesforce account name; SOW Overview client list,two Hub variants → one SF account; keep split?
-Earnin B2B,EarnIn,decision_split,2024-10,2025-09,Salesforce account name; SOW Overview client list,two Hub variants → one SF account; keep split?
+EarnIn B2C,EarnIn,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn
+Earnin B2B,EarnIn,confirmed,2024-10,2025-09,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn
 Ellis,Ellis,confirmed,2025-08,2026-11,Salesforce account name; SOW Overview client list,exact match
-Engine,Hotel Engine,proposed,2024-11,2026-10,Salesforce account name; SOW Overview client list,likely correct — confirm
+Engine,Hotel Engine,confirmed,2024-11,2026-10,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Ok
 Eventbrite,Eventbrite,confirmed,2025-12,2026-06,Salesforce account name; SOW Overview client list,exact match
 Everand,Everand,confirmed,2025-04,2026-05,Salesforce account name; SOW Overview client list,exact match
 Fellow,Fellow,confirmed,2024-03,2024-07,Salesforce account name; SOW Overview client list,exact match
 Felt,Felt,confirmed,2025-08,2026-06,Salesforce account name; SOW Overview client list,exact match
-First Round Capital,,no_sf_match,,,Salesforce account name; SOW Overview client list,never in SF
+First Round Capital,,confirmed_unlinked,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: leave unlinked (she asks: does FRC exist in SF? follow-up)
 Fishbowl,Fishbowl Inventory,confirmed,2024-01,2025-06,Salesforce account name; SOW Overview client list,
 Fivetran,Fivetran,confirmed,2025-01,2026-11,Salesforce account name; SOW Overview client list,exact match
 Flex,Flex,confirmed,2026-04,2026-05,Salesforce account name; SOW Overview client list,exact match
@@ -38,27 +38,27 @@ Honeybook,HoneyBook,confirmed,2025-04,2026-06,Salesforce account name; SOW Overv
 Huntress,Huntress,confirmed,2026-02,2026-06,Salesforce account name; SOW Overview client list,exact match
 Invoice Simple,Invoice Simple,confirmed,2021-11,2025-01,Salesforce account name; SOW Overview client list,exact match
 IronVest,Ironvest,confirmed,2023-10,2024-02,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-Landing,Hello Landing,proposed,2024-01,2024-07,Salesforce account name; SOW Overview client list,likely correct — confirm
+Landing,Hello Landing,confirmed,2024-01,2024-07,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Ok
 Leapsome,Leapsome,confirmed,2025-04,2026-06,Salesforce account name; SOW Overview client list,exact match
 Legit Security,Legit Security,confirmed,2024-08,2025-12,Salesforce account name; SOW Overview client list,exact match
-Lenny,,no_sf_match,2023-06,2023-06,Salesforce account name; SOW Overview client list,never in SF
+Lenny,,confirmed_unlinked,2023-06,2023-06,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: leave unlinked
 Linktree,Linktree,confirmed,2022-06,2023-10,Salesforce account name; SOW Overview client list,exact match
 Maven Clinic,Maven Clinic,confirmed,2026-03,2026-06,Salesforce account name; SOW Overview client list,exact match
 Men's Wearhouse,Men's Wearhouse,confirmed,2026-04,2026-06,Salesforce account name; SOW Overview client list,exact match
 Meta AI,Meta AI,confirmed,,,Salesforce account name; SOW Overview client list,exact match
 Meta BMG,Meta for Business,confirmed,,,Salesforce account name; SOW Overview client list,auto-fuzzy had wrongly said Meta AI
-Meta Manus,,no_sf_match,,,Salesforce account name; SOW Overview client list,new Meta engagement — no SF account yet
+Meta Manus,,dismissed,,,Salesforce account name; SOW Overview client list,"DaniQ 2026-06-12: Meta domain never kicked off — remove, nothing to track"
 Meta RL,Meta Reality Labs,confirmed,,,Salesforce account name; SOW Overview client list,auto-fuzzy had wrongly said Meta AI
 Milan Laser,Milan Laser,confirmed,,,Salesforce account name; SOW Overview client list,exact match
 Mistplay,Mistplay,confirmed,2025-09,2026-06,Salesforce account name; SOW Overview client list,exact match
 Miter,Miter,confirmed,2025-12,2026-06,Salesforce account name; SOW Overview client list,exact match
 Moss,Moss,confirmed,2025-08,2026-01,Salesforce account name; SOW Overview client list,exact match
-Neeva,,no_sf_match,2023-01,2026-02,Salesforce account name; SOW Overview client list,defunct
+Neeva,,confirmed_unlinked,2023-01,2026-02,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: leave unlinked (defunct)
 Neiman Marcus,Neiman Marcus,confirmed,,,Salesforce account name; SOW Overview client list,exact match
 Notion,Notion,confirmed,2022-12,2026-10,Salesforce account name; SOW Overview client list,exact match
 Onton,Onton,confirmed,2025-03,2026-09,Salesforce account name; SOW Overview client list,exact match
-Orderful (I),Orderful,decision_split,,,Salesforce account name; SOW Overview client list,engagement phases → one SF account
-Orderful (II),Orderful,decision_split,,,Salesforce account name; SOW Overview client list,engagement phases → one SF account
+Orderful (I),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: same account (left + came back); ok to merge into one — Hub merge pending Ricardo (two contract rows)
+Orderful (II),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: same account; ok to merge into one — Hub merge pending Ricardo
 Otter,Otter,confirmed,2024-09,2025-08,Salesforce account name; SOW Overview client list,exact match
 Oyster,Oyster,confirmed,2024-03,2026-04,Salesforce account name; SOW Overview client list,exact match
 Pebl,Pebl,confirmed,2026-05,2026-06,Salesforce account name; SOW Overview client list,exact match
@@ -73,13 +73,13 @@ Serval,Serval,confirmed,2026-04,2026-06,Salesforce account name; SOW Overview cl
 Smartling,Smartling,confirmed,2024-09,2025-09,Salesforce account name; SOW Overview client list,exact match
 Talkiatry,Talkiatry,confirmed,2025-08,2025-08,Salesforce account name; SOW Overview client list,exact match
 TaskRabbit,TaskRabbit Inc,confirmed,2023-11,2024-01,Salesforce account name; SOW Overview client list,legal-entity suffix
-Tempo,Tempo,confirmed,2023-06,2026-12,Salesforce account name; SOW Overview client list,exact match
-Tempo XYZ,,decision_tempo,,,Salesforce account name; SOW Overview client list,Tempo AND Tempo.io both exist in SF — which?
-Tempo.io,Tempo.io,confirmed,,,Salesforce account name; SOW Overview client list,exact match
+Tempo,Tempo,confirmed,,,Salesforce account name; SOW Overview client list,exact match
+Tempo XYZ,Tempo,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Tempo XYZ IS Tempo (active). Old Tempo renamed → Tempo.io (inactive) in SF + article sheet tabs
+Tempo.io,Tempo.io,confirmed,2023-06,2026-12,Salesforce account name; SOW Overview client list,exact match
 ThredUp,Thred Up,confirmed,2024-07,2026-06,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
 TravelJoy,TravelJoy,confirmed,2025-05,2025-07,Salesforce account name; SOW Overview client list,exact match
 Vimeo,Vimeo,confirmed,2024-12,2026-06,Salesforce account name; SOW Overview client list,exact match
 Webflow,Webflow,confirmed,2019-09,2026-12,Salesforce account name; SOW Overview client list,exact match
-Workleap + Sharegate,Workleap,decision_combined,2025-05,2026-11,Salesforce account name; SOW Overview client list,combined engagement; ShareGate has no SF account of its own
+Workleap + Sharegate,Workleap,confirmed,2025-05,2026-11,Salesforce account name; SOW Overview client list,combined engagement; ShareGate has no SF account of its own
 dYdX,dYdX,confirmed,2023-01,2026-12,Salesforce account name; SOW Overview client list,exact match
 n8n,n8n,confirmed,2026-03,2026-06,Salesforce account name; SOW Overview client list,exact match

@@ -74,11 +74,11 @@
     }
   ],
   "month_basis_verdicts": {
-    "exact_match": 193,
-    "close": 183,
-    "gap": 183,
-    "no_operating_model": 158,
-    "missing_from_log": 135,
+    "gap": 200,
+    "exact_match": 196,
+    "close": 190,
+    "no_operating_model": 131,
+    "missing_from_log": 108,
     "month_boundary": 4
   },
   "miter_example": [
@@ -348,16 +348,42 @@
   "mapping_impact": {
     "editors": {
       "confirmed_rows": 14523,
-      "total_rows": 15315,
+      "total_rows": 29679,
       "needs_decision": [
+        "Abby Norwood",
+        "Alyssa Zacharias",
+        "Anabelle Zaluski",
+        "Bryan Clark",
+        "Chelsea Erhard",
+        "Chrissy Woods",
+        "Derrik Chinn",
+        "Eesha Verma",
+        "Elliot Gardner",
+        "Haley Drucker",
+        "Jared Maguire",
+        "Jimmy Bunes",
+        "Katie Shevlin",
+        "Kennedy Stevens",
+        "Kimberly Pavlovich",
         "Kira",
         "Kristin",
         "Lauren Friar",
         "Lauren Keleher",
+        "Lee Anderson",
+        "Maggie Gowland",
+        "Michael Doyle",
+        "Micki Cottam",
+        "Nicholas Youngblood",
+        "Nina Denison",
+        "Robert Thorpe",
         "Samantha Marceau",
         "Samantha McGrail",
         "Shain",
-        "Shalin"
+        "Shalin",
+        "Shelby Talbot",
+        "Shivani Verma",
+        "Tiffany Anderson",
+        "Vincent Lee"
       ]
     },
     "writers": {
@@ -367,8 +393,8 @@
       "distinct_before": 286
     },
     "clients": {
-      "confirmed": 71,
-      "needs_decision": 13
+      "confirmed": 80,
+      "needs_decision": 4
     }
   }
 }

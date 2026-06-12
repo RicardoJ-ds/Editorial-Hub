@@ -3276,6 +3276,24 @@ def import_pod_history(session: Session) -> ImportResult:
         result.success = False
         result.errors.append(f"commit failed: {exc}")
 
+    # Tempo lineage (DaniQ 2026-06-12): the client called "Tempo" before
+    # June 2026 is the OLD client, since renamed "Tempo.io" (inactive); the
+    # ACTIVE "Tempo" is the new deal (ex "Tempo XYZ", starts 2026-06). Re-key
+    # any pre-2026-06 pod-history rows that resolved to the new client.
+    # Idempotent — runs after every history import so past-resyncs self-heal.
+    try:
+        session.execute(
+            text(
+                "UPDATE client_pod_history SET client_id = "
+                "(SELECT id FROM clients WHERE name = 'Tempo.io') "
+                "WHERE client_id = (SELECT id FROM clients WHERE name = 'Tempo') "
+                "AND (year < 2026 OR (year = 2026 AND month < 6))"
+            )
+        )
+        session.commit()
+    except Exception:  # noqa: BLE001
+        session.rollback()
+
     # Backfill client_pod_history gaps from Team Pods: for (client, month)
     # pairs ET CP never covered (e.g. Jan–Mar 2025), insert the Team Pods
     # editorial pod so per-month article pod attribution reaches further

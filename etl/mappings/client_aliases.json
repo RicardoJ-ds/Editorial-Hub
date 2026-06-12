@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-06-11",
+  "built_at": "2026-06-12",
   "canonical_source": "graphite_bi.salesforce_int_Account",
   "hub_to_salesforce": {
     "Adobe": {
@@ -87,8 +87,8 @@
       "hub_status": "COMPLETED",
       "sf_name": "OpenAI",
       "sf_account_id": "001PE00000HQCRyYAP",
-      "status": "proposed",
-      "note": "company renamed — confirm OpenAI is the account"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: Ok"
     },
     "Cointracker": {
       "hub_name": "Cointracker",
@@ -143,16 +143,16 @@
       "hub_status": "COMPLETED",
       "sf_name": "EarnIn",
       "sf_account_id": "0018V00002ZylJyQAJ",
-      "status": "decision_split",
-      "note": "two Hub variants → one SF account; keep split?"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"
     },
     "Earnin B2B": {
       "hub_name": "Earnin B2B",
       "hub_status": "COMPLETED",
       "sf_name": "EarnIn",
       "sf_account_id": "0018V00002ZylJyQAJ",
-      "status": "decision_split",
-      "note": "two Hub variants → one SF account; keep split?"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"
     },
     "Ellis": {
       "hub_name": "Ellis",
@@ -167,8 +167,8 @@
       "hub_status": "COMPLETED",
       "sf_name": "Hotel Engine",
       "sf_account_id": "001PE00000GFtKzYAL",
-      "status": "proposed",
-      "note": "likely correct — confirm"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: Ok"
     },
     "Eventbrite": {
       "hub_name": "Eventbrite",
@@ -207,8 +207,8 @@
       "hub_status": "COMPLETED",
       "sf_name": null,
       "sf_account_id": null,
-      "status": "no_sf_match",
-      "note": "never in SF"
+      "status": "confirmed_unlinked",
+      "note": "DaniQ 2026-06-12: leave unlinked (she asks: does FRC exist in SF? follow-up)"
     },
     "Fishbowl": {
       "hub_name": "Fishbowl",
@@ -319,8 +319,8 @@
       "hub_status": "COMPLETED",
       "sf_name": "Hello Landing",
       "sf_account_id": "0018V00002ijnqCQAQ",
-      "status": "proposed",
-      "note": "likely correct — confirm"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: Ok"
     },
     "Leapsome": {
       "hub_name": "Leapsome",
@@ -343,8 +343,8 @@
       "hub_status": "COMPLETED",
       "sf_name": null,
       "sf_account_id": null,
-      "status": "no_sf_match",
-      "note": "never in SF"
+      "status": "confirmed_unlinked",
+      "note": "DaniQ 2026-06-12: leave unlinked"
     },
     "Linktree": {
       "hub_name": "Linktree",
@@ -391,8 +391,8 @@
       "hub_status": "SOON_TO_BE_ACTIVE",
       "sf_name": null,
       "sf_account_id": null,
-      "status": "no_sf_match",
-      "note": "new Meta engagement — no SF account yet"
+      "status": "dismissed",
+      "note": "DaniQ 2026-06-12: Meta domain never kicked off — remove, nothing to track"
     },
     "Meta RL": {
       "hub_name": "Meta RL",
@@ -439,8 +439,8 @@
       "hub_status": "COMPLETED",
       "sf_name": null,
       "sf_account_id": null,
-      "status": "no_sf_match",
-      "note": "defunct"
+      "status": "confirmed_unlinked",
+      "note": "DaniQ 2026-06-12: leave unlinked (defunct)"
     },
     "Neiman Marcus": {
       "hub_name": "Neiman Marcus",
@@ -471,16 +471,16 @@
       "hub_status": "COMPLETED",
       "sf_name": "Orderful",
       "sf_account_id": "0018V00002ZxZbbQAF",
-      "status": "decision_split",
-      "note": "engagement phases → one SF account"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: same account (left + came back); ok to merge into one — Hub merge pending Ricardo (two contract rows)"
     },
     "Orderful (II)": {
       "hub_name": "Orderful (II)",
       "hub_status": "COMPLETED",
       "sf_name": "Orderful",
       "sf_account_id": "0018V00002ZxZbbQAF",
-      "status": "decision_split",
-      "note": "engagement phases → one SF account"
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: same account; ok to merge into one — Hub merge pending Ricardo"
     },
     "Otter": {
       "hub_name": "Otter",
@@ -605,10 +605,10 @@
     "Tempo XYZ": {
       "hub_name": "Tempo XYZ",
       "hub_status": "SOON_TO_BE_ACTIVE",
-      "sf_name": null,
-      "sf_account_id": null,
-      "status": "decision_tempo",
-      "note": "Tempo AND Tempo.io both exist in SF — which?"
+      "sf_name": "Tempo",
+      "sf_account_id": "001PE00000gxVCWYA2",
+      "status": "confirmed",
+      "note": "DaniQ 2026-06-12: Tempo XYZ IS Tempo (active). Old Tempo renamed → Tempo.io (inactive) in SF + article sheet tabs"
     },
     "Tempo.io": {
       "hub_name": "Tempo.io",
@@ -655,7 +655,7 @@
       "hub_status": "COMPLETED",
       "sf_name": "Workleap",
       "sf_account_id": "001PE00000NTNyZYAX",
-      "status": "decision_combined",
+      "status": "confirmed",
       "note": "combined engagement; ShareGate has no SF account of its own"
     },
     "dYdX": {

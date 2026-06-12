@@ -77,8 +77,8 @@ Boulevard,Boulevard,confirmed,2026,Apr,23,23,Boulevard
 Boulevard,Boulevard,confirmed,2026,May,24,24,Boulevard
 Boulevard,Boulevard,confirmed,2026,Jun,3,3,Boulevard
 Cadre,,not_in_mapping,2022,Mar,5,5,Cadre
-ChatGPT,OpenAI,proposed,2025,Aug,4,4,ChatGPT
-ChatGPT,OpenAI,proposed,2026,Aug,1,1,ChatGPT
+ChatGPT,OpenAI,confirmed,2025,Aug,4,4,ChatGPT
+ChatGPT,OpenAI,confirmed,2026,Aug,1,1,ChatGPT
 Cointracker,Cointracker,confirmed,2024,Jun,10,10,CoinTracker
 Cointracker,Cointracker,confirmed,2024,Jul,29,29,CoinTracker
 Cointracker,Cointracker,confirmed,2024,Aug,8,8,CoinTracker
@@ -189,18 +189,18 @@ EarnIn,,not_in_mapping,2025,Jan,13,13,EarnIn
 EarnIn,,not_in_mapping,2025,Feb,15,15,EarnIn
 EarnIn,,not_in_mapping,2025,Mar,12,12,EarnIn
 EarnIn,,not_in_mapping,2025,Apr,10,10,EarnIn
-Earnin B2B,EarnIn,decision_split,2024,Oct,3,3,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2024,Nov,5,5,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2024,Dec,11,11,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Jan,14,14,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Feb,5,5,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Mar,4,4,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Apr,10,10,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,May,13,13,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Jun,15,15,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Jul,18,18,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Aug,12,12,EarnIn B2B
-Earnin B2B,EarnIn,decision_split,2025,Sep,9,9,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2024,Oct,3,3,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2024,Nov,5,5,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2024,Dec,11,11,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Jan,14,14,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Feb,5,5,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Mar,4,4,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Apr,10,10,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,May,13,13,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Jun,15,15,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Jul,18,18,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Aug,12,12,EarnIn B2B
+Earnin B2B,EarnIn,confirmed,2025,Sep,9,9,EarnIn B2B
 Ellis,Ellis,confirmed,2025,Aug,2,2,Ellis
 Ellis,Ellis,confirmed,2025,Sep,3,3,Ellis
 Ellis,Ellis,confirmed,2025,Oct,7,7,Ellis
@@ -218,22 +218,22 @@ Email On Acid,,not_in_mapping,2022,Sep,16,16,Email On Acid
 Email On Acid,,not_in_mapping,2022,Oct,7,7,Email On Acid
 Email On Acid,,not_in_mapping,2022,Nov,14,14,Email On Acid
 Email On Acid,,not_in_mapping,2026,May,1,1,Email On Acid
-Engine,Hotel Engine,proposed,2024,Nov,6,6,Engine
-Engine,Hotel Engine,proposed,2024,Dec,4,4,Engine
-Engine,Hotel Engine,proposed,2025,Jan,7,8,Engine
-Engine,Hotel Engine,proposed,2025,Feb,15,15,Engine
-Engine,Hotel Engine,proposed,2025,Mar,18,18,Engine
-Engine,Hotel Engine,proposed,2025,Apr,15,15,Engine
-Engine,Hotel Engine,proposed,2025,May,16,16,Engine
-Engine,Hotel Engine,proposed,2025,Jun,19,19,Engine
-Engine,Hotel Engine,proposed,2025,Jul,19,19,Engine
-Engine,Hotel Engine,proposed,2025,Aug,26,26,Engine
-Engine,Hotel Engine,proposed,2025,Sep,27,27,Engine
-Engine,Hotel Engine,proposed,2025,Oct,3,3,Engine
-Engine,Hotel Engine,proposed,2026,Feb,1,1,Engine
-Engine,Hotel Engine,proposed,2026,Apr,2,2,Engine
-Engine,Hotel Engine,proposed,2026,May,1,1,Engine
-Engine,Hotel Engine,proposed,2026,Oct,1,1,Engine
+Engine,Hotel Engine,confirmed,2024,Nov,6,6,Engine
+Engine,Hotel Engine,confirmed,2024,Dec,4,4,Engine
+Engine,Hotel Engine,confirmed,2025,Jan,7,8,Engine
+Engine,Hotel Engine,confirmed,2025,Feb,15,15,Engine
+Engine,Hotel Engine,confirmed,2025,Mar,18,18,Engine
+Engine,Hotel Engine,confirmed,2025,Apr,15,15,Engine
+Engine,Hotel Engine,confirmed,2025,May,16,16,Engine
+Engine,Hotel Engine,confirmed,2025,Jun,19,19,Engine
+Engine,Hotel Engine,confirmed,2025,Jul,19,19,Engine
+Engine,Hotel Engine,confirmed,2025,Aug,26,26,Engine
+Engine,Hotel Engine,confirmed,2025,Sep,27,27,Engine
+Engine,Hotel Engine,confirmed,2025,Oct,3,3,Engine
+Engine,Hotel Engine,confirmed,2026,Feb,1,1,Engine
+Engine,Hotel Engine,confirmed,2026,Apr,2,2,Engine
+Engine,Hotel Engine,confirmed,2026,May,1,1,Engine
+Engine,Hotel Engine,confirmed,2026,Oct,1,1,Engine
 Eventbrite,Eventbrite,confirmed,2025,Dec,2,2,Eventbrite
 Eventbrite,Eventbrite,confirmed,2026,Jan,4,4,Eventbrite
 Eventbrite,Eventbrite,confirmed,2026,Feb,5,5,Eventbrite
@@ -417,13 +417,13 @@ Jaanuu,,not_in_mapping,2022,Jun,24,24,Jaanuu
 Jaanuu,,not_in_mapping,2022,Jul,26,41,Jaanuu
 Jaanuu,,not_in_mapping,2022,Aug,31,62,Jaanuu
 Jaanuu,,not_in_mapping,2022,Sep,19,38,Jaanuu
-Landing,Hello Landing,proposed,2024,Jan,1,1,Landing
-Landing,Hello Landing,proposed,2024,Feb,16,16,Landing
-Landing,Hello Landing,proposed,2024,Mar,12,12,Landing
-Landing,Hello Landing,proposed,2024,Apr,11,11,Landing
-Landing,Hello Landing,proposed,2024,May,10,10,Landing
-Landing,Hello Landing,proposed,2024,Jun,8,8,Landing
-Landing,Hello Landing,proposed,2024,Jul,8,8,Landing
+Landing,Hello Landing,confirmed,2024,Jan,1,1,Landing
+Landing,Hello Landing,confirmed,2024,Feb,16,16,Landing
+Landing,Hello Landing,confirmed,2024,Mar,12,12,Landing
+Landing,Hello Landing,confirmed,2024,Apr,11,11,Landing
+Landing,Hello Landing,confirmed,2024,May,10,10,Landing
+Landing,Hello Landing,confirmed,2024,Jun,8,8,Landing
+Landing,Hello Landing,confirmed,2024,Jul,8,8,Landing
 Leapsome,Leapsome,confirmed,2025,Apr,1,1,Leapsome
 Leapsome,Leapsome,confirmed,2026,Jan,1,1,Leapsome
 Leapsome,Leapsome,confirmed,2026,Feb,1,1,Leapsome
@@ -448,7 +448,7 @@ Legit Security,Legit Security,confirmed,2025,Sep,14,14,Legit Security
 Legit Security,Legit Security,confirmed,2025,Oct,16,16,Legit Security
 Legit Security,Legit Security,confirmed,2025,Nov,15,15,Legit Security
 Legit Security,Legit Security,confirmed,2025,Dec,13,13,Legit Security
-Lenny,,no_sf_match,2023,Jun,3,3,Lenny
+Lenny,,confirmed_unlinked,2023,Jun,3,3,Lenny
 Linktree,Linktree,confirmed,2022,Jun,11,11,Linktree
 Linktree,Linktree,confirmed,2022,Jul,22,22,Linktree
 Linktree,Linktree,confirmed,2022,Aug,32,39,Linktree
@@ -556,11 +556,11 @@ Moss,Moss,confirmed,2025,Oct,19,19,Moss
 Moss,Moss,confirmed,2025,Nov,17,17,Moss
 Moss,Moss,confirmed,2025,Dec,17,17,Moss
 Moss,Moss,confirmed,2026,Jan,10,10,Moss
-Neeva,,no_sf_match,2023,Jan,5,5,Neeva
-Neeva,,no_sf_match,2023,Feb,9,9,Neeva
-Neeva,,no_sf_match,2023,Mar,3,3,Neeva
-Neeva,,no_sf_match,2023,Apr,12,19,Neeva
-Neeva,,no_sf_match,2026,Feb,1,1,Neeva
+Neeva,,confirmed_unlinked,2023,Jan,5,5,Neeva
+Neeva,,confirmed_unlinked,2023,Feb,9,9,Neeva
+Neeva,,confirmed_unlinked,2023,Mar,3,3,Neeva
+Neeva,,confirmed_unlinked,2023,Apr,12,19,Neeva
+Neeva,,confirmed_unlinked,2026,Feb,1,1,Neeva
 Neiman,,not_in_mapping,2022,Nov,22,22,Neiman
 Neiman,,not_in_mapping,2022,Dec,13,13,Neiman
 Neiman,,not_in_mapping,2023,Jan,32,34,Neiman
@@ -762,39 +762,39 @@ Talkiatry,Talkiatry,confirmed,2025,Aug,2,2,Talkiatry
 TaskRabbit,TaskRabbit Inc,confirmed,2023,Nov,11,12,Taskrabbit
 TaskRabbit,TaskRabbit Inc,confirmed,2023,Dec,14,14,Taskrabbit
 TaskRabbit,TaskRabbit Inc,confirmed,2024,Jan,50,50,Taskrabbit
-Tempo,Tempo,confirmed,2023,Jun,7,7,Tempo
-Tempo,Tempo,confirmed,2023,Jul,16,16,Tempo
-Tempo,Tempo,confirmed,2023,Aug,47,47,Tempo
-Tempo,Tempo,confirmed,2023,Sep,17,17,Tempo
-Tempo,Tempo,confirmed,2023,Oct,29,29,Tempo
-Tempo,Tempo,confirmed,2023,Nov,1,1,Tempo
-Tempo,Tempo,confirmed,2023,Dec,22,22,Tempo
-Tempo,Tempo,confirmed,2024,Jan,11,11,Tempo
-Tempo,Tempo,confirmed,2024,Feb,10,10,Tempo
-Tempo,Tempo,confirmed,2024,Mar,19,19,Tempo
-Tempo,Tempo,confirmed,2024,Apr,23,23,Tempo
-Tempo,Tempo,confirmed,2024,May,23,23,Tempo
-Tempo,Tempo,confirmed,2024,Jun,17,17,Tempo
-Tempo,Tempo,confirmed,2024,Jul,23,23,Tempo
-Tempo,Tempo,confirmed,2024,Aug,15,15,Tempo
-Tempo,Tempo,confirmed,2024,Sep,12,12,Tempo
-Tempo,Tempo,confirmed,2024,Oct,4,4,Tempo
-Tempo,Tempo,confirmed,2024,Nov,4,4,Tempo
-Tempo,Tempo,confirmed,2024,Dec,4,4,Tempo
-Tempo,Tempo,confirmed,2025,Jan,22,22,Tempo
-Tempo,Tempo,confirmed,2025,Feb,29,31,Tempo
-Tempo,Tempo,confirmed,2025,Mar,33,33,Tempo
-Tempo,Tempo,confirmed,2025,Apr,29,29,Tempo
-Tempo,Tempo,confirmed,2025,May,11,11,Tempo
-Tempo,Tempo,confirmed,2025,Jun,26,26,Tempo
-Tempo,Tempo,confirmed,2025,Jul,16,16,Tempo
-Tempo,Tempo,confirmed,2025,Aug,12,12,Tempo
-Tempo,Tempo,confirmed,2025,Sep,22,22,Tempo
-Tempo,Tempo,confirmed,2026,Mar,1,1,Tempo
-Tempo,Tempo,confirmed,2026,May,1,1,Tempo
-Tempo,Tempo,confirmed,2026,Jun,1,1,Tempo
-Tempo,Tempo,confirmed,2026,Jul,1,1,Tempo
-Tempo,Tempo,confirmed,2026,Dec,2,2,Tempo
+Tempo.io,Tempo.io,confirmed,2023,Jun,7,7,Tempo.io
+Tempo.io,Tempo.io,confirmed,2023,Jul,16,16,Tempo.io
+Tempo.io,Tempo.io,confirmed,2023,Aug,47,47,Tempo.io
+Tempo.io,Tempo.io,confirmed,2023,Sep,17,17,Tempo.io
+Tempo.io,Tempo.io,confirmed,2023,Oct,29,29,Tempo.io
+Tempo.io,Tempo.io,confirmed,2023,Nov,1,1,Tempo.io
+Tempo.io,Tempo.io,confirmed,2023,Dec,22,22,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Jan,11,11,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Feb,10,10,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Mar,19,19,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Apr,23,23,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,May,23,23,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Jun,17,17,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Jul,23,23,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Aug,15,15,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Sep,12,12,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Oct,4,4,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Nov,4,4,Tempo.io
+Tempo.io,Tempo.io,confirmed,2024,Dec,4,4,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Jan,22,22,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Feb,29,31,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Mar,33,33,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Apr,29,29,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,May,11,11,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Jun,26,26,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Jul,16,16,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Aug,12,12,Tempo.io
+Tempo.io,Tempo.io,confirmed,2025,Sep,22,22,Tempo.io
+Tempo.io,Tempo.io,confirmed,2026,Mar,1,1,Tempo.io
+Tempo.io,Tempo.io,confirmed,2026,May,1,1,Tempo.io
+Tempo.io,Tempo.io,confirmed,2026,Jun,1,1,Tempo.io
+Tempo.io,Tempo.io,confirmed,2026,Jul,1,1,Tempo.io
+Tempo.io,Tempo.io,confirmed,2026,Dec,2,2,Tempo.io
 ThredUp,Thred Up,confirmed,2024,Jul,5,5,ThredUp
 ThredUp,Thred Up,confirmed,2024,Aug,9,9,ThredUp
 ThredUp,Thred Up,confirmed,2024,Sep,18,18,ThredUp
@@ -885,19 +885,19 @@ Webflow,Webflow,confirmed,2026,Sep,12,12,Webflow
 Webflow,Webflow,confirmed,2026,Oct,29,29,Webflow
 Webflow,Webflow,confirmed,2026,Nov,21,22,Webflow
 Webflow,Webflow,confirmed,2026,Dec,18,18,Webflow
-Workleap + Sharegate,Workleap,decision_combined,2025,May,2,2,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Jun,9,9,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Jul,15,15,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Aug,16,19,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Sep,21,21,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Oct,10,10,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Nov,14,15,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2025,Dec,22,23,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2026,Jan,13,13,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2026,Feb,32,32,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2026,Mar,33,33,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2026,Oct,1,1,Workleap
-Workleap + Sharegate,Workleap,decision_combined,2026,Nov,1,1,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,May,2,2,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Jun,9,9,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Jul,15,15,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Aug,16,19,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Sep,21,21,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Oct,10,10,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Nov,14,15,Workleap
+Workleap + Sharegate,Workleap,confirmed,2025,Dec,22,23,Workleap
+Workleap + Sharegate,Workleap,confirmed,2026,Jan,13,13,Workleap
+Workleap + Sharegate,Workleap,confirmed,2026,Feb,32,32,Workleap
+Workleap + Sharegate,Workleap,confirmed,2026,Mar,33,33,Workleap
+Workleap + Sharegate,Workleap,confirmed,2026,Oct,1,1,Workleap
+Workleap + Sharegate,Workleap,confirmed,2026,Nov,1,1,Workleap
 Worldcoin,,not_in_mapping,2022,Jul,1,2,Worldcoin
 Worldcoin,,not_in_mapping,2022,Aug,39,72,Worldcoin
 Worldcoin,,not_in_mapping,2022,Sep,27,52,Worldcoin

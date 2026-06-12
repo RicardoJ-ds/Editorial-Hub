@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-06-11",
+  "built_at": "2026-06-12",
   "canonical_source": "pod_assignments(role=writer) ∪ historical full names (ai_monitoring_records.writer_name, notion_articles.writer)",
   "roster": {
     "abby norwood": {
@@ -222,13 +222,6 @@
       "canonical": "Renata Pacheco Ovando",
       "emails": [],
       "source": "historical:notion"
-    },
-    "ricardo ocampo": {
-      "canonical": "Ricardo Ocampo",
-      "emails": [
-        "ricardo.ocampo@graphitehq.com"
-      ],
-      "source": "pod_sheet"
     },
     "rich dezso": {
       "canonical": "Rich Dezso",

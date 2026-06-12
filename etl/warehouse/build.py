@@ -568,7 +568,16 @@ def build_int_pod_assignments(session) -> list[Job]:
                 return canon
         return fallback or name
 
-    def resolve_client(raw: str):
+    # Date-windowed client identities (DaniQ 2026-06-12): "Tempo" before
+    # 2026-06 = the old client, since renamed "Tempo.io"; from 2026-06 = the
+    # new deal (ex "Tempo XYZ").
+    CLIENT_WINDOWED = {"tempo": [(None, "2026-05", "Tempo.io"), ("2026-06", None, "Tempo")]}
+
+    def resolve_client(raw: str, ym: str):
+        for vfrom, vto, canon in CLIENT_WINDOWED.get((raw or "").strip().lower(), []):
+            if (vfrom is None or vfrom <= ym) and (vto is None or ym <= vto):
+                raw = canon
+                break
         c = _resolve_client(lookup, raw)
         if c is None and "(" in raw:  # "Better (April)" → "Better"
             c = _resolve_client(lookup, re.sub(r"\s*\([^)]*\)\s*$", "", raw))
@@ -577,7 +586,7 @@ def build_int_pod_assignments(session) -> list[Job]:
     rows = []
     for r in session.execute(select(m.PodAssignmentHistory)).scalars():
         ym = f"{r.year:04d}-{r.month:02d}"
-        c = resolve_client(r.client_name) if r.client_name else None
+        c = resolve_client(r.client_name, ym) if r.client_name else None
         rows.append(
             {
                 "year": r.year,
