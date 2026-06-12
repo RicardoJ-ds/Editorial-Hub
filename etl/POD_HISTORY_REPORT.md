@@ -17,12 +17,12 @@
 | Comparison | Result |
 |---|---|
 | **Clients ↔ pod** (322 client-months) | **100% agreement** — the two sources fully corroborate |
-| **Members ↔ pod** (69 month-pod rosters) | **47 identical · 86.5% name-level** — see `reports/pod_member_drift.csv` |
+| **Members ↔ pod** (69 month-pod rosters) | **47 identical · 86.5% name-level** — every diff in `reports/pod_member_drift.csv` |
 
 Member differences are mostly **pod-move timing** (one sheet updated before
 the other in the transition month).
 
-### Per-case review (2026-06-12) — full detail in `reports/pod_member_drift_verdicts.csv`
+### Per-case review (2026-06-12) — full detail in `reports/pod_member_drift.csv` (single file: every differing slot, classified, with evidence + verdict on the reviewed cases)
 
 Of 119 raw differing member-months, **101 are coverage windows, not drift**:
 76 ET CP-only slots are *future projections* (Jul–Dec 2026, no Team Pods tab

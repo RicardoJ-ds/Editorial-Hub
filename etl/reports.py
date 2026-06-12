@@ -348,6 +348,11 @@ def main() -> int:
         ]
 
         # ── pod member drift: ET CP vs Team Pods, per (month, pod) ──────────
+        # ONE file, two layers: every differing slot, classified (coverage
+        # window vs real transition), with evidence + verdict filled in for
+        # the reviewed cases (2026-06-12 review; articles arbitrate — each
+        # member's articles that month reveal which pod's clients they
+        # actually worked, and client→pod agrees 100% between sources).
         from collections import defaultdict as _dd
 
         def _np(p):
@@ -381,220 +386,113 @@ def main() -> int:
             t = _ft(r.display_name)
             if t:
                 tp_m[(r.year, r.month, _np(r.pod_number))].add(t)
+
+        # curated per-case review — keyed (year, month_num, member_first_token)
+        VERDICTS = {
+            (2025, 3, "kimberly"): (
+                "joined 2025-03-17 (HR); Pod 2 ×4 articles",
+                "ET CP ✓ — TP tab predates her join",
+            ),
+            (2025, 4, "katie"): ("joined 2025-04-14 (HR)", "ET CP ✓ — TP tab predates her join"),
+            (2025, 4, "kimberly"): ("Pod 2 ×32 articles", "TP ✓ — ET CP moved her early/wrongly"),
+            (2025, 5, "kimberly"): (
+                "left 2025-05-09 (HR); Pod 4 ×6 articles",
+                "ET CP ✓ — partial month before exit",
+            ),
+            (2025, 7, "lee"): ("joined 2025-07-21 (HR)", "ET CP ✓ — TP tab predates the join"),
+            (2025, 7, "robert"): ("joined 2025-07-21 (HR)", "ET CP ✓ — TP tab predates the join"),
+            (2025, 8, "anabelle"): (
+                "Pod 2 ×17 + Pod 3 ×11 articles; left 2025-08-22",
+                "ET CP ✓ — real multi-pod coverage",
+            ),
+            (2025, 8, "katie"): ("Pod 1 ×29, Pod 4 ×1 articles", "mostly TP ✓ — ET CP overspread"),
+            (2025, 8, "maggie"): (
+                "Pod 4 ×13 + Pod 3 ×12 articles",
+                "ET CP ✓ — she really covered 3+4",
+            ),
+            (2025, 8, "haley"): ("joined 2025-08-18 (HR)", "ET CP ✓ — TP tab predates the join"),
+            (2025, 8, "micki"): ("joined 2025-08-18 (HR)", "ET CP ✓ — TP tab predates the join"),
+            (2025, 9, "derrik"): (
+                "left 2025-09-02 (HR); his articles were Pod 3",
+                "ET CP ✓ — TP stale AND wrong pod",
+            ),
+            (2025, 9, "chrissy"): ("no articles", "open — placeholder slot?"),
+            (2025, 9, "lee"): ("Pod 3 ×46, Pod 1 ×3 articles", "ET CP ✓ — Pod 1 was minor help"),
+            (2026, 1, "jimmy"): (
+                "Pod 2 ×24, Pod 1 ×9 articles; Pod 5 unsupported",
+                "split month — both partial",
+            ),
+            (2026, 1, "robert"): ("Pod 1 ×32, Pod 5 ×2 articles", "TP ✓ — Pod 5 help was real"),
+            (2026, 2, "tiffany"): ("Pod 2 ×14 + Pod 4 ×10 articles", "TP ✓ — true straddle month"),
+            (2026, 3, "abby"): ("left 2026-03-06 (HR)", "TP ✓ — ET CP slot not cleared"),
+            (2026, 4, "jimmy"): ("Pod 1 ×30, Pod 2 ×2 articles", "ET CP ✓ — TP stale"),
+            (2026, 6, "nina"): ("no articles yet (month in progress)", "open"),
+            (2026, 6, "anabelle"): (
+                "terminated 2025-08-22 per Rippling, yet 3 Jun-2026 articles",
+                "🚩 DQ flag — freelance return or HR not updated; confirm with Dani",
+            ),
+        }
+        _JUNK_TOKENS = {"new", "pod", "support", "hiring"}
+        max_tp = max(((y, m) for (y, m, _p) in tp_m), default=(0, 0))
+        min_etcp = min(((y, m) for (y, m, _p) in etcp_m), default=(9999, 99))
+
         drift_rows = []
-        common = sorted(set(etcp_m) & set(tp_m))
-        agree = sum(1 for k in common if etcp_m[k] == tp_m[k])
+        common = sorted(set(etcp_m) | set(tp_m))
+        slots_compared = len(set(etcp_m) & set(tp_m))
+        identical = sum(1 for k in set(etcp_m) & set(tp_m) if etcp_m[k] == tp_m[k])
         for y, m, pod in common:
-            if etcp_m[(y, m, pod)] == tp_m[(y, m, pod)]:
+            a, b = etcp_m.get((y, m, pod), set()), tp_m.get((y, m, pod), set())
+            if a == b:
                 continue
+            only_e, only_t = sorted(a - b), sorted(b - a)
+            toks = set(only_e) | set(only_t)
+            if (y, m) > max_tp:
+                cls = "coverage — ET CP future projection (no Team Pods tab yet)"
+            elif (y, m) < min_etcp:
+                cls = "coverage — before ET CP member data (articles corroborate Team Pods)"
+            elif toks <= _JUNK_TOKENS or all("@" in t or t in _JUNK_TOKENS for t in toks):
+                cls = "junk token / placeholder"
+            else:
+                cls = "transition"
+            ev, vd = [], []
+            for t in sorted(toks):
+                hit = VERDICTS.get((y, m, t))
+                if hit:
+                    ev.append(f"{t}: {hit[0]}")
+                    vd.append(f"{t}: {hit[1]}")
             drift_rows.append(
                 [
                     y,
                     MONTHS[m],
                     pod,
-                    ", ".join(sorted(etcp_m[(y, m, pod)] - tp_m[(y, m, pod)])) or "—",
-                    ", ".join(sorted(tp_m[(y, m, pod)] - etcp_m[(y, m, pod)])) or "—",
-                    ", ".join(sorted(etcp_m[(y, m, pod)] & tp_m[(y, m, pod)])),
+                    ", ".join(only_e) or "—",
+                    ", ".join(only_t) or "—",
+                    ", ".join(sorted(a & b)),
+                    cls,
+                    " | ".join(ev),
+                    " | ".join(vd),
                 ]
             )
         _write_csv(
             "pod_member_drift.csv",
-            ["year", "month", "pod", "only_in_ET_CP", "only_in_Team_Pods", "in_both"],
+            [
+                "year",
+                "month",
+                "pod",
+                "only_in_ET_CP",
+                "only_in_Team_Pods",
+                "in_both",
+                "classification",
+                "evidence",
+                "verdict",
+            ],
             drift_rows,
         )
-        # Per-case verdicts (reviewed 2026-06-12; article evidence = pods of the
-        # articles that member edited that month — client→pod agrees 100%
-        # between sources, so articles arbitrate). Coverage-window diffs
-        # (ET CP future projections; TP-only Jan–Feb 2025) are NOT cases.
-        VERDICTS = [
-            # (year, mon, member, etcp, tp, evidence, verdict)
-            (
-                2025,
-                "Mar",
-                "Kimberly Pavlovich",
-                "Pod 2",
-                "—",
-                "joined 2025-03-17 (HR); Pod 2 ×4 articles",
-                "ET CP ✓ — TP tab predates her join",
-            ),
-            (
-                2025,
-                "Apr",
-                "Katie Shevlin",
-                "Pod 1",
-                "—",
-                "joined 2025-04-14 (HR)",
-                "ET CP ✓ — TP tab predates her join",
-            ),
-            (
-                2025,
-                "Apr",
-                "Kimberly Pavlovich",
-                "Pod 1",
-                "Pod 2",
-                "Pod 2 ×32 articles",
-                "TP ✓ — ET CP moved her early/wrongly",
-            ),
-            (
-                2025,
-                "May",
-                "Kimberly Pavlovich",
-                "Pod 4",
-                "—",
-                "left 2025-05-09 (HR); Pod 4 ×6 articles",
-                "ET CP ✓ — partial month before exit",
-            ),
-            (
-                2025,
-                "Jul",
-                "Lee Anderson",
-                "Pod 3",
-                "—",
-                "joined 2025-07-21 (HR)",
-                "ET CP ✓ — TP tab predates the join",
-            ),
-            (
-                2025,
-                "Jul",
-                "Robert Thorpe",
-                "Pod 1",
-                "—",
-                "joined 2025-07-21 (HR)",
-                "ET CP ✓ — TP tab predates the join",
-            ),
-            (
-                2025,
-                "Aug",
-                "Anabelle Zaluski",
-                "Pods 2,3",
-                "Pod 2",
-                "Pod 2 ×17 + Pod 3 ×11 articles; left 2025-08-22",
-                "ET CP ✓ — real multi-pod coverage",
-            ),
-            (
-                2025,
-                "Aug",
-                "Katie Shevlin",
-                "Pods 1,2,4",
-                "Pod 1",
-                "Pod 1 ×29, Pod 4 ×1 articles",
-                "mostly TP ✓ — ET CP overspread",
-            ),
-            (
-                2025,
-                "Aug",
-                "Maggie Gowland",
-                "Pods 2,3,4,5",
-                "Pods 2,5",
-                "Pod 4 ×13 + Pod 3 ×12 articles",
-                "ET CP ✓ — she really covered 3+4",
-            ),
-            (
-                2025,
-                "Aug",
-                "Haley Drucker / Micki Cottam",
-                "Pod 3 / Pod 4",
-                "—",
-                "both joined 2025-08-18 (HR)",
-                "ET CP ✓ — TP tab predates the joins",
-            ),
-            (
-                2025,
-                "Sep",
-                "Derrik Chinn",
-                "—",
-                "Pod 1",
-                "left 2025-09-02 (HR); his articles were Pod 3",
-                "ET CP ✓ — TP stale AND wrong pod",
-            ),
-            (
-                2025,
-                "Sep",
-                "Lee Anderson",
-                "Pod 3",
-                "Pods 1,3",
-                "Pod 3 ×46, Pod 1 ×3 articles",
-                "ET CP ✓ — Pod 1 was minor help",
-            ),
-            (
-                2026,
-                "Jan",
-                "Jimmy Bunes",
-                "Pod 2",
-                "Pods 1,2,5",
-                "Pod 2 ×24, Pod 1 ×9 articles; Pod 5 unsupported",
-                "split month — both partial",
-            ),
-            (
-                2026,
-                "Jan",
-                "Robert Thorpe",
-                "Pod 1",
-                "Pods 1,5",
-                "Pod 1 ×32, Pod 5 ×2 articles",
-                "TP ✓ — Pod 5 help was real",
-            ),
-            (
-                2026,
-                "Feb",
-                "Tiffany Anderson",
-                "Pod 2",
-                "Pods 2,4",
-                "Pod 2 ×14 + Pod 4 ×10 articles",
-                "TP ✓ — true straddle month",
-            ),
-            (
-                2026,
-                "Mar",
-                "Abby Norwood",
-                "Pod 4",
-                "—",
-                "left 2026-03-06 (HR)",
-                "TP ✓ — ET CP slot not cleared",
-            ),
-            (
-                2026,
-                "Apr",
-                "Jimmy Bunes",
-                "Pod 1",
-                "Pods 1,2",
-                "Pod 1 ×30, Pod 2 ×2 articles",
-                "ET CP ✓ — TP stale",
-            ),
-            (
-                2026,
-                "Jun",
-                "Nina Denison",
-                "Pod 1",
-                "Pods 1,3",
-                "no articles yet (month in progress)",
-                "open",
-            ),
-            (
-                2026,
-                "Jun",
-                "Anabelle Zaluski",
-                "Pods 1,2,5",
-                "Pod 5",
-                "terminated 2025-08-22 per Rippling, yet 3 Jun-2026 articles",
-                "🚩 DQ flag — freelance return or HR not updated; confirm with Dani",
-            ),
-        ]
-        _write_csv(
-            "pod_member_drift_verdicts.csv",
-            ["year", "month", "member", "et_cp_says", "team_pods_says", "evidence", "verdict"],
-            [list(v) for v in VERDICTS],
-        )
-        facts["pod_member_drift_verdicts"] = {
-            "cases": len(VERDICTS),
-            "note": "76 ET CP-only future-projection slots + 16 TP-only Jan–Feb 2025 "
-            "coverage slots + 9 junk tokens excluded — coverage windows, not drift.",
-        }
-
         facts["pod_member_drift"] = {
-            "slots_compared": len(common),
-            "identical": agree,
-            "with_differences": len(drift_rows),
+            "slots_compared": slots_compared,
+            "identical": identical,
+            "rows": len(drift_rows),
+            "transition_cases_reviewed": len(VERDICTS),
         }
 
     # ── mapping CSVs ────────────────────────────────────────────────────────

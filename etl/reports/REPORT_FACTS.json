@@ -318,14 +318,11 @@
       "sf_years": "2024\u20132026 (active)"
     }
   ],
-  "pod_member_drift_verdicts": {
-    "cases": 19,
-    "note": "76 ET CP-only future-projection slots + 16 TP-only Jan\u2013Feb 2025 coverage slots + 9 junk tokens excluded \u2014 coverage windows, not drift."
-  },
   "pod_member_drift": {
     "slots_compared": 69,
     "identical": 50,
-    "with_differences": 19
+    "rows": 56,
+    "transition_cases_reviewed": 21
   },
   "mapping_by_month": {
     "editors": {

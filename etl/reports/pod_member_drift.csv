@@ -1,20 +1,57 @@
-year,month,pod,only_in_ET_CP,only_in_Team_Pods,in_both
-2025,Mar,Pod 2,kimberly,—,"anabelle, maggie, nicholas"
-2025,Apr,Pod 1,"katie, kimberly",—,"kennedy, nina"
-2025,Apr,Pod 2,—,kimberly,"anabelle, maggie, nicholas"
-2025,May,Pod 4,kimberly,—,abby
-2025,Jul,Pod 1,robert,—,"katie, kennedy, nina"
-2025,Jul,Pod 3,lee,—,"alyssa, derrik, jared"
-2025,Aug,Pod 2,katie,samantha.mcgrail@graphitehq.com,"anabelle, kennedy, maggie, samantha"
-2025,Aug,Pod 3,"anabelle, haley, maggie",—,"alyssa, derrik, lee"
-2025,Aug,Pod 4,"katie, maggie, micki",—,"abby, elliot"
-2025,Sep,Pod 1,—,"derrik, lee","katie, nina, robert"
-2025,Sep,Pod 3,chrissy,—,"alyssa, haley, lee"
-2026,Jan,Pod 1,—,jimmy,"nina, robert"
-2026,Jan,Pod 5,—,"jimmy, robert","lauren, maggie, shivani"
-2026,Feb,Pod 4,—,tiffany,"abby, elliot"
-2026,Apr,Pod 2,—,jimmy,"elliot, kennedy, tiffany"
-2026,May,Pod 2,support,—,"elliot, kennedy, samantha"
-2026,Jun,Pod 1,anabelle,—,"jimmy, lauren, nina, robert"
-2026,Jun,Pod 2,anabelle,—,"elliot, kennedy, samantha"
-2026,Jun,Pod 3,—,nina,"alyssa, haley, lee"
+year,month,pod,only_in_ET_CP,only_in_Team_Pods,in_both,classification,evidence,verdict
+2025,Jan,Pod 1,—,"derrik, jared, nicholas",,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Jan,Pod 2,—,"anabelle, maggie",,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Jan,Pod 3,—,"alyssa, kennedy, nina",,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Feb,Pod 1,—,derrik,,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Feb,Pod 2,—,"anabelle, maggie, nicholas",,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Feb,Pod 3,—,"alyssa, jared, kennedy, nina",,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Mar,Pod 2,kimberly,—,"anabelle, maggie, nicholas",transition,kimberly: joined 2025-03-17 (HR); Pod 2 ×4 articles,kimberly: ET CP ✓ — TP tab predates her join
+2025,Apr,Pod 1,"katie, kimberly",—,"kennedy, nina",transition,katie: joined 2025-04-14 (HR) | kimberly: Pod 2 ×32 articles,katie: ET CP ✓ — TP tab predates her join | kimberly: TP ✓ — ET CP moved her early/wrongly
+2025,Apr,Pod 2,—,kimberly,"anabelle, maggie, nicholas",transition,kimberly: Pod 2 ×32 articles,kimberly: TP ✓ — ET CP moved her early/wrongly
+2025,May,Pod 4,kimberly,—,abby,transition,kimberly: left 2025-05-09 (HR); Pod 4 ×6 articles,kimberly: ET CP ✓ — partial month before exit
+2025,Jun,Freelancers,—,hiring,,junk token / placeholder,,
+2025,Jul,Freelancers,—,candela,,transition,,
+2025,Jul,Pod 1,robert,—,"katie, kennedy, nina",transition,robert: joined 2025-07-21 (HR),robert: ET CP ✓ — TP tab predates the join
+2025,Jul,Pod 3,lee,—,"alyssa, derrik, jared",transition,lee: joined 2025-07-21 (HR),lee: ET CP ✓ — TP tab predates the join
+2025,Aug,Freelancers,—,candela,,transition,,
+2025,Aug,Pod 2,katie,samantha.mcgrail@graphitehq.com,"anabelle, kennedy, maggie, samantha",transition,"katie: Pod 1 ×29, Pod 4 ×1 articles",katie: mostly TP ✓ — ET CP overspread
+2025,Aug,Pod 3,"anabelle, haley, maggie",—,"alyssa, derrik, lee",transition,anabelle: Pod 2 ×17 + Pod 3 ×11 articles; left 2025-08-22 | haley: joined 2025-08-18 (HR) | maggie: Pod 4 ×13 + Pod 3 ×12 articles,anabelle: ET CP ✓ — real multi-pod coverage | haley: ET CP ✓ — TP tab predates the join | maggie: ET CP ✓ — she really covered 3+4
+2025,Aug,Pod 4,"katie, maggie, micki",—,"abby, elliot",transition,"katie: Pod 1 ×29, Pod 4 ×1 articles | maggie: Pod 4 ×13 + Pod 3 ×12 articles | micki: joined 2025-08-18 (HR)",katie: mostly TP ✓ — ET CP overspread | maggie: ET CP ✓ — she really covered 3+4 | micki: ET CP ✓ — TP tab predates the join
+2025,Sep,Freelancers,—,candela,,transition,,
+2025,Sep,Pod 1,—,"derrik, lee","katie, nina, robert",transition,"derrik: left 2025-09-02 (HR); his articles were Pod 3 | lee: Pod 3 ×46, Pod 1 ×3 articles",derrik: ET CP ✓ — TP stale AND wrong pod | lee: ET CP ✓ — Pod 1 was minor help
+2025,Sep,Pod 3,chrissy,—,"alyssa, haley, lee",transition,chrissy: no articles,chrissy: open — placeholder slot?
+2025,Oct,Freelancers,—,paula,,transition,,
+2025,Nov,Freelancers,—,paula,,transition,,
+2026,Jan,Pod 1,—,jimmy,"nina, robert",transition,"jimmy: Pod 2 ×24, Pod 1 ×9 articles; Pod 5 unsupported",jimmy: split month — both partial
+2026,Jan,Pod 5,—,"jimmy, robert","lauren, maggie, shivani",transition,"jimmy: Pod 2 ×24, Pod 1 ×9 articles; Pod 5 unsupported | robert: Pod 1 ×32, Pod 5 ×2 articles",jimmy: split month — both partial | robert: TP ✓ — Pod 5 help was real
+2026,Feb,Pod 4,—,tiffany,"abby, elliot",transition,tiffany: Pod 2 ×14 + Pod 4 ×10 articles,tiffany: TP ✓ — true straddle month
+2026,Mar,Pod 4,abby,—,,transition,abby: left 2026-03-06 (HR),abby: TP ✓ — ET CP slot not cleared
+2026,Apr,Pod 2,—,jimmy,"elliot, kennedy, tiffany",transition,"jimmy: Pod 1 ×30, Pod 2 ×2 articles",jimmy: ET CP ✓ — TP stale
+2026,May,Pod 2,support,—,"elliot, kennedy, samantha",junk token / placeholder,,
+2026,Jun,Pod 1,anabelle,—,"jimmy, lauren, nina, robert",transition,"anabelle: terminated 2025-08-22 per Rippling, yet 3 Jun-2026 articles",anabelle: 🚩 DQ flag — freelance return or HR not updated; confirm with Dani
+2026,Jun,Pod 2,anabelle,—,"elliot, kennedy, samantha",transition,"anabelle: terminated 2025-08-22 per Rippling, yet 3 Jun-2026 articles",anabelle: 🚩 DQ flag — freelance return or HR not updated; confirm with Dani
+2026,Jun,Pod 3,—,nina,"alyssa, haley, lee",transition,nina: no articles yet (month in progress),nina: open
+2026,Jul,Pod 1,"jimmy, lauren, nina, robert",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Jul,Pod 2,"elliot, kennedy, samantha",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Jul,Pod 3,"alyssa, haley, lee",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Jul,Pod 5,"lauren, new, shivani",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Aug,Pod 1,"jimmy, lauren, nina, robert",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Aug,Pod 2,"elliot, kennedy, samantha",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Aug,Pod 3,"alyssa, haley, lee, new",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Aug,Pod 5,"lauren, new, shivani",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Sep,Pod 1,"jimmy, lauren, nina, robert",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Sep,Pod 2,"elliot, kennedy, samantha",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Sep,Pod 3,"alyssa, haley, lee, new",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Sep,Pod 5,"lauren, new, shivani",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Oct,Pod 1,"jimmy, lauren, nina, robert",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Oct,Pod 2,"elliot, kennedy, samantha",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Oct,Pod 3,"alyssa, haley, lee, new",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Oct,Pod 5,"lauren, new, shivani",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Nov,Pod 1,"jimmy, new, nina, robert",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Nov,Pod 2,"elliot, kennedy, samantha",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Nov,Pod 3,"alyssa, haley, lee, new",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Nov,Pod 5,"lauren, new, shivani",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Dec,Pod 1,"jimmy, new, nina, pod, robert",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Dec,Pod 2,"elliot, kennedy, samantha",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Dec,Pod 3,"alyssa, haley, lee, new",—,,coverage — ET CP future projection (no Team Pods tab yet),,
+2026,Dec,Pod 5,"lauren, new, shivani, support",—,,coverage — ET CP future projection (no Team Pods tab yet),,
