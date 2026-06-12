@@ -318,6 +318,11 @@
       "sf_years": "2024\u20132026 (active)"
     }
   ],
+  "pod_member_drift": {
+    "slots_compared": 69,
+    "identical": 50,
+    "with_differences": 19
+  },
   "mapping_by_month": {
     "editors": {
       "dated_rows": 15100,

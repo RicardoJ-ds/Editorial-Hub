@@ -13,6 +13,8 @@ Generates, in etl/reports/:
   unmapped_client_tabs.csv    article tabs with no Hub client + article-date span
                               + Salesforce contract years (explains D5)
   caret_rows.csv              the ^ / ^^ / ^^^ rows + the row above (for D3)
+  pod_member_drift.csv        ET CP vs Team Pods member↔pod per month — slots
+                              where the two sources disagree (move-timing)
   REPORT_FACTS.json           rolled-up numbers the markdown report embeds
 
 The *_by_month CSVs are the per-month companions to the all-time mapping CSVs:
@@ -342,6 +344,67 @@ def main() -> int:
             }
             for r in unmapped_rows
         ]
+
+        # ── pod member drift: ET CP vs Team Pods, per (month, pod) ──────────
+        from collections import defaultdict as _dd
+
+        def _np(p):
+            p = str(p or "").strip()
+            return p if p.lower().startswith("pod") or not p.isdigit() else f"Pod {p}"
+
+        def _ft(n):
+            n = (n or "").strip().lower()
+            return n.split()[0] if n and n not in ("-", "tbd", "?") else ""
+
+        etcp_m: dict = _dd(set)
+        for r in session.execute(
+            text(
+                "SELECT year, month, pod, member_breakdown, member_raw FROM editorial_member_capacity"
+            )
+        ):
+            names = [
+                b.get("name", "") for b in (r.member_breakdown or []) if isinstance(b, dict)
+            ] or ([r.member_raw] if r.member_raw else [])
+            for nme in names:
+                t = _ft(nme)
+                if t:
+                    etcp_m[(r.year, r.month, _np(r.pod))].add(t)
+        tp_m: dict = _dd(set)
+        for r in session.execute(
+            text(
+                "SELECT DISTINCT year, month, pod_number, display_name FROM pod_assignment_history "
+                "WHERE pod_kind='editorial' AND role IN ('pod_member','editor','senior_editor')"
+            )
+        ):
+            t = _ft(r.display_name)
+            if t:
+                tp_m[(r.year, r.month, _np(r.pod_number))].add(t)
+        drift_rows = []
+        common = sorted(set(etcp_m) & set(tp_m))
+        agree = sum(1 for k in common if etcp_m[k] == tp_m[k])
+        for y, m, pod in common:
+            if etcp_m[(y, m, pod)] == tp_m[(y, m, pod)]:
+                continue
+            drift_rows.append(
+                [
+                    y,
+                    MONTHS[m],
+                    pod,
+                    ", ".join(sorted(etcp_m[(y, m, pod)] - tp_m[(y, m, pod)])) or "—",
+                    ", ".join(sorted(tp_m[(y, m, pod)] - etcp_m[(y, m, pod)])) or "—",
+                    ", ".join(sorted(etcp_m[(y, m, pod)] & tp_m[(y, m, pod)])),
+                ]
+            )
+        _write_csv(
+            "pod_member_drift.csv",
+            ["year", "month", "pod", "only_in_ET_CP", "only_in_Team_Pods", "in_both"],
+            drift_rows,
+        )
+        facts["pod_member_drift"] = {
+            "slots_compared": len(common),
+            "identical": agree,
+            "with_differences": len(drift_rows),
+        }
 
     # ── mapping CSVs ────────────────────────────────────────────────────────
     def _tabs_str(tabs: list[str]) -> str:

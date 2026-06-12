@@ -10,7 +10,7 @@ from datetime import date, datetime
 from pathlib import Path as _Path
 
 from googleapiclient.discovery import build
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -3010,7 +3010,18 @@ _TEAM_HISTORY_TAB_RE = re.compile(
     re.IGNORECASE,
 )
 # Junk fragments in member/role/writer cells that aren't people.
-_POD_HISTORY_JUNK = ("actively recruiting", "tbd", "n/a", "?", "-", "")
+_POD_HISTORY_JUNK = (
+    "actively recruiting",
+    "tbd",
+    "n/a",
+    "?",
+    "-",
+    "",
+    "paused",
+    "pause",
+    "on hold",
+    "churned",
+)
 
 
 def _pods_text_entries(cell: dict) -> list[tuple[None, str, str | None]]:
@@ -3027,6 +3038,11 @@ def _pods_text_entries(cell: dict) -> list[tuple[None, str, str | None]]:
         name = re.sub(r"\([^)]*\)", "", line)
         name = re.sub(r"\s+", " ", name).strip().rstrip(",").strip()
         if name.lower() in _POD_HISTORY_JUNK or len(name) < 2:
+            continue
+        em = re.fullmatch(r"[\w.+-]+@[\w-]+\.[\w.]+", name)
+        if em:  # bare email typed instead of a chip — keep it AS the email
+            local = name.split("@")[0].replace(".", " ").replace("_", " ")
+            out.append((name.lower(), local.title(), tag))
             continue
         out.append((None, name, tag))
     return out
@@ -3257,6 +3273,57 @@ def import_pod_history(session: Session) -> ImportResult:
         session.rollback()
         result.success = False
         result.errors.append(f"commit failed: {exc}")
+
+    # Backfill client_pod_history gaps from Team Pods: for (client, month)
+    # pairs ET CP never covered (e.g. Jan–Mar 2025), insert the Team Pods
+    # editorial pod so per-month article pod attribution reaches further
+    # back. ET CP rows are never overwritten (it stays the primary source).
+    try:
+        clients = session.execute(select(Client)).scalars().all()
+        lookup = _build_client_name_lookup(clients, session)
+        existing = {
+            (r.client_id, r.year, r.month)
+            for r in session.query(ClientPodHistory).filter(ClientPodHistory.client_id.isnot(None))
+        }
+        added = 0
+        rows = session.execute(
+            text(
+                "SELECT DISTINCT client_name, year, month, pod_number, source_tab "
+                "FROM pod_assignment_history "
+                "WHERE pod_kind='editorial' AND client_name IS NOT NULL "
+                "AND pod_number IS NOT NULL"
+            )
+        )
+        for r in rows:
+            c = _resolve_client(lookup, r.client_name)
+            if c is None or (c.id, r.year, r.month) in existing:
+                continue
+            pod = (
+                r.pod_number
+                if str(r.pod_number).lower().startswith("pod") or not str(r.pod_number).isdigit()
+                else f"Pod {r.pod_number}"
+            )
+            session.add(
+                ClientPodHistory(
+                    client_id=c.id,
+                    client_name_raw=r.client_name,
+                    year=r.year,
+                    month=r.month,
+                    editorial_pod=pod,
+                    source_tab=r.source_tab,
+                )
+            )
+            existing.add((c.id, r.year, r.month))
+            added += 1
+        session.commit()
+        if added:
+            result.errors = result.errors  # no-op; keep result shape
+            logger.info("client_pod_history backfilled %s rows from Team Pods", added)
+            result.rows_imported += added
+    except Exception as exc:  # noqa: BLE001
+        session.rollback()
+        result.errors.append(f"client_pod_history backfill failed: {exc}")
+
     if result.errors:
         result.success = result.rows_imported > 0
     return result
