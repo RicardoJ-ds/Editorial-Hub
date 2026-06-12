@@ -472,7 +472,7 @@
       "sf_name": "Orderful",
       "sf_account_id": "0018V00002ZxZbbQAF",
       "status": "confirmed",
-      "note": "DaniQ 2026-06-12: same account (left + came back); ok to merge into one — Hub merge pending Ricardo (two contract rows)"
+      "note": "DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful"
     },
     "Orderful (II)": {
       "hub_name": "Orderful (II)",
@@ -480,7 +480,7 @@
       "sf_name": "Orderful",
       "sf_account_id": "0018V00002ZxZbbQAF",
       "status": "confirmed",
-      "note": "DaniQ 2026-06-12: same account; ok to merge into one — Hub merge pending Ricardo"
+      "note": "DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful"
     },
     "Otter": {
       "hub_name": "Otter",

@@ -110,8 +110,8 @@ CLIENT_OVERRIDES: dict[str, tuple[str | None, str, str]] = {
     "ChatGPT": ("OpenAI", "confirmed", "DaniQ 2026-06-12: Ok"),
     "EarnIn B2C": ("EarnIn", "confirmed", "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"),
     "Earnin B2B": ("EarnIn", "confirmed", "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"),
-    "Orderful (I)": ("Orderful", "confirmed", "DaniQ 2026-06-12: same account (left + came back); ok to merge into one — Hub merge pending Ricardo (two contract rows)"),
-    "Orderful (II)": ("Orderful", "confirmed", "DaniQ 2026-06-12: same account; ok to merge into one — Hub merge pending Ricardo"),
+    "Orderful (I)": ("Orderful", "confirmed", "DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful"),
+    "Orderful (II)": ("Orderful", "confirmed", "DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful"),
     "Workleap + Sharegate": (
         "Workleap",
         "confirmed",

@@ -57,8 +57,8 @@ Neeva,,confirmed_unlinked,2023-01,2026-02,Salesforce account name; SOW Overview 
 Neiman Marcus,Neiman Marcus,confirmed,,,Salesforce account name; SOW Overview client list,exact match
 Notion,Notion,confirmed,2022-12,2026-10,Salesforce account name; SOW Overview client list,exact match
 Onton,Onton,confirmed,2025-03,2026-09,Salesforce account name; SOW Overview client list,exact match
-Orderful (I),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: same account (left + came back); ok to merge into one — Hub merge pending Ricardo (two contract rows)
-Orderful (II),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: same account; ok to merge into one — Hub merge pending Ricardo
+Orderful (I),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful
+Orderful (II),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful
 Otter,Otter,confirmed,2024-09,2025-08,Salesforce account name; SOW Overview client list,exact match
 Oyster,Oyster,confirmed,2024-03,2026-04,Salesforce account name; SOW Overview client list,exact match
 Pebl,Pebl,confirmed,2026-05,2026-06,Salesforce account name; SOW Overview client list,exact match
