@@ -624,20 +624,83 @@ def build_int_pod_assignments(session) -> list[Job]:
                 writer_canon.setdefault(nm.lower(), nm)
     _w_sorted = sorted(writer_canon, key=len, reverse=True)
 
-    # name -> email, ONLY when unambiguous (exactly one email ever seen for
-    # the name) AND plausible (email local part contains a >=4-char token of
-    # the name — kills mispairings like eric -> ashton.playsted@...).
+    # Writer name -> email. CURATED map first (manually adjudicated by
+    # Ricardo + this session on 2026-06-12 — every email observed in the
+    # Team Pods WRITER EMAIL cells, assigned to the writer whose name it
+    # matches or, for pun addresses, by row-elimination evidence). The
+    # automatic fallback below only handles emails that appear AFTER this
+    # review, and only on an unambiguous surname match.
+    WRITER_EMAIL_CURATED: dict[str, str] = {
+        "abby norwood": "abbyscottnorwood@gmail.com",
+        "adaeze nwakaeze": "adaezeprincessnuel@gmail.com",
+        "alex klocek": "aklocek16@gmail.com",
+        "alex shoemaker": "alex.d.shoemaker@gmail.com",
+        "amanda walgrove": "amandawalgrove@gmail.com",
+        "aranyak nanda": "aranyaknanda98@gmail.com",
+        "ashton playsted": "ashton.playsted@protonmail.com",
+        "aysenur zaza": "aysenurxzaza@gmail.com",
+        "bonniey josef": "bonnieyjosef@gmail.com",
+        "brian abrams": "brnabrms@gmail.com",  # vowel-less local part
+        "camille tovee": "camille.tovee@gmail.com",
+        "carolina torres": "carolina1992torres@gmail.com",
+        "chelsea oliver": "chelsea.m.oliver@gmail.com",
+        "danielle mackinlay": "danielle.mackinlay@gmail.com",
+        "eric swotinsky": "eric.swotinsky@gmail.com",
+        "eric esposito": "ericespo23@gmail.com",
+        "jack limebear": "jacklime31@gmail.com",
+        "jacob mcphail": "jacobmcphailp@gmail.com",
+        "jimmy bunes": "jbunes@jbuneswrites.com",
+        "james bunes": "jbunes@jbuneswrites.com",  # same person
+        "jordan finneseth": "jordan@synchronisticawareness.com",
+        "jordan finnesth": "jordan@synchronisticawareness.com",  # sheet typo
+        "kimberly kruge": "kimberly.a.kruge@gmail.com",
+        "kevin vaughn": "kvz.vaughn@gmail.com",
+        "mike ray": "mcray65@gmail.com",
+        "meredith kane": "meredithmkane@gmail.com",
+        "mike davis": "miked549@gmail.com",
+        "michael davis": "miked549@gmail.com",  # same person
+        # pun address — confirmed by row elimination (Abby's email was the
+        # other one on Rocco's rows):
+        "rocco pendola": "notascomposedasyouappear@gmail.com",
+        "thea atkinson": "olsonthea@gmail.com",  # Olson = her other surname
+        "paige greene": "paigelgreene1@gmail.com",
+        "pat sather": "patrick.sather@gmail.com",
+        "patrick sather": "patrick.sather@gmail.com",
+        "dan pelberg": "pelbergwriting@gmail.com",
+        "rich dezso": "rdezso@gmail.com",
+        "sam mcgrail": "sammcgrail22@gmail.com",
+        "samantha mcgrail": "sammcgrail22@gmail.com",
+        # pun address — positional 2/2 evidence (Camille's was the other):
+        "mindy born": "sinandvinegar@gmail.com",
+        "marinda stuiver": "stuiverm66@gmail.com",
+        # by elimination on Rob's rows (jordan@... was Jordan's):
+        "rob harper": "clarks.tales@gmail.com",
+        "telisa faye": "telisa.clarke@gmail.com",
+        # jessjadesm@gmail.com co-occurred with Justine Smith but the local
+        # part doesn't match her name — UNVERIFIED, left unassigned (DaniQ).
+    }
+    _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+$")
     _seen_em: dict[str, set] = _dd(set)
     for r in hist:
-        if r.role == "writer" and r.email and r.display_name:
+        if (
+            r.role == "writer"
+            and r.email
+            and r.display_name
+            and _EMAIL_RE.fullmatch(r.email.strip())  # not a comma-joined pair
+        ):
             _seen_em[r.display_name.strip().lower()].add(r.email.lower())
-    writer_email: dict[str, str] = {}
+    writer_email: dict[str, str] = dict(WRITER_EMAIL_CURATED)
+    curated_emails = set(WRITER_EMAIL_CURATED.values())
     for nm, ems in _seen_em.items():
-        if len(ems) != 1:
+        if nm in writer_email or len(ems) != 1:
             continue
         em = next(iter(ems))
+        if em in curated_emails:
+            continue  # already owned by someone in the curated map
+        # conservative auto-fallback: unique surname (>=5 chars) match only
         local = re.sub(r"[^a-z]", "", em.split("@")[0])
-        if any(len(t) >= 4 and t in local for t in re.sub(r"[^a-z ]", "", nm).split()):
+        toks = re.sub(r"[^a-z ]", "", nm).split()
+        if toks and len(toks[-1]) >= 5 and toks[-1] in local:
             writer_email[nm] = em
 
     def split_writers(cell: str) -> tuple[list[str], str]:
@@ -691,8 +754,16 @@ def build_int_pod_assignments(session) -> list[Job]:
                     **base,
                     "person_raw": r.display_name,
                     "person": nm,
-                    "email": (
-                        r.email if single_clean and r.email else writer_email.get(nm.lower())
+                    # The curated/derived map is AUTHORITATIVE — row-level
+                    # emails come from the sheet's positional pairing, which
+                    # is exactly what produced the mispairs (eric ->
+                    # ashton.playsted@...). Row email only for people the map
+                    # has never adjudicated.
+                    "email": writer_email.get(nm.lower())
+                    or (
+                        r.email
+                        if single_clean and r.email and _EMAIL_RE.fullmatch(r.email.strip())
+                        else None
                     ),
                     "confidence": "sheet" if single_clean else "sheet_split",
                 }
