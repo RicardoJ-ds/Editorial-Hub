@@ -583,29 +583,130 @@ def build_int_pod_assignments(session) -> list[Job]:
             c = _resolve_client(lookup, re.sub(r"\s*\([^)]*\)\s*$", "", raw))
         return c
 
+    # ── writer normalization (sheet writer cells are free text) ─────────────
+    # Dictionary: writer-alias canonicals/raws + article-log writers + the
+    # sheet's OWN clean single-name cells. Greedy longest-first matching splits
+    # multi-name blobs — known names act as separators, so even glued text
+    # ("Jack LimebearJacob McPhail") splits.
+    import json as _json
+    from collections import defaultdict as _dd
+
+    _W_JUNK = re.compile(
+        r"(actively recruiting|also trying|hasn'?t started|but she|tbd|--|likely|"
+        r"new writer|onboarding|backlog|hiring|unknown|uknown|no one'?s on)",
+        re.I,
+    )
+    _NAME_RE = re.compile(r"^[A-Za-z][A-Za-z.'\-]+( [A-Za-z][A-Za-z.'\-]+){1,2}$")
+    writer_canon: dict[str, str] = {}  # lower variant -> canonical
+    try:
+        with open("/app/etl/mappings/writer_aliases.json") as fh:
+            for v in _json.load(fh)["aliases"].values():
+                canon = v.get("canonical")
+                if canon and " " in canon and len(canon) >= 7:
+                    writer_canon.setdefault(canon.lower(), canon)
+                    raw = v.get("raw")
+                    if raw and " " in raw and len(raw) >= 7:
+                        writer_canon.setdefault(raw.lower(), canon)
+    except OSError:
+        pass
+    for (wn,) in session.execute(
+        text(
+            "SELECT DISTINCT writer_name FROM article_records "
+            "WHERE writer_name LIKE '% %' AND LENGTH(writer_name) >= 7"
+        )
+    ):
+        writer_canon.setdefault(wn.lower(), wn)
+    hist = list(session.execute(select(m.PodAssignmentHistory)).scalars())
+    for r in hist:  # sheet self-dictionary: clean single-name writer cells
+        if r.role == "writer" and not _W_JUNK.search(r.display_name):
+            nm = re.sub(r"\s+", " ", r.display_name).strip()
+            if _NAME_RE.match(nm) and len(nm) >= 7:
+                writer_canon.setdefault(nm.lower(), nm)
+    _w_sorted = sorted(writer_canon, key=len, reverse=True)
+
+    # name -> email, ONLY when unambiguous (exactly one email ever seen for
+    # the name) AND plausible (email local part contains a >=4-char token of
+    # the name — kills mispairings like eric -> ashton.playsted@...).
+    _seen_em: dict[str, set] = _dd(set)
+    for r in hist:
+        if r.role == "writer" and r.email and r.display_name:
+            _seen_em[r.display_name.strip().lower()].add(r.email.lower())
+    writer_email: dict[str, str] = {}
+    for nm, ems in _seen_em.items():
+        if len(ems) != 1:
+            continue
+        em = next(iter(ems))
+        local = re.sub(r"[^a-z]", "", em.split("@")[0])
+        if any(len(t) >= 4 and t in local for t in re.sub(r"[^a-z ]", "", nm).split()):
+            writer_email[nm] = em
+
+    def split_writers(cell: str) -> tuple[list[str], str]:
+        rest = _W_JUNK.sub(" ", re.sub(r"[\n/]+", " ", cell)).lower()
+        rest = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", " ", rest)  # strip emails
+        found = []
+        for nm in _w_sorted:
+            if nm in rest:
+                found.append(writer_canon[nm])
+                rest = rest.replace(nm, " ")
+        residue = " ".join(
+            t
+            for t in re.sub(r"[^a-z]+", " ", rest).split()
+            if len(t) > 2 and t not in ("and", "also", "here", "yet")
+        )
+        return found, residue
+
     rows = []
-    for r in session.execute(select(m.PodAssignmentHistory)).scalars():
+    for r in hist:
         ym = f"{r.year:04d}-{r.month:02d}"
         c = resolve_client(r.client_name, ym) if r.client_name else None
-        rows.append(
-            {
-                "year": r.year,
-                "month": r.month,
-                "pod_kind": r.pod_kind,
-                "pod": (
-                    r.pod_number if not str(r.pod_number or "").isdigit() else f"Pod {r.pod_number}"
-                ),
-                "client_raw": r.client_name,
-                "client_id": c.id if c else None,
-                "client_name": c.name if c else None,
-                "role": r.role,
-                "person_raw": r.display_name,
-                "person": canon_person(r.display_name, ym),
-                "email": r.email,
-                "confidence": "chip" if r.email else "text",
-                "source_tab": r.source_tab,
-            }
-        )
+        base = {
+            "year": r.year,
+            "month": r.month,
+            "pod_kind": r.pod_kind,
+            "pod": (
+                r.pod_number if not str(r.pod_number or "").isdigit() else f"Pod {r.pod_number}"
+            ),
+            "client_raw": r.client_name,
+            "client_id": c.id if c else None,
+            "client_name": c.name if c else None,
+            "role": r.role,
+            "source_tab": r.source_tab,
+        }
+        if r.role != "writer":
+            rows.append(
+                {
+                    **base,
+                    "person_raw": r.display_name,
+                    "person": canon_person(r.display_name, ym),
+                    "email": r.email,
+                    "confidence": "chip" if r.email else "text",
+                }
+            )
+            continue
+        found, residue = split_writers(r.display_name)
+        single_clean = len(found) == 1 and not residue
+        for nm in found:
+            rows.append(
+                {
+                    **base,
+                    "person_raw": r.display_name,
+                    "person": nm,
+                    "email": (
+                        r.email if single_clean and r.email else writer_email.get(nm.lower())
+                    ),
+                    "confidence": "sheet" if single_clean else "sheet_split",
+                }
+            )
+        if residue:
+            rows.append(
+                {
+                    **base,
+                    "person_raw": r.display_name,
+                    "person": residue.title(),
+                    "email": None,
+                    "confidence": "unparsed",
+                }
+            )
     spec = schema_from_spec(
         [
             ("year", "INTEGER"),

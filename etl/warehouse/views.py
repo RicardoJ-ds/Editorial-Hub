@@ -192,8 +192,11 @@ LEFT JOIN {DS}.editorial_raw_team_members tm ON tm.id = k.team_member_id
         # per-month staffing, editorial only. Writer rows excluded (free-text
         # blobs — canonical writer history is the article log); pod_member
         # rows kept (generic membership) and distinguishable via `role`.
+        # writers included since 2026-06-12: normalized in the int layer
+        # (dictionary blob-split + 1:1 plausibility-guarded emails); filter
+        # out confidence='unparsed' if you want only fully-identified people.
         f"SELECT * FROM {DS}.editorial_int_pod_assignments "
-        "WHERE pod_kind = 'editorial' AND role != 'writer'",
+        "WHERE pod_kind = 'editorial'",
     ),
     _v(
         "v_editorial_fct_capacity_pods",
