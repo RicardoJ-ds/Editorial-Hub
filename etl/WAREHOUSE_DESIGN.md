@@ -160,7 +160,7 @@ recompute rules, incl. their all-time quirks, are upstream and unchanged.)
 | v_editorial_fct_ai_recommendations | AI Compliance rollups (pod/client/writer/month) | raw_ai_monitoring |
 | v_editorial_fct_ai_flagged | AI Compliance flags + rewrites detail rows | raw_ai_monitoring |
 
-**Count: 17 raw + 8 int = 25 physical tables (was 36) + 19 views.** Views are
+**Count: 18 raw + 9 int = 27 physical tables (was 36) + 20 views.** (+`editorial_raw_pod_history`, `editorial_int_pod_assignments`, `v_editorial_fct_pod_assignments` — the Team Pods assignment history + the resolved backfill surface for the editorial-team-pods Hub, 2026-06-12.) Views are
 free, self-documenting, and ARE the dashboard read contract (the repoint
 shipped — see "Final architecture" below).
 

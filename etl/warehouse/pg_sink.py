@@ -203,6 +203,9 @@ SELECT k.team_member_id, tm.name AS member_name, tm.role, tm.pod,
        k.year, k.month, k.kpi_type, k.score, k.target, k.client_id
 FROM public.kpi_scores k
 LEFT JOIN public.team_members tm ON tm.id = k.team_member_id"""),
+    ("v_editorial_fct_pod_assignments",
+     f"SELECT * FROM {W}.editorial_int_pod_assignments "
+     "WHERE pod_kind = 'editorial' AND role != 'writer'"),
     ("v_editorial_fct_capacity_pods",
      f"SELECT * FROM {W}.editorial_int_capacity_pod_months"),
     ("v_editorial_fct_member_utilization",

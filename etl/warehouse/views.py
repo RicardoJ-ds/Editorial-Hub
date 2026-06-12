@@ -187,6 +187,15 @@ LEFT JOIN {DS}.editorial_raw_team_members tm ON tm.id = k.team_member_id
     ),
     # ── capacity ────────────────────────────────────────────────────────────
     _v(
+        "v_editorial_fct_pod_assignments",
+        # The backfill surface for the editorial-team-pods Hub: resolved
+        # per-month staffing, editorial only. Writer rows excluded (free-text
+        # blobs — canonical writer history is the article log); pod_member
+        # rows kept (generic membership) and distinguishable via `role`.
+        f"SELECT * FROM {DS}.editorial_int_pod_assignments "
+        "WHERE pod_kind = 'editorial' AND role != 'writer'",
+    ),
+    _v(
         "v_editorial_fct_capacity_pods",
         f"SELECT * FROM {DS}.editorial_int_capacity_pod_months",
     ),

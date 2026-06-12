@@ -3039,12 +3039,14 @@ def _pods_text_entries(cell: dict) -> list[tuple[None, str, str | None]]:
         name = re.sub(r"\s+", " ", name).strip().rstrip(",").strip()
         if name.lower() in _POD_HISTORY_JUNK or len(name) < 2:
             continue
-        em = re.fullmatch(r"[\w.+-]+@[\w-]+\.[\w.]+", name)
-        if em:  # bare email typed instead of a chip — keep it AS the email
-            local = name.split("@")[0].replace(".", " ").replace("_", " ")
-            out.append((name.lower(), local.title(), tag))
-            continue
-        out.append((None, name, tag))
+        emails = re.findall(r"[\w.+-]+@[\w-]+\.[\w.]+", name)
+        for em in emails:  # emails (bare or glued to a name) become their own entries
+            local = em.split("@")[0].replace(".", " ").replace("_", " ")
+            out.append((em.lower(), local.title(), tag))
+            name = name.replace(em, " ")
+        name = re.sub(r"\s+", " ", name).strip()
+        if name and name.lower() not in _POD_HISTORY_JUNK and len(name) > 2:
+            out.append((None, name, tag))
     return out
 
 

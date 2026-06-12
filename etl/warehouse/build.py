@@ -8,10 +8,11 @@ every business rule via the verbatim ports in `pyrules.py` plus the SHARED
 
 from __future__ import annotations
 
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app import models as m
 from etl import transform
@@ -61,8 +62,7 @@ def flush_jobs(bq, jobs: list[Job], pg_engine=None, max_workers: int = 8) -> dic
     failures = [(n, e) for n, _c, e in results if e]
     if failures:
         raise RuntimeError(
-            "warehouse load failed for "
-            + "; ".join(f"{n} ({e})" for n, e in failures)
+            "warehouse load failed for " + "; ".join(f"{n} ({e})" for n, e in failures)
         )
     return {n: c for n, c, _e in results}
 
@@ -95,18 +95,25 @@ RAW_TABLES: list[tuple[type, str, str | None]] = [
 
 _EXTRA_BY_TRANSFORM = {
     "client_canonicals": [
-        ("sf_client_name", "STRING"), ("sf_account_id", "STRING"),
+        ("sf_client_name", "STRING"),
+        ("sf_account_id", "STRING"),
         ("sf_match_status", "STRING"),
     ],
     "article_canonicals": [
-        ("editor_canonical", "STRING"), ("editor_match_status", "STRING"),
-        ("writer_canonical", "STRING"), ("writer_match_status", "STRING"),
+        ("editor_canonical", "STRING"),
+        ("editor_match_status", "STRING"),
+        ("writer_canonical", "STRING"),
+        ("writer_match_status", "STRING"),
     ],
 }
 
 NAME_MAPPINGS_SPEC = [
-    ("kind", "STRING"), ("raw_name", "STRING"), ("canonical_name", "STRING"),
-    ("status", "STRING"), ("note", "STRING"), ("synced_at", "TIMESTAMP"),
+    ("kind", "STRING"),
+    ("raw_name", "STRING"),
+    ("canonical_name", "STRING"),
+    ("status", "STRING"),
+    ("note", "STRING"),
+    ("synced_at", "TIMESTAMP"),
 ]
 
 
@@ -139,8 +146,9 @@ def build_raw(session, mappings) -> list[Job]:
                     "note": r.get("note") or r.get("candidates"),
                 }
             )
-    jobs.append(("editorial_raw_name_mappings", _stamp(union),
-                 schema_from_spec(NAME_MAPPINGS_SPEC)))
+    jobs.append(
+        ("editorial_raw_name_mappings", _stamp(union), schema_from_spec(NAME_MAPPINGS_SPEC))
+    )
     return jobs
 
 
@@ -149,62 +157,100 @@ def build_raw(session, mappings) -> list[Job]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 INT_CLIENT_MONTHS_SPEC = [
-    ("client_id", "INTEGER"), ("client_name", "STRING"),
-    ("year", "INTEGER"), ("month", "INTEGER"),
-    ("delivered", "INTEGER"), ("invoiced", "INTEGER"), ("sow_target", "INTEGER"),
+    ("client_id", "INTEGER"),
+    ("client_name", "STRING"),
+    ("year", "INTEGER"),
+    ("month", "INTEGER"),
+    ("delivered", "INTEGER"),
+    ("invoiced", "INTEGER"),
+    ("sow_target", "INTEGER"),
     ("is_future", "BOOLEAN"),
-    ("prod_actual", "INTEGER"), ("prod_projected", "INTEGER"),
-    ("prod_projected_original", "INTEGER"), ("prod_is_actual", "BOOLEAN"),
-    ("ovr_period_idx", "INTEGER"), ("ovr_period_label", "STRING"),
+    ("prod_actual", "INTEGER"),
+    ("prod_projected", "INTEGER"),
+    ("prod_projected_original", "INTEGER"),
+    ("prod_is_actual", "BOOLEAN"),
+    ("ovr_period_idx", "INTEGER"),
+    ("ovr_period_label", "STRING"),
     ("ovr_is_prelude", "BOOLEAN"),
-    ("d1_period_idx", "INTEGER"), ("d1_period_label", "STRING"),
-    ("d1_is_prelude", "BOOLEAN"), ("d1_is_post_contract", "BOOLEAN"),
-    ("as_of_date", "DATE"), ("synced_at", "TIMESTAMP"),
+    ("d1_period_idx", "INTEGER"),
+    ("d1_period_label", "STRING"),
+    ("d1_is_prelude", "BOOLEAN"),
+    ("d1_is_post_contract", "BOOLEAN"),
+    ("as_of_date", "DATE"),
+    ("synced_at", "TIMESTAMP"),
 ]
 
 INT_Q_SNAPSHOT_SPEC = [
-    ("client_id", "INTEGER"), ("client_name", "STRING"), ("status", "STRING"),
-    ("editorial_pod", "STRING"), ("growth_pod", "STRING"),
+    ("client_id", "INTEGER"),
+    ("client_name", "STRING"),
+    ("status", "STRING"),
+    ("editorial_pod", "STRING"),
+    ("growth_pod", "STRING"),
     # lifetime (Overview buildLifetimeSummaries semantics)
-    ("lifetime_delivered", "INTEGER"), ("lifetime_invoiced", "INTEGER"),
-    ("articles_sow", "INTEGER"), ("lifetime_variance", "INTEGER"),
+    ("lifetime_delivered", "INTEGER"),
+    ("lifetime_invoiced", "INTEGER"),
+    ("articles_sow", "INTEGER"),
+    ("lifetime_variance", "INTEGER"),
     ("pct_complete", "INTEGER"),
-    ("published_live", "INTEGER"), ("pct_published", "INTEGER"),
+    ("published_live", "INTEGER"),
+    ("pct_published", "INTEGER"),
     # Overview current Q (computeCurrentQ)
-    ("ovr_q_label", "STRING"), ("ovr_q_month_in_q", "INTEGER"),
-    ("ovr_q_length", "INTEGER"), ("ovr_q_delivered", "INTEGER"),
-    ("ovr_q_projected_remaining", "INTEGER"), ("ovr_q_projected_end", "INTEGER"),
-    ("ovr_q_invoiced", "INTEGER"), ("ovr_q_projected_variance", "INTEGER"),
-    ("ovr_is_first_q", "BOOLEAN"), ("ovr_tier", "STRING"),
+    ("ovr_q_label", "STRING"),
+    ("ovr_q_month_in_q", "INTEGER"),
+    ("ovr_q_length", "INTEGER"),
+    ("ovr_q_delivered", "INTEGER"),
+    ("ovr_q_projected_remaining", "INTEGER"),
+    ("ovr_q_projected_end", "INTEGER"),
+    ("ovr_q_invoiced", "INTEGER"),
+    ("ovr_q_projected_variance", "INTEGER"),
+    ("ovr_is_first_q", "BOOLEAN"),
+    ("ovr_tier", "STRING"),
     # Overview last full Q (computeLastFullQ)
-    ("ovr_lq_label", "STRING"), ("ovr_lq_delivered", "INTEGER"),
-    ("ovr_lq_invoiced", "INTEGER"), ("ovr_lq_cum_delivered", "INTEGER"),
-    ("ovr_lq_cum_invoiced", "INTEGER"), ("ovr_lq_cum_variance", "INTEGER"),
+    ("ovr_lq_label", "STRING"),
+    ("ovr_lq_delivered", "INTEGER"),
+    ("ovr_lq_invoiced", "INTEGER"),
+    ("ovr_lq_cum_delivered", "INTEGER"),
+    ("ovr_lq_cum_invoiced", "INTEGER"),
+    ("ovr_lq_cum_variance", "INTEGER"),
     ("ovr_lq_is_first_q", "BOOLEAN"),
     # D1 (deliveryMeta override + detectBillingPeriods + quarterMetaFromPeriods)
-    ("d1_effective_start", "DATE"), ("d1_term_months", "INTEGER"),
+    ("d1_effective_start", "DATE"),
+    ("d1_term_months", "INTEGER"),
     ("d1_lifetime_sow", "INTEGER"),
-    ("d1_q_label", "STRING"), ("d1_q_month_in_q", "INTEGER"),
-    ("d1_q_length", "INTEGER"), ("d1_q_delivered_actual", "INTEGER"),
+    ("d1_q_label", "STRING"),
+    ("d1_q_month_in_q", "INTEGER"),
+    ("d1_q_length", "INTEGER"),
+    ("d1_q_delivered_actual", "INTEGER"),
     ("d1_q_invoiced", "INTEGER"),
     ("d1_q_projected_end_cum_delivered", "INTEGER"),
     ("d1_q_actual_cum_delivered", "INTEGER"),
     ("d1_q_end_of_q_cum_invoiced", "INTEGER"),
     ("d1_q_projected_end_cum_variance", "INTEGER"),
-    ("d1_is_first_q", "BOOLEAN"), ("d1_tier", "STRING"),
-    ("d1_lq_label", "STRING"), ("d1_lq_delivered", "INTEGER"),
-    ("d1_lq_invoiced", "INTEGER"), ("d1_lq_cum_delivered", "INTEGER"),
-    ("d1_lq_cum_invoiced", "INTEGER"), ("d1_lq_cum_variance", "INTEGER"),
-    ("as_of_date", "DATE"), ("synced_at", "TIMESTAMP"),
+    ("d1_is_first_q", "BOOLEAN"),
+    ("d1_tier", "STRING"),
+    ("d1_lq_label", "STRING"),
+    ("d1_lq_delivered", "INTEGER"),
+    ("d1_lq_invoiced", "INTEGER"),
+    ("d1_lq_cum_delivered", "INTEGER"),
+    ("d1_lq_cum_invoiced", "INTEGER"),
+    ("d1_lq_cum_variance", "INTEGER"),
+    ("as_of_date", "DATE"),
+    ("synced_at", "TIMESTAMP"),
 ]
 
 INT_GOALS_SPEC = [
-    ("client_name", "STRING"), ("month_year", "STRING"), ("content_type", "STRING"),
+    ("client_name", "STRING"),
+    ("month_year", "STRING"),
+    ("content_type", "STRING"),
     ("ratio", "FLOAT"),
-    ("cb_goal", "FLOAT"), ("cb_delivered", "FLOAT"),
-    ("ad_goal", "FLOAT"), ("ad_delivered", "FLOAT"),
-    ("w_cb_goal", "FLOAT"), ("w_cb_delivered", "FLOAT"),
-    ("w_ad_goal", "FLOAT"), ("w_ad_delivered", "FLOAT"),
+    ("cb_goal", "FLOAT"),
+    ("cb_delivered", "FLOAT"),
+    ("ad_goal", "FLOAT"),
+    ("ad_delivered", "FLOAT"),
+    ("w_cb_goal", "FLOAT"),
+    ("w_cb_delivered", "FLOAT"),
+    ("w_ad_goal", "FLOAT"),
+    ("w_ad_delivered", "FLOAT"),
     ("synced_at", "TIMESTAMP"),
 ]
 
@@ -261,7 +307,11 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
         # D1 path: deliveryMeta override (page.tsx:1420-1467) — month-grain
         # min(first active month, sheet start); lifetimeSow = Σ sow_target.
         active = sorted(
-            (r for r in month_rows if r["delivered"] > 0 or r["invoiced"] > 0 or r["sow_target"] > 0),
+            (
+                r
+                for r in month_rows
+                if r["delivered"] > 0 or r["invoiced"] > 0 or r["sow_target"] > 0
+            ),
             key=lambda r: (r["year"], r["month"]),
         )
         meta_start = None
@@ -269,9 +319,7 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
         lifetime_sow = sum(r["sow_target"] for r in month_rows)
         if active:
             first_ym = _month_key(active[0]["year"], active[0]["month"])
-            last_planned = next(
-                (r for r in reversed(active) if r["sow_target"] > 0), active[-1]
-            )
+            last_planned = next((r for r in reversed(active) if r["sow_target"] > 0), active[-1])
             last_ym = _month_key(last_planned["year"], last_planned["month"])
             s = c.get("start_date")
             if s:
@@ -305,11 +353,16 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
         for p in d1_periods:
             for mo in p.months:
                 d1_by_month[(mo["year"], mo["month"])] = (
-                    p.q_idx, p.label, p.is_prelude, p.is_post_contract,
+                    p.q_idx,
+                    p.label,
+                    p.is_prelude,
+                    p.is_post_contract,
                 )
 
         prod_map = by_client_prod.get(cid, {})
-        all_months = sorted(set(list(prod_map.keys()) + [(r["year"], r["month"]) for r in breakdown]))
+        all_months = sorted(
+            set(list(prod_map.keys()) + [(r["year"], r["month"]) for r in breakdown])
+        )
         bd_map = {(r["year"], r["month"]): r for r in breakdown}
         st_map = {(r["year"], r["month"]): r["sow_target"] for r in month_rows}
         for ym in all_months:
@@ -383,10 +436,14 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
                 "d1_q_length": d1_cq["q_length"] if d1_cq else None,
                 "d1_q_delivered_actual": d1_cq["delivered_actual"] if d1_cq else None,
                 "d1_q_invoiced": d1_cq["invoiced"] if d1_cq else None,
-                "d1_q_projected_end_cum_delivered": d1_cq["projected_end_cum_delivered"] if d1_cq else None,
+                "d1_q_projected_end_cum_delivered": d1_cq["projected_end_cum_delivered"]
+                if d1_cq
+                else None,
                 "d1_q_actual_cum_delivered": d1_cq["actual_cum_delivered"] if d1_cq else None,
                 "d1_q_end_of_q_cum_invoiced": d1_cq["end_of_q_cum_invoiced"] if d1_cq else None,
-                "d1_q_projected_end_cum_variance": d1_cq["projected_end_cum_variance"] if d1_cq else None,
+                "d1_q_projected_end_cum_variance": d1_cq["projected_end_cum_variance"]
+                if d1_cq
+                else None,
                 "d1_is_first_q": d1_first if d1_cq else None,
                 "d1_tier": d1_tier,
                 "d1_lq_label": d1_lq["label"] if d1_lq else None,
@@ -400,10 +457,16 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
         )
 
     return [
-        ("editorial_int_client_months", _stamp(month_rows_out),
-         schema_from_spec(INT_CLIENT_MONTHS_SPEC)),
-        ("editorial_int_client_q_snapshot", _stamp(snapshot_out),
-         schema_from_spec(INT_Q_SNAPSHOT_SPEC)),
+        (
+            "editorial_int_client_months",
+            _stamp(month_rows_out),
+            schema_from_spec(INT_CLIENT_MONTHS_SPEC),
+        ),
+        (
+            "editorial_int_client_q_snapshot",
+            _stamp(snapshot_out),
+            schema_from_spec(INT_Q_SNAPSHOT_SPEC),
+        ),
     ]
 
 
@@ -434,22 +497,125 @@ def build_int_capacity_articles(session, mappings) -> list[Job]:
         return schema_from_spec(MART_SCHEMAS[key] + [("synced_at", "TIMESTAMP")])
 
     return [
-        ("editorial_int_capacity_pod_months",
-         _stamp(transform.build_capacity_pod_mart(fetch_model_rows(session, m.CapacityProjection))),
-         spec("editorial_capacity_pod")),
-        ("editorial_int_member_months",
-         _stamp(transform.build_member_utilization_mart(session, mappings)),
-         spec("editorial_capacity_member_utilization")),
-        ("editorial_int_client_pod_months",
-         _stamp(transform.build_client_contributions_mart(session, mappings)),
-         spec("editorial_capacity_client_contributions")),
-        ("editorial_int_articles_creation",
-         _stamp(transform.build_articles_monthly_mart(session)),
-         spec("editorial_articles_monthly")),
-        ("editorial_int_articles_revisions",
-         _stamp(transform.build_revisions_monthly_mart(session)),
-         spec("editorial_revisions_monthly")),
+        (
+            "editorial_int_capacity_pod_months",
+            _stamp(
+                transform.build_capacity_pod_mart(fetch_model_rows(session, m.CapacityProjection))
+            ),
+            spec("editorial_capacity_pod"),
+        ),
+        (
+            "editorial_int_member_months",
+            _stamp(transform.build_member_utilization_mart(session, mappings)),
+            spec("editorial_capacity_member_utilization"),
+        ),
+        (
+            "editorial_int_client_pod_months",
+            _stamp(transform.build_client_contributions_mart(session, mappings)),
+            spec("editorial_capacity_client_contributions"),
+        ),
+        (
+            "editorial_int_articles_creation",
+            _stamp(transform.build_articles_monthly_mart(session)),
+            spec("editorial_articles_monthly"),
+        ),
+        (
+            "editorial_int_articles_revisions",
+            _stamp(transform.build_revisions_monthly_mart(session)),
+            spec("editorial_revisions_monthly"),
+        ),
     ]
+
+
+def build_int_pod_assignments(session) -> list[Job]:
+    """Resolved per-month pod assignments — the backfill surface for the
+    editorial-team-pods Hub. One row per (year, month, kind, pod, client,
+    role, person) with everything resolved in Python: client → client_id via
+    the same fuzzy resolver + ClientNameAlias the importers use (with a
+    parenthetical-stripping retry for tab notes like "Better (April)"),
+    person → canonical via the date-windowed editor aliases (Sam/Lauren).
+    Writer rows pass through but are excluded from the fct view (free-text
+    blobs; canonical writer history = the article log)."""
+    from app.services.migration_service import _build_client_name_lookup, _resolve_client
+
+    clients = session.execute(select(m.Client)).scalars().all()
+    lookup = _build_client_name_lookup(clients, session)
+
+    # date-windowed editor aliases (raw_lower -> [(from, to, canonical)])
+    amap: dict[str, list[tuple[str | None, str | None, str]]] = {}
+    for a in (
+        session.execute(select(m.ArticleNameAlias).where(m.ArticleNameAlias.kind == "editor"))
+        .scalars()
+        .all()
+    ):
+        amap.setdefault(a.raw_value.strip().lower(), []).append(
+            (a.valid_from, a.valid_to, a.canonical_value)
+        )
+
+    def canon_person(name: str, ym: str) -> str:
+        # chip cells sometimes render the email as the display text
+        if re.fullmatch(r"[\w.+-]+@[\w-]+\.[\w.]+", (name or "").strip()):
+            name = name.split("@")[0].replace(".", " ").replace("_", " ").title()
+        rows_ = amap.get((name or "").strip().lower())
+        if not rows_:
+            return name
+        fallback = None
+        for vfrom, vto, canon in rows_:
+            if vfrom is None and vto is None:
+                fallback = canon
+                continue
+            if (vfrom is None or vfrom <= ym) and (vto is None or ym <= vto):
+                return canon
+        return fallback or name
+
+    def resolve_client(raw: str):
+        c = _resolve_client(lookup, raw)
+        if c is None and "(" in raw:  # "Better (April)" → "Better"
+            c = _resolve_client(lookup, re.sub(r"\s*\([^)]*\)\s*$", "", raw))
+        return c
+
+    rows = []
+    for r in session.execute(select(m.PodAssignmentHistory)).scalars():
+        ym = f"{r.year:04d}-{r.month:02d}"
+        c = resolve_client(r.client_name) if r.client_name else None
+        rows.append(
+            {
+                "year": r.year,
+                "month": r.month,
+                "pod_kind": r.pod_kind,
+                "pod": (
+                    r.pod_number if not str(r.pod_number or "").isdigit() else f"Pod {r.pod_number}"
+                ),
+                "client_raw": r.client_name,
+                "client_id": c.id if c else None,
+                "client_name": c.name if c else None,
+                "role": r.role,
+                "person_raw": r.display_name,
+                "person": canon_person(r.display_name, ym),
+                "email": r.email,
+                "confidence": "chip" if r.email else "text",
+                "source_tab": r.source_tab,
+            }
+        )
+    spec = schema_from_spec(
+        [
+            ("year", "INTEGER"),
+            ("month", "INTEGER"),
+            ("pod_kind", "STRING"),
+            ("pod", "STRING"),
+            ("client_raw", "STRING"),
+            ("client_id", "INTEGER"),
+            ("client_name", "STRING"),
+            ("role", "STRING"),
+            ("person_raw", "STRING"),
+            ("person", "STRING"),
+            ("email", "STRING"),
+            ("confidence", "STRING"),
+            ("source_tab", "STRING"),
+            ("synced_at", "TIMESTAMP"),
+        ]
+    )
+    return [("editorial_int_pod_assignments", _stamp(rows), spec)]
 
 
 def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict[str, int]:
@@ -479,6 +645,7 @@ def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict
                     jobs += build_int_delivery(session, as_of)
                     jobs += build_int_goals(session)
                     jobs += build_int_capacity_articles(session, mappings)
+                    jobs += build_int_pod_assignments(session)
             try:
                 counts = flush_jobs(bq, jobs, pg_engine=pg_engine)
             finally:
