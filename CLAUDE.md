@@ -138,12 +138,13 @@ ID: `13kl0_6YuzsJ3xEzNLzDZeR-sHMaNJNw6oJGmwb-CBOU`
 | Surfer's API usage | `surfer_api_usage` | ✅ seeded |
 
 ### Spreadsheet 4 — Team Pods
-ID env-driven via `TEAM_PODS_ID`; currently a **temporary copy** at `1N6q1ZYC4W9BYusewdwqwprUu9zSmbQp99mC3f2y3_HI` — must be swapped to the original sheet before prod.
+ID env-driven via `TEAM_PODS_ID` = `10ydCI1mQ5_T6nnMJt9eNHZ32_8NJBkOceiAW6FprjxA` ("Copy of [Int] Team Pods", swapped 2026-06-12 from the older temp copy — shared with the BI SA).
 
 | Sheet | Destination | Ingested? |
 |---|---|---|
 | Editorial Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=editorial) | ✅ chip-based: emails come from people-chip metadata via `spreadsheets.get(includeGridData=true)` |
 | Growth Team [<Mon> <YYYY>] | `pod_assignments` (pod_kind=growth) | ✅ same chip-based path; tab has different headers + 2 pod-member columns |
+| ALL monthly tabs (Editorial Team / Growth Team / legacy "Account Team") | **`pod_assignment_history`** | ✅ `import_pod_history()` — per-month member↔pod↔client history (editorial Jan 2025→now, growth Jul 2024→now incl. the old Account Team name; emails from chips, text fallback for pre-chip tabs; Editorial WRITER+WRITER EMAIL captured as role='writer' raw rows). Manifest step `team-pods-history` (scope past); slice-rewrite per (year, month, kind); year-less bracket tabs inferred 2025; 2024 paren legend-layout tabs skipped. Second source of editorial assignments for cross-checking ET CP. Warehouse: `editorial_raw_pod_history`. |
 
 Powers RBAC group auto-population for the two pod-derived groups: **Editorial Team** (Senior Editors + Editors; Writers excluded) and **Growth Team** (Growth Leads / Directors / Account Directors / Managers; Content Specialists excluded). The **Leadership + Ops** group is seed-only (VPs, managers, and ops leads) and is no longer pod-derived. Also drives the per-pod client filter at `/api/clients/`.
 

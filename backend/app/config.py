@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Editorial + Growth team pods, one tab per month per kind. Currently
     # points at a temporary copy — swap to the original sheet ID before prod.
     # See memory/reference_team_pods_sheet.md.
-    team_pods_id: str = "1N6q1ZYC4W9BYusewdwqwprUu9zSmbQp99mC3f2y3_HI"
+    team_pods_id: str = "10ydCI1mQ5_T6nnMJt9eNHZ32_8NJBkOceiAW6FprjxA"
     # "[Internal] Monthly Article Count/Revenue Sheet" — one tab per client.
     # Drives the Team KPIs → Monthly Articles tab (per-editor productivity).
     # Read by the same Hub service account that the standalone editorial

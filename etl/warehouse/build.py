@@ -14,7 +14,6 @@ from datetime import date, datetime, timezone
 from sqlalchemy import text
 
 from app import models as m
-
 from etl import transform
 from etl.extract import fetch_model_rows, get_session
 from etl.load import get_bq, load_rows, schema_for_model, schema_from_spec
@@ -91,6 +90,7 @@ RAW_TABLES: list[tuple[type, str, str | None]] = [
     # Pacing templates: the /api/dashboard/pacing endpoint still FETCHES them
     # (its result is currently unrendered, but the page request must not 500).
     (m.DeliveryTemplate, "editorial_raw_delivery_templates", None),
+    (m.PodAssignmentHistory, "editorial_raw_pod_history", None),
 ]
 
 _EXTRA_BY_TRANSFORM = {

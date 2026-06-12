@@ -40,6 +40,7 @@ from app.services.migration_service import (
     import_all,
     import_et_cp_pod_history,
     import_goals_vs_delivery,
+    import_pod_history,
     import_team_pods,
     import_week_distribution,
     list_available_sheets,
@@ -220,6 +221,13 @@ PAST_STEPS: list[ManifestStep] = [
         "past",
         run=lambda s: [import_et_cp_pod_history(s)],
         description="Every historical ET CP version tab — confirmed pod history",
+    ),
+    ManifestStep(
+        "team-pods-history",
+        "Team Pods History",
+        "past",
+        run=lambda s: [import_pod_history(s)],
+        description="Every monthly Team Pods tab — member+client↔pod history (both kinds)",
     ),
     ManifestStep(
         "backfill-editorial-pod",
