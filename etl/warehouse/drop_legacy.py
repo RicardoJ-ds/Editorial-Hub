@@ -17,7 +17,6 @@ from __future__ import annotations
 import sys
 
 from app.config import settings
-
 from etl.load import get_bq
 
 # Anything starting with one of these is the live warehouse — NEVER dropped.

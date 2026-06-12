@@ -26,7 +26,6 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, Float, Integer, text
 
 from app.config import settings
-
 from etl.extract import get_engine
 from etl.load import get_bq
 from etl.manifest import TABLES

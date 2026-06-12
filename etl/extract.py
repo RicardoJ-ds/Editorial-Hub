@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import prepare_sync_url
 
-
 _ENGINE = None
 
 

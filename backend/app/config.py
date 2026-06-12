@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     # dashboard already uses, so no extra ACL is required.
     article_count_id: str = "1X_M82VzstJCulkl6l62jaubn2yI0ODBTz33iZ4XqZWU"
 
+    # Daily server-side sync (sheets -> Postgres -> dual-sink warehouse).
+    # OFF locally; turn ON in prod so BigQuery + dashboards stay fresh without
+    # anyone pressing SYNC. Hour is UTC; scope=current auto-escalates to full
+    # on editorial month rollover (same rule as the SYNC button).
+    sync_cron_enabled: bool = False
+    sync_cron_utc_hour: int = 9
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

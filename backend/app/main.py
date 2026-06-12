@@ -1,5 +1,7 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -319,6 +321,50 @@ def _seed_access(_conn) -> None:
         seed_access_baseline(session)
 
 
+async def _daily_sync_loop() -> None:
+    """Daily server-side sync (env-gated by SYNC_CRON_ENABLED): runs the same
+    manifest plan as the SYNC button (scope=current — auto-escalates to full on
+    editorial month rollover), which ends with the dual-sink warehouse publish,
+    so Neon + BigQuery stay fresh with no human in the loop. Per-step failure
+    isolation mirrors POST /api/migrate/sync-run; the publish itself is
+    additionally guarded by a cross-process pg advisory lock."""
+    from app.routers.migration import _get_sync_session
+    from app.services import sync_manifest
+
+    while True:
+        now = datetime.now(timezone.utc)
+        target = now.replace(hour=settings.sync_cron_utc_hour, minute=0, second=0, microsecond=0)
+        if target <= now:
+            target += timedelta(days=1)
+        logger.info("daily sync scheduled for %s UTC", target.isoformat())
+        await asyncio.sleep((target - now).total_seconds())
+
+        def _run() -> tuple[int, int]:
+            ok = failed = 0
+            for step in sync_manifest.resolve_plan("current"):
+                session = _get_sync_session()
+                try:
+                    rs = sync_manifest.run_step(session, step["key"])
+                    ok += sum(1 for r in rs if r.success)
+                    failed += sum(1 for r in rs if not r.success)
+                except Exception:
+                    logger.exception("daily sync step '%s' failed (continuing)", step["key"])
+                    try:
+                        session.rollback()
+                    except Exception:
+                        logger.warning("rollback failed for daily sync step %s", step["key"])
+                    failed += 1
+                finally:
+                    session.close()
+            return ok, failed
+
+        try:
+            ok, failed = await asyncio.to_thread(_run)
+            logger.info("daily sync finished: %s ok, %s failed", ok, failed)
+        except Exception:
+            logger.exception("daily sync run crashed — loop continues")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables on startup, then apply idempotent data migrations,
@@ -328,7 +374,13 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
         await _run_data_migrations(conn)
         await conn.run_sync(_seed_access)
+    cron_task = None
+    if settings.sync_cron_enabled:
+        cron_task = asyncio.create_task(_daily_sync_loop())
+        logger.info("daily sync cron ENABLED (%02d:00 UTC)", settings.sync_cron_utc_hour)
     yield
+    if cron_task:
+        cron_task.cancel()
     await engine.dispose()
 
 

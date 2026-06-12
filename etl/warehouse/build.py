@@ -593,7 +593,8 @@ def build_int_pod_assignments(session) -> list[Job]:
 
     _W_JUNK = re.compile(
         r"(actively recruiting|also trying|hasn'?t started|but she|tbd|--|likely|"
-        r"new writer|onboarding|backlog|hiring|unknown|uknown|no one'?s on)",
+        r"new writer|onboarding|backlog|hiring|unknown|uknown|no one'?s on|"
+        r"not hired|not started)",
         re.I,
     )
     _NAME_RE = re.compile(r"^[A-Za-z][A-Za-z.'\-]+( [A-Za-z][A-Za-z.'\-]+){1,2}$")

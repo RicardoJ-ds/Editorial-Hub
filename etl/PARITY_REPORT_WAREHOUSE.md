@@ -1,6 +1,6 @@
 # Warehouse parity report (raw → int → views refactor)
 
-_Generated 2026-06-11 06:01 UTC by `python -m etl.warehouse.parity`. Frontend dump from
+_Generated 2026-06-12 19:18 UTC by `python -m etl.warehouse.parity`. Frontend dump from
 `frontend/scripts/parity-dump.ts` (the REAL exported dashboard functions
 run on live API data) + live API replays, diffed against the new
 `graphite_bi_sandbox` int tables._
@@ -14,8 +14,8 @@ run on live API data) + live API replays, diffed against the new
 | goals 3-step aggregation vs REAL aggregateGoalsSummary | 76 | ✅ identical |
 | member-utilization replay (all months) | 302 | ✅ identical |
 | pod-summary replay | 105 | ✅ identical |
-| articles/monthly replay (pod_axis=editorial) | 2,248 | ✅ identical |
-| articles/monthly replay (pod_axis=growth) | 2,248 | ✅ identical |
+| articles/monthly replay (pod_axis=editorial) | 2,498 | ✅ identical |
+| articles/monthly replay (pod_axis=growth) | 2,498 | ✅ identical |
 
 ## What this proves
 - The variance brain (billing periods, current/last Q, cumulative

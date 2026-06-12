@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-from collections import defaultdict
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -21,7 +20,6 @@ from app.services.capacity_calc import (
     compute_member_utilization,
     version_num,
 )
-
 from etl.extract import client_names, distinct_capacity_months, fetch_month_inputs
 from etl.util import norm_key, strip_member_annotations
 

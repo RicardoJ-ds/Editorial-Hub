@@ -21,13 +21,12 @@ import sys
 from datetime import date, datetime, timezone
 
 from app.config import settings
-
 from etl.load import get_bq
 from etl.parity import (  # phase-1 helpers reused
+    _MEMBER_FIELDS,
     _api,
     _bq_rows,
     _row_key,
-    _MEMBER_FIELDS,
 )
 from etl.warehouse import pyrules as R
 

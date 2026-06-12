@@ -3059,6 +3059,82 @@ def _pods_cell_entries(cell: dict) -> list[tuple[str | None, str, str | None]]:
     return _pods_text_entries(cell)
 
 
+def _import_editorial_history_from_hub(session: Session, result: ImportResult) -> bool:
+    """CUTOVER (2026-06-12): ALL editorial months of pod_assignment_history
+    come from the Hub's published table (its Neon is the source of truth —
+    including retro-edits, which the sheets could never express). Slice-rewrite
+    per (year, month, 'editorial'). Returns True on success; False falls back
+    to parsing the editorial sheet tabs (legacy path, kept until retirement).
+    Growth months are always sheet-parsed by the caller."""
+    try:
+        from etl.load import get_bq
+
+        bq = get_bq()
+        ds = f"`{settings.bq_project}.{settings.bq_dataset}`"
+        rows = list(
+            bq.query(
+                f"""SELECT ym, pod, client_name, role, display_name, email
+                FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
+                WHERE deleted_at IS NULL
+                ORDER BY ym"""
+            ).result()
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Hub history read failed (%s) — falling back to sheet tabs", exc)
+        result.errors.append(f"hub history read failed, sheet fallback used: {exc}")
+        return False
+    if not rows:
+        result.errors.append("hub history table empty — sheet fallback used")
+        return False
+
+    wiped: set[tuple[int, int]] = set()
+    seen: set[tuple] = set()
+    n = 0
+    for r in rows:
+        year, month = int(r["ym"][:4]), int(r["ym"][5:7])
+        if (year, month) not in wiped:
+            session.query(PodAssignmentHistory).filter(
+                PodAssignmentHistory.year == year,
+                PodAssignmentHistory.month == month,
+                PodAssignmentHistory.pod_kind == "editorial",
+            ).delete()
+            wiped.add((year, month))
+        name = (r["display_name"] or r["email"] or "").strip()
+        if not name:
+            continue
+        key = (year, month, (r["email"] or name).lower(), r["client_name"], r["role"])
+        if key in seen:
+            continue
+        seen.add(key)
+        pod = str(r["pod"] or "").strip()
+        session.add(
+            PodAssignmentHistory(
+                year=year,
+                month=month,
+                pod_kind="editorial",
+                pod_number=pod[4:] if pod.lower().startswith("pod ") else pod or None,
+                client_name=r["client_name"],
+                role=r["role"],
+                email=(r["email"] or "").strip().lower() or None,
+                display_name=name,
+                source_tab=f"hub:{HUB_ASSIGNMENTS_TABLE}",
+            )
+        )
+        n += 1
+    session.commit()
+    result.rows_imported += n
+    result.details.append(
+        TabImportDetail(
+            tab_name=f"Hub: {HUB_ASSIGNMENTS_TABLE} (all editorial months)",
+            month_year=f"{rows[0]['ym']}..{rows[-1]['ym']}",
+            preview_key=None,
+            status="imported",
+            rows_imported=n,
+        )
+    )
+    return True
+
+
 def import_pod_history(session: Session) -> ImportResult:
     """Backfill pod_assignment_history from EVERY monthly Team Pods tab:
     'Editorial Team [<Mon> <YYYY>]', 'Growth Team [...]' and the growth
@@ -3103,6 +3179,12 @@ def import_pod_history(session: Session) -> ImportResult:
             continue  # year-less paren tabs (2024 era) — ambiguous, skipped
         targets.append((year, month_num, pod_kind, title))
     targets.sort()
+
+    # Editorial months: Hub table first (post-cutover source of truth).
+    # On success, only growth tabs are sheet-parsed below.
+    hub_ok = _import_editorial_history_from_hub(session, result)
+    if hub_ok:
+        targets = [t for t in targets if t[2] != "editorial"]
 
     wiped: set[tuple[int, int, str]] = set()
     for year, month, pod_kind, tab in targets:
@@ -3349,6 +3431,73 @@ def import_pod_history(session: Session) -> ImportResult:
     return result
 
 
+HUB_ASSIGNMENTS_TABLE = "team_pod_assignments_editorial_history"
+
+
+def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -> bool:
+    """CUTOVER (2026-06-12): the editorial-team-pods Hub is the source of
+    truth for editorial assignments. Current-month editorial pod_assignments
+    (RBAC group auto-membership + per-pod client filtering) read the Hub's
+    published BQ table instead of the sheet tab. Returns True on success;
+    False falls back to the legacy sheet path (kept until the editorial sheet
+    tabs are retired). Growth is untouched — it stays sheet-based."""
+    try:
+        from etl.load import get_bq
+
+        bq = get_bq()
+        ds = f"`{settings.bq_project}.{settings.bq_dataset}`"
+        cur = date.today().strftime("%Y-%m")
+        rows = list(
+            bq.query(
+                f"""SELECT ym, pod, client_name, role, display_name, email
+                FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
+                WHERE deleted_at IS NULL AND email IS NOT NULL
+                  AND ym = (SELECT MAX(ym) FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
+                            WHERE ym <= '{cur}' AND deleted_at IS NULL)"""
+            ).result()
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Hub assignments read failed (%s) — falling back to sheet", exc)
+        return False
+    if not rows:
+        logger.warning("Hub assignments table returned 0 rows — falling back to sheet")
+        return False
+
+    ym = rows[0]["ym"]
+    detail.tab_name = f"Hub: {HUB_ASSIGNMENTS_TABLE}"
+    detail.month_year = ym
+    session.query(PodAssignment).filter(PodAssignment.pod_kind == "editorial").delete()
+    seen: set[tuple] = set()
+    for r in rows:
+        detail.rows_parsed += 1
+        email = (r["email"] or "").strip().lower()
+        client = (r["client_name"] or "").strip()
+        role = (r["role"] or "").strip()
+        if not email or not client or not role:
+            continue
+        pod = str(r["pod"] or "").strip()
+        pod_number = pod[4:] if pod.lower().startswith("pod ") else pod or None
+        key = (email, client, role)
+        if key in seen:
+            continue
+        seen.add(key)
+        session.add(
+            PodAssignment(
+                email=email,
+                display_name=r["display_name"] or email,
+                pod_kind="editorial",
+                pod_number=pod_number,
+                client_name=client,
+                role=role,
+                source_tab=f"hub:{HUB_ASSIGNMENTS_TABLE} {ym}",
+            )
+        )
+        detail.rows_imported += 1
+    session.commit()
+    detail.status = "imported"
+    return True
+
+
 def import_team_pods(session: Session) -> ImportResult:
     """Import latest Editorial Team + Growth Team tabs into pod_assignments.
     Returns one ImportResult covering both kinds; per-kind status is tracked
@@ -3385,6 +3534,13 @@ def import_team_pods(session: Session) -> ImportResult:
             month_year="(latest)",
             preview_key=None,
         )
+        # Editorial: Hub table first (source of truth post-cutover); the sheet
+        # path below is the fallback until the editorial tabs retire.
+        if pod_kind == "editorial" and _import_editorial_pods_from_hub(session, detail):
+            result.rows_parsed += detail.rows_parsed
+            result.rows_imported += detail.rows_imported
+            result.details.append(detail)
+            continue
         tab = _pick_latest_team_tab(all_tabs, pod_kind)
         if not tab:
             detail.status = "failed"

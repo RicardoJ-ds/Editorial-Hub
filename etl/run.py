@@ -140,7 +140,6 @@ def run_publish(
     skip_mappings: bool = False,
 ) -> list[dict]:
     from app.models import CapacityProjection
-
     from etl import transform
     from etl.extract import fetch_model_rows, get_session
     from etl.load import get_bq, load_rows, schema_for_model, schema_from_spec
