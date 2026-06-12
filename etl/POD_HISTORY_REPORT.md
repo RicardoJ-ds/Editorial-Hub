@@ -20,9 +20,37 @@
 | **Members ↔ pod** (69 month-pod rosters) | **47 identical · 86.5% name-level** — see `reports/pod_member_drift.csv` |
 
 Member differences are mostly **pod-move timing** (one sheet updated before
-the other in the transition month): Kimberly Apr 2025, Robert Jul 2025,
-Derrik/Lee Sep 2025, Jimmy Jan 2026. Worth a per-case call with Dani on which
-source is authoritative for those months.
+the other in the transition month).
+
+### Per-case review (2026-06-12) — full detail in `reports/pod_member_drift_verdicts.csv`
+
+Of 119 raw differing member-months, **101 are coverage windows, not drift**:
+76 ET CP-only slots are *future projections* (Jul–Dec 2026, no Team Pods tab
+yet), 16 TP-only slots are *Jan–Feb 2025* (before ET CP member data starts —
+and the articles corroborate Team Pods 100% there), 9 are junk tokens.
+
+The **18 real cases**, arbitrated by article evidence (each member's articles
+that month reveal which pod's clients they actually worked — client→pod is
+100% agreed between sources):
+
+- **Mid-month joins/leaves (9)** — both sources "right", they snapshot
+  different days: Kimberly Mar 2025, Katie Apr 2025, Lee+Robert Jul 2025,
+  Haley+Micki Aug 2025 (ET CP caught the join first); Abby Mar 2026 +
+  Derrik Sep 2025 (Team Pods caught the leave first).
+- **Genuine pod-move conflicts (8)**: Team Pods wins 3 (Kimberly Apr 2025 —
+  Pod 2 ×32 articles vs ET CP's Pod 1; Robert Jan 2026 — the Pod 5 help was
+  real; Tiffany Feb 2026 — true straddle), ET CP wins 4 (Maggie Aug 2025
+  multi-pod coverage was real; Lee Sep 2025; Jimmy Apr 2026; Katie Aug 2025
+  mostly), 1 split (Jimmy Jan 2026).
+- **🚩 DQ flag**: Anabelle Zaluski — terminated 2025-08-22 per Rippling, yet
+  assigned in BOTH sources in Jun 2026 with 3 articles. Freelance return or
+  HR not updated — confirm with Dani.
+
+**Conclusion:** neither source is globally authoritative — ET CP tracks
+capacity splits better, Team Pods tracks move timing better. These member
+diffs do NOT affect dashboard numbers (per-month attribution uses client→pod,
+where the sources fully agree); they only matter for per-editor capacity
+history.
 
 ## Fixes + backfill applied
 - Artifact filters: `paused` status notes and bare-email cells no longer
