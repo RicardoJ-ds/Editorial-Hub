@@ -10,7 +10,7 @@ from datetime import date, datetime
 from pathlib import Path as _Path
 
 from googleapiclient.discovery import build
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -35,6 +35,7 @@ from app.models import (
     ModelAssumption,
     NotionArticle,
     PodAssignment,
+    PodAssignmentHistory,
     PodImportIssue,
     PodNameOverride,
     ProductionHistory,
@@ -95,6 +96,7 @@ IMPORT_DISPATCH: dict[str, str] = {
     "Growth Pods": "import_growth_pods",
     "ET CP Pod History": "import_et_cp_pod_history",
     "Monthly Article Count": "import_monthly_article_count",
+    "Team Pods History": "import_pod_history",
 }
 # Capacity plan sheet name is detected dynamically but we keep a prefix for matching
 CAPACITY_PLAN_PREFIX = "ET CP 2026"
@@ -3002,6 +3004,500 @@ def _canonical_role_from_header(label: str) -> str:
     return norm or "role"
 
 
+_TEAM_HISTORY_TAB_RE = re.compile(
+    r"^(?P<kind>Editorial|Growth|Account)\s+Team\s*"
+    r"(?P<open>[\[\(])(?P<month>[A-Za-z]+)(?:\s+(?P<year>\d{4}))?[\]\)]\s*$",
+    re.IGNORECASE,
+)
+# Junk fragments in member/role/writer cells that aren't people.
+_POD_HISTORY_JUNK = (
+    "actively recruiting",
+    "tbd",
+    "n/a",
+    "?",
+    "-",
+    "",
+    "paused",
+    "pause",
+    "on hold",
+    "churned",
+)
+
+
+def _pods_text_entries(cell: dict) -> list[tuple[None, str, str | None]]:
+    """Text fallback for pre-chip tabs: split the cell on newlines, strip
+    parenthetical tags, return [(None, name, first_tag)]."""
+    text_val = (cell.get("formattedValue") or "").strip()
+    out: list[tuple[None, str, str | None]] = []
+    for line in text_val.split("\n"):
+        line = line.strip().rstrip(",")
+        if not line:
+            continue
+        tag_m = re.search(r"\(([A-Za-z][A-Za-z\s\-\.]{0,24})\)", line)
+        tag = tag_m.group(1).strip().upper() if tag_m else None
+        name = re.sub(r"\([^)]*\)", "", line)
+        name = re.sub(r"\s+", " ", name).strip().rstrip(",").strip()
+        if name.lower() in _POD_HISTORY_JUNK or len(name) < 2:
+            continue
+        emails = re.findall(r"[\w.+-]+@[\w-]+\.[\w.]+", name)
+        for em in emails:  # emails (bare or glued to a name) become their own entries
+            local = em.split("@")[0].replace(".", " ").replace("_", " ")
+            out.append((em.lower(), local.title(), tag))
+            name = name.replace(em, " ")
+        name = re.sub(r"\s+", " ", name).strip()
+        if name and name.lower() not in _POD_HISTORY_JUNK and len(name) > 2:
+            out.append((None, name, tag))
+    return out
+
+
+def _pods_cell_entries(cell: dict) -> list[tuple[str | None, str, str | None]]:
+    """[(email|None, display_name, role_tag|None)] — chips when present,
+    text fallback otherwise (older tabs predate people-chips)."""
+    chips = _emails_for_cell(cell)
+    if chips:
+        return [(email, name, _role_tag_for_chip(cell, i)) for i, (email, name) in enumerate(chips)]
+    return _pods_text_entries(cell)
+
+
+def _import_editorial_history_from_hub(session: Session, result: ImportResult) -> bool:
+    """CUTOVER (2026-06-12): ALL editorial months of pod_assignment_history
+    come from the Hub's published table (its Neon is the source of truth —
+    including retro-edits, which the sheets could never express). Slice-rewrite
+    per (year, month, 'editorial'). Returns True on success; False falls back
+    to parsing the editorial sheet tabs (legacy path, kept until retirement).
+    Growth months are always sheet-parsed by the caller."""
+    try:
+        from etl.load import get_bq
+
+        bq = get_bq()
+        ds = f"`{settings.bq_project}.{settings.bq_dataset}`"
+        rows = list(
+            bq.query(
+                f"""SELECT ym, pod, client_name, role, display_name, email
+                FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
+                WHERE deleted_at IS NULL
+                ORDER BY ym"""
+            ).result()
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Hub history read failed (%s) — falling back to sheet tabs", exc)
+        result.errors.append(f"hub history read failed, sheet fallback used: {exc}")
+        return False
+    if not rows:
+        result.errors.append("hub history table empty — sheet fallback used")
+        return False
+
+    wiped: set[tuple[int, int]] = set()
+    seen: set[tuple] = set()
+    n = 0
+    for r in rows:
+        year, month = int(r["ym"][:4]), int(r["ym"][5:7])
+        if (year, month) not in wiped:
+            session.query(PodAssignmentHistory).filter(
+                PodAssignmentHistory.year == year,
+                PodAssignmentHistory.month == month,
+                PodAssignmentHistory.pod_kind == "editorial",
+            ).delete()
+            wiped.add((year, month))
+        name = (r["display_name"] or r["email"] or "").strip()
+        if not name:
+            continue
+        key = (year, month, (r["email"] or name).lower(), r["client_name"], r["role"])
+        if key in seen:
+            continue
+        seen.add(key)
+        pod = str(r["pod"] or "").strip()
+        session.add(
+            PodAssignmentHistory(
+                year=year,
+                month=month,
+                pod_kind="editorial",
+                pod_number=pod[4:] if pod.lower().startswith("pod ") else pod or None,
+                client_name=r["client_name"],
+                role=r["role"],
+                email=(r["email"] or "").strip().lower() or None,
+                display_name=name,
+                source_tab=f"hub:{HUB_ASSIGNMENTS_TABLE}",
+            )
+        )
+        n += 1
+    session.commit()
+    result.rows_imported += n
+    result.details.append(
+        TabImportDetail(
+            tab_name=f"Hub: {HUB_ASSIGNMENTS_TABLE} (all editorial months)",
+            month_year=f"{rows[0]['ym']}..{rows[-1]['ym']}",
+            preview_key=None,
+            status="imported",
+            rows_imported=n,
+        )
+    )
+    return True
+
+
+def import_pod_history(session: Session) -> ImportResult:
+    """Backfill pod_assignment_history from EVERY monthly Team Pods tab:
+    'Editorial Team [<Mon> <YYYY>]', 'Growth Team [...]' and the growth
+    side's older name 'Account Team [...]' / '(<Mon> <YYYY>)'. Yields the
+    per-month member↔pod↔client history (and Editorial writers) that
+    pod_assignments (latest-month, RBAC) intentionally forgets.
+
+    Year inference: the two year-less bracket tabs ('Editorial Team
+    [January]'/'[February]') are 2025 — they complete the otherwise
+    contiguous Mar 2025+ series. Year-less PAREN tabs (2024 era) are
+    skipped: ambiguous, and pre-2025 is outside the capacity-model window.
+    """
+    result = ImportResult(sheet="Team Pods History")
+    try:
+        service = get_sheets_client()
+        meta = (
+            service.spreadsheets()
+            .get(spreadsheetId=TEAM_PODS_ID, fields="sheets(properties(title))")
+            .execute()
+        )
+    except Exception as exc:  # noqa: BLE001
+        result.success = False
+        result.errors.append(f"Could not list Team Pods tabs: {exc}")
+        return result
+
+    targets: list[tuple[int, int, str, str]] = []  # (year, month, kind, tab)
+    for s in meta.get("sheets", []):
+        title = s["properties"]["title"]
+        m = _TEAM_HISTORY_TAB_RE.match(title.strip())
+        if not m:
+            continue
+        kind = m.group("kind").lower()
+        pod_kind = "growth" if kind in ("growth", "account") else "editorial"
+        month_num = _MONTH_NAME_TO_NUM.get(m.group("month").lower())
+        if not month_num:
+            continue
+        if m.group("year"):
+            year = int(m.group("year"))
+        elif m.group("open") == "[" and month_num in (1, 2):
+            year = 2025  # the two year-less bracket tabs complete the 2025 series
+        else:
+            continue  # year-less paren tabs (2024 era) — ambiguous, skipped
+        targets.append((year, month_num, pod_kind, title))
+    targets.sort()
+
+    # Editorial months: Hub table first (post-cutover source of truth).
+    # On success, only growth tabs are sheet-parsed below.
+    hub_ok = _import_editorial_history_from_hub(session, result)
+    if hub_ok:
+        targets = [t for t in targets if t[2] != "editorial"]
+
+    wiped: set[tuple[int, int, str]] = set()
+    for year, month, pod_kind, tab in targets:
+        try:
+            resp = (
+                service.spreadsheets()
+                .get(
+                    spreadsheetId=TEAM_PODS_ID,
+                    ranges=[f"'{tab}'!A1:Z300"],
+                    includeGridData=True,
+                    fields=(
+                        "sheets(data(rowData(values("
+                        "formattedValue,"
+                        "chipRuns(startIndex,chip(personProperties(email)))"
+                        "))))"
+                    ),
+                )
+                .execute()
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"{tab}: fetch failed: {exc}")
+            continue
+        sheets_data = resp.get("sheets", [])
+        rows = sheets_data[0]["data"][0].get("rowData", []) if sheets_data else []
+
+        header_row_idx = None
+        for hi, hrow in enumerate(rows[:12]):
+            for hc in hrow.get("values", []):
+                if (hc.get("formattedValue") or "").strip().lower() == "client":
+                    header_row_idx = hi
+                    break
+            if header_row_idx is not None:
+                break
+        if header_row_idx is None:
+            result.errors.append(f"{tab}: no CLIENT header in first 12 rows — skipped")
+            continue
+
+        header_cells = rows[header_row_idx].get("values", [])
+        col_idx: dict[str, int] = {}
+        for i, hc in enumerate(header_cells):
+            label = (hc.get("formattedValue") or "").strip().lower()
+            if label:
+                col_idx.setdefault(label, i)
+        c_pod_num = col_idx.get("pod number")
+        c_client = col_idx["client"]
+        c_writer_email = col_idx.get("writer email")
+        pod_member_cols = [i for label, i in col_idx.items() if "pod members" in label]
+        role_cols = [
+            (idx, _canonical_role_from_header(label))
+            for label, idx in col_idx.items()
+            if _is_role_header(label) and label != "writer email"
+        ]
+
+        slice_key = (year, month, pod_kind)
+        if slice_key not in wiped:
+            session.query(PodAssignmentHistory).filter(
+                PodAssignmentHistory.year == year,
+                PodAssignmentHistory.month == month,
+                PodAssignmentHistory.pod_kind == pod_kind,
+            ).delete()
+            wiped.add(slice_key)
+
+        current_pod: str | None = None
+        current_members: list[tuple[str | None, str, str | None]] = []
+        seen: set[tuple] = set()
+        n_rows = 0
+
+        def emit(client, role, email, name):
+            nonlocal n_rows
+            key = (pod_kind, (email or name).lower(), client, role)
+            if key in seen or not name:
+                return
+            seen.add(key)
+            session.add(
+                PodAssignmentHistory(
+                    year=year,
+                    month=month,
+                    pod_kind=pod_kind,
+                    pod_number=current_pod,
+                    client_name=client,
+                    role=role,
+                    email=email,
+                    display_name=name,
+                    source_tab=tab,
+                )
+            )
+            n_rows += 1
+
+        for row in rows[header_row_idx + 1 :]:
+            cells = row.get("values", [])
+            if not cells:
+                continue
+            result.rows_parsed += 1
+            if c_pod_num is not None and c_pod_num < len(cells):
+                pn = (cells[c_pod_num].get("formattedValue") or "").strip()
+                if pn:
+                    current_pod = pn
+                    current_members = []
+            new_members: list[tuple[str | None, str, str | None]] = []
+            any_pm = False
+            for pm_col in pod_member_cols:
+                if pm_col >= len(cells):
+                    continue
+                entries = _pods_cell_entries(cells[pm_col])
+                if entries:
+                    any_pm = True
+                new_members.extend(entries)
+            if any_pm:
+                current_members = new_members
+
+            client = (
+                (cells[c_client].get("formattedValue") or "").strip()
+                if c_client < len(cells)
+                else ""
+            )
+            if not client:
+                continue
+
+            for col_index, role in role_cols:
+                if col_index >= len(cells):
+                    continue
+                if role == "writer":
+                    # WRITER cells are ' / '-separated; emails pair from the
+                    # WRITER EMAIL column only when the counts line up.
+                    wnames = [
+                        n.strip()
+                        for n in re.split(r"[/\n]", cells[col_index].get("formattedValue") or "")
+                        if n.strip()
+                        and n.strip().lower() not in _POD_HISTORY_JUNK
+                        and len(n.strip()) > 2  # drop stray initials/fragments
+                    ]
+                    wemails: list[str] = []
+                    if c_writer_email is not None and c_writer_email < len(cells):
+                        wemails = [
+                            e.strip().lower()
+                            for e in re.split(
+                                r"[/\n]", cells[c_writer_email].get("formattedValue") or ""
+                            )
+                            if e.strip()
+                        ]
+                    paired = len(wnames) == len(wemails)
+                    for wi, wname in enumerate(wnames):
+                        emit(client, "writer", wemails[wi] if paired else None, wname)
+                    continue
+                for email, name, _tag in _pods_cell_entries(cells[col_index]):
+                    emit(client, role, email, name)
+
+            for email, name, tag in current_members:
+                emit(client, "pod_member", email, name)
+                if tag:
+                    canonical = _ROLE_TAG_CANONICAL.get(tag.upper())
+                    if canonical:
+                        emit(client, canonical, email, name)
+
+        result.rows_imported += n_rows
+        result.details.append(
+            TabImportDetail(
+                tab_name=tab,
+                month_year=f"{year}-{month:02d}",
+                preview_key=None,
+                status="imported",
+                rows_parsed=result.rows_parsed,
+                rows_imported=n_rows,
+            )
+        )
+
+    try:
+        session.commit()
+    except Exception as exc:  # noqa: BLE001
+        session.rollback()
+        result.success = False
+        result.errors.append(f"commit failed: {exc}")
+
+    # Tempo lineage (DaniQ 2026-06-12): the client called "Tempo" before
+    # June 2026 is the OLD client, since renamed "Tempo.io" (inactive); the
+    # ACTIVE "Tempo" is the new deal (ex "Tempo XYZ", starts 2026-06). Re-key
+    # any pre-2026-06 pod-history rows that resolved to the new client.
+    # Idempotent — runs after every history import so past-resyncs self-heal.
+    try:
+        session.execute(
+            text(
+                "UPDATE client_pod_history SET client_id = "
+                "(SELECT id FROM clients WHERE name = 'Tempo.io') "
+                "WHERE client_id = (SELECT id FROM clients WHERE name = 'Tempo') "
+                "AND (year < 2026 OR (year = 2026 AND month < 6))"
+            )
+        )
+        session.commit()
+    except Exception:  # noqa: BLE001
+        session.rollback()
+
+    # Backfill client_pod_history gaps from Team Pods: for (client, month)
+    # pairs ET CP never covered (e.g. Jan–Mar 2025), insert the Team Pods
+    # editorial pod so per-month article pod attribution reaches further
+    # back. ET CP rows are never overwritten (it stays the primary source).
+    try:
+        clients = session.execute(select(Client)).scalars().all()
+        lookup = _build_client_name_lookup(clients, session)
+        existing = {
+            (r.client_id, r.year, r.month)
+            for r in session.query(ClientPodHistory).filter(ClientPodHistory.client_id.isnot(None))
+        }
+        added = 0
+        rows = session.execute(
+            text(
+                "SELECT DISTINCT client_name, year, month, pod_number, source_tab "
+                "FROM pod_assignment_history "
+                "WHERE pod_kind='editorial' AND client_name IS NOT NULL "
+                "AND pod_number IS NOT NULL"
+            )
+        )
+        for r in rows:
+            c = _resolve_client(lookup, r.client_name)
+            if c is None or (c.id, r.year, r.month) in existing:
+                continue
+            pod = (
+                r.pod_number
+                if str(r.pod_number).lower().startswith("pod") or not str(r.pod_number).isdigit()
+                else f"Pod {r.pod_number}"
+            )
+            session.add(
+                ClientPodHistory(
+                    client_id=c.id,
+                    client_name_raw=r.client_name,
+                    year=r.year,
+                    month=r.month,
+                    editorial_pod=pod,
+                    source_tab=r.source_tab,
+                )
+            )
+            existing.add((c.id, r.year, r.month))
+            added += 1
+        session.commit()
+        if added:
+            result.errors = result.errors  # no-op; keep result shape
+            logger.info("client_pod_history backfilled %s rows from Team Pods", added)
+            result.rows_imported += added
+    except Exception as exc:  # noqa: BLE001
+        session.rollback()
+        result.errors.append(f"client_pod_history backfill failed: {exc}")
+
+    if result.errors:
+        result.success = result.rows_imported > 0
+    return result
+
+
+HUB_ASSIGNMENTS_TABLE = "team_pod_assignments_editorial_history"
+
+
+def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -> bool:
+    """CUTOVER (2026-06-12): the editorial-team-pods Hub is the source of
+    truth for editorial assignments. Current-month editorial pod_assignments
+    (RBAC group auto-membership + per-pod client filtering) read the Hub's
+    published BQ table instead of the sheet tab. Returns True on success;
+    False falls back to the legacy sheet path (kept until the editorial sheet
+    tabs are retired). Growth is untouched — it stays sheet-based."""
+    try:
+        from etl.load import get_bq
+
+        bq = get_bq()
+        ds = f"`{settings.bq_project}.{settings.bq_dataset}`"
+        cur = date.today().strftime("%Y-%m")
+        rows = list(
+            bq.query(
+                f"""SELECT ym, pod, client_name, role, display_name, email
+                FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
+                WHERE deleted_at IS NULL AND email IS NOT NULL
+                  AND ym = (SELECT MAX(ym) FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
+                            WHERE ym <= '{cur}' AND deleted_at IS NULL)"""
+            ).result()
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Hub assignments read failed (%s) — falling back to sheet", exc)
+        return False
+    if not rows:
+        logger.warning("Hub assignments table returned 0 rows — falling back to sheet")
+        return False
+
+    ym = rows[0]["ym"]
+    detail.tab_name = f"Hub: {HUB_ASSIGNMENTS_TABLE}"
+    detail.month_year = ym
+    session.query(PodAssignment).filter(PodAssignment.pod_kind == "editorial").delete()
+    seen: set[tuple] = set()
+    for r in rows:
+        detail.rows_parsed += 1
+        email = (r["email"] or "").strip().lower()
+        client = (r["client_name"] or "").strip()
+        role = (r["role"] or "").strip()
+        if not email or not client or not role:
+            continue
+        pod = str(r["pod"] or "").strip()
+        pod_number = pod[4:] if pod.lower().startswith("pod ") else pod or None
+        key = (email, client, role)
+        if key in seen:
+            continue
+        seen.add(key)
+        session.add(
+            PodAssignment(
+                email=email,
+                display_name=r["display_name"] or email,
+                pod_kind="editorial",
+                pod_number=pod_number,
+                client_name=client,
+                role=role,
+                source_tab=f"hub:{HUB_ASSIGNMENTS_TABLE} {ym}",
+            )
+        )
+        detail.rows_imported += 1
+    session.commit()
+    detail.status = "imported"
+    return True
+
+
 def import_team_pods(session: Session) -> ImportResult:
     """Import latest Editorial Team + Growth Team tabs into pod_assignments.
     Returns one ImportResult covering both kinds; per-kind status is tracked
@@ -3038,6 +3534,13 @@ def import_team_pods(session: Session) -> ImportResult:
             month_year="(latest)",
             preview_key=None,
         )
+        # Editorial: Hub table first (source of truth post-cutover); the sheet
+        # path below is the fallback until the editorial tabs retire.
+        if pod_kind == "editorial" and _import_editorial_pods_from_hub(session, detail):
+            result.rows_parsed += detail.rows_parsed
+            result.rows_imported += detail.rows_imported
+            result.details.append(detail)
+            continue
         tab = _pick_latest_team_tab(all_tabs, pod_kind)
         if not tab:
             detail.status = "failed"
@@ -5334,6 +5837,11 @@ def _article_parse_full(
         if yr and 1 <= mm <= 12:
             return _safe_article_date(yr, mm, dd), yr, mm
     txt = str(date_text)
+    # 2a. ISO yyyy-mm-dd — the standardized target format (sheet proposal).
+    iso = re.search(r"\b(20\d{2})-(\d{1,2})-(\d{1,2})\b", txt)
+    if iso:
+        yr, mm, dd = int(iso.group(1)), int(iso.group(2)), int(iso.group(3))
+        return _safe_article_date(yr, mm, dd), yr, mm
     # 2. m/d/yyyy or m-d-yyyy.
     slash = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b", txt)
     if slash:
@@ -5525,18 +6033,43 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         canon = _resolve_client(lookup, a.canonical_value)
         if canon is not None:
             lookup.setdefault(a.raw_value.strip().lower(), canon)
-    editor_alias = {
-        a.raw_value.strip().lower(): a.canonical_value
-        for a in session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "editor"))
-        .scalars()
-        .all()
-    }
-    writer_alias = {
-        a.raw_value.strip().lower(): a.canonical_value
-        for a in session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "writer"))
-        .scalars()
-        .all()
-    }
+
+    # Aliases may carry a date window ('YYYY-MM', inclusive bounds, NULL =
+    # open) so one raw name can map to different people over time (e.g. "Sam").
+    # {raw_lower: [(valid_from, valid_to, canonical), ...]}
+    def _alias_map(kind: str) -> dict[str, list[tuple[str | None, str | None, str]]]:
+        out: dict[str, list[tuple[str | None, str | None, str]]] = {}
+        for a in (
+            session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == kind))
+            .scalars()
+            .all()
+        ):
+            out.setdefault(a.raw_value.strip().lower(), []).append(
+                (a.valid_from, a.valid_to, a.canonical_value)
+            )
+        return out
+
+    def _alias_resolve(
+        amap: dict[str, list[tuple[str | None, str | None, str]]],
+        raw_lower: str,
+        ym: str | None,
+    ) -> str | None:
+        """Windowed rows win when the article's month falls inside; a windowless
+        row is the fallback. Undated articles only match windowless aliases."""
+        rows = amap.get(raw_lower)
+        if not rows:
+            return None
+        fallback = None
+        for vfrom, vto, canon in rows:
+            if vfrom is None and vto is None:
+                fallback = canon
+                continue
+            if ym is not None and (vfrom is None or vfrom <= ym) and (vto is None or ym <= vto):
+                return canon
+        return fallback
+
+    editor_alias = _alias_map("editor")
+    writer_alias = _alias_map("writer")
     # Editorial week distribution — maps each article date to its editorial month.
     editorial_weeks = _build_editorial_weeks(session)
 
@@ -5608,10 +6141,20 @@ def import_monthly_article_count(session: Session) -> ImportResult:
     }
     for tab, vr in zip(tabs, value_ranges):
         values = vr.get("values", [])
-        if len(values) < 3:
+        if len(values) < 2:
             continue
-        hmap = _article_build_header_map(values[1])
-        if "EDITOR" not in hmap:
+        # Detect the header row instead of assuming row 2: most tabs carry a
+        # banner ("MONTHLY ARTICLES COUNT 🔎 [CLIENT]") on row 1 with headers on
+        # row 2, but some (e.g. Felt) put headers on row 1 with no banner. Scan
+        # the first few rows for the one that maps an EDITOR column.
+        header_idx = None
+        hmap: dict = {}
+        for hi in range(min(5, len(values))):
+            cand = _article_build_header_map(values[hi])
+            if "EDITOR" in cand:
+                header_idx, hmap = hi, cand
+                break
+        if header_idx is None:
             continue
         client_obj = _resolve_client(lookup, tab)
         if client_obj is not None:
@@ -5623,7 +6166,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         else:
             client_name, client_id, gpod = tab.strip(), None, None
 
-        for r_idx, row in enumerate(values[2:], start=3):
+        for r_idx, row in enumerate(values[header_idx + 1 :], start=header_idx + 2):
             if not row:
                 continue
 
@@ -5657,7 +6200,8 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             collab = len(editors) > 1
             writer_raw = str(cell("WRITER")).strip() or None
             writer_name = (
-                writer_alias.get(writer_raw.strip().lower(), _clean_editor(writer_raw))
+                _alias_resolve(writer_alias, writer_raw.strip().lower(), month_year)
+                or _clean_editor(writer_raw)
                 if writer_raw
                 else None
             )
@@ -5669,7 +6213,9 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
             rev_dates_iso = [d.isoformat() for d, _ in rev_events]
             for ed in editors:
-                editor_name = editor_alias.get(ed.strip().lower(), _clean_editor(ed))
+                editor_name = _alias_resolve(
+                    editor_alias, ed.strip().lower(), month_year
+                ) or _clean_editor(ed)
                 records.append(
                     {
                         "article_uid": uid,

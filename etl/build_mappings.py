@@ -30,7 +30,6 @@ from sqlalchemy import create_engine, text
 
 from app.config import settings
 from app.database import prepare_sync_url
-
 from etl.util import norm_key, strip_member_annotations
 
 MAPPINGS_DIR = os.path.join(os.path.dirname(__file__), "mappings")
@@ -74,21 +73,27 @@ EDITOR_CONFIRMED: dict[str, str] = {
     # Confirmed via HR dates: Michael Doyle, Editor, employed 2023-03..2023-05 —
     # exactly the months "Mike" appears in the article log.
     "mike": "Michael Doyle",
+    # DaniQ rule (2026-06-11): she renamed the new Lauren's entries to
+    # "Lauren Keleher" in the sheet, so every remaining bare "Lauren" is the
+    # first Lauren in headcount — Lauren Friar (Sr. Editor, since 2025-09-15).
+    "lauren": "Lauren Friar",
+}
+# Resolved by Rippling tenure windows — one raw name, different people over
+# time. Applied as date-windowed rows in article_name_aliases (valid_from/
+# valid_to, 'YYYY-MM' inclusive); the importer picks by the article's month.
+EDITOR_CONFIRMED_WINDOWED: dict[str, dict] = {
+    "sam": {
+        "windows": [
+            {"to": "2026-01", "canonical": "Samantha McGrail"},
+            {"from": "2026-02", "canonical": "Samantha Marceau"},
+        ],
+        "note": "Split by headcount dates: McGrail 2025-08-04→2026-01-27 "
+        "(log shows Sam Aug 2025–Jan 2026, none Feb–Apr); Marceau "
+        "2026-05-11→ (log resumes May 2026). Zero overlap.",
+    },
 }
 # Two candidates each — needs a DaniQ split rule before the ETL applies one.
-EDITOR_AMBIGUOUS: dict[str, dict] = {
-    "lauren": {
-        "candidates": ["Lauren Friar", "Lauren Keleher"],
-        "proposed": None,
-        "note": "Both active. Needs a split rule (by pod/client) from DaniQ.",
-    },
-    "sam": {
-        "candidates": ["Samantha Marceau", "Samantha McGrail"],
-        "proposed": "Samantha Marceau",
-        "note": "McGrail terminated 2026-01-27 — articles after that are Marceau; "
-        "earlier ones ambiguous. Proposed: Marceau unless dated before Feb 2026.",
-    },
-}
+EDITOR_AMBIGUOUS: dict[str, dict] = {}
 # 2022-era names that predate every people source (HR incl. terminated,
 # pod sheets, AI monitoring, Notion). Need human memory or stay unmapped.
 EDITOR_UNRESOLVED = ["kira", "kristin", "shain", "shalin"]
@@ -101,27 +106,27 @@ CLIENT_OVERRIDES: dict[str, tuple[str | None, str, str]] = {
     # (sf_name, status, note)
     "Meta BMG": ("Meta for Business", "confirmed", "auto-fuzzy had wrongly said Meta AI"),
     "Meta RL": ("Meta Reality Labs", "confirmed", "auto-fuzzy had wrongly said Meta AI"),
-    "Meta Manus": (None, "no_sf_match", "new Meta engagement — no SF account yet"),
-    "ChatGPT": ("OpenAI", "proposed", "company renamed — confirm OpenAI is the account"),
-    "EarnIn B2C": ("EarnIn", "decision_split", "two Hub variants → one SF account; keep split?"),
-    "Earnin B2B": ("EarnIn", "decision_split", "two Hub variants → one SF account; keep split?"),
-    "Orderful (I)": ("Orderful", "decision_split", "engagement phases → one SF account"),
-    "Orderful (II)": ("Orderful", "decision_split", "engagement phases → one SF account"),
+    "Meta Manus": (None, "dismissed", "DaniQ 2026-06-12: Meta domain never kicked off — remove, nothing to track"),
+    "ChatGPT": ("OpenAI", "confirmed", "DaniQ 2026-06-12: Ok"),
+    "EarnIn B2C": ("EarnIn", "confirmed", "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"),
+    "Earnin B2B": ("EarnIn", "confirmed", "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"),
+    "Orderful (I)": ("Orderful", "confirmed", "DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful"),
+    "Orderful (II)": ("Orderful", "confirmed", "DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful"),
     "Workleap + Sharegate": (
         "Workleap",
-        "decision_combined",
+        "confirmed",
         "combined engagement; ShareGate has no SF account of its own",
     ),
-    "Tempo XYZ": (None, "decision_tempo", "Tempo AND Tempo.io both exist in SF — which?"),
-    "Engine": ("Hotel Engine", "proposed", "likely correct — confirm"),
-    "Landing": ("Hello Landing", "proposed", "likely correct — confirm"),
+    "Tempo XYZ": ("Tempo", "confirmed", "DaniQ 2026-06-12: Tempo XYZ IS Tempo (active). Old Tempo renamed → Tempo.io (inactive) in SF + article sheet tabs"),
+    "Engine": ("Hotel Engine", "confirmed", "DaniQ 2026-06-12: Ok"),
+    "Landing": ("Hello Landing", "confirmed", "DaniQ 2026-06-12: Ok"),
     "GenstoreAI": ("Genstore", "confirmed", ""),
     "TaskRabbit": ("TaskRabbit Inc", "confirmed", "legal-entity suffix"),
     "Fishbowl": ("Fishbowl Inventory", "confirmed", ""),
     "Grindr": ("Grindr LLC", "confirmed", "legal-entity suffix"),
-    "First Round Capital": (None, "no_sf_match", "never in SF"),
-    "Lenny": (None, "no_sf_match", "never in SF"),
-    "Neeva": (None, "no_sf_match", "defunct"),
+    "First Round Capital": (None, "confirmed_unlinked", "DaniQ 2026-06-12: leave unlinked (she asks: does FRC exist in SF? follow-up)"),
+    "Lenny": (None, "confirmed_unlinked", "DaniQ 2026-06-12: leave unlinked"),
+    "Neeva": (None, "confirmed_unlinked", "DaniQ 2026-06-12: leave unlinked (defunct)"),
 }
 
 # Article-tab name → Hub client (proposals for tabs that exist in the Monthly
@@ -200,9 +205,7 @@ def build(engine=None) -> dict:
     with eng.connect() as cx:
         ed_counts = dict(
             cx.execute(
-                text(
-                    "SELECT editor_name, COUNT(*) FROM article_records GROUP BY editor_name"
-                )
+                text("SELECT editor_name, COUNT(*) FROM article_records GROUP BY editor_name")
             ).all()
         )
         hub_clients = [
@@ -264,7 +267,9 @@ def build(engine=None) -> dict:
         member_raws = [
             r[0]
             for r in cx.execute(
-                text("SELECT DISTINCT member_raw FROM editorial_member_capacity WHERE member_raw IS NOT NULL")
+                text(
+                    "SELECT DISTINCT member_raw FROM editorial_member_capacity WHERE member_raw IS NOT NULL"
+                )
             )
         ]
 
@@ -281,6 +286,14 @@ def build(engine=None) -> dict:
                 status="confirmed",
                 hr_status=hr.get("status"),
                 hr_title=hr.get("title"),
+            )
+        elif k in EDITOR_CONFIRMED_WINDOWED:
+            win = EDITOR_CONFIRMED_WINDOWED[k]
+            entry.update(
+                canonical=" / ".join(w["canonical"] for w in win["windows"]),
+                status="confirmed_windowed",
+                windows=win["windows"],
+                note=win["note"],
             )
         elif k in EDITOR_AMBIGUOUS:
             amb = EDITOR_AMBIGUOUS[k]
@@ -326,9 +339,7 @@ def build(engine=None) -> dict:
             }
         else:
             # case-insensitive full-name match (e.g. "ROBERT THORPE")
-            hit = next(
-                (n for n in hr_by_name if norm_key(n) == norm_key(bare)), None
-            )
+            hit = next((n for n in hr_by_name if norm_key(n) == norm_key(bare)), None)
             if hit:
                 members[raw] = {"raw": raw, "canonical": hit, "status": "confirmed"}
             else:
@@ -382,7 +393,8 @@ def build(engine=None) -> dict:
         sf_hits = [
             n
             for n in sf_by_name
-            if _client_key(raw) and (_client_key(raw) in _client_key(n) or _client_key(n) in _client_key(raw))
+            if _client_key(raw)
+            and (_client_key(raw) in _client_key(n) or _client_key(n) in _client_key(raw))
         ]
         entry["sf_candidates"] = sf_hits[:3]
         if raw in live_client_aliases:
@@ -391,7 +403,11 @@ def build(engine=None) -> dict:
             hub, status, note = TAB_PROPOSALS[raw]
             entry.update(hub_client=hub, status=status, note=note)
         else:
-            entry.update(hub_client=None, status="decision", note="no Hub client — add to SOW or out of scope?")
+            entry.update(
+                hub_client=None,
+                status="decision",
+                note="no Hub client — add to SOW or out of scope?",
+            )
         tabs[raw] = entry
 
     # ── writers ──────────────────────────────────────────────────────────
@@ -486,6 +502,33 @@ def build(engine=None) -> dict:
     for raw, v in prev_ed.items():
         if raw not in editors:
             editors[raw] = {**v, "retained": True}
+    # Retained entries can carry a stale status from before a curated decision
+    # landed (e.g. "Lauren" disappears from editor_name once its alias applies,
+    # so only the old ambiguous entry survives the merge). Re-classify them.
+    for raw, v in editors.items():
+        if not v.get("retained"):
+            continue
+        k = norm_key(raw)
+        if k in EDITOR_CONFIRMED:
+            canon = EDITOR_CONFIRMED[k]
+            hr = hr_by_name.get(canon, {})
+            v.update(
+                canonical=canon,
+                status="confirmed",
+                hr_status=hr.get("status"),
+                hr_title=hr.get("title"),
+            )
+            v.pop("candidates", None)
+            v.pop("note", None)
+        elif k in EDITOR_CONFIRMED_WINDOWED:
+            win = EDITOR_CONFIRMED_WINDOWED[k]
+            v.update(
+                canonical=" / ".join(w["canonical"] for w in win["windows"]),
+                status="confirmed_windowed",
+                windows=win["windows"],
+                note=win["note"],
+            )
+            v.pop("candidates", None)
     prev_wr = _load_existing("writer_aliases.json").get("aliases", {})
     for raw, v in prev_wr.items():
         if raw not in writers:
@@ -544,7 +587,12 @@ def build(engine=None) -> dict:
         "editors": {"names": _stats(editors), "article_rows": _stats_weighted(editors)},
         "capacity_members": _stats(members),
         "clients": _stats(clients),
-        "article_tabs": {"tabs": _stats(tabs), "article_rows": _stats_weighted({k: {**v, "status": v["status"]} for k, v in tabs.items()})},
+        "article_tabs": {
+            "tabs": _stats(tabs),
+            "article_rows": _stats_weighted(
+                {k: {**v, "status": v["status"]} for k, v in tabs.items()}
+            ),
+        },
         "writers": {"names": _stats(writers), "article_rows": _stats_weighted(writers)},
         "writer_roster_size": len(roster),
     }

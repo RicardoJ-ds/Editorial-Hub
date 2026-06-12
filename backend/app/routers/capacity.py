@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -13,9 +15,13 @@ from app.models import (
     ProductionHistory,
 )
 from app.schemas import CapacityCreate, CapacityResponse, CapacityUpdate
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 from app.services.capacity_calc import (
     compute_client_contributions,
     compute_member_utilization,
+)
+from app.services.capacity_calc import (
     version_num as _version_num,
 )
 
@@ -66,7 +72,12 @@ async def list_capacity_projections(
 
 
 @router.get("/pod-summary", response_model=list[CapacityPodSummary])
-async def capacity_pod_summary(db: AsyncSession = Depends(get_db)):
+async def capacity_pod_summary(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.capacity_pod_summary)
     """Latest-version-per-(pod, year, month) capacity rows for the per-pod KPI
     matrix. capacity_projections holds several ET CP versions for the same month
     (V9/V11/V13/V14…); only the highest version number is current truth, so we
@@ -211,7 +222,10 @@ async def member_utilization(
     year: int = Query(...),
     month: int = Query(..., ge=1, le=12),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.member_utilization, year, month)
     """% of capacity per editor for one month. JOINS-ONLY over 4 origins — no
     column is stored or duplicated; everything is brought together at read time.
     The math lives in `services/capacity_calc.compute_member_utilization`, shared
@@ -230,7 +244,12 @@ class MemberUtilizationMatrixRow(MemberUtilizationRow):
 
 
 @router.get("/member-utilization-matrix", response_model=list[MemberUtilizationMatrixRow])
-async def member_utilization_matrix(db: AsyncSession = Depends(get_db)):
+async def member_utilization_matrix(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.member_utilization_matrix)
     """Member utilization for EVERY month that has staffed capacity — one flat
     list with (year, month) on each row. Months come from
     editorial_member_capacity (the staffing source of truth)."""
@@ -271,7 +290,10 @@ async def client_contributions(
     year: int = Query(...),
     month: int = Query(..., ge=1, le=12),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.client_contributions, year, month)
     """Per-client production contributions for one month — the intermediate
     ('processed') table between the raw origins and the pod utilization
     numbers. Same joins as member-utilization, exposed at client grain."""

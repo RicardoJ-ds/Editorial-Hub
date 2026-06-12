@@ -1,6 +1,15 @@
 # Editorial ETL — sheets → Postgres → BigQuery
 
-> **Status: BUILT & PROVEN (2026-06-10).** The pipeline runs end-to-end and the
+> **⚠️ SUPERSEDED by `etl/warehouse/` (2026-06-11).** The phase-1 flat
+> `editorial_hub_*` mirror below still works but is **deprecated**: the layered
+> warehouse (`etl/warehouse/run.py`, design in `WAREHOUSE_DESIGN.md`) replaced
+> it with 17 raw + 8 int tables + 19 views, published **dual-sink** to Postgres
+> schema `warehouse` (what the app serves) AND BigQuery (analytics mirror /
+> backup). Don't add new tables here; add a raw/int/view in `etl/warehouse/`.
+> The flat tables will be decommissioned after the warehouse merge is
+> validated. Daily entry point: `./etl/refresh.sh [current|past|full]`.
+
+> **Status (phase 1): BUILT & PROVEN (2026-06-10).** The pipeline runs end-to-end and the
 > parity harness shows **FULL PARITY** — every dashboard-feeding table lands in
 > BigQuery `graphite_bi_sandbox.editorial_*` with identical numbers to what the
 > dashboard serves today (`PARITY_REPORT.md`). Phase 2 (lifting the sheet

@@ -93,10 +93,14 @@ def load_rows(
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
     if not payload:
-        # JSON load jobs reject empty input — recreate the table empty instead.
-        bq.delete_table(table_id, not_found_ok=True)
-        bq.create_table(bigquery.Table(table_id, schema=schema))
-        logger.info("loaded 0 rows → %s (recreated empty)", table_id)
+        # JSON load jobs reject empty input. CREATE OR REPLACE is an atomic
+        # metadata swap (no delete→create window where readers see NotFound).
+        ddl_t = {"FLOAT": "FLOAT64", "INTEGER": "INT64", "BOOLEAN": "BOOL"}
+        cols = ", ".join(
+            f"`{fld.name}` {ddl_t.get(fld.field_type, fld.field_type)}" for fld in schema
+        )
+        bq.query(f"CREATE OR REPLACE TABLE `{table_id}` ({cols})").result()
+        logger.info("loaded 0 rows → %s (replaced empty)", table_id)
         return 0
     job = bq.load_table_from_json(payload, table_id, job_config=job_config)
     job.result()

@@ -1,4 +1,4 @@
-"""Admin router — BigQuery sync and operational endpoints."""
+"""Admin router — data-quality, discrepancy, and operational endpoints."""
 
 from __future__ import annotations
 
@@ -24,7 +24,6 @@ from app.models import (
     PodNameOverride,
     ProductionHistory,
 )
-from app.services.bigquery_sync import sync_all
 
 router = APIRouter()
 
@@ -32,20 +31,6 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Response schemas
 # ---------------------------------------------------------------------------
-
-
-class TableSyncResult(BaseModel):
-    table: str
-    rows: int
-    success: bool
-    error: str | None = None
-
-
-class SyncResponse(BaseModel):
-    started_at: datetime
-    finished_at: datetime | None
-    all_ok: bool
-    results: list[TableSyncResult]
 
 
 class SyncStatusEntry(BaseModel):
@@ -57,35 +42,6 @@ class SyncStatusEntry(BaseModel):
 
 class SyncStatusResponse(BaseModel):
     last_syncs: list[SyncStatusEntry]
-
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-
-
-@router.post("/sync-bigquery", response_model=SyncResponse)
-async def trigger_bigquery_sync(db: AsyncSession = Depends(get_db)):
-    """Trigger a full BigQuery sync of all editorial hub tables."""
-    try:
-        result = await sync_all(db)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
-
-    return SyncResponse(
-        started_at=result.started_at,
-        finished_at=result.finished_at,
-        all_ok=result.all_ok,
-        results=[
-            TableSyncResult(
-                table=r.table,
-                rows=r.rows,
-                success=r.success,
-                error=r.error,
-            )
-            for r in result.results
-        ],
-    )
 
 
 # ---------------------------------------------------------------------------

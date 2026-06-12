@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-06-10",
+  "built_at": "2026-06-12",
   "canonical_source": "pod_assignments(role=writer) ∪ historical full names (ai_monitoring_records.writer_name, notion_articles.writer)",
   "roster": {
     "abby norwood": {
@@ -223,13 +223,6 @@
       "emails": [],
       "source": "historical:notion"
     },
-    "ricardo ocampo": {
-      "canonical": "Ricardo Ocampo",
-      "emails": [
-        "ricardo.ocampo@graphitehq.com"
-      ],
-      "source": "pod_sheet"
-    },
     "rich dezso": {
       "canonical": "Rich Dezso",
       "emails": [
@@ -311,7 +304,7 @@
   "aliases": {
     "Eric Esposito": {
       "raw": "Eric Esposito",
-      "articles": 1364,
+      "articles": 1376,
       "canonical": "Eric Esposito",
       "status": "confirmed"
     },
@@ -323,20 +316,20 @@
     },
     "Chelsea Oliver": {
       "raw": "Chelsea Oliver",
-      "articles": 882,
+      "articles": 897,
       "canonical": "Chelsea Oliver",
-      "status": "confirmed"
-    },
-    "Kevin Vaughn": {
-      "raw": "Kevin Vaughn",
-      "articles": 763,
-      "canonical": "Kevin Vaughn",
       "status": "confirmed"
     },
     "Aranyak Nanda": {
       "raw": "Aranyak Nanda",
-      "articles": 751,
+      "articles": 791,
       "canonical": "Aranyak Nanda",
+      "status": "confirmed"
+    },
+    "Kevin Vaughn": {
+      "raw": "Kevin Vaughn",
+      "articles": 788,
+      "canonical": "Kevin Vaughn",
       "status": "confirmed"
     },
     "Camille Tovee": {
@@ -347,7 +340,7 @@
     },
     "Ashton Playsted": {
       "raw": "Ashton Playsted",
-      "articles": 472,
+      "articles": 484,
       "canonical": "Ashton Playsted",
       "status": "confirmed"
     },
@@ -359,25 +352,25 @@
     },
     "Abby Norwood": {
       "raw": "Abby Norwood",
-      "articles": 370,
+      "articles": 384,
       "canonical": "Abby Norwood",
       "status": "confirmed"
     },
     "Sarah Foley": {
       "raw": "Sarah Foley",
-      "articles": 369,
+      "articles": 381,
       "canonical": "Sarah Foley",
       "status": "confirmed"
     },
     "Rob Harper": {
       "raw": "Rob Harper",
-      "articles": 365,
+      "articles": 376,
       "canonical": "Rob Harper",
       "status": "confirmed"
     },
     "Rich Dezso": {
       "raw": "Rich Dezso",
-      "articles": 300,
+      "articles": 310,
       "canonical": "Rich Dezso",
       "status": "confirmed"
     },
@@ -389,7 +382,7 @@
     },
     "Adaeze Nwakaeze": {
       "raw": "Adaeze Nwakaeze",
-      "articles": 246,
+      "articles": 250,
       "canonical": "Adaeze Nwakaeze",
       "status": "confirmed"
     },
@@ -413,13 +406,19 @@
     },
     "Rocco Pendola": {
       "raw": "Rocco Pendola",
-      "articles": 213,
+      "articles": 215,
       "canonical": "Rocco Pendola",
+      "status": "confirmed"
+    },
+    "Meredith Kane": {
+      "raw": "Meredith Kane",
+      "articles": 207,
+      "canonical": "Meredith Kane",
       "status": "confirmed"
     },
     "Jimmy Bunes": {
       "raw": "Jimmy Bunes",
-      "articles": 200,
+      "articles": 203,
       "canonical": "Jimmy Bunes",
       "status": "confirmed"
     },
@@ -447,12 +446,6 @@
       "canonical": "Danielle MacKinlay",
       "status": "confirmed"
     },
-    "Meredith Kane": {
-      "raw": "Meredith Kane",
-      "articles": 148,
-      "canonical": "Meredith Kane",
-      "status": "confirmed"
-    },
     "Samantha McGrail": {
       "raw": "Samantha McGrail",
       "articles": 146,
@@ -477,16 +470,22 @@
       "canonical": "Paige",
       "status": "first_name_only"
     },
+    "Jack Limebear": {
+      "raw": "Jack Limebear",
+      "articles": 129,
+      "canonical": "Jack Limebear",
+      "status": "confirmed"
+    },
     "Cat": {
       "raw": "Cat",
       "articles": 123,
       "canonical": "Cat",
       "status": "first_name_only"
     },
-    "Jack Limebear": {
-      "raw": "Jack Limebear",
-      "articles": 123,
-      "canonical": "Jack Limebear",
+    "Tamara Siklosi": {
+      "raw": "Tamara Siklosi",
+      "articles": 119,
+      "canonical": "Tamara Siklosi",
       "status": "confirmed"
     },
     "Martin": {
@@ -494,6 +493,12 @@
       "articles": 119,
       "canonical": "Martin",
       "status": "first_name_only"
+    },
+    "Jacob McPhail": {
+      "raw": "Jacob McPhail",
+      "articles": 118,
+      "canonical": "Jacob McPhail",
+      "status": "confirmed"
     },
     "Telisa Faye": {
       "raw": "Telisa Faye",
@@ -505,18 +510,6 @@
       "raw": "Alex Shoemaker",
       "articles": 112,
       "canonical": "Alex Shoemaker",
-      "status": "confirmed"
-    },
-    "Jacob McPhail": {
-      "raw": "Jacob McPhail",
-      "articles": 111,
-      "canonical": "Jacob McPhail",
-      "status": "confirmed"
-    },
-    "Tamara Siklosi": {
-      "raw": "Tamara Siklosi",
-      "articles": 108,
-      "canonical": "Tamara Siklosi",
       "status": "confirmed"
     },
     "Miles": {
@@ -537,10 +530,22 @@
       "canonical": "Brian Abrams",
       "status": "confirmed"
     },
+    "Owen Murray": {
+      "raw": "Owen Murray",
+      "articles": 95,
+      "canonical": "Owen Murray",
+      "status": "confirmed"
+    },
     "Aysenur Zaza": {
       "raw": "Aysenur Zaza",
-      "articles": 85,
+      "articles": 93,
       "canonical": "Aysenur Zaza",
+      "status": "confirmed"
+    },
+    "Andrew Blackman": {
+      "raw": "Andrew Blackman",
+      "articles": 82,
+      "canonical": "Andrew Blackman",
       "status": "confirmed"
     },
     "Tom": {
@@ -548,12 +553,6 @@
       "articles": 81,
       "canonical": "Tom",
       "status": "first_name_only"
-    },
-    "Owen Murray": {
-      "raw": "Owen Murray",
-      "articles": 77,
-      "canonical": "Owen Murray",
-      "status": "confirmed"
     },
     "Keenan": {
       "raw": "Keenan",
@@ -567,17 +566,23 @@
       "canonical": "Joshua",
       "status": "first_name_only"
     },
+    "Nadia Hlebowitsh": {
+      "raw": "Nadia Hlebowitsh",
+      "articles": 74,
+      "canonical": "Nadia Hlebowitsh",
+      "status": "confirmed"
+    },
+    "Tessina Grant": {
+      "raw": "Tessina Grant",
+      "articles": 74,
+      "canonical": "Tessina Grant",
+      "status": "confirmed"
+    },
     "Jordan": {
       "raw": "Jordan",
       "articles": 73,
       "canonical": "Jordan",
       "status": "first_name_only"
-    },
-    "Andrew Blackman": {
-      "raw": "Andrew Blackman",
-      "articles": 70,
-      "canonical": "Andrew Blackman",
-      "status": "confirmed"
     },
     "Meaghan": {
       "raw": "Meaghan",
@@ -603,12 +608,6 @@
       "canonical": "Michael",
       "status": "first_name_only"
     },
-    "Tessina Grant": {
-      "raw": "Tessina Grant",
-      "articles": 65,
-      "canonical": "Tessina Grant",
-      "status": "confirmed"
-    },
     "CC": {
       "raw": "CC",
       "articles": 64,
@@ -620,12 +619,6 @@
       "articles": 62,
       "canonical": "Tyler",
       "status": "first_name_only"
-    },
-    "Nadia Hlebowitsh": {
-      "raw": "Nadia Hlebowitsh",
-      "articles": 61,
-      "canonical": "Nadia Hlebowitsh",
-      "status": "confirmed"
     },
     "Prianca": {
       "raw": "Prianca",
@@ -651,16 +644,28 @@
       "canonical": "Jarrett",
       "status": "first_name_only"
     },
+    "Eleanor Pitkin": {
+      "raw": "Eleanor Pitkin",
+      "articles": 54,
+      "canonical": "Eleanor Pitkin",
+      "status": "confirmed"
+    },
+    "Tim Suleyman": {
+      "raw": "Tim Suleyman",
+      "articles": 49,
+      "canonical": "Tim Suleyman",
+      "status": "confirmed"
+    },
     "Trial writer": {
       "raw": "Trial writer",
       "articles": 49,
       "canonical": null,
       "status": "trial"
     },
-    "Tim Suleyman": {
-      "raw": "Tim Suleyman",
+    "Linda L. Armstrong": {
+      "raw": "Linda L. Armstrong",
       "articles": 47,
-      "canonical": "Tim Suleyman",
+      "canonical": "Linda L. Armstrong",
       "status": "confirmed"
     },
     "Nick": {
@@ -674,12 +679,6 @@
       "articles": 45,
       "canonical": "Austin",
       "status": "first_name_only"
-    },
-    "Eleanor Pitkin": {
-      "raw": "Eleanor Pitkin",
-      "articles": 43,
-      "canonical": "Eleanor Pitkin",
-      "status": "confirmed"
     },
     "Jason": {
       "raw": "Jason",
@@ -699,10 +698,10 @@
       "canonical": "Gr0",
       "status": "first_name_only"
     },
-    "Linda L. Armstrong": {
-      "raw": "Linda L. Armstrong",
-      "articles": 38,
-      "canonical": "Linda L. Armstrong",
+    "Emily Pitkin": {
+      "raw": "Emily Pitkin",
+      "articles": 37,
+      "canonical": "Emily Pitkin",
       "status": "confirmed"
     },
     "James": {
@@ -729,10 +728,10 @@
       "canonical": "Shianne",
       "status": "first_name_only"
     },
-    "Emily Pitkin": {
-      "raw": "Emily Pitkin",
-      "articles": 32,
-      "canonical": "Emily Pitkin",
+    "Brandon Morgan": {
+      "raw": "Brandon Morgan",
+      "articles": 31,
+      "canonical": "Brandon Morgan",
       "status": "confirmed"
     },
     "Amanda": {
@@ -741,17 +740,23 @@
       "canonical": "Amanda",
       "status": "first_name_only"
     },
+    "Trial Writer": {
+      "raw": "Trial Writer",
+      "articles": 30,
+      "canonical": null,
+      "status": "trial"
+    },
     "Micah": {
       "raw": "Micah",
       "articles": 29,
       "canonical": "Micah",
       "status": "first_name_only"
     },
-    "Trial Writer": {
-      "raw": "Trial Writer",
+    "Anabelle Zaluski": {
+      "raw": "Anabelle Zaluski",
       "articles": 29,
-      "canonical": null,
-      "status": "trial"
+      "canonical": "Anabelle Zaluski",
+      "status": "confirmed"
     },
     "Dan": {
       "raw": "Dan",
@@ -824,17 +829,17 @@
       "canonical": "Dave",
       "status": "first_name_only"
     },
+    "Laura Soler": {
+      "raw": "Laura Soler",
+      "articles": 19,
+      "canonical": "Laura Soler",
+      "status": "confirmed"
+    },
     "Alyssa": {
       "raw": "Alyssa",
       "articles": 18,
       "canonical": "Alyssa",
       "status": "first_name_only"
-    },
-    "Anabelle Zaluski": {
-      "raw": "Anabelle Zaluski",
-      "articles": 18,
-      "canonical": "Anabelle Zaluski",
-      "status": "confirmed"
     },
     "John": {
       "raw": "John",
@@ -860,12 +865,6 @@
       "canonical": "Thea",
       "status": "first_name_only"
     },
-    "Brandon Morgan": {
-      "raw": "Brandon Morgan",
-      "articles": 14,
-      "canonical": "Brandon Morgan",
-      "status": "confirmed"
-    },
     "Nicholas": {
       "raw": "Nicholas",
       "articles": 13,
@@ -889,12 +888,6 @@
       "articles": 13,
       "canonical": "Roxana",
       "status": "first_name_only"
-    },
-    "Laura Soler": {
-      "raw": "Laura Soler",
-      "articles": 12,
-      "canonical": "Laura Soler",
-      "status": "confirmed"
     },
     "Shelby": {
       "raw": "Shelby",
@@ -956,17 +949,17 @@
       "canonical": "Megan",
       "status": "first_name_only"
     },
+    "trial writer": {
+      "raw": "trial writer",
+      "articles": 5,
+      "canonical": null,
+      "status": "trial"
+    },
     "Yonela*": {
       "raw": "Yonela*",
       "articles": 4,
       "canonical": "Yonela*",
       "status": "first_name_only"
-    },
-    "trial writer": {
-      "raw": "trial writer",
-      "articles": 4,
-      "canonical": null,
-      "status": "trial"
     },
     "Daniela": {
       "raw": "Daniela",

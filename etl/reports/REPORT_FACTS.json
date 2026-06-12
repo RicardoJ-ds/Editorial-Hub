@@ -3,53 +3,83 @@
     {
       "month": "Jan",
       "operating_model": 274,
-      "log_editorial": 201,
-      "log_calendar": 147
+      "log_editorial": 245,
+      "log_calendar": 185
     },
     {
       "month": "Feb",
       "operating_model": 294,
-      "log_editorial": 224,
-      "log_calendar": 213
+      "log_editorial": 249,
+      "log_calendar": 240
     },
     {
       "month": "Mar",
       "operating_model": 324,
-      "log_editorial": 252,
-      "log_calendar": 317
+      "log_editorial": 280,
+      "log_calendar": 349
     },
     {
       "month": "Apr",
       "operating_model": 339,
-      "log_editorial": 259,
-      "log_calendar": 185
+      "log_editorial": 296,
+      "log_calendar": 214
     },
     {
       "month": "May",
       "operating_model": 364,
-      "log_editorial": 123,
-      "log_calendar": 197
+      "log_editorial": 331,
+      "log_calendar": 306
     },
     {
       "month": "Jun",
       "operating_model": 0,
-      "log_editorial": 1,
-      "log_calendar": 1
+      "log_editorial": 90,
+      "log_calendar": 197
+    },
+    {
+      "month": "Jul",
+      "operating_model": 0,
+      "log_editorial": 13,
+      "log_calendar": 6
+    },
+    {
+      "month": "Aug",
+      "operating_model": 0,
+      "log_editorial": 28,
+      "log_calendar": 35
     },
     {
       "month": "Sep",
       "operating_model": 0,
-      "log_editorial": 6,
-      "log_calendar": 6
+      "log_editorial": 16,
+      "log_calendar": 16
+    },
+    {
+      "month": "Oct",
+      "operating_model": 0,
+      "log_editorial": 36,
+      "log_calendar": 36
+    },
+    {
+      "month": "Nov",
+      "operating_model": 0,
+      "log_editorial": 25,
+      "log_calendar": 25
+    },
+    {
+      "month": "Dec",
+      "operating_model": 0,
+      "log_editorial": 24,
+      "log_calendar": 24
     }
   ],
   "month_basis_verdicts": {
-    "gap": 180,
-    "close": 171,
-    "missing_from_log": 166,
-    "exact_match": 163,
-    "no_operating_model": 87,
-    "month_boundary": 18
+    "gap": 200,
+    "exact_match": 196,
+    "close": 190,
+    "no_operating_model": 131,
+    "missing_from_log": 108,
+    "month_boundary": 4
   },
   "miter_example": [
     {
@@ -79,8 +109,14 @@
     {
       "month": "May",
       "operating_model": 28,
-      "log_editorial": 11,
-      "log_calendar": 25
+      "log_editorial": 28,
+      "log_calendar": 29
+    },
+    {
+      "month": "Jun",
+      "operating_model": 0,
+      "log_editorial": 1,
+      "log_calendar": 14
     }
   ],
   "caret_row_count": 28,
@@ -88,21 +124,21 @@
     {
       "tab": "Mirage",
       "articles": 759,
-      "span": "2023-10\u20262025-12",
+      "span": "2023-10\u20262026-12",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Curology",
       "articles": 370,
-      "span": "2022-01\u20262023-02",
+      "span": "2022-01\u20262026-09",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
     {
       "tab": "Worldcoin",
       "articles": 333,
-      "span": "2022-07\u20262023-02",
+      "span": "2022-07\u20262026-08",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
@@ -130,14 +166,14 @@
     {
       "tab": "Workleap",
       "articles": 194,
-      "span": "2025-05\u20262026-03",
+      "span": "2025-05\u20262026-11",
       "proposed": "Workleap + Sharegate",
       "sf_years": "2025\u20132026"
     },
     {
       "tab": "Little Passports",
       "articles": 159,
-      "span": "2022-02\u20262023-03",
+      "span": "2022-02\u20262026-11",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
@@ -158,42 +194,42 @@
     {
       "tab": "Athena2",
       "articles": 145,
-      "span": "2020-10\u20262025-11",
+      "span": "2020-10\u20262026-08",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Orderful 2",
       "articles": 135,
-      "span": "2024-10\u20262025-06",
+      "span": "2024-10\u20262026-12",
       "proposed": "Orderful (II)",
       "sf_years": ""
     },
     {
       "tab": "Bergdorf",
       "articles": 134,
-      "span": "2022-10\u20262023-05",
+      "span": "2022-10\u20262026-12",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Mailjet",
       "articles": 128,
-      "span": "2022-02\u20262025-02",
+      "span": "2022-02\u20262026-07",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Email On Acid",
       "articles": 112,
-      "span": "2022-02\u20262022-11",
+      "span": "2022-02\u20262026-05",
       "proposed": "",
       "sf_years": ""
     },
     {
       "tab": "Orderful",
       "articles": 111,
-      "span": "2023-05\u20262023-10",
+      "span": "2023-05\u20262026-10",
       "proposed": "Orderful (I)",
       "sf_years": "2024\u20132025"
     },
@@ -207,7 +243,7 @@
     {
       "tab": "Shift",
       "articles": 87,
-      "span": "2022-03\u20262022-05",
+      "span": "2022-03\u20262026-05",
       "proposed": "",
       "sf_years": "2021\u20132022"
     },
@@ -256,14 +292,14 @@
     {
       "tab": "OpenSea",
       "articles": 15,
-      "span": "2022-06\u20262022-08",
+      "span": "2022-06\u20262026-07",
       "proposed": "",
       "sf_years": "2022\u20132023"
     },
     {
       "tab": "Men's Warehouse",
       "articles": 12,
-      "span": "2026-04\u20262026-05",
+      "span": "\u2026",
       "proposed": "Men's Wearhouse",
       "sf_years": ""
     },
@@ -282,28 +318,83 @@
       "sf_years": "2024\u20132026 (active)"
     }
   ],
+  "pod_member_drift": {
+    "slots_compared": 69,
+    "identical": 50,
+    "rows": 56,
+    "transition_cases_reviewed": 21
+  },
+  "mapping_by_month": {
+    "editors": {
+      "dated_rows": 15100,
+      "undated_rows": 56,
+      "total_log_rows": 15156,
+      "distinct_raw_to_resolved": 188,
+      "csv_rows": 839
+    },
+    "writers": {
+      "dated_rows": 15088,
+      "undated_rows": 55,
+      "total_log_rows": 15143,
+      "distinct_raw_to_resolved": 244,
+      "csv_rows": 1401
+    },
+    "clients": {
+      "csv_rows": 939,
+      "clients": 91,
+      "dated_articles": 13588
+    }
+  },
   "mapping_impact": {
     "editors": {
-      "confirmed_rows": 14055,
-      "total_rows": 14807,
+      "confirmed_rows": 14523,
+      "total_rows": 29679,
       "needs_decision": [
+        "Abby Norwood",
+        "Alyssa Zacharias",
+        "Anabelle Zaluski",
+        "Bryan Clark",
+        "Chelsea Erhard",
+        "Chrissy Woods",
+        "Derrik Chinn",
+        "Eesha Verma",
+        "Elliot Gardner",
+        "Haley Drucker",
+        "Jared Maguire",
+        "Jimmy Bunes",
+        "Katie Shevlin",
+        "Kennedy Stevens",
+        "Kimberly Pavlovich",
         "Kira",
         "Kristin",
-        "Lauren",
-        "Sam",
+        "Lauren Friar",
+        "Lauren Keleher",
+        "Lee Anderson",
+        "Maggie Gowland",
+        "Michael Doyle",
+        "Micki Cottam",
+        "Nicholas Youngblood",
+        "Nina Denison",
+        "Robert Thorpe",
+        "Samantha Marceau",
+        "Samantha McGrail",
         "Shain",
-        "Shalin"
+        "Shalin",
+        "Shelby Talbot",
+        "Shivani Verma",
+        "Tiffany Anderson",
+        "Vincent Lee"
       ]
     },
     "writers": {
       "applied_renames": 78,
-      "rows_full_named": 20566,
+      "rows_full_named": 20931,
       "rows_first_name_only": 4262,
       "distinct_before": 286
     },
     "clients": {
-      "confirmed": 71,
-      "needs_decision": 13
+      "confirmed": 80,
+      "needs_decision": 4
     }
   }
 }

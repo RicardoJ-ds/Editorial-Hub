@@ -17,10 +17,12 @@ from app.config import settings
 from app.database import get_db, prepare_sync_url
 from app.models import AuditLog, EditorialWeek
 from app.schemas import EditorialWeekResponse
-from app.services import sync_manifest
+from app.services import bq_dashboard, sync_manifest
+from app.services.bq_dashboard import get_data_source
 from app.services.migration_service import (
     CAPACITY_PLAN_PREFIX,
     IMPORT_DISPATCH,
+    ImportResult,
     import_all,
     list_available_sheets,
     preview_sheet,
@@ -64,6 +66,9 @@ class TabDetailResponse(BaseModel):
 
 
 class ImportResultResponse(BaseModel):
+    # True for non-sheet manifest steps (KPI refresh / warehouse publish) —
+    # the UI must not offer a sheet preview for these.
+    synthetic: bool = False
     sheet: str
     rows_parsed: int
     rows_imported: int
@@ -180,10 +185,38 @@ async def trigger_import(body: ImportRequest):
             detail=f"Import failed: {exc}",
         ) from exc
 
+    # A wizard import also refreshes the warehouse (both sinks: Postgres
+    # `warehouse` schema + the BigQuery mirror) so processed numbers and the
+    # analytics copy never lag a manual import.
+    if any(r.success for r in results):
+
+        def _publish():
+            session = _get_sync_session()
+            try:
+                return sync_manifest._warehouse_publish_run(session)
+            except Exception as exc:  # noqa: BLE001 — surface, don't 500
+                # The sheet import already COMMITTED; a publish failure must
+                # show as a failed step, not blow away the per-sheet results.
+                return [
+                    ImportResult(
+                        sheet=sync_manifest.WAREHOUSE_LABEL,
+                        rows_parsed=0,
+                        rows_imported=0,
+                        success=False,
+                        errors=[str(exc)],
+                    )
+                ]
+            finally:
+                session.close()
+
+        results += await asyncio.to_thread(_publish)
+
     return ImportResponse(
         results=[
             ImportResultResponse(
                 sheet=r.sheet,
+                synthetic=r.sheet
+                in (sync_manifest.REFRESH_KPIS_LABEL, sync_manifest.WAREHOUSE_LABEL),
                 rows_parsed=r.rows_parsed,
                 rows_imported=r.rows_imported,
                 success=r.success,
@@ -262,6 +295,8 @@ async def sync_all():
         results=[
             ImportResultResponse(
                 sheet=r.sheet,
+                synthetic=r.sheet
+                in (sync_manifest.REFRESH_KPIS_LABEL, sync_manifest.WAREHOUSE_LABEL),
                 rows_parsed=r.rows_parsed,
                 rows_imported=r.rows_imported,
                 success=r.success,
@@ -348,6 +383,7 @@ async def resync_historical_goals():
     return [
         ImportResultResponse(
             sheet=r.sheet,
+            synthetic=r.sheet in (sync_manifest.REFRESH_KPIS_LABEL, sync_manifest.WAREHOUSE_LABEL),
             rows_parsed=r.rows_parsed,
             rows_imported=r.rows_imported,
             success=r.success,
@@ -382,6 +418,7 @@ def _to_response(r) -> ImportResultResponse:
     """Map an ImportResult → its API response shape (used by every sync path)."""
     return ImportResultResponse(
         sheet=r.sheet,
+        synthetic=r.sheet in (sync_manifest.REFRESH_KPIS_LABEL, sync_manifest.WAREHOUSE_LABEL),
         rows_parsed=r.rows_parsed,
         rows_imported=r.rows_imported,
         success=r.success,
@@ -575,7 +612,10 @@ async def resync_single_step(step: str):
 async def list_editorial_weeks(
     year: int | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.list_editorial_weeks, year)
     """Read-only feed of the editorial-week rows the past-months resync wrote.
     Lives on `/api/migrate/...` because it's tightly coupled to the importer
     that populates it; no separate router warranted."""

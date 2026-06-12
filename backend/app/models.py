@@ -435,6 +435,37 @@ class PodAssignment(Base):
     )
 
 
+class PodAssignmentHistory(Base):
+    """Per-month snapshot of Team Pods assignments — every monthly tab
+    (Editorial Team / Growth Team / the growth side's older "Account Team"
+    name) parsed into (year, month, pod_kind, pod, client, role, person).
+
+    Unlike `pod_assignments` (latest month only — drives RBAC), this is the
+    backfilled HISTORY used for per-month attribution and for cross-checking
+    the ET CP capacity blocks (the second editorial-assignment source).
+    Slice-rewritten per (year, month, pod_kind) on each import.
+
+    `email` is nullable: chip-era tabs carry it, older text-only tabs don't.
+    Editorial tabs also yield role='writer' rows (WRITER column, emails
+    paired from WRITER EMAIL when the counts line up).
+    """
+
+    __tablename__ = "pod_assignment_history"
+    __table_args__ = (Index("ix_pod_history_ym_kind", "year", "month", "pod_kind"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    pod_kind: Mapped[str] = mapped_column(String(20), nullable=False)  # 'editorial' | 'growth'
+    pod_number: Mapped[str | None] = mapped_column(String(20))
+    client_name: Mapped[str | None] = mapped_column(String(255), index=True)
+    role: Mapped[str] = mapped_column(String(60), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), index=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_tab: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class EditorialWeek(Base):
     """Editorial-calendar week distribution per (year, month, week_number).
     Sourced from the Master Tracker's '{Year} Week Distribution' tab. Defines
@@ -916,8 +947,16 @@ class ArticleNameAlias(Base):
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
     created_by: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Optional date window ('YYYY-MM', inclusive) — lets one raw name map to
+    # different people over time (e.g. "Sam" → Samantha McGrail through
+    # 2026-01, → Samantha Marceau from 2026-02; tenure windows from the
+    # Rippling headcount). NULL bound = open-ended; both NULL = always.
+    valid_from: Mapped[str | None] = mapped_column(String(7))
+    valid_to: Mapped[str | None] = mapped_column(String(7))
 
-    __table_args__ = (UniqueConstraint("kind", "raw_value", name="uq_article_name_alias"),)
+    __table_args__ = (
+        UniqueConstraint("kind", "raw_value", "valid_from", name="uq_article_name_alias_window"),
+    )
 
 
 class ClientNameAlias(Base):

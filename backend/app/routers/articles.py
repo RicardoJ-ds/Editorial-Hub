@@ -18,6 +18,7 @@ endpoints gate on `require_access_editor`.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
@@ -34,6 +35,8 @@ from app.models import (
     ArticleUnmappedName,
     Client,
 )
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -82,6 +85,7 @@ async def monthly_article_counts(
     clients: str | None = Query(None, description="CSV of canonical client names"),
     editors: str | None = Query(None, description="CSV of canonical editor names"),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ) -> dict:
     """Two filtered, granular aggregates for the chart + matrix:
 
@@ -95,6 +99,11 @@ async def monthly_article_counts(
     """
     client_list = _csv(clients)
     editor_list = _csv(editors)
+    if source == "bq":
+        return await asyncio.to_thread(
+            bq_dashboard.articles_monthly,
+            date_from, date_to, pod, pod_axis, client_list, editor_list,
+        )
     growth = pod_axis == "growth"
     cre_pod = ArticleRecord.growth_pod if growth else ArticleRecord.editorial_pod
     rev_pod = ArticleRevision.growth_pod if growth else ArticleRevision.editorial_pod
@@ -178,13 +187,19 @@ async def monthly_article_counts(
 
 
 @router.get("/editors")
-async def list_editors(db: AsyncSession = Depends(get_db)) -> list[dict]:
+async def list_editors(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+) -> list[dict]:
     """Distinct editors with total article credits — source for the page's
     editor multi-select. Sorted by volume desc."""
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.articles_editors)
     stmt = (
         select(ArticleRecord.editor_name, func.count().label("count"))
         .group_by(ArticleRecord.editor_name)
-        .order_by(func.count().desc())
+        # name tiebreak: equal-volume editors get a stable, source-agnostic order
+        .order_by(func.count().desc(), ArticleRecord.editor_name)
     )
     result = await db.execute(stmt)
     return [{"name": r.editor_name, "count": r.count} for r in result]

@@ -26,10 +26,6 @@ module = "app.services.migration_service"
 ignore_errors = true  # Complex migration script with SQLAlchemy dynamic queries
 
 [[tool.mypy.overrides]]
-module = "app.services.bigquery_sync"
-ignore_errors = true  # Dynamic model dispatch with untyped SQLAlchemy results
-
-[[tool.mypy.overrides]]
 module = "seed_data"
 ignore_errors = true  # Seed script with dynamic DB access patterns
 

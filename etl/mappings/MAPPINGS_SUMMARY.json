@@ -1,17 +1,17 @@
 {
-  "built_at": "2026-06-10",
+  "built_at": "2026-06-12",
   "editors": {
     "names": {
-      "ambiguous": 2,
-      "confirmed": 32,
+      "confirmed": 33,
+      "confirmed_windowed": 1,
       "junk": 5,
-      "unresolved": 4
+      "unresolved": 34
     },
     "article_rows": {
-      "ambiguous": 283,
-      "confirmed": 14055,
+      "confirmed": 14523,
+      "confirmed_windowed": 2,
       "junk": 7,
-      "unresolved": 462
+      "unresolved": 15147
     }
   },
   "capacity_members": {
@@ -20,12 +20,9 @@
     "placeholder": 5
   },
   "clients": {
-    "confirmed": 71,
-    "decision_combined": 1,
-    "decision_split": 4,
-    "decision_tempo": 1,
-    "no_sf_match": 4,
-    "proposed": 3
+    "confirmed": 80,
+    "confirmed_unlinked": 3,
+    "dismissed": 1
   },
   "article_tabs": {
     "tabs": {
@@ -51,13 +48,13 @@
     },
     "article_rows": {
       "ambiguous": 37,
-      "confirmed": 10285,
+      "confirmed": 10650,
       "confirmed_first_name": 10281,
       "first_name_only": 4262,
       "junk": 5,
-      "trial": 101,
+      "trial": 103,
       "unresolved": 86
     }
   },
-  "writer_roster_size": 50
+  "writer_roster_size": 49
 }

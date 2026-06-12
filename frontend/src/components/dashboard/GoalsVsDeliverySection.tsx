@@ -37,7 +37,7 @@ interface GoalsSummary {
  *  has used for months — extracted to module scope so the gauges (current
  *  Editorial month only) and the detail table (user's date filter) can
  *  share it. */
-function aggregateGoalsSummary(rowsSubset: GoalsVsDeliveryRow[]): GoalsSummary {
+export function aggregateGoalsSummary(rowsSubset: GoalsVsDeliveryRow[]): GoalsSummary {
   // Step 1: max-of-week per (client × month × content_type). Weekly rows
   // carry running cumulatives, so the max is end-of-month.
   const perCMC = new Map<

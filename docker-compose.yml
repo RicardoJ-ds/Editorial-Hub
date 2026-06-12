@@ -26,6 +26,14 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/sa-key.json
       BQ_PROJECT: ${BQ_PROJECT:-graphite-data}
       BQ_DATASET: ${BQ_DATASET:-graphite_bi_sandbox}
+      # Architecture decision 2026-06-11: the app SERVES from Postgres
+      # (operational speed); BigQuery is the always-fresh analytics mirror +
+      # backup, rebuilt on every sync alongside the Postgres `warehouse`
+      # schema (same in-memory rows → both sinks, drift-impossible).
+      # Set to "bq" to serve dashboards from BigQuery instead (validation).
+      DASHBOARD_SOURCE: ${DASHBOARD_SOURCE:-postgres}
+      # Local only: lets the parity harness flip sources per request.
+      DATA_SOURCE_OVERRIDE_ENABLED: ${DATA_SOURCE_OVERRIDE_ENABLED:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:4050"]'}
       SPREADSHEET_ID: ${SPREADSHEET_ID:-}
       MASTER_TRACKER_ID: ${MASTER_TRACKER_ID:-}

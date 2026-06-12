@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,7 +9,9 @@ from app.auth_deps import current_access, get_sync_session
 from app.database import get_db
 from app.models import Client, PodAssignment, ProductionHistory
 from app.schemas import ClientCreate, ClientResponse, ClientUpdate
+from app.services import bq_dashboard
 from app.services.access import AccessProfile
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -78,7 +81,25 @@ async def list_clients(
     limit: int = Query(50, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     profile: AccessProfile = Depends(current_access),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        # RBAC scope is app state — always resolved from Postgres; only the
+        # client DATA comes from the warehouse.
+        allowed_bq = _scope_filter(profile)
+        if allowed_bq is not None and not allowed_bq:
+            return []
+        return await asyncio.to_thread(
+            bq_dashboard.list_clients,
+            search,
+            status,
+            growth_pod,
+            editorial_pod,
+            skip,
+            limit,
+            allowed_bq,
+        )
+
     stmt = select(Client)
 
     if search:
@@ -99,7 +120,7 @@ async def list_clients(
             return []
         stmt = stmt.where(Client.name.in_(allowed))
 
-    stmt = stmt.offset(skip).limit(limit).order_by(Client.name)
+    stmt = stmt.offset(skip).limit(limit).order_by(Client.name, Client.id)
     result = await db.execute(stmt)
     clients = result.scalars().all()
 

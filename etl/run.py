@@ -100,6 +100,11 @@ def run_ingest(scope: str) -> list[dict]:
     plan = ingest_plan(scope)
     engine = get_engine()
     for step in plan:
+        if step["key"].startswith("@warehouse"):
+            # The phase-1 publisher below refreshes the flat tables itself;
+            # running the warehouse publish as an "ingest step" here would
+            # rebuild the layered warehouse twice for nothing.
+            continue
         t0 = time.time()
         with SyncSession(engine) as session:
             try:
@@ -135,7 +140,6 @@ def run_publish(
     skip_mappings: bool = False,
 ) -> list[dict]:
     from app.models import CapacityProjection
-
     from etl import transform
     from etl.extract import fetch_model_rows, get_session
     from etl.load import get_bq, load_rows, schema_for_model, schema_from_spec

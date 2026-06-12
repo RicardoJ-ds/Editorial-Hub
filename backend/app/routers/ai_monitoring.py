@@ -1,5 +1,7 @@
 """AI Monitoring endpoints — Writer AI percentage tracking and compliance."""
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,8 @@ from app.schemas import (
     AIMonitoringSummary,
     SurferAPIUsageResponse,
 )
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -57,7 +61,12 @@ async def ai_monitoring_summary(
     writer: str | None = None,
     editor: str | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(
+            bq_dashboard.ai_summary, pod, client, month, writer, editor
+        )
     total_col, fp_col, pp_col, rr_col = _recommendation_agg()
     stmt = select(total_col, fp_col, pp_col, rr_col)
     stmt = _apply_filters(stmt, pod, client, month, writer, editor)
@@ -84,7 +93,10 @@ async def ai_monitoring_summary(
 async def ai_monitoring_by_pod(
     month: str | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.ai_by_pod, month)
     total_col, fp_col, pp_col, rr_col = _recommendation_agg()
     stmt = (
         select(AIMonitoringRecord.pod, total_col, fp_col, pp_col, rr_col)
@@ -109,13 +121,16 @@ async def ai_monitoring_by_client(
     month: str | None = None,
     limit: int = Query(default=25, le=100),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.ai_by_client, pod, month, limit)
     total_col, fp_col, pp_col, rr_col = _recommendation_agg()
     stmt = (
         select(AIMonitoringRecord.client, total_col, fp_col, pp_col, rr_col)
         .where(AIMonitoringRecord.is_rewrite == False)  # noqa: E712
         .group_by(AIMonitoringRecord.client)
-        .order_by(func.count().desc())
+        .order_by(func.count().desc(), AIMonitoringRecord.client)
         .limit(limit)
     )
     if pod:
@@ -137,7 +152,10 @@ async def ai_monitoring_by_writer(
     month: str | None = None,
     limit: int = Query(default=25, le=100),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.ai_by_writer, pod, month, limit)
     total_col, fp_col, pp_col, rr_col = _recommendation_agg()
     stmt = (
         select(AIMonitoringRecord.writer_name, total_col, fp_col, pp_col, rr_col)
@@ -147,7 +165,7 @@ async def ai_monitoring_by_writer(
             AIMonitoringRecord.writer_name != "",
         )
         .group_by(AIMonitoringRecord.writer_name)
-        .order_by(func.count().desc())
+        .order_by(func.count().desc(), AIMonitoringRecord.writer_name)
         .limit(limit)
     )
     if pod:
@@ -168,7 +186,10 @@ async def ai_monitoring_by_month(
     pod: str | None = None,
     client: str | None = None,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.ai_by_month, pod, client)
     total_col, fp_col, pp_col, rr_col = _recommendation_agg()
     stmt = (
         select(AIMonitoringRecord.month, total_col, fp_col, pp_col, rr_col)
@@ -200,11 +221,14 @@ async def ai_monitoring_flags(
     limit: int = Query(default=50, le=200),
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.ai_flags, pod, client, limit, offset)
     stmt = (
         select(AIMonitoringRecord)
         .where(AIMonitoringRecord.is_flagged == True)  # noqa: E712
-        .order_by(AIMonitoringRecord.date_processed.desc())
+        .order_by(AIMonitoringRecord.date_processed.desc(), AIMonitoringRecord.id)
         .limit(limit)
         .offset(offset)
     )
@@ -222,11 +246,14 @@ async def ai_monitoring_rewrites(
     limit: int = Query(default=50, le=200),
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.ai_rewrites, client, limit, offset)
     stmt = (
         select(AIMonitoringRecord)
         .where(AIMonitoringRecord.is_rewrite == True)  # noqa: E712
-        .order_by(AIMonitoringRecord.date_processed.desc())
+        .order_by(AIMonitoringRecord.date_processed.desc(), AIMonitoringRecord.id)
         .limit(limit)
         .offset(offset)
     )
@@ -237,6 +264,11 @@ async def ai_monitoring_rewrites(
 
 
 @router.get("/surfer-usage", response_model=list[SurferAPIUsageResponse])
-async def surfer_usage(db: AsyncSession = Depends(get_db)):
+async def surfer_usage(
+    db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
+):
+    if source == "bq":
+        return await asyncio.to_thread(bq_dashboard.surfer_usage)
     result = await db.execute(select(SurferAPIUsage).order_by(SurferAPIUsage.id))
     return result.scalars().all()

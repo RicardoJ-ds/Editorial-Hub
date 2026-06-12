@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import DeliverableMonthly
 from app.schemas import DeliverableCreate, DeliverableResponse, DeliverableUpdate
+from app.services import bq_dashboard
+from app.services.bq_dashboard import get_data_source
 
 router = APIRouter()
 
@@ -17,7 +21,13 @@ async def list_deliverables(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
+    source: str = Depends(get_data_source),
 ):
+    if source == "bq":
+        return await asyncio.to_thread(
+            bq_dashboard.list_deliverables, client_id, year, month, skip, limit
+        )
+
     stmt = select(DeliverableMonthly)
 
     if client_id is not None:
@@ -30,7 +40,11 @@ async def list_deliverables(
     stmt = (
         stmt.offset(skip)
         .limit(limit)
-        .order_by(DeliverableMonthly.year.desc(), DeliverableMonthly.month.desc())
+        .order_by(
+            DeliverableMonthly.year.desc(),
+            DeliverableMonthly.month.desc(),
+            DeliverableMonthly.id,  # stable tie-break: identical pages on every source
+        )
     )
     result = await db.execute(stmt)
     return result.scalars().all()
