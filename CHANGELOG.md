@@ -18,6 +18,27 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.26 — June 16
+
+**Milestone timings now read the same on every Overview card, article credit is more accurate, and the data pipeline behind the dashboards was rebuilt — with no change to the numbers you see.**
+
+### Time to Milestones
+
+- A milestone occasionally lands *before* the step that should precede it — e.g. a content brief marked approved a couple of days before the Consulting KO date. The cards used to disagree about this: the **Time-to-Metrics** card hid it (read "—" / 0 clients) while the **Per-Client Days** bar showed the real value. All three cards now agree and show it. On the **Pod Timelines** (and the Editorial Clients **Client Timelines**), a before-kickoff milestone is flagged with a red ring and a labeled value, so a date-entry anomaly is easy to spot and fix.
+
+### Article attribution & client names
+
+- **Shared editor credit:** when one article cell lists a Senior Editor *and* an Editor together, the Editor now gets the credit (the Senior Editor reviews; the Editor edits). Pod totals are unaffected.
+- **Reconciled two client names** that were logged under variants — *Genstore* → GenstoreAI, and *ShareGate* → Workleap + Sharegate — so their article counts now tie out against the Operating Model.
+- Applied Daniela's confirmed writer-name corrections to the mapping reference.
+
+### Behind the scenes
+
+- The data layer that feeds every dashboard was rebuilt as a single layered pipeline, published to both the app database and BigQuery in one pass — same numbers, more reliable, and easier to audit.
+- The **Model Assumptions** sheet (ramp-up, capacity per role, client mix) is now imported on the past-months re-sync and mirrored to BigQuery for the capacity-planning work.
+
+---
+
 ## 0.3.25 — June 10
 
 **Team KPIs now shows a real capacity picture: one Capacity tab that reveals how fully each pod — and each editor — is used, month by month. The Monthly Articles revision metrics are also reorganized into clearer tabs.**
