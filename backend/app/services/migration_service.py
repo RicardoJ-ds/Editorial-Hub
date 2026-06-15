@@ -5788,6 +5788,51 @@ def _article_build_header_map(header_row: list) -> dict[str, int]:
     return out
 
 
+def _build_editor_role_map(session: Session):
+    """{(year,month,person_lower): {'SE'|'ED'}} from ET CP capacity slots, plus
+    an any-month fallback. Used to resolve 2-person editor cells: a Senior
+    Editor + Editor pair credits only the Editor."""
+    from collections import defaultdict as _dd
+
+    exact: dict = _dd(set)
+    anym: dict = _dd(set)
+    for r in session.execute(
+        text(
+            "SELECT year, month, role, member_breakdown, member_raw FROM editorial_member_capacity"
+        )
+    ):
+        rl = (r.role or "").lower()
+        cls = "SE" if "senior" in rl else ("ED" if "editor" in rl else None)
+        if not cls:
+            continue
+        names = [b.get("name", "") for b in (r.member_breakdown or []) if isinstance(b, dict)] or (
+            [r.member_raw] if r.member_raw else []
+        )
+        for n in names:
+            p = (n or "").strip().lower()
+            if p:
+                exact[(r.year, r.month, p)].add(cls)
+                anym[p].add(cls)
+    return exact, anym
+
+
+def _editor_role_class(maps, year, month, person) -> str | None:
+    """'SE' / 'ED' / None for a canonical editor name in a given month."""
+    exact, anym = maps
+    p = (person or "").strip().lower()
+    if not p:
+        return None
+    for src in (exact.get((year, month, p)), anym.get(p)):
+        if src:
+            return "SE" if src == {"SE"} else ("ED" if "ED" in src else None)
+    f = p.split()[0]
+    hits: set = set()
+    for k, v in anym.items():
+        if k.split()[0] == f:
+            hits |= v
+    return "SE" if hits == {"SE"} else ("ED" if "ED" in hits else None)
+
+
 def _split_editors(editor_raw: str) -> list[str]:
     """'Shelby/Maggie' → ['Shelby', 'Maggie']. Splits on / & , and 'and'."""
     parts = re.split(r"[/&,]| and ", editor_raw, flags=re.IGNORECASE)
@@ -6072,6 +6117,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
     writer_alias = _alias_map("writer")
     # Editorial week distribution — maps each article date to its editorial month.
     editorial_weeks = _build_editorial_weeks(session)
+    editor_roles = _build_editor_role_map(session)
 
     # 2. List client tabs.
     try:
@@ -6198,6 +6244,18 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             uid = hashlib.sha256(f"{tab}|{r_idx}".encode()).hexdigest()[:16]
             editors = _split_editors(editor_raw)
             collab = len(editors) > 1
+            # Canonicalize, then the SE+Editor collaboration rule: a 2-person
+            # editor cell that is exactly one Senior Editor + one Editor (per
+            # ET CP roles that month) credits ONLY the Editor — the SE reviews,
+            # the Editor edits. Two-editor / two-SE / unknown cells keep both.
+            editor_names = [
+                _alias_resolve(editor_alias, ed.strip().lower(), month_year) or _clean_editor(ed)
+                for ed in editors
+            ]
+            if len(editor_names) == 2:
+                rc = [_editor_role_class(editor_roles, year, month, n) for n in editor_names]
+                if rc.count("SE") == 1 and rc.count("ED") == 1:
+                    editor_names = [editor_names[rc.index("ED")]]
             writer_raw = str(cell("WRITER")).strip() or None
             writer_name = (
                 _alias_resolve(writer_alias, writer_raw.strip().lower(), month_year)
@@ -6212,10 +6270,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             task_id = str(cell("TASK_ID")).strip() or None
             rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
             rev_dates_iso = [d.isoformat() for d, _ in rev_events]
-            for ed in editors:
-                editor_name = _alias_resolve(
-                    editor_alias, ed.strip().lower(), month_year
-                ) or _clean_editor(ed)
+            for editor_name in editor_names:
                 records.append(
                     {
                         "article_uid": uid,
