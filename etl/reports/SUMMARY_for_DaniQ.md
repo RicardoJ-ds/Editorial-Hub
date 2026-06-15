@@ -29,21 +29,20 @@ And once we account for the 2 clients logged under a different name
 **Meta** clients, which have no tab at all. Full detail in the
 **🔍 OM RECONCILIATION** tab.
 
-## "A / B" editor cells — mostly auto-handled now
-When an editor cell has two people and one is a **Senior Editor + one Editor**,
-we now automatically credit the **Editor** (the SE reviews, the Editor edits) —
-230 cells resolved this way. The rest are **two-Editor** collaborations, which
-we can't split without a rule. Note: this doesn't change the capacity numbers
-(those follow the Operating Model totals); it only sharpens per-editor credit.
+## "A / B" editor cells — handled, no decision needed
+When a cell has a **Senior Editor + an Editor**, we now credit the **Editor**
+automatically (the SE reviews, the Editor edits) — 230 cells. For the rest
+(two Editors together), we keep crediting both. **We checked: none of this
+changes the capacity numbers** — pod totals follow the Operating Model, and the
+biggest possible effect of any collaboration choice is ~2 points on one person
+in one month. So no action needed from you here.
 
-## 🙏 What we still need from you
-1. **Two-editor collaborations** — when BOTH names are Editors (e.g.
-   "Haley / Lee"), default rule? *Split the credit 50/50*, or *first name =
-   lead*? One rule covers all of them. (~29 articles in 2025; the rest are
-   2022 history.)
-2. **Confirm same client?** — "Genstore" tab = client "GenstoreAI"? and
-   "ShareGate" tab = "Workleap + Sharegate"? (See 🔍 OM RECONCILIATION tab.)
-3. **Meta AI / Meta BMG / Meta RL** — no tab in the sheet, so their articles
-   aren't logged. Will they be logged, or do we accept the gap?
+## 🙏 What we still need from you (just clients)
+1. **Confirm same client?** — "Genstore" tab = client "GenstoreAI"? and
+   "ShareGate" tab = "Workleap + Sharegate"? (See 🔍 OM RECONCILIATION tab — it
+   would close most of the gap.)
+2. **Meta AI / Meta BMG / Meta RL** — no tab in the sheet, so ~118 articles
+   aren't logged at all. Will they be logged, or do we accept the gap? *(This
+   is the only real gap left.)*
 
 That's it — everything else is confirmed and live.
