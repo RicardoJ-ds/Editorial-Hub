@@ -1,5 +1,5 @@
 year,month,pod,only_in_ET_CP,only_in_Team_Pods,in_both,classification,evidence,verdict
-2025,Jan,Pod 1,—,"derrik, jared, nicholas",,coverage — before ET CP member data (articles corroborate Team Pods),,
+2025,Jan,Pod 1,—,"derrik, nicholas",,coverage — before ET CP member data (articles corroborate Team Pods),,
 2025,Jan,Pod 2,—,"anabelle, maggie",,coverage — before ET CP member data (articles corroborate Team Pods),,
 2025,Jan,Pod 3,—,"alyssa, kennedy, nina",,coverage — before ET CP member data (articles corroborate Team Pods),,
 2025,Feb,Pod 1,—,derrik,,coverage — before ET CP member data (articles corroborate Team Pods),,
@@ -14,12 +14,15 @@ year,month,pod,only_in_ET_CP,only_in_Team_Pods,in_both,classification,evidence,v
 2025,Jul,Pod 1,robert,—,"katie, kennedy, nina",transition,robert: joined 2025-07-21 (HR),robert: ET CP ✓ — TP tab predates the join
 2025,Jul,Pod 3,lee,—,"alyssa, derrik, jared",transition,lee: joined 2025-07-21 (HR),lee: ET CP ✓ — TP tab predates the join
 2025,Aug,Freelancers,—,candela,,transition,,
-2025,Aug,Pod 2,katie,samantha.mcgrail@graphitehq.com,"anabelle, kennedy, maggie, samantha",transition,"katie: Pod 1 ×29, Pod 4 ×1 articles",katie: mostly TP ✓ — ET CP overspread
+2025,Aug,Pod 2,katie,—,"anabelle, kennedy, maggie, samantha",transition,"katie: Pod 1 ×29, Pod 4 ×1 articles",katie: mostly TP ✓ — ET CP overspread
 2025,Aug,Pod 3,"anabelle, haley, maggie",—,"alyssa, derrik, lee",transition,anabelle: Pod 2 ×17 + Pod 3 ×11 articles; left 2025-08-22 | haley: joined 2025-08-18 (HR) | maggie: Pod 4 ×13 + Pod 3 ×12 articles,anabelle: ET CP ✓ — real multi-pod coverage | haley: ET CP ✓ — TP tab predates the join | maggie: ET CP ✓ — she really covered 3+4
 2025,Aug,Pod 4,"katie, maggie, micki",—,"abby, elliot",transition,"katie: Pod 1 ×29, Pod 4 ×1 articles | maggie: Pod 4 ×13 + Pod 3 ×12 articles | micki: joined 2025-08-18 (HR)",katie: mostly TP ✓ — ET CP overspread | maggie: ET CP ✓ — she really covered 3+4 | micki: ET CP ✓ — TP tab predates the join
 2025,Sep,Freelancers,—,candela,,transition,,
 2025,Sep,Pod 1,—,"derrik, lee","katie, nina, robert",transition,"derrik: left 2025-09-02 (HR); his articles were Pod 3 | lee: Pod 3 ×46, Pod 1 ×3 articles",derrik: ET CP ✓ — TP stale AND wrong pod | lee: ET CP ✓ — Pod 1 was minor help
+2025,Sep,Pod 2,jimmy,—,"kennedy, samantha",transition,,
 2025,Sep,Pod 3,chrissy,—,"alyssa, haley, lee",transition,chrissy: no articles,chrissy: open — placeholder slot?
+2025,Sep,Pod 4,tiffany,—,"abby, elliot, micki",transition,,
+2025,Sep,Pod 5,"lauren, shivani",—,"anabelle, maggie",transition,,
 2025,Oct,Freelancers,—,paula,,transition,,
 2025,Nov,Freelancers,—,paula,,transition,,
 2026,Jan,Pod 1,—,jimmy,"nina, robert",transition,"jimmy: Pod 2 ×24, Pod 1 ×9 articles; Pod 5 unsupported",jimmy: split month — both partial

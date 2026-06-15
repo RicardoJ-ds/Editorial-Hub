@@ -1,8 +1,8 @@
 before_log_name,after_full_name,status,article_rows,first_month,last_month,candidates,where_to_validate
-Dan,,ambiguous,28,2025-05,2025-08,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: Better · EarnIn B2B
+Dan,,ambiguous,28,2025-05,2025-08,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: EarnIn B2B
 Daniela,,ambiguous,4,2025-09,2025-10,"Daniela Quiroga, Daniela Rial",Monthly Article Count → WRITER column in: Engine · Ellis · Moss
 Dan*,,ambiguous,2,2025-05,2025-05,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: Better
-Daniel,,ambiguous,2,2025-08,2025-08,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: Better
+Daniel,,ambiguous,2,2025-08,2025-08,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: 
 Dani,,ambiguous,1,2025-09,2025-09,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: CoinTracker
 Eric Esposito,Eric Esposito,confirmed,1376,,,,Monthly Article Count → WRITER column in: dydx · Worldcoin · CoinTracker
 Kimberly Kruge,Kimberly Kruge,confirmed,1255,,,,Monthly Article Count → WRITER column in: Linktree · Practice · Jaanuu
@@ -10,7 +10,7 @@ Chelsea Oliver,Chelsea Oliver,confirmed,897,,,,Monthly Article Count → WRITER 
 Aranyak Nanda,Aranyak Nanda,confirmed,791,,,,Monthly Article Count → WRITER column in: Webflow · Mirage · Worldcoin
 Kevin Vaughn,Kevin Vaughn,confirmed,788,,,,Monthly Article Count → WRITER column in: BetterUp · Onton · Oyster
 Camille Tovee,Camille Tovee,confirmed,695,2024-01,2024-01,,Monthly Article Count → WRITER column in: Tempo.io · Gopuff · BetterUp
-Ashton Playsted,Ashton Playsted,confirmed,484,,,,Monthly Article Count → WRITER column in: Invoice Simple · Better · EarnIn
+Ashton Playsted,Ashton Playsted,confirmed,484,,,,Monthly Article Count → WRITER column in: Invoice Simple · Better · Mirage
 Abby Norwood,Abby Norwood,confirmed,384,,,,Monthly Article Count → WRITER column in: EarnIn · Quinn · Fishbowl
 Sarah Foley,Sarah Foley,confirmed,381,,,,Monthly Article Count → WRITER column in: Webflow · Everand · Taskrabbit
 Rob Harper,Rob Harper,confirmed,376,,,,Monthly Article Count → WRITER column in: Webflow · Vimeo · Scribe
@@ -125,7 +125,7 @@ Sam*,Samantha McGrail,confirmed_first_name,1,2024-12,2024-12,,Monthly Article Co
 Kimberly*,Kimberly Kruge,confirmed_first_name,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: 
 Brandon*,Brandon Morgan,confirmed_first_name,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: 
 Garret,Garrett Schlichte,confirmed_first_name,1,2024-09,2024-09,,Monthly Article Count → WRITER column in: 
-Emile,Emile,first_name_only,413,2020-12,2026-12,,Monthly Article Count → WRITER column in: Notion · Email On Acid · Mailgun
+Emile,Emile,first_name_only,413,2020-12,2026-12,,Monthly Article Count → WRITER column in: Email On Acid · Notion · Mailgun
 Dana,Dana,first_name_only,289,2022-01,2026-07,,Monthly Article Count → WRITER column in: Flip · Curology · Linktree
 Chantel,Chantel,first_name_only,234,2022-02,2026-11,,Monthly Article Count → WRITER column in: Little Passports · Flip · Practice
 Mark,Mark,first_name_only,221,2022-03,2026-12,,Monthly Article Count → WRITER column in: Shift · Mailjet · ESGgo
@@ -133,7 +133,7 @@ Gabryel,Gabryel,first_name_only,221,2022-11,2023-10,,Monthly Article Count → W
 Samaara,Samaara,first_name_only,199,2022-01,2026-09,,Monthly Article Count → WRITER column in: Curology · Cadre · Mailjet
 CJ,Cj,first_name_only,174,2023-10,2026-11,,Monthly Article Count → WRITER column in: Grindr
 Claire,Claire,first_name_only,173,2022-02,2024-12,,Monthly Article Count → WRITER column in: BetterUp · Oyster · Invoice Simple
-Paige,Paige,first_name_only,132,2024-08,2025-08,,Monthly Article Count → WRITER column in: Fishbowl · Otter · GlossGenius
+Paige,Paige,first_name_only,132,2024-08,2025-08,,Monthly Article Count → WRITER column in: 
 Cat,Cat,first_name_only,123,2023-07,2024-04,,Monthly Article Count → WRITER column in: Composer · EarnIn · Invoice Simple
 Martin,Martin,first_name_only,119,2023-06,2026-07,,Monthly Article Count → WRITER column in: Contra
 Miles,Miles,first_name_only,105,2022-04,2022-12,,Monthly Article Count → WRITER column in: Dynamite · Descript · Practice
@@ -141,38 +141,38 @@ Curtis,Curtis,first_name_only,103,2023-01,2026-03,,Monthly Article Count → WRI
 Tom,Tom,first_name_only,81,2022-12,2023-03,,Monthly Article Count → WRITER column in: Contra · BetterUp · Neeva
 Keenan,Keenan,first_name_only,76,2023-10,2026-12,,Monthly Article Count → WRITER column in: IronVest · dydx · EarnIn
 Joshua,Joshua,first_name_only,75,2023-08,2023-11,,Monthly Article Count → WRITER column in: Contra · Notion
-Jordan,Jordan,first_name_only,73,2025-03,2026-08,,Monthly Article Count → WRITER column in: Gainbridge · CoinTracker · Smartling
+Jordan,Jordan,first_name_only,73,2025-03,2026-08,,Monthly Article Count → WRITER column in: 
 Meaghan,Meaghan,first_name_only,70,2022-07,2026-09,,Monthly Article Count → WRITER column in: Practice · Dynamite
 Lisa,Lisa,first_name_only,68,2024-05,2024-11,,Monthly Article Count → WRITER column in: Invoice Simple · Apartment List · Oyster
-Bonniey,Bonniey,first_name_only,68,2024-10,2026-12,,Monthly Article Count → WRITER column in: Orderful 2
-Michael,Michael,first_name_only,67,2023-07,2026-07,,Monthly Article Count → WRITER column in: Gainbridge · Mirage · Athena2
+Bonniey,Bonniey,first_name_only,68,2024-10,2026-12,,Monthly Article Count → WRITER column in: 
+Michael,Michael,first_name_only,67,2023-07,2026-07,,Monthly Article Count → WRITER column in: 
 CC,Cc,first_name_only,64,2023-05,2023-10,,Monthly Article Count → WRITER column in: Orderful
 Tyler,Tyler,first_name_only,62,2023-02,2026-01,,Monthly Article Count → WRITER column in: dydx · EarnIn · Webflow
 Prianca,Prianca,first_name_only,61,2023-08,2023-11,,Monthly Article Count → WRITER column in: Contra
 Candice,Candice,first_name_only,60,2023-09,2026-11,,Monthly Article Count → WRITER column in: Mirage · Linktree · Notion
-Mindy,Mindy,first_name_only,59,2024-11,2025-06,,Monthly Article Count → WRITER column in: Tempo.io · Legit Security · Mirage
+Mindy,Mindy,first_name_only,59,2024-11,2025-06,,Monthly Article Count → WRITER column in: 
 Jarrett,Jarrett,first_name_only,56,2024-04,2026-05,,Monthly Article Count → WRITER column in: Mirage
 Nick,Nick,first_name_only,47,2024-01,2024-03,,Monthly Article Count → WRITER column in: dydx · Invoice Simple
 Austin,Austin,first_name_only,45,2023-07,2024-04,,Monthly Article Count → WRITER column in: BetterUp · IronVest · EarnIn
 Jason,Jason,first_name_only,43,2022-03,2023-05,,Monthly Article Count → WRITER column in: Mailjet · Notion · Webflow
-Marinda,Marinda,first_name_only,42,2024-11,2025-03,,Monthly Article Count → WRITER column in: Gainbridge · Invoice Simple · EarnIn
+Marinda,Marinda,first_name_only,42,2024-11,2025-03,,Monthly Article Count → WRITER column in: 
 GR0,Gr0,first_name_only,40,2024-01,2025-04,,Monthly Article Count → WRITER column in: Tempo.io · Grindr · Fishbowl
 James,James,first_name_only,37,2023-05,2024-09,,Monthly Article Count → WRITER column in: Scribe · Fellow · Orderful
 Christy,Christy,first_name_only,35,2024-04,2024-10,,Monthly Article Count → WRITER column in: Invoice Simple · Fishbowl · Fellow
 Shianne,Shianne,first_name_only,33,2021-12,2022-03,,Monthly Article Count → WRITER column in: Gopuff · Jaanuu
-Amanda,Amanda,first_name_only,31,2025-02,2025-08,,Monthly Article Count → WRITER column in: Smartling · Vimeo
+Amanda,Amanda,first_name_only,31,2025-02,2025-08,,Monthly Article Count → WRITER column in: 
 Micah,Micah,first_name_only,29,2024-05,2024-08,,Monthly Article Count → WRITER column in: CoinTracker · Invoice Simple · dydx
 Braden,Braden,first_name_only,28,2024-07,2024-08,,Monthly Article Count → WRITER column in: EarnIn · CoinTracker · Invoice Simple
-Justine,Justine,first_name_only,26,2025-04,2025-06,,Monthly Article Count → WRITER column in: Athena2 · Mirage · ThredUp
+Justine,Justine,first_name_only,26,2025-04,2025-06,,Monthly Article Count → WRITER column in: 
 Brad,Brad,first_name_only,24,2024-05,2026-07,,Monthly Article Count → WRITER column in: CoinTracker · Oyster · Invoice Simple
-Mike,Mike,first_name_only,23,2023-05,2025-06,,Monthly Article Count → WRITER column in: Mirage · BetterUp
+Mike,Mike,first_name_only,23,2023-05,2025-06,,Monthly Article Count → WRITER column in: 
 Briley,Briley,first_name_only,23,2023-09,2024-04,,Monthly Article Count → WRITER column in: EarnIn
-Dave,Dave,first_name_only,21,2023-01,2024-05,,Monthly Article Count → WRITER column in: Oyster · Tempo.io · BetterUp
+Dave,Dave,first_name_only,21,2023-01,2024-05,,Monthly Article Count → WRITER column in: Oyster · Tempo.io · Invoice Simple
 Alyssa,Alyssa,first_name_only,18,2022-06,2024-02,,Monthly Article Count → WRITER column in: Notion · Tempo.io · OpenSea
 John,John,first_name_only,18,2023-05,2023-09,,Monthly Article Count → WRITER column in: Grindr · Notion
 Yonela,Yonela,first_name_only,17,2024-07,2024-08,,Monthly Article Count → WRITER column in: Fishbowl
 Marina,Marina,first_name_only,17,2023-08,2026-10,,Monthly Article Count → WRITER column in: Notion · Tempo.io
-Thea,Thea,first_name_only,14,2025-04,2025-07,,Monthly Article Count → WRITER column in: Athena2 · Onton · ThredUp
+Thea,Thea,first_name_only,14,2025-04,2025-07,,Monthly Article Count → WRITER column in: 
 Nicholas,Nicholas,first_name_only,13,2023-05,2023-05,,Monthly Article Count → WRITER column in: BetterUp · Contra
 Melissa,Melissa,first_name_only,13,2023-02,2023-04,,Monthly Article Count → WRITER column in: Linktree
 Roxana,Roxana,first_name_only,13,2024-10,2024-11,,Monthly Article Count → WRITER column in: Mirage
@@ -184,7 +184,7 @@ AI,Ai,first_name_only,10,2023-05,2026-04,,Monthly Article Count → WRITER colum
 Neil,Neil,first_name_only,10,2022-08,2026-07,,Monthly Article Count → WRITER column in: OpenSea
 Megan,Megan,first_name_only,5,2022-04,2022-11,,Monthly Article Count → WRITER column in: Mailjet
 Yonela*,Yonela*,first_name_only,4,2024-05,2024-06,,Monthly Article Count → WRITER column in: Fishbowl
-Annabelle,Annabelle,first_name_only,3,2026-04,2026-05,,Monthly Article Count → WRITER column in: Miter · HoneyBook
+Annabelle,Annabelle,first_name_only,3,2026-04,2026-05,,Monthly Article Count → WRITER column in: 
 Kyle,Kyle,first_name_only,3,2023-03,2023-04,,Monthly Article Count → WRITER column in: Contra
 freelancer,Freelancer,first_name_only,3,2025-09,2025-09,,Monthly Article Count → WRITER column in: Tempo.io · Engine
 Braden*,Braden*,first_name_only,3,2024-06,2024-06,,Monthly Article Count → WRITER column in: EarnIn · Webflow
@@ -204,14 +204,14 @@ Matt,Matt,first_name_only,2,2022-06,2022-06,,Monthly Article Count → WRITER co
 Kendra,Kendra,first_name_only,2,2023-05,2023-05,,Monthly Article Count → WRITER column in: Webflow
 Madison*,Madison*,first_name_only,2,2024-08,2024-09,,Monthly Article Count → WRITER column in: Legit Security
 Alyson*,Alyson*,first_name_only,2,2024-11,2024-11,,Monthly Article Count → WRITER column in: Otter
-Kimberley,Kimberley,first_name_only,2,2025-09,2025-09,,Monthly Article Count → WRITER column in: Oyster
+Kimberley,Kimberley,first_name_only,2,2025-09,2025-09,,Monthly Article Count → WRITER column in: 
 Yulia,Yulia,first_name_only,2,2024-04,2024-05,,Monthly Article Count → WRITER column in: Tempo.io
 Morgan,Morgan,first_name_only,2,2025-06,2025-06,,Monthly Article Count → WRITER column in: Engine
 Mikayla,Mikayla,first_name_only,2,2024-11,2024-12,,Monthly Article Count → WRITER column in: Mirage
 Britt*,Britt*,first_name_only,2,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
 Liam,Liam,first_name_only,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: EarnIn B2B
 Jerry,Jerry,first_name_only,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: Orderful 2
-Aby,Aby,first_name_only,1,2026-05,2026-05,,Monthly Article Count → WRITER column in: College HUNKS
+Aby,Aby,first_name_only,1,2026-05,2026-05,,Monthly Article Count → WRITER column in: 
 Jose,Jose,first_name_only,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: Smartling
 Justin,Justin,first_name_only,1,2024-04,2024-04,,Monthly Article Count → WRITER column in: Fellow
 Savanna*,Savanna*,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
@@ -231,15 +231,15 @@ Lauren,Lauren,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITE
 Renee*,Renee*,first_name_only,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: Otter
 Blain,Blain,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: Mirage
 Kasey*,Kasey*,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: Blu
-Ke,Ke,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Oyster
+Ke,Ke,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: 
 Marcin,Marcin,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: Oyster
-Ayşenur,Ayşenur,first_name_only,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: Smartling
+Ayşenur,Ayşenur,first_name_only,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: 
 Tara*,Tara*,first_name_only,1,2024-09,2024-09,,Monthly Article Count → WRITER column in: EarnIn
 Cheslea,Cheslea,first_name_only,1,2024-04,2024-04,,Monthly Article Count → WRITER column in: Quinn
 Claire*,Claire*,first_name_only,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: Gainbridge
 Hannah,Hannah,first_name_only,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: EarnIn B2B
 Karisa,Karisa,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Daniele,Daniele,first_name_only,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: Engine
+Daniele,Daniele,first_name_only,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: 
 Andrea*,Andrea*,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
 https://docs.google.com/document/d/1ic2n_uoNdMktXBDNhhrWDsjYfT3g-1Vdf9HJolyTeyE/edit,Https://Docs.Google.Com/Document/D/1Ic2N_Uondmktxbdnhhrwdsjyft3G-1Vdf9Hjolyteye/Edit,first_name_only,1,2021-11,2021-11,,Monthly Article Count → WRITER column in: Athena
 Gr0,Gr0,first_name_only,1,2024-01,2024-01,,Monthly Article Count → WRITER column in: Grindr
@@ -271,13 +271,13 @@ Auditioning writer (Kimberly),,trial,1,2025-06,2025-06,,Monthly Article Count �
 John T,,unresolved,24,2023-07,2023-09,,Monthly Article Count → WRITER column in: Notion · Tempo.io
 crowd content,,unresolved,23,2023-03,2026-04,,Monthly Article Count → WRITER column in: Notion
 Austin DeNoce,,unresolved,10,2026-09,2026-10,,Monthly Article Count → WRITER column in: Webflow
-Michael D,,unresolved,8,2025-03,2025-08,,Monthly Article Count → WRITER column in: Rox · CoinTracker
+Michael D,,unresolved,8,2025-03,2025-08,,Monthly Article Count → WRITER column in: 
 writer audition,,unresolved,5,2025-05,2025-09,,Monthly Article Count → WRITER column in: Athena2 · EarnIn B2B · Smartling
 Naomi *,,unresolved,2,2025-05,2025-06,,Monthly Article Count → WRITER column in: Smartling
 David Chang*,,unresolved,2,2024-05,2024-06,,Monthly Article Count → WRITER column in: Tempo.io
 Chris Tepedino*,,unresolved,2,2025-02,2025-02,,Monthly Article Count → WRITER column in: CoinTracker
 Grace Anne*,,unresolved,2,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Michael D.,,unresolved,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: Gainbridge
+Michael D.,,unresolved,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: 
 New writer,,unresolved,1,2023-01,2023-01,,Monthly Article Count → WRITER column in: Notion
 Marina D,,unresolved,1,2023-10,2023-10,,Monthly Article Count → WRITER column in: Notion
 michael davis,,unresolved,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: CoinTracker

@@ -24,9 +24,10 @@ Comparing **OM** vs articles **logged** (LOG), 2026, same month basis:
 | May | 364 | 334 | 92% |
 | **Jan–May** | **1,595** | **1,471** | **92%** |
 
-And once we account for the 2 clients logged under a different name
-(Genstore, ShareGate), it's **~98%**. The only real missing piece is the
-**Meta** clients, which have no tab at all. Full detail in the
+We've now mapped the 2 clients that were logged under a different name —
+**"Genstore" → GenstoreAI** and **"ShareGate" → Workleap + Sharegate** — so they
+reconcile exactly. After that, the **only real missing piece is Meta** (AI / BMG
+/ RL), which has no tab at all (~118 articles). Full detail in the
 **🔍 OM RECONCILIATION** tab.
 
 ## "A / B" editor cells — handled, no decision needed
@@ -37,12 +38,10 @@ changes the capacity numbers** — pod totals follow the Operating Model, and th
 biggest possible effect of any collaboration choice is ~2 points on one person
 in one month. So no action needed from you here.
 
-## 🙏 What we still need from you (just clients)
-1. **Confirm same client?** — "Genstore" tab = client "GenstoreAI"? and
-   "ShareGate" tab = "Workleap + Sharegate"? (See 🔍 OM RECONCILIATION tab — it
-   would close most of the gap.)
-2. **Meta AI / Meta BMG / Meta RL** — no tab in the sheet, so ~118 articles
-   aren't logged at all. Will they be logged, or do we accept the gap? *(This
-   is the only real gap left.)*
+## 🙏 What we still need from you (one thing)
+**Meta AI / Meta BMG / Meta RL** — these have no tab in the sheet, so ~118
+articles aren't logged at all. Will they be logged going forward, or do we
+accept the gap? *(After the Genstore + ShareGate fixes, this is the only real
+gap left.)*
 
 That's it — everything else is confirmed and live.

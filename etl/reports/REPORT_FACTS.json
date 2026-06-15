@@ -3,32 +3,32 @@
     {
       "month": "Jan",
       "operating_model": 274,
-      "log_editorial": 245,
-      "log_calendar": 185
+      "log_editorial": 263,
+      "log_calendar": 195
     },
     {
       "month": "Feb",
       "operating_model": 294,
-      "log_editorial": 249,
-      "log_calendar": 240
+      "log_editorial": 268,
+      "log_calendar": 258
     },
     {
       "month": "Mar",
       "operating_model": 324,
-      "log_editorial": 280,
-      "log_calendar": 349
+      "log_editorial": 292,
+      "log_calendar": 370
     },
     {
       "month": "Apr",
       "operating_model": 339,
-      "log_editorial": 296,
-      "log_calendar": 214
+      "log_editorial": 309,
+      "log_calendar": 225
     },
     {
       "month": "May",
       "operating_model": 364,
       "log_editorial": 331,
-      "log_calendar": 306
+      "log_calendar": 308
     },
     {
       "month": "Jun",
@@ -74,11 +74,11 @@
     }
   ],
   "month_basis_verdicts": {
-    "gap": 200,
-    "exact_match": 196,
-    "close": 190,
-    "no_operating_model": 131,
-    "missing_from_log": 108,
+    "exact_match": 199,
+    "gap": 197,
+    "close": 195,
+    "no_operating_model": 133,
+    "missing_from_log": 103,
     "month_boundary": 4
   },
   "miter_example": [
@@ -320,28 +320,28 @@
   ],
   "pod_member_drift": {
     "slots_compared": 69,
-    "identical": 50,
-    "rows": 56,
+    "identical": 47,
+    "rows": 59,
     "transition_cases_reviewed": 21
   },
   "mapping_by_month": {
     "editors": {
-      "dated_rows": 15100,
+      "dated_rows": 14870,
       "undated_rows": 56,
-      "total_log_rows": 15156,
-      "distinct_raw_to_resolved": 188,
-      "csv_rows": 839
+      "total_log_rows": 14926,
+      "distinct_raw_to_resolved": 172,
+      "csv_rows": 812
     },
     "writers": {
-      "dated_rows": 15088,
+      "dated_rows": 14858,
       "undated_rows": 55,
-      "total_log_rows": 15143,
-      "distinct_raw_to_resolved": 244,
+      "total_log_rows": 14913,
+      "distinct_raw_to_resolved": 245,
       "csv_rows": 1401
     },
     "clients": {
-      "csv_rows": 939,
-      "clients": 91,
+      "csv_rows": 932,
+      "clients": 90,
       "dated_articles": 13588
     }
   },

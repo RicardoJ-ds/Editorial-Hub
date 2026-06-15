@@ -309,10 +309,11 @@ Gainbridge,2026,Mar,15,17,17,2,close
 Gainbridge,2026,Jun,0,7,7,7,no_operating_model
 Gainbridge,2026,Aug,0,3,3,3,no_operating_model
 Gainbridge,2026,Sep,0,1,1,1,no_operating_model
-GenstoreAI,2025,Dec,5,0,0,-5,missing_from_log
-GenstoreAI,2026,Jan,10,0,0,-10,missing_from_log
-GenstoreAI,2026,Feb,15,0,0,-15,missing_from_log
-GenstoreAI,2026,Mar,10,0,0,-10,missing_from_log
+GenstoreAI,2025,Mar,0,1,1,1,no_operating_model
+GenstoreAI,2025,Dec,5,4,4,-1,close
+GenstoreAI,2026,Jan,10,11,6,1,close
+GenstoreAI,2026,Feb,15,15,12,0,exact_match
+GenstoreAI,2026,Mar,10,9,17,-1,close
 Glossgenius,2024,May,5,5,5,0,exact_match
 Glossgenius,2024,Jun,12,6,6,-6,gap
 Glossgenius,2024,Jul,13,19,19,6,gap
@@ -786,15 +787,16 @@ Webflow,2026,Dec,0,18,18,18,no_operating_model
 Workleap + Sharegate,2025,May,5,2,2,-3,gap
 Workleap + Sharegate,2025,Jun,10,9,9,-1,close
 Workleap + Sharegate,2025,Jul,15,15,15,0,exact_match
-Workleap + Sharegate,2025,Aug,23,16,16,-7,gap
-Workleap + Sharegate,2025,Sep,14,21,21,7,gap
+Workleap + Sharegate,2025,Aug,23,17,17,-6,gap
+Workleap + Sharegate,2025,Sep,14,24,24,10,gap
 Workleap + Sharegate,2025,Oct,15,10,10,-5,gap
-Workleap + Sharegate,2025,Nov,25,14,14,-11,gap
-Workleap + Sharegate,2025,Dec,26,22,22,-4,gap
-Workleap + Sharegate,2026,Jan,20,13,7,-7,gap
-Workleap + Sharegate,2026,Feb,37,32,19,-5,gap
-Workleap + Sharegate,2026,Mar,36,33,52,-3,gap
-Workleap + Sharegate,2026,Apr,15,0,0,-15,missing_from_log
+Workleap + Sharegate,2025,Nov,25,21,21,-4,gap
+Workleap + Sharegate,2025,Dec,26,33,33,7,gap
+Workleap + Sharegate,2026,Jan,20,20,11,0,exact_match
+Workleap + Sharegate,2026,Feb,37,36,25,-1,close
+Workleap + Sharegate,2026,Mar,36,36,56,0,exact_match
+Workleap + Sharegate,2026,Apr,15,13,11,-2,close
+Workleap + Sharegate,2026,May,0,0,2,0,no_operating_model
 Workleap + Sharegate,2026,Oct,0,1,1,1,no_operating_model
 Workleap + Sharegate,2026,Nov,0,1,1,1,no_operating_model
 dYdX,2023,Jan,5,1,1,-4,gap

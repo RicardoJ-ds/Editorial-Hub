@@ -30,7 +30,7 @@ Fivetran,Fivetran,confirmed,2025-01,2026-11,Salesforce account name; SOW Overvie
 Flex,Flex,confirmed,2026-04,2026-05,Salesforce account name; SOW Overview client list,exact match
 Front,Front,confirmed,2025-10,2026-06,Salesforce account name; SOW Overview client list,exact match
 Gainbridge,Gainbridge,confirmed,2024-10,2026-09,Salesforce account name; SOW Overview client list,exact match
-GenstoreAI,Genstore,confirmed,,,Salesforce account name; SOW Overview client list,
+GenstoreAI,Genstore,confirmed,2025-03,2026-03,Salesforce account name; SOW Overview client list,
 Glossgenius,GlossGenius,confirmed,2024-05,2025-02,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
 Grindr,Grindr LLC,confirmed,2023-04,2026-11,Salesforce account name; SOW Overview client list,legal-entity suffix
 Honey,Honey,confirmed,,,Salesforce account name; SOW Overview client list,exact match

@@ -48,7 +48,11 @@ She green-marked **146 month-rows = 74 distinct raw names**:
 - **1 month-split**: **Dan** → `audition` in May 2025 (EarnIn B2B) but **Daniel
   Pelberg** from Jun 2025 (Better). Writers may need date-windowing like editors.
 
-### Clients → covered, 2 name-splits + Meta still to reconcile (see §2)
+### Clients → reconciled (2026-06-15): the 2 name-splits applied; only Meta open
+DaniQ confirmed and we applied two tab→client aliases: **"Genstore" →
+GenstoreAI** and **"ShareGate" → Workleap + Sharegate**. Both now tie out
+(GenstoreAI OM 35 = MAC 35; Workleap+Sharegate OM 108 ≈ MAC 105). The only
+remaining client gap is the **Meta family** (Meta AI/BMG/RL — no article tab).
 
 ---
 
@@ -86,19 +90,20 @@ month-definition effect; editorial basis is stable.
 | Meta AI | 78 | 0 | **no MAC tab** (Meta family) |
 | Meta RL | 33 | 0 | **no MAC tab** |
 | Meta BMG | 20 | 0 | **no MAC tab** |
-| GenstoreAI | 35 | 0 | name-split → "Genstore" tab has +35 (nets out) |
-| Workleap + Sharegate | 108 | 78 | "ShareGate" tab has +27 (nets out) |
-| Cointracker, n8n, Boulevard, Fivetran… | — | — | small single-digit (genuine un-logged / month-edge) |
+| GenstoreAI | 35 | **35** | ✅ alias applied ("Genstore" tab) |
+| Workleap + Sharegate | 108 | **105** | ✅ alias applied ("ShareGate" tab) |
+| Cointracker (−16), n8n (−6)… | — | — | small single-digit (genuine un-logged / month-edge) |
 
-**Decomposition:** of the 124 under-count, ~**118 is the Meta family** (Meta
-AI/RL/BMG — no article tab exists at all), the **Genstore/GenstoreAI** and
-**ShareGate/Workleap** splits **net to ~0** (same client, two names), and the
-rest is single-digit per-client noise. **So the real, non-Meta reconciliation
-is ~98–99%.**
+**Decomposition (after the 2026-06-15 client fixes):** the GenstoreAI and
+Workleap+Sharegate name-splits are now resolved (both tie out). The total
+logged % is unchanged (~92%) because those articles were never missing — only
+mislabeled — but the **per-client** reconciliation is now clean except the
+**Meta family (~118 articles, no tab)** + single-digit per-client noise. So the
+real, non-Meta reconciliation is **~98–99%**.
 
-Open client items (not yet fully mapped): **Genstore↔GenstoreAI**,
-**ShareGate↔Workleap+Sharegate** (confirm same client), and the **Meta family
-needs tabs** (or accept as un-loggable — Meta domains never separately logged).
+Resolved: **Genstore↔GenstoreAI** and **ShareGate↔Workleap+Sharegate** (aliases
+applied). Remaining open: the **Meta family** needs tabs, or accept as
+un-loggable (Meta domains never separately logged).
 
 ---
 
