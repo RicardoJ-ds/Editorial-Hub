@@ -2055,7 +2055,12 @@ function PodTTMStatsCard({
         const fromDate = m.from ? raw[m.from] : c.consulting_ko_date;
         const toDate = raw[m.to];
         const d = daysBetweenTTM(fromDate, toDate);
-        if (d !== null && d >= 0) {
+        // Keep negative day-deltas (a milestone logged before its predecessor,
+        // e.g. a CB approved before the Consulting KO date). Dropping them here
+        // made this card read "—" while the Pod Timelines + Per-Client Days
+        // cards still showed the value — those two only null-filter, so this
+        // matches them. A data quirk should look the same on every card.
+        if (d !== null) {
           values.push(d);
           const rawPod =
             podAxisInner === "growth" ? c.growth_pod : c.editorial_pod;
@@ -3308,7 +3313,13 @@ function JourneyTimeline({
                   const l = pct(Math.min(prev, m.days));
                   const r = pct(Math.max(prev, m.days));
                   const w = Math.max(0, r - l);
-                  if (w <= 0.3) return null;
+                  // A reversed leg (this milestone predates its predecessor —
+                  // e.g. a CB approved before the Consulting KO) collapses to
+                  // ~0 width once both ends clamp to the baseline. Render it as
+                  // a dashed-red marker instead of dropping it, so the
+                  // out-of-order transition stays visible like the negative dot.
+                  const reversed = m.days < prev;
+                  if (w <= 0.3 && !reversed) return null;
                   const prevField = i > 0
                     ? row.milestones[i - 1].field
                     : "consulting_ko_date";
@@ -3322,10 +3333,13 @@ function JourneyTimeline({
                       className="absolute top-1/2 -translate-y-1/2 rounded-full cursor-default"
                       style={{
                         left: `${l}%`,
-                        width: `${w}%`,
+                        width: reversed ? `max(8px, ${w}%)` : `${w}%`,
                         height: segHi ? 5 : 3,
-                        backgroundColor: m.color,
-                        opacity: segDim ? 0.12 : segHi ? 0.95 : 0.4,
+                        backgroundColor: reversed ? "transparent" : m.color,
+                        backgroundImage: reversed
+                          ? "repeating-linear-gradient(90deg, #ED6958 0, #ED6958 3px, transparent 3px, transparent 6px)"
+                          : undefined,
+                        opacity: segDim ? 0.12 : segHi ? 0.95 : reversed ? 0.9 : 0.4,
                         transition:
                           "left 280ms cubic-bezier(0.22, 1, 0.36, 1), width 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms, height 150ms",
                       }}
@@ -3346,6 +3360,7 @@ function JourneyTimeline({
                   const size = m.shape === "diamond" ? 9 : 11;
                   const dotMatch = matchDot(linkedHover, m.field);
                   const dotDim = dotMatch === false;
+                  const isNeg = m.days < 0;
                   return (
                     <div
                       key={m.key}
@@ -3405,6 +3420,8 @@ function JourneyTimeline({
                             height: 9,
                             backgroundColor: m.color,
                             boxShadow: `0 0 6px ${m.color}40`,
+                            outline: isNeg ? "1.5px solid #ED6958" : undefined,
+                            outlineOffset: isNeg ? 1 : undefined,
                           }}
                         />
                       ) : (
@@ -3415,8 +3432,21 @@ function JourneyTimeline({
                             height: 11,
                             backgroundColor: m.color,
                             boxShadow: `0 0 8px ${m.color}50`,
+                            outline: isNeg ? "1.5px solid #ED6958" : undefined,
+                            outlineOffset: isNeg ? 1 : undefined,
                           }}
                         />
+                      )}
+                      {/* Pre-CKO milestone (negative days): surface the signed
+                          value inline + a red ring so the out-of-order anomaly
+                          reads at a glance, matching the Time-to-Metrics card. */}
+                      {isNeg && (
+                        <span
+                          className="absolute left-full top-1/2 ml-1 -translate-y-1/2 whitespace-nowrap font-mono text-[8px] font-semibold text-[#ED6958]"
+                          style={{ textShadow: "0 0 4px rgba(0,0,0,0.85)" }}
+                        >
+                          {m.days}d
+                        </span>
                       )}
                     </div>
                   );

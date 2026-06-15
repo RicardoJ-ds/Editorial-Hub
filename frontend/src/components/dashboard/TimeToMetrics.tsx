@@ -970,15 +970,34 @@ function MilestoneWaterfall({
                   const l = pct(Math.min(prev, m.days));
                   const r = pct(Math.max(prev, m.days));
                   const w = Math.max(0, r - l);
-                  return w > 0.3 ? (
-                    <div key={`s-${m.key}`} className="absolute top-1/2 -translate-y-1/2 rounded-full" style={{ left: `${l}%`, width: `${w}%`, height: 4, backgroundColor: m.color, opacity: 0.4 }} />
-                  ) : null;
+                  // Reversed leg (milestone logged before its predecessor, e.g.
+                  // before the Consulting KO) clamps to ~0 width — render it as
+                  // a dashed-red marker instead of dropping it.
+                  const reversed = m.days < prev;
+                  if (w <= 0.3 && !reversed) return null;
+                  return (
+                    <div
+                      key={`s-${m.key}`}
+                      className="absolute top-1/2 -translate-y-1/2 rounded-full"
+                      style={{
+                        left: `${l}%`,
+                        width: reversed ? `max(8px, ${w}%)` : `${w}%`,
+                        height: 4,
+                        backgroundColor: reversed ? "transparent" : m.color,
+                        backgroundImage: reversed
+                          ? "repeating-linear-gradient(90deg, #ED6958 0, #ED6958 3px, transparent 3px, transparent 6px)"
+                          : undefined,
+                        opacity: reversed ? 0.9 : 0.4,
+                      }}
+                    />
+                  );
                 })}
 
                 {/* Milestone dots — overlapping dots spread horizontally */}
                 {ms.map((m, i) => {
                   const hShift = stagger[i] * 6;
                   const dotSize = m.shape === "diamond" ? 9 : 11;
+                  const isNeg = m.days < 0;
                   return (
                     <div key={m.key} className="absolute cursor-default transition-transform hover:scale-[1.3]"
                       style={{ left: `calc(${pct(m.days)}% + ${hShift}px)`, top: "50%", marginTop: -(dotSize / 2), marginLeft: -(dotSize / 2), zIndex: 10 + i }}
@@ -986,11 +1005,16 @@ function MilestoneWaterfall({
                       onMouseLeave={() => setTip(null)}>
                       <div className="absolute inset-[-4px] rounded-full opacity-0 group-hover/row:opacity-20 transition-opacity" style={{ backgroundColor: m.color }} />
                       {m.shape === "diamond" ? (
-                        <div className="rounded-sm rotate-45" style={{ width: 9, height: 9, backgroundColor: m.color, boxShadow: `0 0 6px ${m.color}40` }} />
+                        <div className="rounded-sm rotate-45" style={{ width: 9, height: 9, backgroundColor: m.color, boxShadow: `0 0 6px ${m.color}40`, outline: isNeg ? "1.5px solid #ED6958" : undefined, outlineOffset: isNeg ? 1 : undefined }} />
                       ) : (
-                        <div className="rounded-full" style={{ width: 11, height: 11, backgroundColor: m.color, boxShadow: `0 0 8px ${m.color}50` }} />
+                        <div className="rounded-full" style={{ width: 11, height: 11, backgroundColor: m.color, boxShadow: `0 0 8px ${m.color}50`, outline: isNeg ? "1.5px solid #ED6958" : undefined, outlineOffset: isNeg ? 1 : undefined }} />
                       )}
-                      {stagger[i] === 0 && (
+                      {/* Pre-CKO milestone: always-on red signed label so the
+                          out-of-order anomaly reads at a glance; others keep
+                          the hover-only label. */}
+                      {isNeg ? (
+                        <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-xs font-mono font-semibold whitespace-nowrap rounded-full px-1.5 py-0.5 bg-[#0d0d0d]/90 text-[#ED6958]">{m.days}d</span>
+                      ) : stagger[i] === 0 && (
                         <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-xs font-mono font-semibold opacity-0 group-hover/row:opacity-100 transition-opacity whitespace-nowrap rounded-full px-1.5 py-0.5 bg-[#0d0d0d]/90" style={{ color: m.color }}>{m.days}d</span>
                       )}
                     </div>
