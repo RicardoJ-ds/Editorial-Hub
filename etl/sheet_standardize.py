@@ -129,7 +129,7 @@ def load_db_rows() -> dict[tuple[str, int], dict]:
         for r in s.execute(
             text(
                 "SELECT source_tab, source_row, editor_raw, editor_name, "
-                "writer_raw, writer_name, date_submitted_raw, submitted_date "
+                "writer_raw, writer_name, date_submitted_raw, submitted_date, year, month "
                 "FROM article_records ORDER BY source_tab, source_row, editor_name"
             )
         ):
@@ -143,6 +143,7 @@ def load_db_rows() -> dict[tuple[str, int], dict]:
                     "writer_name": r.writer_name,
                     "date_raw": r.date_submitted_raw,
                     "date_iso": r.submitted_date.isoformat() if r.submitted_date else None,
+                    "ym": f"{r.year:04d}-{r.month:02d}" if r.year and r.month else None,
                 },
             )
             if r.editor_name and r.editor_name not in rec["editors"]:
@@ -203,7 +204,35 @@ def main(argv: list[str] | None = None) -> int:
     if "TEMPLATE" in props and "TEMPLATE" not in tabs:
         tabs.append("TEMPLATE")  # gets the columns + rules so new tabs inherit
 
+    # DaniQ's green-confirmed writer map (the ONLY source of truth for writers
+    # — no BQ table exists). Overrides the importer's name on the WRITER
+    # (STANDARD) column: full names where she gave one, "audition" for the
+    # trial bucket, windowed for the one split (Dan).
+    daniq_wr: dict = {}
+    try:
+        with open("/app/etl/mappings/daniq_writer_confirmations.json") as fh:
+            daniq_wr = {k.lower(): v for k, v in json.load(fh).items()}
+    except OSError:
+        pass
+
+    def daniq_writer(raw: str, ym: str | None) -> str | None:
+        e = daniq_wr.get((raw or "").strip().lower())
+        if not e:
+            return None
+        if "windows" in e and ym:
+            for w in e["windows"]:
+                if (w.get("from") is None or w["from"] <= ym) and (w.get("to") is None or ym <= w["to"]):
+                    return w["value"]
+        return e.get("value")
+
     active_ed, all_ed, writers = build_rosters()
+    # add DaniQ's confirmed writer names (+ the audition bucket) to the roster
+    dq_names = set()
+    for e in daniq_wr.values():
+        for val in [e.get("value")] + [w["value"] for w in e.get("windows", [])]:
+            if val:
+                dq_names.add(val)
+    writers = sorted(set(writers) | dq_names)
     db = load_db_rows()
     print(
         f"rosters: {len(active_ed)} active editors · {len(all_ed)} all editors · "
@@ -311,7 +340,9 @@ def main(argv: list[str] | None = None) -> int:
                         ):
                             slash += 1
                     if rec["writer_name"]:
-                        wr_val = rec["writer_name"]
+                        # DaniQ's confirmation wins (full name / audition);
+                        # else the importer's resolved name.
+                        wr_val = daniq_writer(rec["writer_raw"], rec.get("ym")) or rec["writer_name"]
                         wr_fill += 1
                 ed_col_vals.append([ed_val])
                 wr_col_vals.append([wr_val])

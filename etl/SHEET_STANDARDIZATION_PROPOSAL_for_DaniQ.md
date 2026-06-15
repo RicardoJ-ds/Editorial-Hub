@@ -69,3 +69,39 @@ the Operating Model):
 
 *Everything is scripted and repeatable: `python -m etl.sheet_standardize`
 (dry-run first, `--apply` to execute). No manual cell editing was involved.*
+
+---
+
+## Addendum 2026-06-15 — writer confirmations applied + what the sheet still needs
+
+### Applied from DaniQ's green-marked validation
+- **Editors**: no change needed — 29/29 confirmed against Rippling (the source
+  of truth); Sam/Lauren already disambiguated.
+- **Writers**: her 72 green confirmations are now reflected in
+  `WRITER (STANDARD)` on every client tab — 20 first-name→full-name upgrades
+  (live in the Hub too), the **`audition`** bucket for trial writers, and the
+  Dan split (audition → Daniel Pelberg from Jun 2025). The roster + dropdown
+  now include all confirmed names + `audition`.
+
+### What the Monthly Article Count sheet still needs to stay maintainable
+1. **SUBMITTED** — keep as one real date per cell (validation + `yyyy-mm-dd`
+   already applied). 60 legacy cells still unparseable; fix at source.
+2. **REVISED** — today it's a comma-list of dates in one cell (multi-revision).
+   Recommend **one date per revision** in a consistent format, or a separate
+   `REVISIONS` count column — so revision-rate KPIs don't depend on parsing a
+   free-text list.
+3. **One editor per row** — the 1,471 "A / B" collaboration cells still need
+   DaniQ's real per-article assignment (the only open writer/editor item). The
+   `EDITOR (STANDARD)` dropdown is STRICT, so these flag red until split.
+4. **Fixed structure** — banner row 1, headers row 2, required columns
+   (ARTICLE TITLE · SUBMITTED · COPY NAME · WRITER · EDITOR). The
+   `✅ VALIDATION AUDIT` tab flags any tab that drifts (the Felt bug class).
+5. **Missing-article check vs the source of truth** — NEW
+   **`🔍 OM RECONCILIATION`** tab: per client × month, Operating Model actual
+   vs articles logged here, with a GAP + STATUS column. It surfaces exactly
+   where logging is incomplete. Current flags: Meta AI/BMG/RL (no tab at all),
+   GenstoreAI (logged under the "Genstore" tab — confirm same client),
+   Workleap+Sharegate (logged under "ShareGate"), and small unders
+   (Cointracker −16, n8n −6). This regenerates whenever we re-run the
+   standardizer. (A live cross-sheet `IMPORTRANGE` from the Operating Model is
+   possible but fragile; the generated snapshot is the safer maintenance tool.)

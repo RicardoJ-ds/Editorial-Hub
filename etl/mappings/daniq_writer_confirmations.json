@@ -1,0 +1,300 @@
+{
+ "aby": {
+  "raw": "Aby",
+  "value": "Abby Norwood"
+ },
+ "alex*": {
+  "raw": "Alex*",
+  "value": "audition"
+ },
+ "amanda": {
+  "raw": "Amanda",
+  "value": "Amanda Walgrove"
+ },
+ "amanda w (aud writer)": {
+  "raw": "Amanda W (aud writer)",
+  "value": "audition"
+ },
+ "andrea*": {
+  "raw": "Andrea*",
+  "value": "audition"
+ },
+ "annabelle": {
+  "raw": "Annabelle",
+  "value": "Anabelle Zaluski"
+ },
+ "auditioning writer (kimberly)": {
+  "raw": "Auditioning writer (Kimberly)",
+  "value": "audition"
+ },
+ "austin denoce": {
+  "raw": "Austin DeNoce",
+  "value": "Austin DeNoce"
+ },
+ "ayşenur": {
+  "raw": "Ayşenur",
+  "value": "Aysenur Zaza"
+ },
+ "bonniey": {
+  "raw": "Bonniey",
+  "value": "Bonniey Josef"
+ },
+ "brandon*": {
+  "raw": "Brandon*",
+  "value": "audition"
+ },
+ "brian (trial)": {
+  "raw": "Brian (trial)",
+  "value": "audition"
+ },
+ "brian*": {
+  "raw": "Brian*",
+  "value": "audition"
+ },
+ "britt*": {
+  "raw": "Britt*",
+  "value": "audition"
+ },
+ "chris tepedino*": {
+  "raw": "Chris Tepedino*",
+  "value": "audition"
+ },
+ "cynthia (trial writer)": {
+  "raw": "Cynthia (trial writer)",
+  "value": "audition"
+ },
+ "dan": {
+  "raw": "Dan",
+  "value": "audition",
+  "windows": [
+   {
+    "to": "2025-05",
+    "value": "audition"
+   },
+   {
+    "from": "2025-06",
+    "value": "Daniel Pelberg"
+   }
+  ]
+ },
+ "dan*": {
+  "raw": "Dan*",
+  "value": "audition"
+ },
+ "dani": {
+  "raw": "Dani",
+  "value": "audition"
+ },
+ "daniel": {
+  "raw": "Daniel",
+  "value": "Daniel Pelberg"
+ },
+ "daniela": {
+  "raw": "Daniela",
+  "value": "audition"
+ },
+ "daniele": {
+  "raw": "Daniele",
+  "value": "Danielle MacKinlay"
+ },
+ "dominique": {
+  "raw": "Dominique",
+  "value": "audition"
+ },
+ "ellie*": {
+  "raw": "Ellie*",
+  "value": "audition"
+ },
+ "genie*": {
+  "raw": "Genie*",
+  "value": "audition"
+ },
+ "grace anne*": {
+  "raw": "Grace Anne*",
+  "value": "audition"
+ },
+ "hannah": {
+  "raw": "Hannah",
+  "value": "audition"
+ },
+ "hannah*": {
+  "raw": "Hannah*",
+  "value": "audition"
+ },
+ "jacob*": {
+  "raw": "Jacob*",
+  "value": "audition"
+ },
+ "jordan": {
+  "raw": "Jordan",
+  "value": "Jordan Finneseth"
+ },
+ "jordan f (aud writer)": {
+  "raw": "Jordan F (aud writer)",
+  "value": "audition"
+ },
+ "jordan f (aud writer)*": {
+  "raw": "Jordan F (aud writer)*",
+  "value": "audition"
+ },
+ "jose": {
+  "raw": "Jose",
+  "value": "audition"
+ },
+ "justine": {
+  "raw": "Justine",
+  "value": "Justine Jade Smith"
+ },
+ "karisa": {
+  "raw": "Karisa",
+  "value": "audition"
+ },
+ "ke": {
+  "raw": "Ke",
+  "value": "Kevin Vaughn"
+ },
+ "kimberley": {
+  "raw": "Kimberley",
+  "value": "Kimberly Kruge"
+ },
+ "kimberly*": {
+  "raw": "Kimberly*",
+  "value": "audition"
+ },
+ "liam": {
+  "raw": "Liam",
+  "value": "audition"
+ },
+ "liana*": {
+  "raw": "Liana*",
+  "value": "audition"
+ },
+ "mariah": {
+  "raw": "Mariah",
+  "value": "audition"
+ },
+ "marinda": {
+  "raw": "Marinda",
+  "value": "Marinda Stuiver"
+ },
+ "marriah*": {
+  "raw": "Marriah*",
+  "value": "audition"
+ },
+ "meredith*": {
+  "raw": "Meredith*",
+  "value": "audition"
+ },
+ "michael": {
+  "raw": "Michael",
+  "value": "Michael Davis"
+ },
+ "michael d": {
+  "raw": "Michael D",
+  "value": "Michael Davis"
+ },
+ "michael d (aud writer)*": {
+  "raw": "Michael D (aud writer)*",
+  "value": "audition"
+ },
+ "michael d.": {
+  "raw": "Michael D.",
+  "value": "Michael Davis"
+ },
+ "michael*": {
+  "raw": "Michael*",
+  "value": "audition"
+ },
+ "mike": {
+  "raw": "Mike",
+  "value": "Michael Ray"
+ },
+ "mindy": {
+  "raw": "Mindy",
+  "value": "Mindy Born"
+ },
+ "morgan": {
+  "raw": "Morgan",
+  "value": "audition"
+ },
+ "naomi *": {
+  "raw": "Naomi *",
+  "value": "audition"
+ },
+ "paige": {
+  "raw": "Paige",
+  "value": "Paige Greene"
+ },
+ "renee*": {
+  "raw": "Renee*",
+  "value": "audition"
+ },
+ "rocco*": {
+  "raw": "Rocco*",
+  "value": "audition"
+ },
+ "savanna*": {
+  "raw": "Savanna*",
+  "value": "audition"
+ },
+ "spencer (trial)": {
+  "raw": "Spencer (trial)",
+  "value": "audition"
+ },
+ "telisa*": {
+  "raw": "Telisa*",
+  "value": "audition"
+ },
+ "thea": {
+  "raw": "Thea",
+  "value": "Thea Atkinson"
+ },
+ "thomas hinds": {
+  "raw": "Thomas Hinds",
+  "value": "audition"
+ },
+ "trial writer": {
+  "raw": "trial writer",
+  "value": "audition"
+ },
+ "audition": {
+  "raw": "audition",
+  "value": "audition"
+ },
+ "freelancer": {
+  "raw": "freelancer",
+  "value": "audition"
+ },
+ "michael davis": {
+  "raw": "michael davis",
+  "value": "Michael Davis"
+ },
+ "trial": {
+  "raw": "trial",
+  "value": "audition"
+ },
+ "trial writer (no name in doc)": {
+  "raw": "trial writer (no name in doc)",
+  "value": "audition"
+ },
+ "trial writer genie davis": {
+  "raw": "trial writer Genie Davis",
+  "value": "audition"
+ },
+ "trial writer michael davis": {
+  "raw": "trial writer Michael Davis",
+  "value": "audition"
+ },
+ "trial writer jose triana": {
+  "raw": "trial writer jose triana",
+  "value": "audition"
+ },
+ "writer audition": {
+  "raw": "writer audition",
+  "value": "audition"
+ },
+ "writer trial": {
+  "raw": "writer trial",
+  "value": "audition"
+ }
+}
