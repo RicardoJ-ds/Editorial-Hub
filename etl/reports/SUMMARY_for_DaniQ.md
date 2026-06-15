@@ -29,14 +29,21 @@ And once we account for the 2 clients logged under a different name
 **Meta** clients, which have no tab at all. Full detail in the
 **🔍 OM RECONCILIATION** tab.
 
-## 🙏 3 things we still need from you
-1. **The "A / B" cells** (two people in one editor cell, ~1,471 rows) — the
-   real editor per article. This is the only writer/editor item left.
+## "A / B" editor cells — mostly auto-handled now
+When an editor cell has two people and one is a **Senior Editor + one Editor**,
+we now automatically credit the **Editor** (the SE reviews, the Editor edits) —
+230 cells resolved this way. The rest are **two-Editor** collaborations, which
+we can't split without a rule. Note: this doesn't change the capacity numbers
+(those follow the Operating Model totals); it only sharpens per-editor credit.
+
+## 🙏 What we still need from you
+1. **Two-editor collaborations** — when BOTH names are Editors (e.g.
+   "Haley / Lee"), default rule? *Split the credit 50/50*, or *first name =
+   lead*? One rule covers all of them. (~29 articles in 2025; the rest are
+   2022 history.)
 2. **Confirm same client?** — "Genstore" tab = client "GenstoreAI"? and
-   "ShareGate" tab = "Workleap + Sharegate"? (Their articles look unlogged only
-   because of the different name.)
-3. **Meta AI / Meta BMG / Meta RL** — these have no tab in the sheet, so their
-   articles aren't logged at all. Will they be logged, or should we accept the
-   gap?
+   "ShareGate" tab = "Workleap + Sharegate"? (See 🔍 OM RECONCILIATION tab.)
+3. **Meta AI / Meta BMG / Meta RL** — no tab in the sheet, so their articles
+   aren't logged. Will they be logged, or do we accept the gap?
 
 That's it — everything else is confirmed and live.
