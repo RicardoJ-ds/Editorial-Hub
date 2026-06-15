@@ -48,9 +48,10 @@ exist (originals untouched). Dropped from the warehouse (app-state, not
 analytics): access/RBAC, comments, usage analytics, audit log, sync history,
 alias/unmapped/incomplete/pod-issue review tables, notion_articles (its
 dashboard-relevant outputs — is_published/notion_matched and the computed KPIs —
-are already denormalized into articles/kpi_scores), and two wizard-only seeds
-(model_assumptions, engagement_rules — feed only DEAD or unmounted surfaces per
-the audit). delivery_templates WAS initially dropped on the same reasoning but
+are already denormalized into articles/kpi_scores), and one wizard-only seed
+(engagement_rules — feeds only DEAD or unmounted surfaces per the audit;
+model_assumptions was ADDED back 2026-06-15 — the editorial-planning-hub
+project consumes it from BigQuery). delivery_templates WAS initially dropped on the same reasoning but
 came back at the repoint: the live `/api/dashboard/pacing` endpoint reads it.
 
 | Table | Source | Grain |

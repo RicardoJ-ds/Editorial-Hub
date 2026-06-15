@@ -40,6 +40,7 @@ from app.services.migration_service import (
     import_all,
     import_et_cp_pod_history,
     import_goals_vs_delivery,
+    import_model_assumptions,
     import_pod_history,
     import_team_pods,
     import_week_distribution,
@@ -228,6 +229,13 @@ PAST_STEPS: list[ManifestStep] = [
         "past",
         run=lambda s: [import_pod_history(s)],
         description="Every monthly Team Pods tab — member+client↔pod history (both kinds)",
+    ),
+    ManifestStep(
+        "model-assumptions",
+        "Model Assumptions",
+        "past",
+        run=lambda s: [import_model_assumptions(s)],
+        description="Capacity model parameters (categorisation, ramp-up, capacity targets) — changes a few times a year, so past-scope only",
     ),
     ManifestStep(
         "backfill-editorial-pod",

@@ -91,6 +91,7 @@ RAW_TABLES: list[tuple[type, str, str | None]] = [
     # (its result is currently unrendered, but the page request must not 500).
     (m.DeliveryTemplate, "editorial_raw_delivery_templates", None),
     (m.PodAssignmentHistory, "editorial_raw_pod_history", None),
+    (m.ModelAssumption, "editorial_raw_model_assumptions", None),
 ]
 
 _EXTRA_BY_TRANSFORM = {
