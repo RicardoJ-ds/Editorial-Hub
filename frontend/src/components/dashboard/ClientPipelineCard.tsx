@@ -136,7 +136,7 @@ export function ClientPipelineCard({
           chip on the per-pod card above carries the "behind / ahead" signal. */}
       <div className="space-y-2">
         {visible.has("topics")    && <PipelineBar label="Topics"    stage="topics"    value={data.topics_approved   ?? 0} sow={sow} />}
-        {visible.has("cbs")       && <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_approved      ?? 0} sow={sow} />}
+        {visible.has("cbs")       && <PipelineBar label="CBs"       stage="cbs"       value={data.cbs_sent          ?? 0} sow={sow} />}
         {visible.has("articles")  && <PipelineBar label="Articles"  stage="articles"  value={articlesValue}                 sow={sow} />}
         {visible.has("published") && <PipelineBar label="Published" stage="published" value={data.published_live    ?? 0} sow={sow} />}
       </div>

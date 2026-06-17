@@ -76,12 +76,11 @@ function buildScope(
     const sow = typeof c.articles_sow === "number" && c.articles_sow > 0 ? c.articles_sow : 0;
     agg.clients += 1;
     agg.sow += sow;
+    // Column mapping (per DaniQ): Topics = approved (requires client sign-off);
+    // CBs + Articles = sent (delivered to the client, counted regardless of the
+    // downstream approval workflow); Published = live.
     agg.topics += r?.topics_approved ?? 0;
-    agg.cbs += r?.cbs_approved ?? 0;
-    // Articles intentionally counts SENT, not approved — articles delivered
-    // to the client get billed/counted regardless of whether the client has
-    // marked them approved in the workflow yet. Topics and CBs still use
-    // `approved` because those stages require explicit client sign-off.
+    agg.cbs += r?.cbs_sent ?? 0;
     agg.articles += r?.articles_sent ?? 0;
     agg.published += r?.published_live ?? 0;
   }

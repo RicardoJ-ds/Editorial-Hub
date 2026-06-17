@@ -996,6 +996,7 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
             )
             months_available = max(0, widest_row - 7)
 
+            written_months: set[tuple[int, int]] = set()
             for m_offset in range(months_available):
                 col_idx = 7 + m_offset
 
@@ -1044,7 +1045,29 @@ def import_delivered_invoiced(session: Session) -> ImportResult:
                         )
                         session.add(dm)
 
+                    written_months.add((year, month))
                     result.rows_imported += 1
+
+            # Self-heal removed/blanked months: this sheet is the authoritative
+            # source for the client, so any row WE previously wrote
+            # (updated_by="sheets_migration") for a month no longer present is
+            # stale — e.g. DaniQ zeroed a future projection or deleted a column.
+            # Upsert-only left those behind (they still fed the dashboards), so
+            # delete them. Scoped to "sheets_migration" so seeded (Meta) + manual
+            # rows survive.
+            stale_rows = (
+                session.execute(
+                    select(DeliverableMonthly).where(
+                        DeliverableMonthly.client_id == client_id,
+                        DeliverableMonthly.updated_by == "sheets_migration",
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for dm in stale_rows:
+                if (dm.year, dm.month) not in written_months:
+                    session.delete(dm)
 
             row_idx += 6
 

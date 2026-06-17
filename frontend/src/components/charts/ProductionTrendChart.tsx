@@ -612,25 +612,44 @@ export function ProductionTrendChart({
           .sort((a, b) => b.value - a.value);
         return {
           month: label,
-          Actual: isActual ? pt.actual : null,
-          Projected: !isActual ? pt.projected : null,
+          // null (not 0) so a month with no actual / no projected doesn't dive
+          // the line to the axis at the boundary (past months carry projected=0,
+          // future months carry actual=0). bridgeActualToProjected reconnects
+          // the dashed line from the last real actual.
+          Actual: isActual && pt.actual > 0 ? pt.actual : null,
+          Projected: !isActual && pt.projected > 0 ? pt.projected : null,
           breakdown,
         };
       });
       return { chartData: bridgeActualToProjected(mapped), boundaryLabel: lastActualLabel };
     }
 
-    const sorted = [...data]
-      .filter((pt) => inRange(pt.year, pt.month))
-      .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month));
+    // production-trend can return TWO rows for the boundary month — the real
+    // actual row plus a spurious projected mirror (is_actual=false, all zeros).
+    // Collapse to one row per (year, month), preferring the row that carries
+    // real data (actual delivery beats an empty projection), so the line doesn't
+    // duplicate the x-point or break the actual→projected bridge.
+    const score = (r: ProductionTrendPoint) =>
+      (r.is_actual && r.total_actual > 0 ? 2 : 0) + (r.total_projected > 0 ? 1 : 0);
+    const byKey = new Map<string, ProductionTrendPoint>();
+    for (const pt of data) {
+      if (!inRange(pt.year, pt.month)) continue;
+      const key = `${pt.year}-${String(pt.month).padStart(2, "0")}`;
+      const prev = byKey.get(key);
+      if (!prev || score(pt) > score(prev)) byKey.set(key, pt);
+    }
+    const sorted = [...byKey.values()].sort(
+      (a, b) => a.year * 100 + a.month - (b.year * 100 + b.month),
+    );
 
     const mapped: ChartRow[] = sorted.map((pt) => {
       const label = formatLabel(pt.year, pt.month);
       if (pt.is_actual) lastActualLabel = label;
       return {
         month: label,
-        Actual: pt.is_actual ? pt.total_actual : null,
-        Projected: !pt.is_actual ? pt.total_projected : null,
+        // null (not 0) — same boundary dive-to-zero guard as the per-client path.
+        Actual: pt.is_actual && pt.total_actual > 0 ? pt.total_actual : null,
+        Projected: !pt.is_actual && pt.total_projected > 0 ? pt.total_projected : null,
       };
     });
 
@@ -745,8 +764,13 @@ export function ProductionTrendChart({
           row[pKey] = null;
           continue;
         }
-        row[aKey] = monthIsActual ? b.actual : null;
-        row[pKey] = !monthIsActual ? b.projected : null;
+        // Write null (not a literal 0) when this pod contributed nothing on the
+        // active side this month — a 0 would dive the line to the axis at the
+        // actual→projected boundary (e.g. a pod that ramped to 0 in the NOW
+        // month while siblings still delivered). null lets the line break/bridge
+        // cleanly via bridgePodSeries instead.
+        row[aKey] = monthIsActual && b.actual > 0 ? b.actual : null;
+        row[pKey] = !monthIsActual && b.projected > 0 ? b.projected : null;
         const total = monthIsActual ? b.actual : b.projected;
         if (total > 0) {
           breakdownByPod.push({
@@ -896,8 +920,10 @@ export function ProductionTrendChart({
           row[pKey] = null;
           continue;
         }
-        row[aKey] = monthIsActual ? cell.actual : null;
-        row[pKey] = !monthIsActual ? cell.projected : null;
+        // null (not 0) when this client contributed nothing on the active side —
+        // same boundary dive-to-zero guard as the per-pod path above.
+        row[aKey] = monthIsActual && cell.actual > 0 ? cell.actual : null;
+        row[pKey] = !monthIsActual && cell.projected > 0 ? cell.projected : null;
         const v = monthIsActual ? cell.actual : cell.projected;
         if (v > 0) breakdown.push({
           name: c.name,
