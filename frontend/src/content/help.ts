@@ -25,9 +25,9 @@ A single place for Editorial Ops to track clients, deliverables, capacity, and t
 
 ## Glossary
 
-**Pod** — A group of editors that owns a set of clients. Two flavors run in parallel:
-- **Editorial Pod** (E1–E5) — who edits the article.
-- **Growth Pod** (G1–G7) — who owns the account relationship.
+**Editorial Pod** (E1–E5) — who edits the article.
+
+**Growth Pod** (G1–G7) — who owns the account relationship.
 
 Each client has one of each.
 

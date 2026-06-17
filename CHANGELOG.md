@@ -18,6 +18,14 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.27 — June 18
+
+**Glossary: clearer Pod wording.**
+
+### Help & Glossary
+
+- Removed the old "Pod — a group of editors…" definition, which wasn't quite right (a pod isn't only editors). The **Editorial Pod** and **Growth Pod** entries now stand on their own, so the Editorial-vs-Growth distinction carries the meaning.
+
 ## 0.3.26 — June 16
 
 **Milestone timings now read the same on every Overview card, article credit is more accurate, and the data pipeline behind the dashboards was rebuilt — with no change to the numbers you see.**
