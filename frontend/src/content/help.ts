@@ -49,6 +49,10 @@ Each client has one of each.
 
 **Pod axis** — Editorial vs. Growth. Determines how charts group clients. Admin / Leadership / BI Team can toggle it in the top-right; pod-locked teams see their own axis only.
 
+**Capacity utilization (Real vs Weighted)** — On Team KPIs → **Capacity & Revisions** (Capacity view), pods and editors show two rates. **Real** = work actually delivered ÷ capacity (how busy they were). **Weighted** = delivered ÷ what was planned (did we hit the plan). Pod rows also show **Projected** = planned ÷ capacity. Specialized clients' articles count ×1.4 toward a pod's workload. Click a pod to expand its editors; use its **Clients** button to slide in the client-by-client breakdown.
+
+**Capacity & Revisions tab** — A top **Capacity | Revisions** switch picks what you're looking at. **Capacity** is the utilization view above. **Revisions** shows the same layout for article delivery: **Articles** (delivered), **Revisions** (rework events), and **Revision rate** (articles needing ≥1 revision ÷ articles). Same pods table, trend chart, and per-editor grid.
+
 **Preview Mode** — Admins can render the dashboards as another user to debug their permissions.
 
 ---

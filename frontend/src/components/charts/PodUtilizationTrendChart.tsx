@@ -114,8 +114,8 @@ export function PodUtilizationTrendChart({
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-[11px] text-[#606060]">
           {metric === "planned"
-            ? "Planned utilization (projected ÷ capacity) across the year — the forward-looking plan."
-            : "Delivered utilization (actual ÷ capacity) — lines stop at the last closed month."}{" "}
+            ? "% Capacity Utilization (Projected) — projected ÷ capacity across the year, the forward-looking plan."
+            : "% Capacity Utilization (Real) — actual ÷ capacity; lines stop at the last closed month."}{" "}
           The dashed line marks 100% (over-capacity).
         </p>
         <div className="inline-flex shrink-0 rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
@@ -130,7 +130,7 @@ export function PodUtilizationTrendChart({
                   : "rounded px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-[#606060] hover:text-[#C4BCAA]"
               }
             >
-              {m === "delivered" ? "Delivered" : "Planned"}
+              {m === "delivered" ? "Real" : "Projected"}
             </button>
           ))}
         </div>

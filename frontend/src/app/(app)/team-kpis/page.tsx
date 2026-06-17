@@ -31,9 +31,11 @@ import { cn } from "@/lib/utils";
 import { DataSourceBadge } from "@/components/dashboard/DataSourceBadge";
 import { SectionIndex } from "@/components/dashboard/SectionIndex";
 import { FilterBar, type DateRange } from "@/components/dashboard/FilterBar";
-import { MonthlyArticlesTab } from "@/components/dashboard/MonthlyArticlesTab";
+import { RevisionsTab } from "@/components/dashboard/RevisionsTab";
 import { SyncControls } from "@/components/layout/SyncControls";
 import { TooltipBody, displayPod } from "@/components/dashboard/shared-helpers";
+import { SlideOverDrawer } from "@/components/dashboard/SlideOverDrawer";
+import { ChevronRight } from "lucide-react";
 import { useSectionDwellById } from "@/lib/useSectionDwell";
 import {
   Tooltip,
@@ -391,16 +393,10 @@ export default function TeamKpisPage() {
               AI Compliance
             </TabsTrigger>
             <TabsTrigger
-              value="monthly-articles"
-              className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
-            >
-              Monthly Articles
-            </TabsTrigger>
-            <TabsTrigger
               value="capacity-by-pod"
               className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
             >
-              Capacity
+              Capacity &amp; Revisions
             </TabsTrigger>
           </TabsList>
         </div>
@@ -430,22 +426,12 @@ export default function TeamKpisPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="monthly-articles">
-          <div className="flex gap-6">
-            <SectionIndex sections={MONTHLY_ARTICLES_SECTIONS} topOffset={140} />
-            <div className="flex-1 min-w-0">
-              <MonthlyArticlesTab filteredClients={filteredClients} dateRange={dateRange} />
-            </div>
-          </div>
-        </TabsContent>
-
         <TabsContent value="capacity-by-pod">
-          <div className="flex gap-6">
-            <SectionIndex sections={CAPACITY_BY_POD_SECTIONS} topOffset={140} />
-            <div className="flex-1 min-w-0">
-              <CapacityTab activePods={activePods} dateRange={dateRange} />
-            </div>
-          </div>
+          <CapacityRevisionsTab
+            activePods={activePods}
+            dateRange={dateRange}
+            filteredClients={filteredClients}
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -484,17 +470,65 @@ const KPI_PERFORMANCE_SECTIONS = [
   { id: "kpi-overview", label: "KPI Overview" },
   { id: "kpi-pods", label: "Pod Detail" },
 ];
-const MONTHLY_ARTICLES_SECTIONS = [
-  { id: "articles-chart", label: "Over Time" },
-  { id: "articles-matrix", label: "Matrix" },
-];
 const CAPACITY_BY_POD_SECTIONS = [
   { id: "capacity-glance", label: "At a glance" },
-  { id: "capacity-by-pod", label: "By Pod" },
   { id: "capacity-trend", label: "Trend" },
-  { id: "member-utilization", label: "By Editor" },
-  { id: "client-contributions", label: "By Client" },
+  { id: "capacity-pods", label: "Pods" },
+  { id: "capacity-editors", label: "By Editor" },
 ];
+const REVISIONS_SECTIONS = [
+  { id: "rev-glance", label: "At a glance" },
+  { id: "rev-trend", label: "Trend" },
+  { id: "rev-pods", label: "Pods" },
+  { id: "rev-editors", label: "By Editor" },
+];
+
+// Wraps the Capacity + Revisions domains under one tab with a top selector.
+// Capacity = the existing utilization view; Revisions = the article/revision
+// KPIs in the same layout. The left rail switches with the active domain.
+function CapacityRevisionsTab({
+  activePods,
+  dateRange,
+  filteredClients,
+}: {
+  activePods: Set<string>;
+  dateRange: DateRange;
+  filteredClients: Client[];
+}) {
+  const [domain, setDomain] = useState<"capacity" | "revisions">("capacity");
+  const sections = domain === "capacity" ? CAPACITY_BY_POD_SECTIONS : REVISIONS_SECTIONS;
+  return (
+    <div className="flex gap-6">
+      <SectionIndex sections={sections} topOffset={140} />
+      <div className="min-w-0 flex-1 space-y-6">
+        <div className="inline-flex rounded-md border border-[#2a2a2a] bg-[#0d0d0d] p-0.5">
+          {(["capacity", "revisions"] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDomain(d)}
+              className={cn(
+                "rounded px-4 py-1.5 font-mono text-xs font-semibold uppercase tracking-wider transition-colors",
+                domain === d ? "bg-[#42CA80]/15 text-[#42CA80]" : "text-[#606060] hover:text-[#C4BCAA]",
+              )}
+            >
+              {d === "capacity" ? "Capacity" : "Revisions"}
+            </button>
+          ))}
+        </div>
+        {domain === "capacity" ? (
+          <CapacityTab activePods={activePods} dateRange={dateRange} />
+        ) : (
+          <RevisionsTab
+            activePods={activePods}
+            dateRange={dateRange}
+            filteredClients={filteredClients}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Capacity by Pod ──────────────────────────────────────────────────────────
 // Simple per-pod matrix: Total capacity (sum of roles) + % Projected + % Actual
@@ -513,8 +547,6 @@ interface CapacityPodRow {
 const CAP_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const capMonthKey = (y: number, m: number) => `${y}-${String(m).padStart(2, "0")}`;
 const capMonthLabel = (y: number, m: number) => `${CAP_MONTH_ABBR[m - 1] ?? m} ${y}`;
-const capPct = (num: number | null, den: number | null) =>
-  den && den > 0 ? `${Math.round((100 * (num ?? 0)) / den)}%` : "—";
 
 // Utilization → status dot color. Green in the 80–105% band, amber under,
 // red over. Returns a hex + label for the By-Pod status cell.
@@ -630,7 +662,10 @@ function CapacityTab({
       hasActual,
       overPlan,
       plannedPct: cap > 0 ? Math.round((proj / cap) * 100) : null,
-      deliveredPct: cap > 0 && hasActual ? Math.round((act / cap) * 100) : null,
+      // % Capacity Utilization (Real) = Actual ÷ Capacity (the closed-month number).
+      realPct: cap > 0 && hasActual ? Math.round((act / cap) * 100) : null,
+      // % Capacity Utilization (Weighted) = Actual ÷ Projected (delivered vs plan).
+      weightedPct: proj > 0 && hasActual ? Math.round((act / proj) * 100) : null,
       spare: cap - proj,
     };
   }, [podRows]);
@@ -650,10 +685,11 @@ function CapacityTab({
           Capacity — {monthLabel}
         </h2>
         <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
-          Editorial pods only. Capacity = sum of every role in the pod. Planned = projected
-          workload; Delivered = actual, which fills in as the month closes. Latest ET CP version.
-          The cards + tables show the latest closed month in your selected period (narrow the
-          period&apos;s end date to look at an earlier month); the trend spans the whole period.
+          Editorial pods only. Capacity = sum of every role in the pod. Projected Used = planned
+          workload; Actual Used = what was delivered, filling in as the month closes (specialized
+          clients ×1.4). Latest ET CP version. The cards + table show the latest closed month in
+          your selected period (narrow the period&apos;s end date to look at an earlier month); the
+          trend spans the whole period.
         </p>
       </div>
 
@@ -662,132 +698,51 @@ function CapacityTab({
         <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
           At a glance
         </h3>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <SummaryCard
-            title="Delivered utilization"
-            value={k.deliveredPct === null ? "—" : `${k.deliveredPct}%`}
+            title="% Capacity Utilization (Real)"
+            value={k.realPct === null ? "—" : `${k.realPct}%`}
             valueColor={
-              k.deliveredPct === null
+              k.realPct === null
                 ? "white"
-                : k.deliveredPct >= 80 && k.deliveredPct <= 105
+                : k.realPct >= 80 && k.realPct <= 105
                   ? "green"
-                  : k.deliveredPct > 105
+                  : k.realPct > 105
                     ? "red"
                     : "white"
             }
-            description={k.deliveredPct === null ? "Month not closed yet" : "actual ÷ capacity"}
+            description={k.realPct === null ? "Month not closed yet" : "actual ÷ capacity"}
           />
           <SummaryCard
-            title="Planned utilization"
-            value={k.plannedPct === null ? "—" : `${k.plannedPct}%`}
-            valueColor={k.plannedPct !== null && k.plannedPct > 105 ? "red" : "white"}
-            description="projected ÷ capacity"
-          />
-          <SummaryCard
-            title="Pods over plan"
-            value={k.overPlan}
-            valueColor={k.overPlan > 0 ? "red" : "green"}
-            description="projected > capacity"
+            title="% Capacity Utilization (Weighted)"
+            value={k.weightedPct === null ? "—" : `${k.weightedPct}%`}
+            valueColor={
+              k.weightedPct === null
+                ? "white"
+                : k.weightedPct >= 80 && k.weightedPct <= 110
+                  ? "green"
+                  : "red"
+            }
+            description={k.weightedPct === null ? "Month not closed yet" : "actual ÷ projected"}
           />
           <SummaryCard
             title="Spare capacity"
             value={k.spare}
             valueColor={k.spare >= 0 ? "green" : "red"}
-            description="capacity − planned"
+            description="capacity − projected used"
           />
         </div>
       </section>
 
-      {/* By Pod */}
-      <section id="capacity-by-pod" className="scroll-mt-[140px] space-y-3">
-        <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-[#606060]">
-          By Pod
-        </h3>
-        <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
-          <table className="w-full border-collapse font-mono text-[13px]">
-            <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
-              <tr>
-                <th className="px-4 py-2 text-left font-semibold">Pod</th>
-                <th className="px-4 py-2 text-right font-semibold">Capacity</th>
-                <th className="px-4 py-2 text-right font-semibold">Planned</th>
-                <th className="px-4 py-2 text-right font-semibold">% Plan</th>
-                <th className="px-4 py-2 text-right font-semibold">Delivered</th>
-                <th className="px-4 py-2 text-right font-semibold">% Delivered</th>
-                <th className="px-4 py-2 text-left font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {podRows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-[#606060]">
-                    No capacity data for this month.
-                  </td>
-                </tr>
-              ) : (
-                podRows.map((r) => {
-                  const cap = r.total_capacity ?? 0;
-                  const proj = r.projected_used_capacity ?? 0;
-                  const act = r.actual_used_capacity ?? 0;
-                  const delPct = cap > 0 && act > 0 ? Math.round((act / cap) * 100) : null;
-                  const planPct = cap > 0 ? Math.round((proj / cap) * 100) : null;
-                  const st = utilStatus(delPct ?? planPct);
-                  return (
-                    <tr key={r.pod} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
-                      <td className="px-4 py-2 text-white">{displayPod(r.pod, "editorial")}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">{cap}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-[#909090]">{proj}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-[#C4BCAA]">
-                        {capPct(proj, cap)}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-[#909090]">
-                        {act > 0 ? act : "—"}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-white">
-                        {delPct === null ? "—" : `${delPct}%`}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="flex items-center gap-1.5 text-[11px] text-[#909090]">
-                          <span
-                            className="inline-block h-2 w-2 rounded-full"
-                            style={{ backgroundColor: st.color }}
-                          />
-                          {st.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-            {podRows.length > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-[#2a2a2a] bg-[#111111] font-semibold">
-                  <td className="px-4 py-2 text-[#C4BCAA]">Totals</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-white">{k.cap}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-white">{k.proj}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-white">
-                    {capPct(k.proj, k.cap)}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-white">
-                    {k.hasActual ? k.act : "—"}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-white">
-                    {k.deliveredPct === null ? "—" : `${k.deliveredPct}%`}
-                  </td>
-                  <td className="px-4 py-2" />
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </section>
-
-      {/* Trend (months inside the period) */}
+      {/* Trend (months inside the period) — sits above the pod table */}
       <TrendSection podRows={rows} activePods={activePods} range={range} />
 
-      {/* By Editor + By Client (selected month) */}
-      {selected && <MemberUtilizationSection monthKey={selected} activePods={activePods} />}
-      {selected && <ClientContributionsSection monthKey={selected} activePods={activePods} />}
+      {/* Pods — pod aggregate (all three utilization rates) → click to expand
+          its editors + a "Clients ▸" button to slide in the per-pod breakdown. */}
+      {selected && <PodsSection monthKey={selected} activePods={activePods} />}
+
+      {/* By Editor — per-editor utilization heat matrix over time */}
+      <EditorTrendSection activePods={activePods} range={range} />
     </div>
   );
 }
@@ -797,7 +752,7 @@ type MonthRange = { from: string; to: string } | null;
 const monthInRange = (mk: string, range: MonthRange) =>
   !range || (mk >= range.from && mk <= range.to);
 
-// ── Trend wrapper: Pods (line chart) | Editors (heat matrix) ──────────────────
+// ── Trend: pod-level utilization line chart across the period ─────────────────
 function TrendSection({
   podRows,
   activePods,
@@ -807,42 +762,46 @@ function TrendSection({
   activePods: Set<string>;
   range: MonthRange;
 }) {
-  const [grain, setGrain] = useState<"pods" | "editors">("pods");
   return (
     <section id="capacity-trend" className="scroll-mt-[140px] space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-            Trend
-          </h2>
-          <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
-            Utilization across the selected period — by pod (line) or by editor (heat matrix).
-          </p>
-        </div>
-        <div className="inline-flex shrink-0 rounded-md border border-[#1e1e1e] bg-[#0d0d0d] p-0.5">
-          {(["pods", "editors"] as const).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGrain(g)}
-              className={
-                grain === g
-                  ? "rounded bg-[#42CA80]/15 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-[#42CA80]"
-                  : "rounded px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-[#606060] hover:text-[#C4BCAA]"
-              }
-            >
-              {g === "pods" ? "Pods" : "Editors"}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          Trend
+        </h2>
+        <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
+          Pod utilization across the selected period.
+        </p>
       </div>
-      {grain === "pods" ? (
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
-          <PodUtilizationTrendChart rows={podRows} activePods={activePods} range={range ?? undefined} />
-        </div>
-      ) : (
-        <EditorTrendMatrix activePods={activePods} range={range} />
-      )}
+      <div className="rounded-xl border border-[#2a2a2a] bg-[#161616] p-4">
+        <PodUtilizationTrendChart rows={podRows} activePods={activePods} range={range ?? undefined} />
+      </div>
+    </section>
+  );
+}
+
+// ── By Editor: per-editor utilization heat matrix (single rate × months) ──────
+// The per-editor trend the user wanted as "single KPI + months as columns" —
+// moved below the Pods table (was hidden behind the old Trend Pods|Editors
+// toggle). Its own `% Util Real / Wtd / Articles` selector lives top-right.
+function EditorTrendSection({
+  activePods,
+  range,
+}: {
+  activePods: Set<string>;
+  range: MonthRange;
+}) {
+  return (
+    <section id="capacity-editors" className="scroll-mt-[140px] space-y-3">
+      <div>
+        <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
+          By Editor
+        </h2>
+        <p className="mt-0.5 font-mono text-[11px] text-[#606060]">
+          Each editor&apos;s utilization month by month. Pick the rate (Real / Weighted / Articles)
+          with the toggle on the right.
+        </p>
+      </div>
+      <EditorTrendMatrix activePods={activePods} range={range} />
     </section>
   );
 }
@@ -879,161 +838,7 @@ interface MemberUtilRow {
 const fmtPct = (v: number | null | undefined) =>
   v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`;
 
-function MemberUtilizationSection({
-  monthKey,
-  activePods,
-}: {
-  monthKey: string;
-  activePods?: Set<string>;
-}) {
-  const [rows, setRows] = useState<MemberUtilRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!monthKey) return;
-    const [y, m] = monthKey.split("-").map(Number);
-    let alive = true;
-    setLoading(true);
-    apiGet<MemberUtilRow[]>(`/api/capacity/member-utilization?year=${y}&month=${m}`)
-      .then((d) => {
-        if (alive) setRows(d);
-      })
-      .catch(() => {
-        if (alive) setRows([]);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [monthKey]);
-
-  const pods = useMemo(() => {
-    const map = new Map<string, MemberUtilRow[]>();
-    for (const r of rows) {
-      if (activePods && activePods.size > 0 && !activePods.has(r.pod)) continue;
-      if (!map.has(r.pod)) map.set(r.pod, []);
-      map.get(r.pod)!.push(r);
-    }
-    return Array.from(map.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0], undefined, { numeric: true }),
-    );
-  }, [rows, activePods]);
-
-  const unmatched = rows.filter(
-    (r) => !r.matched && r.member.toLowerCase() !== "support from pod 1",
-  ).length;
-
-  if (loading) return <Skeleton className="h-64 w-full max-w-3xl" />;
-  if (!rows.length) return null;
-
-  return (
-    <section id="member-utilization" className="max-w-3xl space-y-3 scroll-mt-[140px]">
-      <div>
-        <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-          Capacity Utilization per Editor
-        </h2>
-        <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-[#606060]">
-          Articles set each editor&apos;s <span className="text-[#909090]">share</span> of the pod&apos;s
-          real used capacity (the log under-counts, so it&apos;s a distribution key, not the total).
-          <span className="text-[#909090]"> %Util Real</span> = actual ÷ capacity ·
-          <span className="text-[#909090]"> %Util Wtd</span> = actual ÷ projected.
-        </p>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
-        <table className="w-full border-collapse font-mono text-[13px]">
-          <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
-            <tr>
-              <th className="px-3 py-2 text-left font-semibold">Editor</th>
-              <th className="px-3 py-2 text-right font-semibold">Capacity</th>
-              <th className="px-3 py-2 text-right font-semibold">% Alloc</th>
-              <th className="px-3 py-2 text-right font-semibold">Articles</th>
-              <th className="px-3 py-2 text-right font-semibold">Projected</th>
-              <th className="px-3 py-2 text-right font-semibold">Actual</th>
-              <th className="px-3 py-2 text-right font-semibold">% Util Real</th>
-              <th className="px-3 py-2 text-right font-semibold">% Util Wtd</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pods.map(([pod, members]) => {
-              const b = members[0];
-              return (
-                <Fragment key={pod}>
-                  <tr className="border-t border-[#2a2a2a] bg-[#141414] text-[10px] text-[#909090]">
-                    <td className="px-3 py-1.5 font-semibold uppercase tracking-wider text-[#C4BCAA]">
-                      {displayPod(pod, "editorial")}
-                    </td>
-                    <td className="px-3 py-1.5 text-right">{b.pod_total_capacity}</td>
-                    <td className="px-3 py-1.5 text-right">{b.pod_total_articles} art</td>
-                    <td colSpan={2} className="px-3 py-1.5 text-right">
-                      raw proj {b.pod_projected_raw} / act {b.pod_actual_raw}
-                    </td>
-                    <td colSpan={3} className="px-3 py-1.5 text-right">
-                      pod wtd util: proj {fmtPct(b.pod_util_projected_weighted)} · act{" "}
-                      {fmtPct(b.pod_util_actual_weighted)}
-                    </td>
-                  </tr>
-                  {members.map((r) => (
-                    <tr
-                      key={`${pod}-${r.member}`}
-                      className="border-t border-[#1a1a1a] hover:bg-[#161616]"
-                    >
-                      <td className="px-3 py-2 text-white">
-                        {r.member}
-                        {r.role && <span className="ml-2 text-[10px] text-[#606060]">{r.role}</span>}
-                        {!r.matched && (
-                          <span
-                            className="ml-2 text-[10px] text-[#F5BC4E]"
-                            title="No matching editor in the article log"
-                          >
-                            no match
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#C4BCAA]">
-                        {r.capacity ?? 0}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#606060]">
-                        {fmtPct(r.pct_allocation)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#606060]">{r.articles}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#909090]">
-                        {r.projected_used}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#909090]">
-                        {r.actual_used}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-white">
-                        {fmtPct(r.pct_util_real)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-white">
-                        {fmtPct(r.pct_util_weighted)}
-                      </td>
-                    </tr>
-                  ))}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {unmatched > 0 && (
-        <p className="font-mono text-[10px] text-[#606060]">
-          {unmatched} member{unmatched === 1 ? "" : "s"} couldn&apos;t be matched to an editor name —
-          counted as 0 articles (name-matching is a known follow-up).
-        </p>
-      )}
-    </section>
-  );
-}
-
-// ── Client Contributions ─────────────────────────────────────────────────────
-// The intermediate ("processed") table between the raw origins and the pod
-// utilization numbers: one row per client with its projected/actual articles
-// and the specialized ×1.4 weighting. Pod subtotals here ARE the pod raw /
-// weighted totals the per-editor section divides up.
+// ── Client Contributions row (per pod × client, ×1.4 for specialized) ─────────
 interface ClientContributionRow {
   pod: string;
   client_id: number;
@@ -1046,27 +851,54 @@ interface ClientContributionRow {
   actual_weighted: number;
 }
 
-function ClientContributionsSection({
+// ── Pods: aggregate row → expand to editors + per-pod client drawer ───────────
+// One fetch each of /member-utilization (members + pod-context rollups) and
+// /client-contributions (the drawer). The pod row shows the exercise's three
+// utilization rates; member rows show Real + Weighted (a member's Projected rate
+// is constant across the pod, so it's omitted). Selecting a pod expands its
+// editors AND slides in that pod's client-by-client breakdown.
+function PodsSection({
   monthKey,
   activePods,
 }: {
   monthKey: string;
   activePods?: Set<string>;
 }) {
-  const [rows, setRows] = useState<ClientContributionRow[]>([]);
+  const [members, setMembers] = useState<MemberUtilRow[]>([]);
+  const [clients, setClients] = useState<ClientContributionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  // Inline editor expansion (any number of pods) is DECOUPLED from the client
+  // drawer (one pod at a time) — opening a pod's client breakdown shouldn't hide
+  // the editor rows you just expanded.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [drawerPod, setDrawerPod] = useState<string | null>(null);
+  const toggleExpanded = (pod: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(pod)) next.delete(pod);
+      else next.add(pod);
+      return next;
+    });
 
   useEffect(() => {
     if (!monthKey) return;
     const [y, m] = monthKey.split("-").map(Number);
     let alive = true;
     setLoading(true);
-    apiGet<ClientContributionRow[]>(`/api/capacity/client-contributions?year=${y}&month=${m}`)
-      .then((d) => {
-        if (alive) setRows(d);
-      })
-      .catch(() => {
-        if (alive) setRows([]);
+    setDrawerPod(null);
+    setExpanded(new Set());
+    Promise.all([
+      apiGet<MemberUtilRow[]>(`/api/capacity/member-utilization?year=${y}&month=${m}`).catch(
+        () => [] as MemberUtilRow[],
+      ),
+      apiGet<ClientContributionRow[]>(
+        `/api/capacity/client-contributions?year=${y}&month=${m}`,
+      ).catch(() => [] as ClientContributionRow[]),
+    ])
+      .then(([mu, cc]) => {
+        if (!alive) return;
+        setMembers(mu);
+        setClients(cc);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -1076,113 +908,315 @@ function ClientContributionsSection({
     };
   }, [monthKey]);
 
+  const visible = useCallback(
+    (pod: string) => !activePods || activePods.size === 0 || activePods.has(pod),
+    [activePods],
+  );
+
   const pods = useMemo(() => {
-    const map = new Map<string, ClientContributionRow[]>();
-    for (const r of rows) {
-      if (activePods && activePods.size > 0 && !activePods.has(r.pod)) continue;
+    const map = new Map<string, MemberUtilRow[]>();
+    for (const r of members) {
+      if (!visible(r.pod)) continue;
       if (!map.has(r.pod)) map.set(r.pod, []);
       map.get(r.pod)!.push(r);
     }
     return Array.from(map.entries()).sort((a, b) =>
       a[0].localeCompare(b[0], undefined, { numeric: true }),
     );
-  }, [rows]);
+  }, [members, visible]);
 
-  if (loading) return <Skeleton className="h-64 w-full max-w-3xl" />;
-  if (!rows.length) return null;
+  const clientsByPod = useMemo(() => {
+    const map = new Map<string, ClientContributionRow[]>();
+    for (const r of clients) {
+      if (!visible(r.pod)) continue;
+      if (!map.has(r.pod)) map.set(r.pod, []);
+      map.get(r.pod)!.push(r);
+    }
+    return map;
+  }, [clients, visible]);
+
+  const totals = useMemo(() => {
+    let cap = 0;
+    let proj = 0;
+    let act = 0;
+    for (const [, ms] of pods) {
+      const b = ms[0];
+      cap += b.pod_total_capacity;
+      proj += b.pod_projected_weighted;
+      act += b.pod_actual_weighted;
+    }
+    return { cap, proj, act };
+  }, [pods]);
+
+  const unmatched = members.filter(
+    (r) => !r.matched && r.member.toLowerCase() !== "support from pod 1",
+  ).length;
+
+  if (loading) return <Skeleton className="h-72 w-full" />;
+  if (!members.length) return null;
+
+  const drawerClients = drawerPod ? clientsByPod.get(drawerPod) ?? [] : [];
 
   return (
-    <section id="client-contributions" className="max-w-3xl space-y-3 scroll-mt-[140px]">
+    <section id="capacity-pods" className="scroll-mt-[140px] space-y-3">
       <div>
         <h2 className="font-mono text-sm font-semibold uppercase tracking-widest text-[#C4BCAA]">
-          Client Contributions
+          Pods
         </h2>
         <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-[#606060]">
-          What each client adds to its pod&apos;s workload this month. Specialized clients
-          weigh <span className="text-[#909090]">×1.4</span>. Pod totals here are exactly the
-          projected / actual numbers the per-editor section splits up.
+          One row per pod — Total Capacity, weighted Projected / Actual Used, and the three rates:
+          <span className="text-[#909090]"> Projected</span> = projected ÷ capacity ·
+          <span className="text-[#909090]"> Real</span> = actual ÷ capacity ·
+          <span className="text-[#909090]"> Weighted</span> = actual ÷ projected. Click a pod to see
+          its editors and a client-by-client breakdown.
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
+      <div className="overflow-x-auto rounded-lg border border-[#2a2a2a] bg-[#0d0d0d]">
         <table className="w-full border-collapse font-mono text-[13px]">
           <thead className="bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
             <tr>
-              <th className="px-3 py-2 text-left font-semibold">Client</th>
-              <th className="px-3 py-2 text-left font-semibold">Category</th>
-              <th className="px-3 py-2 text-right font-semibold">Projected</th>
-              <th className="px-3 py-2 text-right font-semibold">Actual</th>
-              <th className="px-3 py-2 text-right font-semibold">Wtd Projected</th>
-              <th className="px-3 py-2 text-right font-semibold">Wtd Actual</th>
+              <th className="px-4 py-2 text-left font-semibold">Pod / Editor</th>
+              <th className="px-3 py-2 text-right font-semibold">Capacity</th>
+              <th className="px-3 py-2 text-right font-semibold">Projected Used Capacity</th>
+              <th className="px-3 py-2 text-right font-semibold">Actual Used Capacity</th>
+              <th className="px-3 py-2 text-right font-semibold">% Capacity Utilization (Projected)</th>
+              <th className="px-3 py-2 text-right font-semibold">% Capacity Utilization (Real)</th>
+              <th className="px-3 py-2 text-right font-semibold">% Capacity Utilization (Weighted)</th>
+              <th className="px-3 py-2 text-left font-semibold">Status</th>
             </tr>
           </thead>
           <tbody>
-            {pods.map(([pod, clients]) => {
-              const t = clients.reduce(
-                (s, r) => ({
-                  pr: s.pr + r.projected_raw,
-                  ar: s.ar + r.actual_raw,
-                  pw: s.pw + r.projected_weighted,
-                  aw: s.aw + r.actual_weighted,
-                }),
-                { pr: 0, ar: 0, pw: 0, aw: 0 },
-              );
+            {pods.map(([pod, ms]) => {
+              const b = ms[0];
+              const cap = b.pod_total_capacity;
+              const proj = b.pod_projected_weighted;
+              const act = b.pod_actual_weighted;
+              const pProj = b.pod_util_projected_weighted;
+              const pReal = b.pod_util_actual_weighted;
+              const pWtd = proj > 0 ? act / proj : null;
+              const st = utilStatus(pReal === null ? null : pReal * 100);
+              const isExpanded = expanded.has(pod);
+              const isSelected = drawerPod === pod;
               return (
                 <Fragment key={pod}>
-                  <tr className="border-t border-[#2a2a2a] bg-[#141414]">
-                    <td className="px-3 py-1.5 font-semibold uppercase tracking-wider text-[10px] text-[#C4BCAA]">
-                      {displayPod(pod, "editorial")}
+                  <tr
+                    className={cn(
+                      "cursor-pointer border-t border-[#2a2a2a] bg-[#141414] transition-colors hover:bg-[#1c1c1c]",
+                      isSelected && "bg-[#42CA80]/10 hover:bg-[#42CA80]/10",
+                    )}
+                    onClick={() => toggleExpanded(pod)}
+                  >
+                    <td className="px-4 py-2 font-semibold text-[#C4BCAA]">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5">
+                          <ChevronRight
+                            className={cn(
+                              "h-3.5 w-3.5 text-[#606060] transition-transform",
+                              isExpanded && "rotate-90 text-[#42CA80]",
+                            )}
+                          />
+                          {displayPod(pod, "editorial")}
+                          <span className="ml-1 text-[10px] font-normal text-[#606060]">
+                            {ms.length} editor{ms.length === 1 ? "" : "s"}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrawerPod(isSelected ? null : pod);
+                          }}
+                          className={cn(
+                            "rounded border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider transition-colors",
+                            isSelected
+                              ? "border-[#42CA80]/50 bg-[#42CA80]/15 text-[#42CA80]"
+                              : "border-[#2a2a2a] text-[#606060] hover:border-[#42CA80]/40 hover:text-[#C4BCAA]",
+                          )}
+                          title="Show this pod's client-by-client breakdown"
+                        >
+                          Clients ▸
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-3 py-1.5 text-[10px] text-[#606060]">
-                      {clients.length} client{clients.length === 1 ? "" : "s"}
+                    <td className="px-3 py-2 text-right tabular-nums text-white">{cap}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-[#C4BCAA]">
+                      {proj.toFixed(1)}
                     </td>
-                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-white">{t.pr}</td>
-                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-white">{t.ar}</td>
-                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#C4BCAA]">
-                      {t.pw.toFixed(1)}
+                    <td className="px-3 py-2 text-right tabular-nums text-[#C4BCAA]">
+                      {act.toFixed(1)}
                     </td>
-                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#C4BCAA]">
-                      {t.aw.toFixed(1)}
+                    <td className="px-3 py-2 text-right tabular-nums text-[#909090]">
+                      {fmtPct(pProj)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-white">{fmtPct(pReal)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-white">{fmtPct(pWtd)}</td>
+                    <td className="px-3 py-2">
+                      <span className="flex items-center gap-1.5 text-[11px] text-[#909090]">
+                        <span
+                          className="inline-block h-2 w-2 rounded-full"
+                          style={{ backgroundColor: st.color }}
+                        />
+                        {st.label}
+                      </span>
                     </td>
                   </tr>
-                  {clients.map((r) => (
-                    <tr
-                      key={`${pod}-${r.client_id}`}
-                      className="border-t border-[#1a1a1a] hover:bg-[#161616]"
-                    >
-                      <td className="px-3 py-1.5 pl-6 text-[#C4BCAA]">{r.client_name}</td>
-                      <td className="px-3 py-1.5">
-                        {r.category === "specialized" ? (
-                          <span className="rounded bg-[#8FB5D9]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[#8FB5D9]">
-                            Specialized ×1.4
-                          </span>
-                        ) : (
-                          <span className="text-[10px] uppercase tracking-wider text-[#606060]">
-                            {r.category ?? "—"}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">
-                        {r.projected_raw}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">
-                        {r.actual_raw}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-[#606060]">
-                        {r.projected_weighted.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-[#606060]">
-                        {r.actual_weighted.toFixed(1)}
-                      </td>
-                    </tr>
-                  ))}
+                  {isExpanded &&
+                    ms.map((r) => (
+                      <tr
+                        key={`${pod}-${r.member}`}
+                        className="border-t border-[#1a1a1a] bg-[#0d0d0d] hover:bg-[#161616]"
+                      >
+                        <td className="px-4 py-1.5 pl-10 text-white">
+                          {r.member}
+                          {r.role && (
+                            <span className="ml-2 text-[10px] text-[#606060]">{r.role}</span>
+                          )}
+                          {!r.matched && (
+                            <span
+                              className="ml-2 text-[10px] text-[#F5BC4E]"
+                              title="No matching editor in the article log"
+                            >
+                              no match
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-[#C4BCAA]">
+                          {r.capacity ?? 0}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">
+                          {r.projected_used}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">
+                          {r.actual_used}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-[#404040]">—</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-white">
+                          {fmtPct(r.pct_util_real)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-white">
+                          {fmtPct(r.pct_util_weighted)}
+                        </td>
+                        <td className="px-3 py-1.5" />
+                      </tr>
+                    ))}
                 </Fragment>
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-[#2a2a2a] bg-[#111111] font-semibold">
+              <td className="px-4 py-2 text-[#C4BCAA]">Totals</td>
+              <td className="px-3 py-2 text-right tabular-nums text-white">{totals.cap}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-white">
+                {totals.proj.toFixed(1)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-white">
+                {totals.act.toFixed(1)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-white">
+                {fmtPct(totals.cap > 0 ? totals.proj / totals.cap : null)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-white">
+                {fmtPct(totals.cap > 0 ? totals.act / totals.cap : null)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-white">
+                {fmtPct(totals.proj > 0 ? totals.act / totals.proj : null)}
+              </td>
+              <td className="px-3 py-2" />
+            </tr>
+          </tfoot>
         </table>
       </div>
+
+      {unmatched > 0 && (
+        <p className="font-mono text-[10px] text-[#606060]">
+          {unmatched} member{unmatched === 1 ? "" : "s"} couldn&apos;t be matched to an editor name —
+          counted as 0 articles (name-matching is a known follow-up).
+        </p>
+      )}
+
+      <SlideOverDrawer
+        open={drawerPod !== null}
+        onClose={() => setDrawerPod(null)}
+        title={drawerPod ? `${displayPod(drawerPod, "editorial")} — Client Contributions` : ""}
+        subtitle="What each client adds to the pod's workload this month. Specialized clients weigh ×1.4."
+      >
+        <ClientContributionsTable clients={drawerClients} />
+      </SlideOverDrawer>
     </section>
+  );
+}
+
+// The per-pod client table rendered inside the Pods drawer.
+function ClientContributionsTable({ clients }: { clients: ClientContributionRow[] }) {
+  if (!clients.length) {
+    return (
+      <p className="px-4 py-6 font-mono text-[11px] text-[#606060]">
+        No client data for this pod this month.
+      </p>
+    );
+  }
+  const sorted = [...clients].sort((a, b) => b.projected_weighted - a.projected_weighted);
+  const t = clients.reduce(
+    (s, r) => ({
+      pr: s.pr + r.projected_raw,
+      ar: s.ar + r.actual_raw,
+      pw: s.pw + r.projected_weighted,
+      aw: s.aw + r.actual_weighted,
+    }),
+    { pr: 0, ar: 0, pw: 0, aw: 0 },
+  );
+  return (
+    <table className="w-full border-collapse font-mono text-[12px]">
+      <thead className="sticky top-0 bg-[#161616] text-[10px] uppercase tracking-wider text-[#606060]">
+        <tr>
+          <th className="px-3 py-2 text-left font-semibold">Client</th>
+          <th className="px-3 py-2 text-left font-semibold">Category</th>
+          <th className="px-3 py-2 text-right font-semibold">Projected</th>
+          <th className="px-3 py-2 text-right font-semibold">Actual</th>
+          <th className="px-3 py-2 text-right font-semibold">Wtd Projected</th>
+          <th className="px-3 py-2 text-right font-semibold">Wtd Actual</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => (
+          <tr key={r.client_id} className="border-t border-[#1a1a1a] hover:bg-[#161616]">
+            <td className="px-3 py-1.5 text-[#C4BCAA]">{r.client_name}</td>
+            <td className="px-3 py-1.5">
+              {r.category === "specialized" ? (
+                <span className="rounded bg-[#8FB5D9]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[#8FB5D9]">
+                  Specialized ×1.4
+                </span>
+              ) : (
+                <span className="text-[10px] uppercase tracking-wider text-[#606060]">
+                  {r.category ?? "—"}
+                </span>
+              )}
+            </td>
+            <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">{r.projected_raw}</td>
+            <td className="px-3 py-1.5 text-right tabular-nums text-[#909090]">{r.actual_raw}</td>
+            <td className="px-3 py-1.5 text-right tabular-nums text-[#606060]">
+              {r.projected_weighted.toFixed(1)}
+            </td>
+            <td className="px-3 py-1.5 text-right tabular-nums text-[#606060]">
+              {r.actual_weighted.toFixed(1)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr className="border-t-2 border-[#2a2a2a] bg-[#111111] font-semibold">
+          <td className="px-3 py-2 text-[#C4BCAA]" colSpan={2}>
+            Pod total
+          </td>
+          <td className="px-3 py-2 text-right tabular-nums text-white">{t.pr}</td>
+          <td className="px-3 py-2 text-right tabular-nums text-white">{t.ar}</td>
+          <td className="px-3 py-2 text-right tabular-nums text-[#C4BCAA]">{t.pw.toFixed(1)}</td>
+          <td className="px-3 py-2 text-right tabular-nums text-[#C4BCAA]">{t.aw.toFixed(1)}</td>
+        </tr>
+      </tfoot>
+    </table>
   );
 }
 
