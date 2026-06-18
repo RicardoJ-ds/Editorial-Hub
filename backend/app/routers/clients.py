@@ -38,7 +38,12 @@ def _scope_filter(profile: AccessProfile) -> set[str] | None:
         if profile.pod_kind_lock:
             q = q.where(PodAssignment.pod_kind == profile.pod_kind_lock)
         rows = session.execute(q).all()
-        return {r[0] for r in rows if r[0]}
+        # Lowercase the allowed-name set at its single source so both the
+        # Postgres and BigQuery scope filters match client names
+        # case-insensitively (pod_assignments stores "N8N" while clients.name
+        # is "n8n"). Only the client_name projection is folded — the email /
+        # pod_kind predicates above are untouched.
+        return {r[0].lower() for r in rows if r[0]}
 
 
 async def _operating_model_end_dates(db: AsyncSession, client_ids: list[int]) -> dict[int, date]:
@@ -118,7 +123,7 @@ async def list_clients(
     if allowed is not None:
         if not allowed:
             return []
-        stmt = stmt.where(Client.name.in_(allowed))
+        stmt = stmt.where(func.lower(Client.name).in_(allowed))
 
     stmt = stmt.offset(skip).limit(limit).order_by(Client.name, Client.id)
     result = await db.execute(stmt)

@@ -94,8 +94,10 @@ def list_clients(
         where.append("editorial_pod = @epod")
         params.append(_p("epod", "STRING", editorial_pod))
     if allowed_names is not None:
-        where.append("name IN UNNEST(@allowed)")
-        params.append(_arr("allowed", "STRING", sorted(allowed_names)))
+        # Case-insensitive RBAC scope match — twin of the Postgres
+        # func.lower(Client.name) filter; keeps PG/BQ in parity.
+        where.append("LOWER(name) IN UNNEST(@allowed)")
+        params.append(_arr("allowed", "STRING", sorted({n.lower() for n in allowed_names})))
     params += [_p("limit", "INT64", limit), _p("skip", "INT64", skip)]
     rows = q(
         f"SELECT * FROM {DS}.editorial_raw_clients WHERE {' AND '.join(where)} "
