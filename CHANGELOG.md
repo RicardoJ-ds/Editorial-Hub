@@ -18,6 +18,15 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.28 — June 18
+
+**Help & Glossary trimmed to the essentials; changelog hidden.**
+
+### Help & Glossary
+
+- The in-app Help now shows **only the Glossary** — the terms relevant to Editorial Clients & Overview. The longer quick-guide intro, the dashboard table, and the how-to / permissions / sync sections were removed for a cleaner, focused reference.
+- The **Changelog is now hidden for everyone**. The sidebar version chip opens the Glossary instead of "what's new."
+
 ## 0.3.27 — June 18
 
 **Glossary: clearer Pod wording.**

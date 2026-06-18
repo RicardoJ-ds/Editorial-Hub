@@ -36,11 +36,9 @@ import type { AccessProfile } from "@/lib/accessClient";
 export type HelpModalTab = "help" | "changelog";
 
 function canViewChangelog(profile: AccessProfile | null): boolean {
-  if (!profile) return false;
-  if (profile.is_admin) return true;
-  return profile.group_slugs.some((s) =>
-    ["leadership", "bi_team"].includes(s),
-  );
+  // Changelog hidden from everyone (including admins) per request.
+  void profile;
+  return false;
 }
 
 export function HelpModal({

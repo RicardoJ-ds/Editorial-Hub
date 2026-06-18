@@ -143,10 +143,10 @@ function NavSection({
 export function Sidebar({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
   const access = useAccessProfile();
-  // Help / Changelog modal state. `null` = closed; otherwise the active
-  // tab determines what the modal lands on (Help button → "help"; version
-  // chip → "changelog"). Sidebar owns this state because both triggers
-  // live here.
+  // Help modal state. `null` = closed; otherwise the active tab. Both the
+  // Help button and the version chip open it on the "help" (glossary) tab —
+  // the changelog tab is hidden for everyone. Sidebar owns this state because
+  // both triggers live here.
   const [helpTab, setHelpTab] = useState<HelpModalTab | null>(null);
   // Until the access profile loads, render no permission-gated nav items.
   // Rendering every item during that gap exposes links the user may not
@@ -292,10 +292,10 @@ export function Sidebar({ user }: { user: HeaderUser }) {
           </form>
         </div>
 
-        {/* Help + version row — Help icon (opens HelpModal on the Help
-            tab) and the version chip (opens HelpModal on the Changelog
-            tab). Both are sidebar-aware: collapsed sidebar shows icons
-            only, expanded shows labels. */}
+        {/* Help + version row — Help icon and the version chip both open
+            HelpModal on the Help (glossary) tab. The changelog is hidden.
+            Both are sidebar-aware: collapsed sidebar shows icons only,
+            expanded shows labels. */}
         <div className="mt-2 hidden items-center justify-between gap-2 group-hover/sidebar:flex">
           <button
             type="button"
@@ -308,8 +308,8 @@ export function Sidebar({ user }: { user: HeaderUser }) {
           </button>
           <button
             type="button"
-            onClick={() => setHelpTab("changelog")}
-            title={`What's new in v${VERSION}`}
+            onClick={() => setHelpTab("help")}
+            title={`Editorial Hub v${VERSION}`}
             className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#C4BCAA] transition-colors hover:border-[#42CA80]/40 hover:bg-[#42CA80]/10 hover:text-[#65FFAA]"
           >
             v{VERSION}
@@ -326,8 +326,8 @@ export function Sidebar({ user }: { user: HeaderUser }) {
           </button>
           <button
             type="button"
-            onClick={() => setHelpTab("changelog")}
-            title={`v${VERSION} — what's new`}
+            onClick={() => setHelpTab("help")}
+            title={`Editorial Hub v${VERSION}`}
             className="rounded-sm border border-[#2a2a2a] bg-[#161616] px-1 py-0.5 font-mono text-[9px] font-semibold text-[#606060] transition-colors hover:border-[#42CA80]/40 hover:bg-[#42CA80]/10 hover:text-[#65FFAA]"
           >
             v{VERSION}
