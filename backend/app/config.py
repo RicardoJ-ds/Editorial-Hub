@@ -14,6 +14,18 @@ class Settings(BaseSettings):
     # Honor the per-request X-Data-Source override (parity harness only).
     # MUST stay False in production — any caller could flip the datastore.
     data_source_override_enabled: bool = False
+    # ── Read-path cache (services/bq_cache.py) ──────────────────────────────
+    # Serve BQ dashboard reads from an in-process cache so neither BQ nor Neon
+    # is hit on every request. Entries are keyed by (sql, params, publish
+    # token); the warehouse publish bumps the token so a SYNC shows fresh
+    # numbers within `cache_token_poll_seconds`. TTL is a safety net.
+    bq_cache_enabled: bool = True
+    bq_cache_ttl_seconds: int = 600
+    cache_token_poll_seconds: int = 5
+    # Short-TTL cache for the per-request RBAC resolve — the dominant Neon read
+    # once dashboards serve from BQ. 0 disables. Revocations propagate within
+    # this window (plus the frontend's tab-focus refetch).
+    rbac_cache_ttl_seconds: int = 30
     cors_origins: list[str] = ["http://localhost:3000"]
     spreadsheet_id: str = ""
     master_tracker_id: str = ""

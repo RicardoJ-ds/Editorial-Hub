@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import prepare_sync_url
-from app.services.access import AccessProfile, resolve_access
+from app.services.access import AccessProfile, resolve_access_cached
 
 _sync_engine = None
 
@@ -71,11 +71,11 @@ def current_access(
         return AccessProfile(email="", is_authenticated=False)
 
     with get_sync_session() as session:
-        profile = resolve_access(session, real_email)
+        profile = resolve_access_cached(session, real_email)
         if x_preview_as and profile.is_admin:
             preview_email = x_preview_as.strip().lower()
             if preview_email and preview_email != real_email:
-                preview = resolve_access(session, preview_email)
+                preview = resolve_access_cached(session, preview_email)
                 # Tag so the frontend can show a banner; the impersonation
                 # is otherwise transparent to downstream code.
                 preview.email = preview_email

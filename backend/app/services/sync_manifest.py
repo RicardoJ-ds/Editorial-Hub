@@ -84,6 +84,16 @@ def _warehouse_publish_run(session: Session) -> "list[ImportResult]":
         ]
     counts = build_all()
     views = create_views(get_bq())
+    # Invalidate the BQ dashboard read cache so BQ-served dashboards show the
+    # freshly published numbers within cache_token_poll_seconds on every
+    # instance (see services/bq_cache.py). A bump failure must not fail the
+    # publish (which already succeeded) — the TTL is the fallback.
+    try:
+        from app.services.bq_cache import bump_token
+
+        bump_token(session)
+    except Exception:
+        logger.warning("cache token bump failed after warehouse publish", exc_info=True)
     return [
         ImportResult(
             sheet=WAREHOUSE_LABEL,

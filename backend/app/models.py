@@ -21,6 +21,18 @@ class Base(DeclarativeBase):
     pass
 
 
+class CacheVersion(Base):
+    """Single-row (id=1) monotonic token bumped on every warehouse publish.
+    The BQ dashboard read cache (services/bq_cache.py) keys its entries by this
+    token, so a SYNC invalidates them across every instance."""
+
+    __tablename__ = "cache_version"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    token: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    bumped_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class Client(Base):
     __tablename__ = "clients"
 

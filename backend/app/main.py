@@ -42,6 +42,16 @@ async def _run_data_migrations(conn) -> None:
 
     Each migration must be idempotent (safe to re-run on every deploy).
     """
+    # 0. cache_version: ensure the single token row exists (id=1, token=0).
+    #    The table itself is created by Base.metadata.create_all; the BQ read
+    #    cache reads/bumps this row (see services/bq_cache.py).
+    await conn.execute(
+        text(
+            "INSERT INTO cache_version (id, token, bumped_at) "
+            "VALUES (1, 0, now()) ON CONFLICT (id) DO NOTHING"
+        )
+    )
+
     # 1. production_history: dedupe + add unique (client_id, year, month).
     #    The Operating Model importer has always upserted by that triple,
     #    but the upsert ran without DB-level enforcement, so any historical

@@ -32,3 +32,4 @@ ignore_errors = true  # Seed script with dynamic DB access patterns
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = ["."]

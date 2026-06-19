@@ -47,15 +47,22 @@ DS = f"`{settings.bq_project}.{settings.bq_dataset}`"
 
 
 def q(sql: str, params: list | None = None) -> list[dict]:
-    job = bq().query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
-    rows = [dict(r) for r in job.result()]
-    # Postgres stores naive UTC datetimes; BQ returns tz-aware. Normalize so
-    # both sources serialize identically through the response models.
-    for r in rows:
-        for k, v in r.items():
-            if isinstance(v, datetime) and v.tzinfo is not None:
-                r[k] = v.replace(tzinfo=None)
-    return rows
+    # Served from the publish-token cache (services/bq_cache.py) so neither BQ
+    # nor Neon is hit on every request; a SYNC bumps the token → fresh numbers.
+    from app.services import bq_cache
+
+    def _run() -> list[dict]:
+        job = bq().query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
+        rows = [dict(r) for r in job.result()]
+        # Postgres stores naive UTC datetimes; BQ returns tz-aware. Normalize so
+        # both sources serialize identically through the response models.
+        for r in rows:
+            for k, v in r.items():
+                if isinstance(v, datetime) and v.tzinfo is not None:
+                    r[k] = v.replace(tzinfo=None)
+        return rows
+
+    return bq_cache.cached_query(sql, params, _run)
 
 
 def _p(name: str, type_: str, value):

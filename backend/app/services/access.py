@@ -26,12 +26,16 @@ that already use a sync session for legacy reasons.
 
 from __future__ import annotations
 
+import copy
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import (
     AccessGroup,
     AccessGroupMember,
@@ -648,6 +652,39 @@ def resolve_access(session: Session, email: str | None) -> AccessProfile:
         profile.pod_number_lock = first[0] if first else None
 
     return profile
+
+
+# Short-TTL cache for resolve_access. Once dashboards serve from BigQuery, the
+# per-request RBAC resolve becomes the dominant Neon read; this collapses it to
+# ~1 query per email per TTL window. Revocations propagate within the TTL (plus
+# the frontend's tab-focus refetch). Set rbac_cache_ttl_seconds=0 to disable.
+_rbac_cache: dict[str, tuple[float, AccessProfile]] = {}
+_rbac_lock = threading.Lock()
+
+
+def resolve_access_cached(session: Session, email: str | None) -> AccessProfile:
+    """`resolve_access` with a short-TTL in-process cache. Returns a deep copy
+    so callers (e.g. the preview-as path, which sets `email` / `is_preview` on
+    the result) can mutate freely without corrupting the cached profile."""
+    ttl = settings.rbac_cache_ttl_seconds
+    if not email or ttl <= 0:
+        return resolve_access(session, email)
+    e = email.strip().lower()
+    now = time.monotonic()
+    with _rbac_lock:
+        hit = _rbac_cache.get(e)
+        if hit is not None and (now - hit[0]) < ttl:
+            return copy.deepcopy(hit[1])
+    profile = resolve_access(session, e)
+    with _rbac_lock:
+        _rbac_cache[e] = (now, profile)
+    return copy.deepcopy(profile)
+
+
+def clear_rbac_cache() -> None:
+    """Drop all cached access profiles (tests / explicit invalidation)."""
+    with _rbac_lock:
+        _rbac_cache.clear()
 
 
 def assigned_client_names(session: Session, email: str) -> set[str]:
