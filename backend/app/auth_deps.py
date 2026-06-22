@@ -18,20 +18,21 @@ to remove a member") composes off of these.
 from __future__ import annotations
 
 from fastapi import Depends, Header, HTTPException, Request
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import prepare_sync_url
+from app.database import make_sync_engine
 from app.services.access import AccessProfile, resolve_access_cached
 
 _sync_engine = None
 
 
 def _get_sync_engine():
+    # Cached across requests — make_sync_engine's pool_pre_ping keeps this RBAC
+    # engine alive when Neon drops an idle connection between requests.
     global _sync_engine
     if _sync_engine is None:
-        _sync_engine = create_engine(prepare_sync_url(settings.database_url), echo=False)
+        _sync_engine = make_sync_engine(settings.database_url)
     return _sync_engine
 
 

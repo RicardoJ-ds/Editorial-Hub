@@ -7,11 +7,11 @@ behavior is identical by construction. This module only reads the results.
 
 from __future__ import annotations
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import prepare_sync_url
+from app.database import make_sync_engine
 
 _ENGINE = None
 
@@ -19,9 +19,12 @@ _ENGINE = None
 def get_engine():
     # One engine (pool) per process — builds run inside the long-lived backend
     # via the sync manifest; per-call engines would leak pooled connections.
+    # make_sync_engine adds pool_pre_ping so this cached engine survives Neon
+    # closing its idle connection between sync steps (the warehouse publish runs
+    # last) instead of failing on "SSL connection has been closed unexpectedly".
     global _ENGINE
     if _ENGINE is None:
-        _ENGINE = create_engine(prepare_sync_url(settings.database_url), echo=False)
+        _ENGINE = make_sync_engine(settings.database_url)
     return _ENGINE
 
 
@@ -40,9 +43,7 @@ def fetch_model_rows(session: Session, model) -> list[dict]:
 
 def distinct_capacity_months(session: Session) -> list[tuple[int, int]]:
     rows = session.execute(
-        text(
-            "SELECT DISTINCT year, month FROM editorial_member_capacity ORDER BY year, month"
-        )
+        text("SELECT DISTINCT year, month FROM editorial_member_capacity ORDER BY year, month")
     ).all()
     return [(r.year, r.month) for r in rows]
 
@@ -91,6 +92,4 @@ def fetch_month_inputs(session: Session, year: int, month: int):
 
 
 def client_names(session: Session) -> dict[int, str]:
-    return {
-        r.id: r.name for r in session.execute(text("SELECT id, name FROM clients"))
-    }
+    return {r.id: r.name for r in session.execute(text("SELECT id, name FROM clients"))}

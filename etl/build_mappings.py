@@ -26,10 +26,10 @@ import re
 from collections import defaultdict
 from datetime import date
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import settings
-from app.database import prepare_sync_url
+from app.database import make_sync_engine
 from etl.util import norm_key, strip_member_annotations
 
 MAPPINGS_DIR = os.path.join(os.path.dirname(__file__), "mappings")
@@ -106,25 +106,53 @@ CLIENT_OVERRIDES: dict[str, tuple[str | None, str, str]] = {
     # (sf_name, status, note)
     "Meta BMG": ("Meta for Business", "confirmed", "auto-fuzzy had wrongly said Meta AI"),
     "Meta RL": ("Meta Reality Labs", "confirmed", "auto-fuzzy had wrongly said Meta AI"),
-    "Meta Manus": (None, "dismissed", "DaniQ 2026-06-12: Meta domain never kicked off — remove, nothing to track"),
+    "Meta Manus": (
+        None,
+        "dismissed",
+        "DaniQ 2026-06-12: Meta domain never kicked off — remove, nothing to track",
+    ),
     "ChatGPT": ("OpenAI", "confirmed", "DaniQ 2026-06-12: Ok"),
-    "EarnIn B2C": ("EarnIn", "confirmed", "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"),
-    "Earnin B2B": ("EarnIn", "confirmed", "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn"),
-    "Orderful (I)": ("Orderful", "confirmed", "DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful"),
-    "Orderful (II)": ("Orderful", "confirmed", "DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful"),
+    "EarnIn B2C": (
+        "EarnIn",
+        "confirmed",
+        "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn",
+    ),
+    "Earnin B2B": (
+        "EarnIn",
+        "confirmed",
+        "DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn",
+    ),
+    "Orderful (I)": (
+        "Orderful",
+        "confirmed",
+        "DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful",
+    ),
+    "Orderful (II)": (
+        "Orderful",
+        "confirmed",
+        "DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful",
+    ),
     "Workleap + Sharegate": (
         "Workleap",
         "confirmed",
         "combined engagement; ShareGate has no SF account of its own",
     ),
-    "Tempo XYZ": ("Tempo", "confirmed", "DaniQ 2026-06-12: Tempo XYZ IS Tempo (active). Old Tempo renamed → Tempo.io (inactive) in SF + article sheet tabs"),
+    "Tempo XYZ": (
+        "Tempo",
+        "confirmed",
+        "DaniQ 2026-06-12: Tempo XYZ IS Tempo (active). Old Tempo renamed → Tempo.io (inactive) in SF + article sheet tabs",
+    ),
     "Engine": ("Hotel Engine", "confirmed", "DaniQ 2026-06-12: Ok"),
     "Landing": ("Hello Landing", "confirmed", "DaniQ 2026-06-12: Ok"),
     "GenstoreAI": ("Genstore", "confirmed", ""),
     "TaskRabbit": ("TaskRabbit Inc", "confirmed", "legal-entity suffix"),
     "Fishbowl": ("Fishbowl Inventory", "confirmed", ""),
     "Grindr": ("Grindr LLC", "confirmed", "legal-entity suffix"),
-    "First Round Capital": (None, "confirmed_unlinked", "DaniQ 2026-06-12: leave unlinked (she asks: does FRC exist in SF? follow-up)"),
+    "First Round Capital": (
+        None,
+        "confirmed_unlinked",
+        "DaniQ 2026-06-12: leave unlinked (she asks: does FRC exist in SF? follow-up)",
+    ),
     "Lenny": (None, "confirmed_unlinked", "DaniQ 2026-06-12: leave unlinked"),
     "Neeva": (None, "confirmed_unlinked", "DaniQ 2026-06-12: leave unlinked (defunct)"),
 }
@@ -196,7 +224,7 @@ def _load_existing(name: str) -> dict:
 
 
 def build(engine=None) -> dict:
-    eng = engine or create_engine(prepare_sync_url(settings.database_url), echo=False)
+    eng = engine or make_sync_engine(settings.database_url)
     hr_editors, sf_clients = _load_canonical()
     hr_by_name = {e["employee_name"]: e for e in hr_editors}
     sf_by_name = {c["Client_Name"]: c for c in sf_clients}
@@ -607,7 +635,7 @@ def apply_writer_aliases(engine=None) -> dict:
     review screen uses. Only high-confidence rows are applied (status
     'confirmed' / 'confirmed_first_name'); ambiguous + unresolved stay for
     DaniQ. Reversible: DELETE FROM article_name_aliases WHERE source='etl'."""
-    eng = engine or create_engine(prepare_sync_url(settings.database_url), echo=False)
+    eng = engine or make_sync_engine(settings.database_url)
     with open(os.path.join(MAPPINGS_DIR, "writer_aliases.json")) as f:
         aliases = json.load(f)["aliases"]
     inserted = updated = skipped = 0

@@ -612,12 +612,11 @@ def _last_imported_row_count(sheet_name: str) -> int | None:
     Used to give synthetic (non-Sheets) sources like Growth Pods a meaningful
     row-count in the Import Wizard instead of always showing 0.
     """
-    from sqlalchemy import create_engine
     from sqlalchemy.orm import Session as SyncSession
 
-    from app.database import prepare_sync_url
+    from app.database import make_sync_engine
 
-    engine = create_engine(prepare_sync_url(settings.database_url), echo=False)
+    engine = make_sync_engine(settings.database_url)
     try:
         with SyncSession(engine) as sess:
             logs = (

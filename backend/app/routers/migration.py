@@ -9,12 +9,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import create_engine, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session as SyncSession
 
 from app.config import settings
-from app.database import get_db, prepare_sync_url
+from app.database import get_db, make_sync_engine
 from app.models import AuditLog, EditorialWeek
 from app.schemas import EditorialWeekResponse
 from app.services import bq_dashboard, sync_manifest
@@ -103,12 +103,12 @@ class MigrationStatusResponse(BaseModel):
 def _get_sync_session() -> SyncSession:
     """Create a synchronous SQLAlchemy session for Google Sheets import work.
 
-    Uses `prepare_sync_url` so libpq-style params (sslmode=require) survive
+    Uses `make_sync_engine` so libpq-style params (sslmode=require) survive
     and asyncpg-style params (ssl=require) are translated — Railway's
     DATABASE_URL carries whichever the connection string renderer emits, and
-    psycopg2 rejects `ssl=…` outright.
+    psycopg2 rejects `ssl=…` outright — plus pool_pre_ping for Neon.
     """
-    sync_engine = create_engine(prepare_sync_url(settings.database_url), echo=False)
+    sync_engine = make_sync_engine(settings.database_url)
     return SyncSession(sync_engine)
 
 

@@ -1,6 +1,8 @@
 import ssl
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -57,8 +59,33 @@ def prepare_sync_url(url: str) -> str:
     return urlunsplit(parts._replace(query=cleaned_query))
 
 
+def make_sync_engine(database_url: str) -> Engine:
+    """Build a psycopg2 (sync) engine that survives Neon's connection drops.
+
+    Neon is serverless Postgres: its compute can autosuspend and its pooler
+    recycles idle connections, so a cached/long-lived engine eventually hands
+    out a dead connection → ``SSL connection has been closed unexpectedly`` on
+    the next statement. This bit the warehouse publish, which runs LAST in a
+    SYNC — minutes after its pooled connection was opened. `pool_pre_ping`
+    issues a lightweight liveness check at checkout and transparently
+    reconnects; `pool_recycle` retires connections before Neon's idle window
+    closes them. (Local Postgres keeps idle connections forever, which is why
+    the failure only shows up against Neon in prod.)
+    """
+    return create_engine(
+        prepare_sync_url(database_url),
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=280,
+    )
+
+
 _db_url, _connect_args = _prepare_database_url(settings.database_url)
-engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
+# pool_pre_ping for the same Neon-drops-idle-connections reason as the sync
+# engine above (see make_sync_engine).
+engine = create_async_engine(
+    _db_url, echo=False, connect_args=_connect_args, pool_pre_ping=True, pool_recycle=280
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

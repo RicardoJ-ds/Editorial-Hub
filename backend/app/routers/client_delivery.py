@@ -5,10 +5,10 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Query
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session as SyncSession
 
 from app.config import settings
+from app.database import make_sync_engine
 from app.schemas import (
     ClientAlltimeRow,
     ClientDeliveryResponse,
@@ -25,10 +25,9 @@ router = APIRouter()
 
 
 def _get_sync_session() -> SyncSession:
-    url = settings.database_url
-    if "+asyncpg" in url:
-        url = url.replace("+asyncpg", "")
-    engine = create_engine(url, echo=False)
+    # make_sync_engine handles the full asyncpg→psycopg2 URL translation
+    # (incl. ssl→sslmode) + pool_pre_ping for Neon's dropped idle connections.
+    engine = make_sync_engine(settings.database_url)
     return SyncSession(engine)
 
 
