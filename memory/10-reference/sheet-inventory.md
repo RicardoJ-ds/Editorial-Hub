@@ -2,8 +2,8 @@
 
 > **Last reviewed:** 2026-04-18
 > **Companion docs:**
-> - [`.docs/dashboard-data-flow.md`](dashboard-data-flow.md) — dashboard → source mapping + CP v2 migration plan
-> - [`../frontend/docs/SHEETS_DOCUMENTATION.md`](../frontend/docs/SHEETS_DOCUMENTATION.md) — per-sheet column reference
+> - [`dashboard-data-flow.md`](dashboard-data-flow.md) — dashboard → source mapping + CP v2 migration plan
+> - [`../frontend/docs/SHEETS_DOCUMENTATION.md`](../../frontend/docs/SHEETS_DOCUMENTATION.md) — per-sheet column reference
 
 Complete mapping of all Google Sheets used (and not used) by the Editorial Hub.
 All ingestion is **one-time via CSV seed** (`backend/scripts/seed_data.py`); the

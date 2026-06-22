@@ -192,6 +192,32 @@ WRITER_JUNK = {"", "-", "—", "n/a", "na", "no edits", "^", "^^", "tbd", "?"}
 WRITER_TRIAL_MARKERS = ("trial writer", "aud writer", "auditioning writer", "trial")
 
 
+def _fetch_slack_writers() -> list[dict]:
+    """Real writer roster from Slack — the source of truth Simón published in
+    BigQuery `graphite_bi.slack_raw_users`. The writer contractors carry
+    `@ext.writing.graphitehq.com` emails (real_name + email live in the `profile`
+    JSON). ADDITIVE: this enriches the writer roster + supplies authoritative
+    emails; the existing pod-sheet / first-name / variant-override / DaniQ layers
+    are untouched. Falls back silently to the other sources if BQ is unreachable
+    (offline build)."""
+    rows: list[dict] = []
+    try:
+        from etl.load import get_bq
+
+        bq = get_bq()
+        for r in bq.query(
+            "SELECT real_name, JSON_VALUE(profile,'$.email') AS email "
+            "FROM `graphite-data.graphite_bi.slack_raw_users` "
+            "WHERE COALESCE(deleted, FALSE) = FALSE AND COALESCE(is_bot, FALSE) = FALSE "
+            "AND LOWER(JSON_VALUE(profile,'$.email')) LIKE '%writing.graphitehq.com'"
+        ).result():
+            if r["real_name"] and r["email"]:
+                rows.append({"display_name": r["real_name"], "email": r["email"]})
+    except Exception:
+        pass
+    return rows
+
+
 def _load_canonical():
     with open(os.path.join(MAPPINGS_DIR, "canonical_editors.json")) as f:
         editors = json.load(f)["editors"]
@@ -280,15 +306,6 @@ def build(engine=None) -> dict:
                 text(
                     "SELECT DISTINCT writer_name FROM ai_monitoring_records "
                     "WHERE writer_name IS NOT NULL AND writer_name != ''"
-                )
-            )
-        ]
-        notion_writers = [
-            r[0]
-            for r in cx.execute(
-                text(
-                    "SELECT DISTINCT writer FROM notion_articles "
-                    "WHERE writer IS NOT NULL AND writer != ''"
                 )
             )
         ]
@@ -439,8 +456,9 @@ def build(engine=None) -> dict:
         tabs[raw] = entry
 
     # ── writers ──────────────────────────────────────────────────────────
-    # Canonical roster: pod sheet (current, email-keyed) + historical full names
-    # from AI monitoring + Notion that aren't roster members.
+    # Canonical roster: Slack writer contractors (real_name+email, the source of
+    # truth) + pod sheet (current, email-keyed) + historical full names from AI
+    # monitoring that aren't roster members.
     def _roster_canon(nm: str) -> str:
         nm = re.sub(r"\s+", " ", nm.strip())
         if nm.isupper():  # "ROBERT THORPE"
@@ -448,18 +466,21 @@ def build(engine=None) -> dict:
         return WRITER_VARIANT_OVERRIDES.get(norm_key(nm), nm)
 
     roster: dict[str, dict] = {}
-    for w in pod_writers:
+    # Slack contractors first — the authoritative writer roster (real_name +
+    # email). pod_sheet writers layer on top (setdefault keeps the Slack canon
+    # for shared keys, but both contribute emails).
+    for w in (*_fetch_slack_writers(), *pod_writers):
         nm = (w["display_name"] or "").strip()
-        if not nm or "@" in nm:  # 3 rows carry the raw email as display name
+        if not nm or "@" in nm:  # some rows carry the raw email as display name
             nm = (w["email"] or "").split("@")[0].replace(".", " ").replace("-", " ").title()
         nm = _roster_canon(nm)
         key = norm_key(nm)
         if key in WRITER_ROSTER_JUNK:
             continue
-        roster.setdefault(key, {"canonical": nm, "emails": [], "source": "pod_sheet"})
+        roster.setdefault(key, {"canonical": nm, "emails": [], "source": "slack/pod_sheet"})
         if w["email"] and w["email"] not in roster[key]["emails"]:
             roster[key]["emails"].append(w["email"])
-    for src_name, src in (("ai_monitoring", monitoring_writers), ("notion", notion_writers)):
+    for src_name, src in (("ai_monitoring", monitoring_writers),):
         for nm in src:
             nm = nm.strip()
             k = norm_key(nm)
@@ -591,8 +612,9 @@ def build(engine=None) -> dict:
         "writer_aliases.json",
         {
             "built_at": today,
-            "canonical_source": "pod_assignments(role=writer) ∪ historical full names "
-            "(ai_monitoring_records.writer_name, notion_articles.writer)",
+            "canonical_source": "slack_raw_users (writing.graphitehq.com contractors, "
+            "real_name+email) ∪ pod_assignments(role=writer) ∪ historical full names "
+            "(ai_monitoring_records.writer_name)",
             "roster": {k: v for k, v in sorted(roster.items())},
             "aliases": writers,
         },

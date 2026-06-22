@@ -1,6 +1,6 @@
 # Endpoint parity — Postgres vs BigQuery warehouse
 
-_Generated 2026-06-12 19:25 UTC. Same server, same request, two X-Data-Source values;
+_Generated 2026-06-19 08:47 UTC. Same server, same request, two X-Data-Source values;
 JSON diffed (lists as multisets; on-screen-ordered endpoints also
 order-checked)._
 

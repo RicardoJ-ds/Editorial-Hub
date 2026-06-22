@@ -97,22 +97,28 @@ const IMPORTABLE_EXACT = [
   "AI Monitoring - Surfer Usage",
   "Master Tracker - Cumulative",
   "Master Tracker - Goals vs Delivery",
-  "Notion Database",
   "Growth Pods",
   "ET CP Pod History",
   "Monthly Article Count",
 ];
 
 /** Sheets that stay importable but are UNCHECKED by default. One-time
- *  static config + the historical pod walk — they rarely need a refresh
- *  on every wizard run, so we don't auto-tick them. Same set that's
- *  excluded from the SYNC button (SyncAllModal.IMPORTABLE_EXACT). */
+ *  static config + the historical pod walk + the AI Monitoring sheets —
+ *  they rarely need a refresh on every wizard run, so we don't auto-tick
+ *  them. The AI Monitoring sheets are also excluded from the automatic
+ *  SYNC button + daily cron (Writer AI Monitoring scans are paused
+ *  upstream — they were the recurring "Failed to fetch" noise); they stay
+ *  here so you can still import them on demand by ticking them. */
 const DEFAULT_UNCHECKED = new Set<string>([
   "Model Assumptions",
   "Delivery Schedules",
   "Editorial Engagement Requirements",
   "Meta Calendar Month Deliveries",
   "ET CP Pod History",
+  "AI Monitoring - Data",
+  "AI Monitoring - Rewrites",
+  "AI Monitoring - Flags",
+  "AI Monitoring - Surfer Usage",
 ]);
 
 /** Prefix-match importable sheet names (capacity plan versions, KPI scores variants) */
@@ -143,7 +149,6 @@ function getSheetGroup(name: string): string | null {
   }
   if (name.startsWith("AI Monitoring")) return "Writer AI Monitoring";
   if (name.startsWith("Master Tracker")) return "Master Tracker";
-  if (name === "Notion Database") return "Master Tracker";
   if (name === "Growth Pods") return "BigQuery";
   if (name === "Monthly Article Count") return "Monthly Article Count";
   return null;
@@ -303,15 +308,15 @@ const REFRESH_KPIS_LABEL = "Refresh computed KPIs";
 // Synthetic "selectable" rendered in a COMPUTED group at the bottom of the
 // selection list. Not a sheet — represents the post-import refresh step that
 // recomputes Revision Rate / Turnaround Time / Second Reviews / Capacity
-// Utilization from notion_articles + capacity_projections. Default-checked
-// so the wizard's behavior matches the SYNC button; users can opt out for
-// fast targeted imports that don't touch any of those sources.
+// Utilization from the BigQuery content machine + capacity_projections.
+// Default-checked so the wizard's behavior matches the SYNC button; users can
+// opt out for fast targeted imports that don't touch any of those sources.
 const SYNTHETIC_STEPS: SheetInfo[] = [
   {
     name: REFRESH_KPIS_KEY,
     row_count: 0,
     description:
-      "Re-uses notion_articles + capacity_projections rows already in the DB — no Notion / Sheets API fetch. Recomputes the 4 KPIs the heatmap derives from them: Revision Rate, Turnaround Time, Second Reviews, Capacity Utilization. Idempotent; safe to skip when you only re-imported sheets that don't feed the heatmap.",
+      "Reads the Notion content machine from BigQuery + capacity_projections rows already in the DB. Recomputes the 4 KPIs the heatmap derives from them: Revision Rate, Turnaround Time, Second Reviews, Capacity Utilization. Idempotent; safe to skip when you only re-imported sheets that don't feed the heatmap.",
   },
 ];
 

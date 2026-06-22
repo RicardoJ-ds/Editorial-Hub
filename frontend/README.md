@@ -84,7 +84,7 @@ Requires backend on `http://localhost:8050` (use `docker compose up -d`).
 
 ## Related Docs
 
-- [`CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) — CP v2 schema proposal
-- [`CP2_COVERAGE_AUDIT.md`](../CP2_COVERAGE_AUDIT.md) — column-level coverage
-- [`.docs/dashboard-data-flow.md`](../.docs/dashboard-data-flow.md) — dashboard → source mapping + migration plan
+- [`CAPACITY_PLANNING_V2.md`](../memory/50-sources/specs/CAPACITY_PLANNING_V2.md) — CP v2 schema proposal
+- [`CP2_COVERAGE_AUDIT.md`](../memory/50-sources/specs/CP2_COVERAGE_AUDIT.md) — column-level coverage
+- [`memory/10-reference/dashboard-data-flow.md`](../memory/10-reference/dashboard-data-flow.md) — dashboard → source mapping + migration plan
 - [`docs/SHEETS_DOCUMENTATION.md`](docs/SHEETS_DOCUMENTATION.md) — per-sheet column reference

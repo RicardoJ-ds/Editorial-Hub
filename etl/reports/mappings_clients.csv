@@ -1,85 +1,92 @@
-before_hub_name,after_salesforce_name,status,first_article_month,last_article_month,where_to_validate,note
-Adobe,Adobe,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Apartment List,Apartment List,confirmed,2022-10,2024-11,Salesforce account name; SOW Overview client list,exact match
-Athena,Athena,confirmed,2021-11,2022-05,Salesforce account name; SOW Overview client list,exact match
-Better,Better,confirmed,2025-04,2026-02,Salesforce account name; SOW Overview client list,exact match
-BetterUp,Betterup,confirmed,2022-02,2023-11,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-Blu,Blu,confirmed,2024-11,2025-05,Salesforce account name; SOW Overview client list,exact match
-Bold,Bold,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Boulevard,Boulevard,confirmed,2026-01,2026-06,Salesforce account name; SOW Overview client list,exact match
-Captions,Captions,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Chapter,Chapter,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-ChatGPT,OpenAI,confirmed,2025-08,2026-08,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Ok
-Cointracker,Cointracker,confirmed,2024-06,2026-10,Salesforce account name; SOW Overview client list,exact match
-College HUNKS,College HUNKS,confirmed,2026-01,2026-06,Salesforce account name; SOW Overview client list,exact match
-Composer,Composer,confirmed,2023-08,2026-01,Salesforce account name; SOW Overview client list,exact match
-Comun,Comun,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Contra,Contra,confirmed,2022-12,2026-07,Salesforce account name; SOW Overview client list,exact match
-Dr Squatch,Dr. Squatch,confirmed,2026-05,2026-06,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-EarnIn B2C,EarnIn,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn
-Earnin B2B,EarnIn,confirmed,2024-10,2025-09,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: keep split — classified as different clients; both → SF EarnIn
-Ellis,Ellis,confirmed,2025-08,2026-11,Salesforce account name; SOW Overview client list,exact match
-Engine,Hotel Engine,confirmed,2024-11,2026-10,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Ok
-Eventbrite,Eventbrite,confirmed,2025-12,2026-06,Salesforce account name; SOW Overview client list,exact match
-Everand,Everand,confirmed,2025-04,2026-05,Salesforce account name; SOW Overview client list,exact match
-Fellow,Fellow,confirmed,2024-03,2024-07,Salesforce account name; SOW Overview client list,exact match
-Felt,Felt,confirmed,2025-08,2026-06,Salesforce account name; SOW Overview client list,exact match
-First Round Capital,,confirmed_unlinked,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: leave unlinked (she asks: does FRC exist in SF? follow-up)
-Fishbowl,Fishbowl Inventory,confirmed,2024-01,2025-06,Salesforce account name; SOW Overview client list,
-Fivetran,Fivetran,confirmed,2025-01,2026-11,Salesforce account name; SOW Overview client list,exact match
-Flex,Flex,confirmed,2026-04,2026-05,Salesforce account name; SOW Overview client list,exact match
-Front,Front,confirmed,2025-10,2026-06,Salesforce account name; SOW Overview client list,exact match
-Gainbridge,Gainbridge,confirmed,2024-10,2026-09,Salesforce account name; SOW Overview client list,exact match
-GenstoreAI,Genstore,confirmed,2025-03,2026-03,Salesforce account name; SOW Overview client list,
-Glossgenius,GlossGenius,confirmed,2024-05,2025-02,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-Grindr,Grindr LLC,confirmed,2023-04,2026-11,Salesforce account name; SOW Overview client list,legal-entity suffix
-Honey,Honey,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Honeybook,HoneyBook,confirmed,2025-04,2026-06,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-Huntress,Huntress,confirmed,2026-02,2026-06,Salesforce account name; SOW Overview client list,exact match
-Invoice Simple,Invoice Simple,confirmed,2021-11,2025-01,Salesforce account name; SOW Overview client list,exact match
-IronVest,Ironvest,confirmed,2023-10,2024-02,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-Landing,Hello Landing,confirmed,2024-01,2024-07,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Ok
-Leapsome,Leapsome,confirmed,2025-04,2026-06,Salesforce account name; SOW Overview client list,exact match
-Legit Security,Legit Security,confirmed,2024-08,2025-12,Salesforce account name; SOW Overview client list,exact match
-Lenny,,confirmed_unlinked,2023-06,2023-06,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: leave unlinked
-Linktree,Linktree,confirmed,2022-06,2023-10,Salesforce account name; SOW Overview client list,exact match
-Maven Clinic,Maven Clinic,confirmed,2026-03,2026-06,Salesforce account name; SOW Overview client list,exact match
-Men's Wearhouse,Men's Wearhouse,confirmed,2026-04,2026-06,Salesforce account name; SOW Overview client list,exact match
-Meta AI,Meta AI,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Meta BMG,Meta for Business,confirmed,,,Salesforce account name; SOW Overview client list,auto-fuzzy had wrongly said Meta AI
-Meta Manus,,dismissed,,,Salesforce account name; SOW Overview client list,"DaniQ 2026-06-12: Meta domain never kicked off — remove, nothing to track"
-Meta RL,Meta Reality Labs,confirmed,,,Salesforce account name; SOW Overview client list,auto-fuzzy had wrongly said Meta AI
-Milan Laser,Milan Laser,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Mistplay,Mistplay,confirmed,2025-09,2026-06,Salesforce account name; SOW Overview client list,exact match
-Miter,Miter,confirmed,2025-12,2026-06,Salesforce account name; SOW Overview client list,exact match
-Moss,Moss,confirmed,2025-08,2026-01,Salesforce account name; SOW Overview client list,exact match
-Neeva,,confirmed_unlinked,2023-01,2026-02,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: leave unlinked (defunct)
-Neiman Marcus,Neiman Marcus,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Notion,Notion,confirmed,2022-12,2026-10,Salesforce account name; SOW Overview client list,exact match
-Onton,Onton,confirmed,2025-03,2026-09,Salesforce account name; SOW Overview client list,exact match
-Orderful (I),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: same SF account (left + came back). Ricardo 2026-06-12: KEEP SPLIT in Hub (like EarnIn B2B/B2C) — separate contract rows keep SOW/variance math correct; both → SF Orderful
-Orderful (II),Orderful,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ + Ricardo 2026-06-12: keep split in Hub; both → SF Orderful
-Otter,Otter,confirmed,2024-09,2025-08,Salesforce account name; SOW Overview client list,exact match
-Oyster,Oyster,confirmed,2024-03,2026-04,Salesforce account name; SOW Overview client list,exact match
-Pebl,Pebl,confirmed,2026-05,2026-06,Salesforce account name; SOW Overview client list,exact match
-Photoroom,PhotoRoom,confirmed,2026-03,2026-06,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-Practice,Practice,confirmed,2021-03,2026-12,Salesforce account name; SOW Overview client list,exact match
-Pylon,Pylon,confirmed,2025-09,2026-12,Salesforce account name; SOW Overview client list,exact match
-Quinn,Quinn,confirmed,2023-01,2026-07,Salesforce account name; SOW Overview client list,exact match
-Rox,Rox,confirmed,2025-04,2026-02,Salesforce account name; SOW Overview client list,exact match
-Scribe,Scribe,confirmed,2024-06,2025-03,Salesforce account name; SOW Overview client list,exact match
-Sermo,Sermo,confirmed,2025-01,2025-06,Salesforce account name; SOW Overview client list,exact match
-Serval,Serval,confirmed,2026-04,2026-06,Salesforce account name; SOW Overview client list,exact match
-Smartling,Smartling,confirmed,2024-09,2025-09,Salesforce account name; SOW Overview client list,exact match
-Talkiatry,Talkiatry,confirmed,2025-08,2025-08,Salesforce account name; SOW Overview client list,exact match
-TaskRabbit,TaskRabbit Inc,confirmed,2023-11,2024-01,Salesforce account name; SOW Overview client list,legal-entity suffix
-Tempo,Tempo,confirmed,,,Salesforce account name; SOW Overview client list,exact match
-Tempo XYZ,Tempo,confirmed,,,Salesforce account name; SOW Overview client list,DaniQ 2026-06-12: Tempo XYZ IS Tempo (active). Old Tempo renamed → Tempo.io (inactive) in SF + article sheet tabs
-Tempo.io,Tempo.io,confirmed,2023-06,2026-12,Salesforce account name; SOW Overview client list,exact match
-ThredUp,Thred Up,confirmed,2024-07,2026-06,Salesforce account name; SOW Overview client list,spelling drift (normalized match)
-TravelJoy,TravelJoy,confirmed,2025-05,2025-07,Salesforce account name; SOW Overview client list,exact match
-Vimeo,Vimeo,confirmed,2024-12,2026-06,Salesforce account name; SOW Overview client list,exact match
-Webflow,Webflow,confirmed,2019-09,2026-12,Salesforce account name; SOW Overview client list,exact match
-Workleap + Sharegate,Workleap,confirmed,2025-05,2026-11,Salesforce account name; SOW Overview client list,combined engagement; ShareGate has no SF account of its own
-dYdX,dYdX,confirmed,2023-01,2026-12,Salesforce account name; SOW Overview client list,exact match
-n8n,n8n,confirmed,2026-03,2026-06,Salesforce account name; SOW Overview client list,exact match
+sheet_tab,resolved_client,articles,status
+Apartment List,Apartment List,86,mapped
+Athena,Athena,38,mapped
+Athena2,Athena2,145,mapped
+Bergdorf,Bergdorf,133,mapped
+Better,Better,162,mapped
+BetterUp,BetterUp,882,mapped
+Blu,Blu,30,mapped
+Boulevard,Boulevard,80,mapped
+Cadre,Cadre,6,mapped
+ChatGPT,ChatGPT,5,mapped
+CoinTracker,Cointracker,374,mapped
+College HUNKS,College HUNKS,61,mapped
+Composer,Composer,88,mapped
+Contra,Contra,312,mapped
+Credit Karma,Credit Karma,1,mapped
+Curology,Curology,327,mapped
+Descript,Descript,31,mapped
+Dr. Squatch,Dr Squatch,7,mapped
+Dynamite,Dynamite,58,mapped
+ESGgo,ESGgo,21,mapped
+EarnIn,EarnIn,250,mapped
+EarnIn B2B,Earnin B2B,120,mapped
+Ellis,Ellis,35,mapped
+Email On Acid,Email On Acid,104,mapped
+Engine,Engine,180,mapped
+Eventbrite,Eventbrite,23,mapped
+Everand,Everand,135,mapped
+FRC,FRC,6,mapped
+Fellow,Fellow,35,mapped
+Felt,Felt,105,mapped
+Fishbowl,Fishbowl,242,mapped
+Fivetran,Fivetran,136,mapped
+Flex,Flex,15,mapped
+Flip,Flip,195,mapped
+Front,Front,113,mapped
+Gainbridge,Gainbridge,282,mapped
+Genstore,GenstoreAI,40,mapped
+GlossGenius,Glossgenius,90,mapped
+Gopuff,Gopuff,152,mapped
+Grindr,Grindr,380,mapped
+HoneyBook,Honeybook,85,mapped
+Huntress,Huntress,27,mapped
+Invoice Simple,Invoice Simple,240,mapped
+IronVest,IronVest,80,mapped
+Jaanuu,Jaanuu,183,mapped
+Landing,Landing,66,mapped
+Leapsome,Leapsome,71,mapped
+Legit Security,Legit Security,221,mapped
+Lenny,Lenny,3,mapped
+Linktree,Linktree,326,mapped
+Little Passports,Little Passports,122,mapped
+Mailgun,Mailgun,103,mapped
+Mailjet,Mailjet,109,mapped
+Maven Clinic,Maven Clinic,34,mapped
+Men's Wearhouse,Men's Wearhouse,17,mapped
+Mirage,Mirage,745,mapped
+Mistplay,Mistplay,140,mapped
+Miter,Miter,91,mapped
+Moss,Moss,78,mapped
+Neeva,Neeva,30,mapped
+Neiman,Neiman,147,mapped
+Notion,Notion,391,mapped
+Onton,Onton,106,mapped
+OpenSea,OpenSea,15,mapped
+Orderful,Orderful,103,mapped
+Orderful 2,Orderful 2,135,mapped
+Otter,Otter,136,mapped
+Oyster,Oyster,381,mapped
+Pebl,Pebl,4,mapped
+Photoroom,Photoroom,20,mapped
+Practice,Practice,301,mapped
+Pylon,Pylon,153,mapped
+Quinn,Quinn,231,mapped
+Rox,Rox,187,mapped
+Scribe,Scribe,90,mapped
+Sermo,Sermo,31,mapped
+Serval,Serval,17,mapped
+Shift,Shift,87,mapped
+Smartling,Smartling,180,mapped
+Talkiatry,Talkiatry,2,mapped
+Taskrabbit,TaskRabbit,75,mapped
+Tempo.io,Tempo.io,510,mapped
+ThredUp,ThredUp,240,mapped
+TravelJoy,TravelJoy,15,mapped
+Vimeo,Vimeo,191,mapped
+Webflow,Webflow,791,mapped
+ShareGate,Workleap + Sharegate,49,mapped
+Workleap,Workleap + Sharegate,189,mapped
+Worldcoin,Worldcoin,167,mapped
+dydx,dYdX,413,mapped
+n8n,n8n,31,mapped

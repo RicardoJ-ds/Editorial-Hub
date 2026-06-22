@@ -681,52 +681,6 @@ class GoalsVsDelivery(Base):
     )
 
 
-class NotionArticle(Base):
-    __tablename__ = "notion_articles"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    case_id: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
-    title: Mapped[str | None] = mapped_column(String(500))
-    client_name: Mapped[str | None] = mapped_column(String(255), index=True)
-    writer: Mapped[str | None] = mapped_column(String(255), index=True)
-    editor: Mapped[str | None] = mapped_column(String(255), index=True)
-    sr_editor: Mapped[str | None] = mapped_column(String(255), index=True)
-    current_assignee: Mapped[str | None] = mapped_column(String(255))
-    cb_creator: Mapped[str | None] = mapped_column(String(255))
-    cb_reviewer: Mapped[str | None] = mapped_column(String(255))
-    editorial_pod: Mapped[str | None] = mapped_column(String(100), index=True)
-    account_pod: Mapped[str | None] = mapped_column(String(100))
-    cms_pod: Mapped[str | None] = mapped_column(String(100))
-    content_type: Mapped[str | None] = mapped_column(String(100))
-    client_type: Mapped[str | None] = mapped_column(String(100))
-    article_status: Mapped[str | None] = mapped_column(String(100), index=True)
-    cb_status: Mapped[str | None] = mapped_column(String(100))
-    cms_status: Mapped[str | None] = mapped_column(String(100))
-    workflow: Mapped[str | None] = mapped_column(String(100))
-    client_folder: Mapped[str | None] = mapped_column(String(255))
-    created_date: Mapped[datetime | None] = mapped_column(DateTime)
-    cb_delivered_date: Mapped[datetime | None] = mapped_column(DateTime)
-    cb_deadline: Mapped[datetime | None] = mapped_column(DateTime)
-    article_delivered_date: Mapped[datetime | None] = mapped_column(DateTime)
-    article_deadline: Mapped[datetime | None] = mapped_column(DateTime)
-    cms_delivered_date: Mapped[datetime | None] = mapped_column(DateTime)
-    published_url: Mapped[str | None] = mapped_column(Text)
-    wa_link: Mapped[str | None] = mapped_column(Text)
-    article_link: Mapped[str | None] = mapped_column(Text)
-    cb_link: Mapped[str | None] = mapped_column(Text)
-    notion_url: Mapped[str | None] = mapped_column(Text)
-    priority_month: Mapped[str | None] = mapped_column(String(50))
-    priority_level: Mapped[str | None] = mapped_column(String(50))
-    month: Mapped[str | None] = mapped_column(String(50), index=True)
-    uploader: Mapped[str | None] = mapped_column(String(255))
-    created_by: Mapped[str | None] = mapped_column(String(255))
-    notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
-
-
 class PodImportIssue(Base):
     """Unmatched client names found during Growth Pod imports.
 

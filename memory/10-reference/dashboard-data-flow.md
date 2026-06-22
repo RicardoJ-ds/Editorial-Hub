@@ -10,10 +10,10 @@
 > **Audience.** Anyone asking "why are we ingesting this sheet?" or "how do I stop
 > editing the spreadsheet and start editing the app?".
 >
-> Companion docs: [`CAPACITY_PLANNING_V2.md`](../CAPACITY_PLANNING_V2.md) (ERD),
-> [`CP2_COVERAGE_AUDIT.md`](../CP2_COVERAGE_AUDIT.md) (column-level coverage),
+> Companion docs: [`CAPACITY_PLANNING_V2.md`](../50-sources/specs/CAPACITY_PLANNING_V2.md) (ERD),
+> [`CP2_COVERAGE_AUDIT.md`](../50-sources/specs/CP2_COVERAGE_AUDIT.md) (column-level coverage),
 > [`sheet-inventory.md`](sheet-inventory.md) (raw sheet list),
-> [`../frontend/docs/SHEETS_DOCUMENTATION.md`](../frontend/docs/SHEETS_DOCUMENTATION.md) (per-sheet column reference).
+> [`../frontend/docs/SHEETS_DOCUMENTATION.md`](../../frontend/docs/SHEETS_DOCUMENTATION.md) (per-sheet column reference).
 
 ---
 

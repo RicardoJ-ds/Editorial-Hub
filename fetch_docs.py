@@ -23,7 +23,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SA_KEY_PATH = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", os.path.join(SCRIPT_DIR, "sa-key.json"))
-OUTPUT_DIR = os.path.join(SCRIPT_DIR, "data")
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "memory", "50-sources", "specs")
 
 SCOPES = [
     "https://www.googleapis.com/auth/documents.readonly",

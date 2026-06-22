@@ -33,7 +33,6 @@ from app.models import (
     GoalsVsDelivery,
     KpiScore,
     ModelAssumption,
-    NotionArticle,
     PodAssignment,
     PodAssignmentHistory,
     PodImportIssue,
@@ -69,7 +68,6 @@ SHEET_DESCRIPTIONS: dict[str, str] = {
     "Master Tracker - Cumulative": "All-time cumulative pipeline metrics per client — topics, CBs, articles, published",
     "Master Tracker - Goals vs Delivery": "Weekly goals vs delivery tracking per month — CB and article delivery pacing",
     "Team Pods - Editorial + Growth": "Per-client pod assignments — editor / writer / account team / growth lead by client. Source-of-truth for pod-aware filtering and group auto-population.",
-    "Notion Database": "Article workflow tracking from Notion export — 13K+ records with statuses, dates, assignments",
     "Monthly KPI Scores": "Manual KPI scores entered by SEs — Internal Quality, External Quality, Mentorship, Feedback Adoption",
     "Growth Pods": "Growth team → client mapping from BigQuery (team_pod_assignments ⋈ salesforce_int_Account). Updates clients.growth_pod.",
     "Monthly Article Count": "Per-editor delivered-article log — one tab per client in the [Internal] Monthly Article Count/Revenue sheet. Drives the Team KPIs → Monthly Articles tab.",
@@ -91,7 +89,6 @@ IMPORT_DISPATCH: dict[str, str] = {
     "Master Tracker - Cumulative": "import_cumulative",
     "Master Tracker - Goals vs Delivery": "import_goals_vs_delivery",
     "Team Pods - Editorial + Growth": "import_team_pods",
-    "Notion Database": "import_notion_database",
     "Monthly KPI Scores": "import_monthly_kpi_scores",
     "Growth Pods": "import_growth_pods",
     "ET CP Pod History": "import_et_cp_pod_history",
@@ -538,35 +535,6 @@ def list_available_sheets() -> list[dict]:
         except Exception:
             logger.warning("Could not list sheets from %s spreadsheet", prefix)
 
-    # Also list the dedicated Notion Database spreadsheet
-    notion_id = getattr(settings, "notion_database_id", None)
-    if notion_id:
-        try:
-            notion_meta = (
-                service.spreadsheets()
-                .get(spreadsheetId=notion_id, fields="sheets.properties")
-                .execute()
-            )
-            for s in notion_meta.get("sheets", []):
-                props = s.get("properties", {})
-                if props.get("hidden"):
-                    continue
-                title = props.get("title", "")
-                if title == "Notion":
-                    row_count = props.get("gridProperties", {}).get("rowCount", 0)
-                    sheets_info.append(
-                        {
-                            "name": "Notion Database",
-                            "row_count": row_count,
-                            "description": SHEET_DESCRIPTIONS.get(
-                                "Notion Database",
-                                "Article workflow tracking from Notion export",
-                            ),
-                        }
-                    )
-        except Exception:
-            logger.warning("Could not list sheets from Notion spreadsheet")
-
     # Growth Pods is not a Google Sheet — it's a BigQuery-backed source.
     # Surface it as a synthetic entry so the import wizard can select it.
     # Row count comes from the last successful import so users see a
@@ -667,10 +635,6 @@ def _resolve_sheet_source(sheet_name: str) -> tuple[str, str]:
         return MASTER_TRACKER_ID, sheet_name.removeprefix("Master Tracker - ")
     if sheet_name.startswith("AI Monitoring - "):
         return AI_MONITORING_ID, sheet_name.removeprefix("AI Monitoring - ")
-    if sheet_name == "Notion Database":
-        notion_id = getattr(settings, "notion_database_id", None)
-        if notion_id:
-            return notion_id, "Notion"
     # Fallback: raw Master Tracker tab names (monthly Goals vs Delivery tabs
     # look like '[March 2026] Goals vs Delivery'; cumulative tab is 'Cumulative').
     if "] Goals vs Delivery" in sheet_name or sheet_name == "Cumulative":
@@ -4340,194 +4304,6 @@ def import_monthly_kpi_scores(session: Session) -> ImportResult:
 # ---------------------------------------------------------------------------
 
 
-def import_notion_database(session: Session) -> ImportResult:
-    """Import Notion database export from Google Sheet into notion_articles table.
-
-    Strategy: the Notion sheet has ~23K rows × ~38 cols, so reading it all in one
-    Sheets API call + per-row SELECT/INSERT overruns Railway's proxy timeout. We
-    paginate the Sheets read and bulk-upsert with PostgreSQL ON CONFLICT.
-    """
-    from sqlalchemy import func as sa_func
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-    sheet_name = "Notion Database"
-    result = ImportResult(sheet=sheet_name)
-
-    notion_sheet_id = settings.notion_database_id
-    if not notion_sheet_id:
-        result.errors.append("NOTION_DATABASE_ID not configured")
-        result.success = False
-        return result
-
-    FIELD_MAP = {
-        "Case ID": "case_id",
-        "Property": "title",
-        "Client": "client_name",
-        "Writer": "writer",
-        "Editor": "editor",
-        "Sr Editor": "sr_editor",
-        "Current Assignee": "current_assignee",
-        "CB Creator": "cb_creator",
-        "CB Reviewer": "cb_reviewer",
-        "Editorial Team POD": "editorial_pod",
-        "Account Team POD": "account_pod",
-        "CMS POD": "cms_pod",
-        "Content Type": "content_type",
-        "Client Type": "client_type",
-        "Article Workflow Status": "article_status",
-        "CB Workflow Status": "cb_status",
-        "CMS Workflow Status": "cms_status",
-        "Workflow": "workflow",
-        "Client Folder": "client_folder",
-        "Published URL": "published_url",
-        "WA Link": "wa_link",
-        "Article Link": "article_link",
-        "CB Link": "cb_link",
-        "Page Url": "notion_url",
-        "Priority Month": "priority_month",
-        "Priority Level": "priority_level",
-        "Month": "month",
-        "Uploader": "uploader",
-        "Created by": "created_by",
-        "Notes": "notes",
-    }
-    DATE_FIELDS = {
-        "Created time": "created_date",
-        "CB Delivered Date": "cb_delivered_date",
-        "CB Deadline": "cb_deadline",
-        "Article Delivered Date": "article_delivered_date",
-        "Article Deadline": "article_deadline",
-        "CMS Delivered Date": "cms_delivered_date",
-    }
-
-    PAGE_SIZE = 5000
-    BULK_BATCH = 500
-
-    def _flush_upsert(records: list[dict]) -> int:
-        if not records:
-            return 0
-        # De-duplicate on case_id within the same batch — ON CONFLICT can't see
-        # two rows with the same conflict target in a single statement.
-        by_case: dict[str, dict] = {}
-        for r in records:
-            by_case[r["case_id"]] = r
-        deduped = list(by_case.values())
-
-        stmt = pg_insert(NotionArticle).values(deduped)
-        skip = {"id", "case_id", "created_at", "updated_at"}
-        update_cols = {
-            c.name: getattr(stmt.excluded, c.name)
-            for c in NotionArticle.__table__.columns
-            if c.name not in skip
-        }
-        update_cols["updated_at"] = sa_func.now()
-        stmt = stmt.on_conflict_do_update(index_elements=["case_id"], set_=update_cols)
-        session.execute(stmt)
-        return len(deduped)
-
-    try:
-        service = get_sheets_client()
-
-        # Fetch header row to establish column order
-        header_resp = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=notion_sheet_id, range="'Notion'!1:1")
-            .execute()
-        )
-        header_values = header_resp.get("values", [])
-        if not header_values:
-            result.errors.append("Sheet has no header row")
-            result.success = False
-            return result
-
-        col_map: dict[str, int] = {}
-        for i, h in enumerate(header_values[0]):
-            if h and str(h).strip():
-                col_map[str(h).strip()] = i
-
-        case_id_col = col_map.get("Case ID")
-        if case_id_col is None:
-            result.errors.append("Sheet is missing 'Case ID' column")
-            result.success = False
-            return result
-
-        # Discover total rows from sheet metadata so we can paginate
-        meta = (
-            service.spreadsheets()
-            .get(spreadsheetId=notion_sheet_id, fields="sheets.properties")
-            .execute()
-        )
-        total_rows = 0
-        for s in meta.get("sheets", []):
-            if s.get("properties", {}).get("title") == "Notion":
-                total_rows = s["properties"].get("gridProperties", {}).get("rowCount", 0)
-                break
-        if total_rows <= 1:
-            result.errors.append("Sheet has too few rows")
-            result.success = False
-            return result
-
-        pending: list[dict] = []
-
-        for start in range(2, total_rows + 1, PAGE_SIZE):
-            end = min(start + PAGE_SIZE - 1, total_rows)
-            page_resp = (
-                service.spreadsheets()
-                .values()
-                .get(spreadsheetId=notion_sheet_id, range=f"'Notion'!{start}:{end}")
-                .execute()
-            )
-            page_rows = page_resp.get("values", [])
-            logger.info(
-                "Notion import: fetched rows %d..%d (%d values)",
-                start,
-                end,
-                len(page_rows),
-            )
-
-            for row in page_rows:
-                result.rows_parsed += 1
-                case_id = _cell(row, case_id_col)
-                if not case_id:
-                    continue
-
-                data: dict = {"case_id": case_id}
-                for sheet_col, model_field in FIELD_MAP.items():
-                    ci = col_map.get(sheet_col)
-                    if ci is not None:
-                        data[model_field] = _cell(row, ci) or None
-                for sheet_col, model_field in DATE_FIELDS.items():
-                    ci = col_map.get(sheet_col)
-                    if ci is not None:
-                        raw = _cell(row, ci)
-                        data[model_field] = parse_date(raw) if raw else None
-
-                pending.append(data)
-                if len(pending) >= BULK_BATCH:
-                    result.rows_imported += _flush_upsert(pending)
-                    pending = []
-
-        if pending:
-            result.rows_imported += _flush_upsert(pending)
-
-        session.commit()
-        result.success = True
-        logger.info(
-            "Notion import complete: parsed=%d imported=%d",
-            result.rows_parsed,
-            result.rows_imported,
-        )
-
-    except Exception as exc:
-        logger.exception("Error importing Notion database")
-        session.rollback()
-        result.success = False
-        result.errors.append(str(exc))
-
-    return result
-
-
 # ---------------------------------------------------------------------------
 # import_growth_pods — BigQuery-backed replacement for the old Team Pods sheet
 # ---------------------------------------------------------------------------
@@ -5576,8 +5352,8 @@ def import_all(session: Session, sheet_names: list[str]) -> list[ImportResult]:
 def refresh_computed_kpis(session: Session) -> dict:
     """Recompute the Notion-derived KPIs (revision_rate, turnaround_time,
     second_reviews, capacity_utilization) for every (year, month) that has
-    source data in `notion_articles` or `capacity_projections`, capped at 36
-    months back.
+    source data in the Notion content machine (BigQuery) or `capacity_projections`,
+    capped at 36 months back.
 
     Extracted from the `/migrate/refresh-kpis` endpoint so it's callable from
     one place — the endpoint AND the sync manifest's synthetic refresh step
@@ -5586,24 +5362,20 @@ def refresh_computed_kpis(session: Session) -> dict:
     """
     from datetime import date
 
-    from sqlalchemy import distinct, extract
+    from sqlalchemy import distinct
 
     from app.models import CapacityProjection
+    from app.services.notion_bq import fetch_notion_content
     from app.services.notion_kpi_service import refresh_notion_kpis
 
-    months: set[tuple[int, int]] = set()
+    # Fetch the content machine ONCE and reuse across every month (avoids one BQ
+    # query per month); derive the month set from its created dates.
+    notion_rows = fetch_notion_content()
 
-    stmt_notion = (
-        select(
-            distinct(extract("year", NotionArticle.created_date)).label("y"),
-            extract("month", NotionArticle.created_date).label("m"),
-        )
-        .where(NotionArticle.created_date.isnot(None))
-        .group_by("y", "m")
-    )
-    for y, m in session.execute(stmt_notion).all():
-        if y is not None and m is not None:
-            months.add((int(y), int(m)))
+    months: set[tuple[int, int]] = set()
+    for row in notion_rows:
+        if row.created_date is not None:
+            months.add((row.created_date.year, row.created_date.month))
 
     stmt_cap = select(
         distinct(CapacityProjection.year).label("y"),
@@ -5621,7 +5393,7 @@ def refresh_computed_kpis(session: Session) -> dict:
     total_updated = 0
     for y, m in sorted_months:
         try:
-            res = refresh_notion_kpis(session, y, m)
+            res = refresh_notion_kpis(session, y, m, notion_rows=notion_rows)
             total_updated += int(res.get("updated", 0))
         except Exception:
             logger.exception("refresh_notion_kpis failed for %d-%02d (continuing)", y, m)
@@ -6026,18 +5798,14 @@ def _parse_revisions(
     return count, events
 
 
-def _apply_notion_published(session: Session, records: list[dict]) -> tuple[int, int]:
+def _apply_notion_published(records: list[dict]) -> tuple[int, int]:
     """Flag each record's is_published / published_url / notion_matched from the
-    Notion Content Machine DB. Match by TASK ID (case_id) first, then a unique
-    normalized-title fallback. Returns (matched, published) row counts."""
-    notion = session.execute(
-        select(
-            NotionArticle.case_id,
-            NotionArticle.title,
-            NotionArticle.cms_status,
-            NotionArticle.published_url,
-        )
-    ).all()
+    Notion content machine (BigQuery `notion_raw_revenue_content`). Match by TASK
+    ID (Case_ID) first, then a unique normalized-title (Topic) fallback. Returns
+    (matched, published) row counts."""
+    from app.services.notion_bq import fetch_notion_content
+
+    notion = fetch_notion_content()
 
     def _published(cms_status, url) -> bool:
         return bool(url) or (cms_status or "").startswith("Published")
@@ -6045,12 +5813,12 @@ def _apply_notion_published(session: Session, records: list[dict]) -> tuple[int,
     by_id: dict[str, tuple[bool, str | None]] = {}
     title_counts: dict[str, int] = {}
     by_title_tmp: dict[str, tuple[bool, str | None]] = {}
-    for case_id, title, cms_status, url in notion:
-        info = (_published(cms_status, url), url)
-        if case_id:
-            by_id[case_id] = info
-        if title:
-            key = _name_key(title)
+    for row in notion:
+        info = (_published(row.cms_status, row.published_url), row.published_url)
+        if row.case_id:
+            by_id[row.case_id] = info
+        if row.title:
+            key = _name_key(row.title)
             if key:
                 title_counts[key] = title_counts.get(key, 0) + 1
                 by_title_tmp[key] = info
@@ -6347,7 +6115,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                     unresolved[client_name] = unresolved.get(client_name, 0) + 1
 
     # 5. Notion published match (TASK ID → unique-title fallback).
-    matched, published = _apply_notion_published(session, records)
+    matched, published = _apply_notion_published(records)
 
     # 6. Full rebuild — the source has no reliable row key.
     session.execute(delete(ArticleRevision))

@@ -24,7 +24,6 @@ from app.routers import (
     goals_delivery,
     kpis,
     migration,
-    notion_articles,
     overview_comments,
     team_members,
 )
@@ -51,6 +50,15 @@ async def _run_data_migrations(conn) -> None:
             "VALUES (1, 0, now()) ON CONFLICT (id) DO NOTHING"
         )
     )
+
+    # 0b. notion_articles: retired. The Notion "content machine" is no longer
+    #     ingested into Neon — it's read live from BigQuery
+    #     (graphite_bi.notion_raw_revenue_content) by notion_bq.fetch_notion_content().
+    #     Drop the now-orphaned table so the schema reflects reality.
+    try:
+        await conn.execute(text("DROP TABLE IF EXISTS notion_articles"))
+    except Exception:
+        logger.exception("drop notion_articles migration failed (continuing)")
 
     # 1. production_history: dedupe + add unique (client_id, year, month).
     #    The Operating Model importer has always upserted by that triple,
@@ -427,7 +435,6 @@ app.include_router(migration.router, prefix="/api/migrate", tags=["migration"])
 app.include_router(
     client_delivery.router, prefix="/api/dashboard/client-delivery", tags=["dashboard"]
 )
-app.include_router(notion_articles.router, prefix="/api/notion-articles", tags=["notion-articles"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(articles.router, prefix="/api/articles", tags=["articles"])
 

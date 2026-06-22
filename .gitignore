@@ -2,7 +2,6 @@ sa-key.json
 .env
 .venv/
 __pycache__/
-data/
 screenshots/
 .playwright-mcp/
 node_modules/
@@ -16,6 +15,14 @@ backend/app/__pycache__/
 backend/app/routers/__pycache__/
 backend/app/services/__pycache__/
 postgres_data/
-.docs/
 tasks/
 .vercel
+
+# Relocated raw sources — consolidated under memory/ for navigation, kept OUT of git
+# (sensitive client/revenue CSVs, PRD binaries, point-in-time reports). See memory/50-sources/README.md
+memory/50-sources/seed-data/
+memory/50-sources/specs/*.docx
+memory/50-sources/specs/*.txt
+memory/90-archive/access-control-handoff.md
+memory/90-archive/prd-compliance-audit.md
+memory/90-archive/neon-company-migration.md

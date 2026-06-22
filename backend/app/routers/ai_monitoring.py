@@ -64,9 +64,7 @@ async def ai_monitoring_summary(
     source: str = Depends(get_data_source),
 ):
     if source == "bq":
-        return await asyncio.to_thread(
-            bq_dashboard.ai_summary, pod, client, month, writer, editor
-        )
+        return await asyncio.to_thread(bq_dashboard.ai_summary, pod, client, month, writer, editor)
     total_col, fp_col, pp_col, rr_col = _recommendation_agg()
     stmt = select(total_col, fp_col, pp_col, rr_col)
     stmt = _apply_filters(stmt, pod, client, month, writer, editor)

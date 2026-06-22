@@ -158,8 +158,8 @@ def compute_member_utilization(
 
         pct_alloc = (cap / tot_cap) if tot_cap else 0.0
         pct_dist = (p["articles"] / tot_art) if tot_art else 0.0
-        projected_used = pct_alloc * pr           # %alloc × pod RAW projected
-        actual_used = pct_dist * ar_              # %dist × pod RAW actual (fallback)
+        projected_used = pct_alloc * pr  # %alloc × pod RAW projected
+        actual_used = pct_dist * ar_  # %dist × pod RAW actual (fallback)
 
         rows.append(
             {

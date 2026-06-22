@@ -1,74 +1,47 @@
-before_log_name,after_hr_name,status,article_rows,first_month,last_month,candidates,where_to_validate,note
-Derrik,Derrik Chinn,confirmed,1972,2021-12,2026-12,,Monthly Article Count → EDITOR column in: ,
-Anabelle,Anabelle Zaluski,confirmed,1561,2022-12,2026-06,,Monthly Article Count → EDITOR column in: ,
-Maggie,Maggie Gowland,confirmed,1412,2021-11,2026-11,,Monthly Article Count → EDITOR column in: ,
-Nicholas,Nicholas Youngblood,confirmed,1365,2022-12,2026-12,,Monthly Article Count → EDITOR column in: ,
-Alyssa,Alyssa Zacharias,confirmed,1025,2022-09,2026-12,,Monthly Article Count → EDITOR column in: ,
-Eesha,Eesha Verma,confirmed,989,2022-06,2026-07,,Monthly Article Count → EDITOR column in: ,
-Kennedy,Kennedy Stevens,confirmed,756,2024-03,2026-05,,Monthly Article Count → EDITOR column in: ,
-Nina,Nina Denison,confirmed,709,2020-10,2026-12,,Monthly Article Count → EDITOR column in: ,
-Abby,Abby Norwood,confirmed,558,2022-08,2026-12,,Monthly Article Count → EDITOR column in: ,
-Shelby,Shelby Talbot,confirmed,531,2021-03,2026-11,,Monthly Article Count → EDITOR column in: ,
-Haley,Haley Drucker,confirmed,378,2025-09,2026-10,,Monthly Article Count → EDITOR column in: ,
-Chrissy,Chrissy Woods,confirmed,377,2022-12,2024-02,,Monthly Article Count → EDITOR column in: ,
-Lee,Lee Anderson,confirmed,369,2025-04,2026-10,,Monthly Article Count → EDITOR column in: ,
-Robert,Robert Thorpe,confirmed,345,2020-10,2026-09,,Monthly Article Count → EDITOR column in: ,
-Jared,Jared Maguire,confirmed,301,2024-12,2026-07,,Monthly Article Count → EDITOR column in: ,
-Vince,Vincent Lee,confirmed,299,2019-09,2026-12,,Monthly Article Count → EDITOR column in: ,
-Jimmy,Jimmy Bunes,confirmed,296,2025-03,2026-06,,Monthly Article Count → EDITOR column in: ,
-Elliot,Elliot Gardner,confirmed,272,2025-02,2026-06,,Monthly Article Count → EDITOR column in: ,
-Katie,Katie Shevlin,confirmed,238,2025-04,2025-11,,Monthly Article Count → EDITOR column in: ,
-Shivani,Shivani Verma,confirmed,180,2025-09,2026-06,,Monthly Article Count → EDITOR column in: ,
-Tiffany,Tiffany Anderson,confirmed,170,2025-01,2026-11,,Monthly Article Count → EDITOR column in: ,
-Lauren,Lauren Friar,confirmed,141,2025-09,2026-10,,Monthly Article Count → EDITOR column in: ,
-Chelsea,Chelsea Erhard,confirmed,113,2024-01,2024-02,,Monthly Article Count → EDITOR column in: ,
-Mike,Michael Doyle,confirmed,55,2023-03,2023-05,,Monthly Article Count → EDITOR column in: ,
-Kimberly,Kimberly Pavlovich,confirmed,45,2025-03,2025-05,,Monthly Article Count → EDITOR column in: ,
-Bryan,Bryan Clark,confirmed,25,2022-06,2022-08,,Monthly Article Count → EDITOR column in: ,
-Micki,Micki Cottam,confirmed,20,2025-08,2025-10,,Monthly Article Count → EDITOR column in: ,
-NIcholas,Nicholas Youngblood,confirmed,12,2022-12,2022-12,,Monthly Article Count → EDITOR column in: ,
-Derriik,Derrik Chinn,confirmed,3,2025-02,2025-02,,Monthly Article Count → EDITOR column in: ,
-MAGGIE,Maggie Gowland,confirmed,3,2024-01,2024-02,,Monthly Article Count → EDITOR column in: ,
-Magggie,Maggie Gowland,confirmed,1,2022-05,2022-05,,Monthly Article Count → EDITOR column in: ,
-Magie,Maggie Gowland,confirmed,1,2024-09,2024-09,,Monthly Article Count → EDITOR column in: ,
-maggie,Maggie Gowland,confirmed,1,2022-03,2022-03,,Monthly Article Count → EDITOR column in: ,
-Sam,Samantha McGrail / Samantha Marceau,confirmed_windowed,2,2025-08,2026-12,,Monthly Article Count → EDITOR column in: Better · EarnIn B2B,"Split by headcount dates: McGrail 2025-08-04→2026-01-27 (log shows Sam Aug 2025–Jan 2026, none Feb–Apr); Marceau 2026-05-11→ (log resumes May 2026). Zero overlap."
-AND,,junk,2,2022-12,2022-12,,Monthly Article Count → EDITOR column in: Contra,
-^^,,junk,2,,,,Monthly Article Count → EDITOR column in: Webflow,
-83,,junk,1,2021-11,2021-11,,Monthly Article Count → EDITOR column in: Athena,
-^,,junk,1,,,,Monthly Article Count → EDITOR column in: Otter,
-no edits,,junk,1,2024-05,2024-05,,Monthly Article Count → EDITOR column in: Mirage,
-Derrik Chinn,,unresolved,1975,,,,Monthly Article Count → EDITOR column in: dydx · Curology · CoinTracker,NEW since last build
-Anabelle Zaluski,,unresolved,1561,,,,Monthly Article Count → EDITOR column in: BetterUp · Legit Security · Invoice Simple,NEW since last build
-Maggie Gowland,,unresolved,1412,,,,Monthly Article Count → EDITOR column in: BetterUp · Flip · Fishbowl,NEW since last build
-Nicholas Youngblood,,unresolved,1365,,,,Monthly Article Count → EDITOR column in: Grindr · Tempo.io · Smartling,NEW since last build
-Alyssa Zacharias,,unresolved,1025,,,,Monthly Article Count → EDITOR column in: BetterUp · Notion · Webflow,NEW since last build
-Eesha Verma,,unresolved,989,,,,Monthly Article Count → EDITOR column in: dydx · Worldcoin · Contra,NEW since last build
-Kennedy Stevens,,unresolved,756,,,,Monthly Article Count → EDITOR column in: Mirage · Webflow · ThredUp,NEW since last build
-Nina Denison,,unresolved,709,,,,Monthly Article Count → EDITOR column in: Mirage · Webflow · ThredUp,NEW since last build
-Abby Norwood,,unresolved,558,,,,Monthly Article Count → EDITOR column in: Linktree · Neiman · Bergdorf,NEW since last build
-Shelby Talbot,,unresolved,531,,,,Monthly Article Count → EDITOR column in: BetterUp · Practice · Little Passports,NEW since last build
-Haley Drucker,,unresolved,378,,,,Monthly Article Count → EDITOR column in: CoinTracker · Vimeo · Webflow,NEW since last build
-Chrissy Woods,,unresolved,377,,,,Monthly Article Count → EDITOR column in: Practice · Linktree · dydx,NEW since last build
-Lee Anderson,,unresolved,369,,,,Monthly Article Count → EDITOR column in: CoinTracker · Vimeo · Pylon,NEW since last build
-Robert Thorpe,,unresolved,345,,,,Monthly Article Count → EDITOR column in: Gainbridge · Felt · Rox,NEW since last build
-Jared Maguire,,unresolved,301,,,,Monthly Article Count → EDITOR column in: Vimeo · Engine · ThredUp,NEW since last build
-Vincent Lee,,unresolved,299,,,,Monthly Article Count → EDITOR column in: Webflow · Tempo.io · Taskrabbit,NEW since last build
-Jimmy Bunes,,unresolved,296,,,,Monthly Article Count → EDITOR column in: Mistplay · Better · Felt,NEW since last build
-Elliot Gardner,,unresolved,272,,,,Monthly Article Count → EDITOR column in: Workleap · Everand · Fivetran,NEW since last build
-Katie Shevlin,,unresolved,238,,,,Monthly Article Count → EDITOR column in: Athena2 · Gainbridge · Mirage,NEW since last build
-Kristin,,unresolved,212,2022-03,2022-11,,Monthly Article Count → EDITOR column in: Gopuff · Mailjet · Descript,
-Shivani Verma,,unresolved,180,,,,Monthly Article Count → EDITOR column in: Fivetran · Front · HoneyBook,NEW since last build
-Tiffany Anderson,,unresolved,170,,,,Monthly Article Count → EDITOR column in: Workleap · Fivetran · ShareGate,NEW since last build
-Lauren Friar,,unresolved,149,,,,Monthly Article Count → EDITOR column in: Front · HoneyBook · Oyster,NEW since last build
-Shalin,,unresolved,140,2022-07,2026-07,,Monthly Article Count → EDITOR column in: Practice · Linktree · Dynamite,
-Samantha McGrail,,unresolved,134,,,,Monthly Article Count → EDITOR column in: Better · Moss · Mistplay,NEW since last build
-Chelsea Erhard,,unresolved,113,,,,Monthly Article Count → EDITOR column in: Quinn · IronVest · EarnIn,NEW since last build
-Kira,,unresolved,109,2022-06,2022-09,,Monthly Article Count → EDITOR column in: Practice · Email On Acid · Dynamite,
-Michael Doyle,,unresolved,55,,,,Monthly Article Count → EDITOR column in: Neiman · Contra · Bergdorf,NEW since last build
-Kimberly Pavlovich,,unresolved,45,,,,Monthly Article Count → EDITOR column in: Tempo.io · Otter · ThredUp,NEW since last build
-Samantha Marceau,,unresolved,34,,,,Monthly Article Count → EDITOR column in: Mistplay · Miter · Huntress,NEW since last build
-Bryan Clark,,unresolved,25,,,,Monthly Article Count → EDITOR column in: dydx · Mailgun · Worldcoin,NEW since last build
-Micki Cottam,,unresolved,20,,,,Monthly Article Count → EDITOR column in: Everand,NEW since last build
-Lauren Keleher,,unresolved,4,2026-06,2026-06,,Monthly Article Count → EDITOR column in: Eventbrite · Men's Wearhouse,NEW since last build
-Shain,,unresolved,1,2022-07,2022-07,,Monthly Article Count → EDITOR column in: Flip,
+raw_in_sheet,resolved_editor,articles,first_month,last_month,source_of_truth
+83,83,1,2021-11,2021-11,Rippling (HR)
+AND,AND,2,2022-12,2022-12,Rippling (HR)
+Abby,Abby Norwood,517,2022-08,2026-12,Rippling (HR)
+Alyssa,Alyssa Zacharias,811,2022-09,2026-12,Rippling (HR)
+Anabelle,Anabelle Zaluski,1520,2022-12,2026-06,Rippling (HR)
+Bryan,Bryan Clark,10,2022-06,2022-08,Rippling (HR)
+Chelsea,Chelsea Erhard,80,2024-01,2024-02,Rippling (HR)
+Chrissy,Chrissy Woods,6,2022-12,2024-02,Rippling (HR)
+Derriik,Derrik Chinn,3,2025-02,2025-02,Rippling (HR)
+Derrik,Derrik Chinn,1305,2021-12,2026-12,Rippling (HR)
+Eesha,Eesha Verma,180,2022-06,2026-07,Rippling (HR)
+Elliot,Elliot Gardner,269,2025-02,2026-06,Rippling (HR)
+Haley,Haley Drucker,376,2025-09,2026-10,Rippling (HR)
+Jared,Jared Maguire,291,2024-12,2026-07,Rippling (HR)
+Jimmy,Jimmy Bunes,296,2025-03,2026-06,Rippling (HR)
+Katie,Katie Shevlin,238,2025-04,2025-11,Rippling (HR)
+Kennedy,Kennedy Stevens,754,2024-03,2026-05,Rippling (HR)
+Kimberly,Kimberly Pavlovich,45,2025-03,2025-05,Rippling (HR)
+Kira,Kira,93,2022-06,2022-09,Rippling (HR)
+Kristin,Kristin,212,2022-03,2022-11,Rippling (HR)
+Lauren,Lauren Friar,149,2025-09,2026-10,Rippling (HR)
+Lauren Keleher,Lauren Keleher,4,2026-06,2026-06,Rippling (HR)
+Lee,Lee Anderson,369,2025-04,2026-10,Rippling (HR)
+MAGGIE,Maggie Gowland,3,2024-01,2024-02,Rippling (HR)
+Magggie,Maggie Gowland,1,2022-05,2022-05,Rippling (HR)
+Maggie,Maggie Gowland,1046,2021-11,2026-11,Rippling (HR)
+Magie,Maggie Gowland,1,2024-09,2024-09,Rippling (HR)
+maggie,Maggie Gowland,1,2022-03,2022-03,Rippling (HR)
+Mike,Michael Doyle,44,2023-03,2023-05,Rippling (HR)
+Micki,Micki Cottam,20,2025-08,2025-10,Rippling (HR)
+NIcholas,Nicholas Youngblood,1,2022-12,2022-12,Rippling (HR)
+Nicholas,Nicholas Youngblood,1277,2022-12,2026-12,Rippling (HR)
+Nina,Nina Denison,709,2020-10,2026-12,Rippling (HR)
+Robert,Robert Thorpe,345,2020-10,2026-09,Rippling (HR)
+Sam,Sam,2,,,Rippling (HR)
+Sam,Samantha Marceau,34,2026-05,2026-12,Rippling (HR)
+Sam,Samantha McGrail,131,2025-08,2026-01,Rippling (HR)
+Shain,Shain,1,2022-07,2022-07,Rippling (HR)
+Shalin,Shalin,132,2022-07,2026-07,Rippling (HR)
+Shelby,Shelby Talbot,294,2021-03,2026-11,Rippling (HR)
+Shivani,Shivani Verma,180,2025-09,2026-06,Rippling (HR)
+Tiffany,Tiffany Anderson,167,2025-01,2026-11,Rippling (HR)
+Vince,Vincent Lee,249,2019-09,2026-12,Rippling (HR)
+^,^,1,,,Rippling (HR)
+^^,^^,2,,,Rippling (HR)
+no edits,no edits,1,2024-05,2024-05,Rippling (HR)

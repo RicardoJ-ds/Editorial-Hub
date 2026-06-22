@@ -31,7 +31,7 @@
 > - The **Delivery-vs-Invoicing chart** was flipped to `Delivered ÷ Invoiced`
 >   (commit `3a07fa2`). `cp2_fact_delivery_monthly` exposes both numerator and
 >   denominator, so the direction is a UI choice; coverage unchanged.
-> - See [`.docs/dashboard-data-flow.md`](.docs/dashboard-data-flow.md) for the
+> - See [`../../10-reference/dashboard-data-flow.md`](../../10-reference/dashboard-data-flow.md) for the
 >   per-metric migration sequence from today's legacy tables onto `cp2_*`.
 
 ---

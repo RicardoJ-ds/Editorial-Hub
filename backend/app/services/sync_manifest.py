@@ -174,13 +174,15 @@ CURRENT_STEPS: list[ManifestStep] = [
     _sheet("Editorial SOW overview"),
     _sheet("Delivered vs Invoiced v2"),
     _sheet("Editorial Operating Model"),
-    _sheet("AI Monitoring - Data"),
-    _sheet("AI Monitoring - Rewrites"),
-    _sheet("AI Monitoring - Flags"),
-    _sheet("AI Monitoring - Surfer Usage"),
+    # NOTE: the four "AI Monitoring - *" sheets are intentionally NOT in the
+    # current scope — Writer AI Monitoring scans are paused upstream, so the
+    # daily cron + SYNC button no longer touch them (they were the recurring
+    # "Failed to fetch" noise). They remain importable on demand from the
+    # Import Wizard (`/data-management/import` → list_available_sheets +
+    # IMPORT_DISPATCH, independent of this manifest). Re-add them here to put
+    # them back on the automatic SYNC.
     _sheet("Master Tracker - Cumulative"),
     _sheet("Master Tracker - Goals vs Delivery"),  # current month (default mode)
-    _sheet("Notion Database"),
     _sheet("Growth Pods"),
     _sheet("Monthly Article Count"),
     ManifestStep("@et-cp", "ET CP 2026 (current version)", "current", dynamic_prefix="ET CP 2026"),

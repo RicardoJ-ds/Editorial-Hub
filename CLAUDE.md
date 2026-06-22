@@ -39,7 +39,7 @@ still writes to `localStorage`, not the database.
 - **Editorial Capacity Planning Spreadsheet**: https://docs.google.com/spreadsheets/d/1I6fNQMjs2y4l6IyOxd9QL-QBjB2zGi0mcoV840JDmkI
 - **Master Tracker Spreadsheet**: https://docs.google.com/spreadsheets/d/1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY
 - **Writer AI Monitoring Spreadsheet**: https://docs.google.com/spreadsheets/d/13kl0_6YuzsJ3xEzNLzDZeR-sHMaNJNw6oJGmwb-CBOU
-- **Local PRD copies**: `data/` (gitignored)
+- **Local PRD copies + seed exports**: `memory/50-sources/` (`specs/` = PRDs/build prompt, gitignored; `seed-data/` = initial CSV exports, gitignored)
 
 ## Architecture
 
@@ -54,7 +54,7 @@ still writes to `localStorage`, not the database.
 - **Service Account**: `graphite-bi-sa@graphite-data.iam.gserviceaccount.com` on project `graphite-data`
 - **Warehouse (dual-sink, `feature/etl-warehouse-refactor`)**: `etl/warehouse/` publishes a layered model (19 `editorial_raw_*` + 9 `editorial_int_*` tables + 20 `v_editorial_*` views) to BOTH Postgres schema `warehouse` (what the dashboards serve — `DASHBOARD_SOURCE=postgres`, default) and BigQuery `graphite_bi_sandbox` (always-fresh analytics mirror / backup) from the same in-memory rows in one ~20s publish. All business math (billing periods, end-of-Q variance + tiers, goals 3-step weighting, capacity fallback model) is applied in the int layer — design + bug register in `etl/WAREHOUSE_DESIGN.md`; parity proofs in `etl/PARITY_REPORT_WAREHOUSE.md` + `etl/PARITY_REPORT_ENDPOINTS.md`. `DASHBOARD_SOURCE=bq` flips serving to BigQuery; the `X-Data-Source` per-request override is gated by `DATA_SOURCE_OVERRIDE_ENABLED` (local-only, OFF in prod). **BQ reads are fronted by an in-process cache** (`app/services/bq_cache.py`) so neither BigQuery nor Neon is hit per request: every `q()` result is keyed by `(sql, params, publish_token)` where the token lives in the one-row `cache_version` table and is bumped by the `@warehouse-publish` step (a SYNC shows fresh numbers within `cache_token_poll_seconds` on every instance), with a `bq_cache_ttl_seconds` fallback and serve-stale-on-BQ-error. The per-request RBAC resolve (`access.resolve_access_cached`, the dominant Neon read once serving is on BQ) is likewise short-TTL cached (`rbac_cache_ttl_seconds`, returns deep copies so preview-as can't corrupt it). Cache flags: `bq_cache_enabled` / `bq_cache_ttl_seconds` / `cache_token_poll_seconds` / `rbac_cache_ttl_seconds`. Goal: serve dashboards from BQ + cache, keep Neon thin (writes + RBAC/comments/DQ). Terminal refresh: `./etl/refresh.sh [current|past|full]`.
 - **BigQuery (phase-1 flat mirror, deprecated)**: `graphite_bi_sandbox.editorial_hub_*` tables — superseded by the warehouse; decommission after merge validation (see `etl/README.md` banner)
-- **Design System**: `.docs/Graphite-Interal-DS.html` (gitignored)
+- **Design System**: `memory/50-sources/design-system/Graphite-Interal-DS.html`
 
 ## Setup
 
@@ -102,9 +102,9 @@ Do **not** pass `--path-as-root backend` — the Dockerfile references project-r
 ## Data Sources & Ingestion Reality
 
 **Full per-sheet reference:** `frontend/docs/SHEETS_DOCUMENTATION.md`
-**Cross-sheet inventory + ingestion status:** `.docs/sheet-inventory.md`
-**Dashboard → source mapping:** `.docs/dashboard-data-flow.md`
-**Sync architecture (manifest, scopes, endpoints, month-rollover, add-an-importer runbook):** `.docs/sync-architecture.md`
+**Cross-sheet inventory + ingestion status:** `memory/10-reference/sheet-inventory.md`
+**Dashboard → source mapping:** `memory/10-reference/dashboard-data-flow.md`
+**Sync architecture (manifest, scopes, endpoints, month-rollover, add-an-importer runbook):** `memory/10-reference/sync-architecture.md`
 
 ### Spreadsheet 1 — Editorial Capacity Planning
 ID: `1I6fNQMjs2y4l6IyOxd9QL-QBjB2zGi0mcoV840JDmkI`
@@ -132,10 +132,17 @@ ID: `1dtZIiTKPEkhc0qrlWdlvd-n8qAn5-lhVcPkgHNgoLAY`
 ### Spreadsheet 3 — Writer AI Monitoring
 ID: `13kl0_6YuzsJ3xEzNLzDZeR-sHMaNJNw6oJGmwb-CBOU`
 
+**Manual-only (Import Wizard) since 2026-06-22** — the four AI Monitoring importers
+(`AI Monitoring - {Data, Rewrites, Flags, Surfer Usage}`) were **removed from the `current`
+scope**, so the SYNC button + daily cron + month-rollover no longer touch them (scans are paused
+upstream → they were recurring "Failed to fetch" noise). They stay importable on demand from
+`/data-management/import` (off-by-default). Re-add them to `CURRENT_STEPS` in `sync_manifest.py`
+to put them back on the automatic SYNC.
+
 | Sheet | Destination | Ingested? |
 |---|---|---|
-| Data / Rewrites / Yellow-Red Flags_v2 | `ai_monitoring_records` | ✅ seeded (1,168 rows); **new scans paused upstream** |
-| Surfer's API usage | `surfer_api_usage` | ✅ seeded |
+| Data / Rewrites / Yellow-Red Flags_v2 | `ai_monitoring_records` | ⏸ **Import Wizard only** — not in auto-SYNC (1,168 rows seeded; scans paused upstream) |
+| Surfer's API usage | `surfer_api_usage` | ⏸ **Import Wizard only** — not in auto-SYNC |
 
 ### Spreadsheet 4 — Team Pods
 ID env-driven via `TEAM_PODS_ID` = `10ydCI1mQ5_T6nnMJt9eNHZ32_8NJBkOceiAW6FprjxA` ("Copy of [Int] Team Pods", swapped 2026-06-12 from the older temp copy — shared with the BI SA).
@@ -162,7 +169,7 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 
 ## PRD Compliance
 
-**Audit:** `.docs/prd-compliance-audit.md` (gitignored — local reference; last full audit 2026-04-07 with deltas appended through 2026-04-26).
+**Audit:** `memory/90-archive/prd-compliance-audit.md` (gitignored — local reference; last full audit 2026-04-07 with deltas appended through 2026-04-26).
 **Current coverage:** ~98% of PRD (auth deferred per §9 — now partially implemented via Google OAuth).
 **All 9 D2 KPIs use real data** (0 mock):
 - Revision Rate, Turnaround Time, Second Reviews → Notion DB
@@ -184,7 +191,7 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 - One-time ETL script to populate `cp2_*` from today's tables
 - Wiring Editorial Clients + Team KPIs dashboards onto `cp2_*` reads
 
-**Why this matters:** Today the dashboards read from 5+ legacy tables fed by ingestion of 3 separate spreadsheets, with overlapping metrics (e.g. `articles_delivered` lives in both `clients` cumulative and `deliverables_monthly` monthly). The CP v2 ERD is designed to collapse those into a single dim-fact model and eliminate sheet duplication. Migration plan: `.docs/dashboard-data-flow.md`.
+**Why this matters:** Today the dashboards read from 5+ legacy tables fed by ingestion of 3 separate spreadsheets, with overlapping metrics (e.g. `articles_delivered` lives in both `clients` cumulative and `deliverables_monthly` monthly). The CP v2 ERD is designed to collapse those into a single dim-fact model and eliminate sheet duplication. Migration plan: `memory/10-reference/dashboard-data-flow.md`.
 
 ## Design Preferences
 
@@ -213,6 +220,10 @@ Imported via `backend/app/services/notion_import.py` (paginated read + bulk upse
 
 ## Memory & Commits
 
+- **In-repo memory:** `memory/` (bi-forge LLM-wiki). Read `memory/MEMORY.md` → `NOW.md` →
+  `index.md` first; ingest learnings there. Backend map: `backend/CLAUDE.md`.
 - No `Co-Authored-By` lines in commit messages.
 - Keep commits scoped; prefer new commits over amending.
-- When updating this file: run `.claude/skills/pre-commit-checks/` first.
+- Commit / release via the **`release`** skill (`.claude/skills/release/`): `/commit` runs the
+  gate + commits; `/release` adds tests + version bump + tag + push. Run `/commit` before
+  committing changes to this file.

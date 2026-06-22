@@ -1,314 +1,286 @@
 ---
 name: release
 description: |
-  Cut a new release: bump version, refresh the changelog + docs, run the full
-  CI pipeline, commit, tag, push the branch, and emit a Notion-ready changelog
-  block. Wraps the existing `pre-commit-checks` skill with the version-bump
-  procedure + the Notion changelog formatting rule.
+  One skill for the whole path from "save my work safely" to "ship a tagged
+  release." There are no modes — the trigger word sets how far it goes:
+  - /commit  → run the tiered gate (lint · format · types · semgrep · light doc
+    glance) and create the commit, then STOP. No tag, no push.
+  - /release → everything /commit does with the FULL gate (adds the test suite +
+    a thorough doc-drift audit), then bump the version, refresh the
+    changelog/docs, create an annotated tag, push the branch, and push the tag after confirmation.
 
   Use this skill when:
-  (1) User types /release
-  (2) User asks to "ship", "cut a release", "release this round", "do the
-      whole shipping workflow", "update version + commit + push"
-  Triggers: "release", "ship", "cut release", "release round",
-            "version bump and ship", "shipping workflow"
-
-  Stops short of pushing the tag without explicit confirmation — see
-  `feedback_version_bump.md` rule #5.
+  (1) User types /commit  → gate + commit, then stop.
+  (2) User types /release → gate + commit, then version bump + tag + push.
+  (3) User asks to "commit", "commit changes", "ship", "cut a release",
+      "tag this", "version bump and ship", "do the whole shipping workflow".
+  Triggers: "commit", "commit changes", "commit this", "make a commit",
+            "release", "ship", "cut release", "tag release", "release round"
 ---
 
-# Release Workflow
+# Commit & Release
 
-End-to-end shipping workflow for the Editorial Hub. Wraps version bump +
-documentation update + pre-commit pipeline + commit + tag + push +
-Notion changelog block.
+**One skill, two depths.** You never pick a "mode" — the command you type is the choice:
 
-## Step 0 — Sanity check
+- **`/commit`** — *save my work safely.* Run the tiered gate, create the commit, **stop**.
+  Nothing is pushed, no tag. Use it as often as you like.
+- **`/release`** — *ship it.* Everything `/commit` does (with the full gate), **then** bump
+  the version, refresh the changelog, create an annotated tag, and push the branch + tag.
 
-Run from the repository root:
+Every run first **surveys the window since the last tag** — the prior commits *plus* the
+uncommitted work — so the commit message (and, on `/release`, the changelog) describes the
+whole round. The skill only *reads* those prior commits to summarize them; it never squashes,
+rebases, or rewrites history.
+
+> **Adapted for Editorial Hub.** Stack commands are pinned in **Step 3**; the **version
+> surface** is `frontend/src/lib/version.ts` (`VERSION` constant), the **default branch** is
+> `main`, the **version mirrors** are listed in Step 7, and the **protected files** are in
+> Important notes. Scheme is `0.PHASE.ITERATION` — a **PHASE bump** (`0.3.x → 0.4.0`) or `1.0`
+> requires explicit confirmation (Step 6), and the **tag push is gated** by confirmation
+> (Step 9), per the project's version-bump rule.
+
+---
+
+## The gate is tiered
+
+The checks are **not** identical on both paths — the cheap, safety-critical ones run every
+time; the slow / token-heavy ones are reserved for a deliberate release:
+
+| Check | `/commit` | `/release` |
+|---|---|---|
+| Lint · Format · Type-check | ✅ | ✅ |
+| **Security (semgrep)** | ✅ | ✅ |
+| Documentation drift | light glance (changed area only) | thorough audit (all docs) |
+| Slow checks (backend `pytest` · frontend `npm run build`) | — | ✅ |
+
+**Security runs on every commit on purpose** — it's a cheap CLI step and it catches
+secrets/vulns *before* they enter history (a leaked key in a pushed commit is compromised even
+if a later commit removes it). The expensive doc audit and the slow full-test run are what move
+to release.
+
+---
+
+## Step 1 — Survey the window since the last tag *(both)*
+
+Run from the **repository root**:
 
 ```bash
 git status
-git log --oneline -5
-cat frontend/src/lib/version.ts | grep VERSION
+git diff --stat
+git describe --tags --abbrev=0 2>/dev/null   # last tag (empty in a fresh repo)
+git log --oneline "$(git describe --tags --abbrev=0 2>/dev/null)"..HEAD 2>/dev/null
 ```
 
-If the working tree is clean (nothing to commit), inform the user and
-stop — nothing to release.
+The full change set since the last tag = **prior commits + uncommitted work**. This is what
+the commit message describes and what the release changelog summarizes.
 
-## Step 1 — Determine the version bump
+If there's nothing since the last tag **and** no uncommitted changes, say so and stop.
 
-Read the rules from
-`~/.claude/projects/-Users-ricardo-python-editorial-hub/memory/feedback_version_bump.md`
-if present. **Default is PATCH** (e.g. `0.3.5 → 0.3.6`).
+## Step 2 — Documentation check *(both — tiered)*
 
-Bump rules:
-
-- **PATCH (default)** — bug fixes, small UX improvements, anything that
-  doesn't change the project's focus area. No confirmation needed.
-- **PHASE bump** (`0.3.x → 0.4.0`) — only when the project enters a new
-  focus area (CP v2 → DB migration, RBAC sign-off, etc.).
-  **REQUIRES EXPLICIT USER CONFIRMATION.** Never auto-roll.
-- **`1.0`** — reserved for "Hub becomes the team's primary tool of record"
-  (CP v2 wired to DB + RBAC signed off). Never roll without confirmation.
-
-Phase reference (don't change without user approval):
-- `0.1.x` — Initial Hub
-- `0.2.x` — Data foundation (CP v2 prototype, BigQuery growth pods, Notion KPIs)
-- `0.3.x` — UI maturity (current)
-- `0.4.x` — CP v2 → DB migration (next)
-- `1.0` — Primary tool of record
-
-State the proposed version + the reason. If PHASE/1.0 bump, **stop and
-wait for confirmation** before continuing.
-
-## Step 2 — Update the version surfaces
-
-Update **all of these in the same commit**:
-
-1. `frontend/src/lib/version.ts` — the `VERSION` constant.
-2. `CLAUDE.md` (root) — the "Current version" line at the top.
-3. `CHANGELOG.md` — add a new top section under `## X.Y.Z — <date>`.
-   **Plain-language** for stakeholders, mirroring existing entries.
-   Group by feature area, not by file.
-4. **`frontend/src/content/changelog.ts`** — auto-generated mirror of
-   `CHANGELOG.md` that the in-app Help/Changelog modal renders. After
-   editing `CHANGELOG.md`, regenerate from the repo root:
-   ```bash
-   node -e "const fs=require('fs');const c=fs.readFileSync('CHANGELOG.md','utf8');fs.writeFileSync('frontend/src/content/changelog.ts','// AUTO-GENERATED from CHANGELOG.md by the /release skill. Do not edit by hand.\n// Source of truth: /CHANGELOG.md at the repo root.\nexport const CHANGELOG_MARKDOWN = '+JSON.stringify(c)+';\n');"
-   ```
-   The file's header comment says "DO NOT EDIT" so reviewers know the
-   canonical version lives at the repo root.
-5. **`frontend/src/content/help.ts`** — in-app Help & Glossary (rendered
-   by `HelpModal`). **MUST be kept in sync with any user-facing UX change
-   that ships in this round.** Read the diff, then audit every section
-   of `help.ts` for stale wording / missing capabilities. Specifically
-   check:
-   - **Which dashboard for which question?** table — add new pages,
-     mark removed/proposal-stage pages, update the question framing.
-   - **Glossary** — every renamed concept (e.g. "Projected end of Q" →
-     "End-of-Q variance"), new badge/tier introduced, new acronym.
-   - **How to…** — every new UI affordance the user can trigger
-     (filters, toggles, tabs, drill-downs, comments). Remove tips that
-     reference removed UI.
-   - **Permissions** — re-check the one-line group summary if RBAC
-     scope changed.
-   - **Reading the cards / dashboards** — any added column, badge, or
-     section per-card needs a one-liner here.
-   - **SYNC** — flag new sync steps (e.g. past-months resync additions).
-   - `help.ts` is a JS template literal — do NOT introduce raw backticks
-     inside the string; use `*italic*` or quotes for inline emphasis.
-6. Sidebar version chip reads from `version.ts` automatically — no edit.
-
-**Two UI surfaces stay in lockstep with stakeholder docs:** when you
-update `CHANGELOG.md` you MUST regenerate `changelog.ts`; when shipping
-UX changes you MUST audit `help.ts`. The Help & Changelog modal IS the
-in-app stakeholder doc — leaving it stale ships a worse experience than
-not updating Notion.
-
-Generating the changelog body:
-- Run `git log --oneline <previous-tag>..HEAD` and
-  `git diff --stat <previous-tag>..HEAD` to see what shipped.
-- For uncommitted local work in this round, also include the local diff.
-- Group by user-facing area (Access Control, Pod axis, Overview, Sync,
-  etc.). Keep technical jargon out — write for Editorial Ops + stakeholders.
-
-## Step 3 — Update other documentation
-
-Discover all CLAUDE.md / AGENTS.md / README.md files dynamically:
+- **On `/commit` (light glance):** look only at the doc closest to the files you changed
+  (the nearest `CLAUDE.md`/`README.md`/`AGENTS.md`) and flag an **obvious** gap — a renamed
+  concept, a removed feature, a new env var. Don't read every doc; don't deep-reason. If
+  nothing obvious, proceed.
+- **On `/release` (thorough audit):** discover and read all docs, then apply the full
+  change-type → doc-location map:
 
 ```bash
-find . \( -path '*/.*' -o -path '*/node_modules' -o -path '*/.venv' \
-        -o -path '*/dist' -o -path '*/__pycache__' \) -prune -o \
-       \( -name 'CLAUDE.md' -o -name 'AGENTS.md' -o -name 'README.md' \) \
-       -print | sort
+find . \( -path '*/.*' -o -path '*/node_modules' -o -path '*/.venv' -o -path '*/dist' \
+        -o -path '*/build' -o -path '*/__pycache__' \) -prune -o \
+       \( -name 'CLAUDE.md' -o -name 'AGENTS.md' -o -name 'README.md' \) -print | sort
 ```
-
-Common doc-update triggers — explicitly check the diff for each:
 
 | Change Type | Where it should be documented |
 |---|---|
-| New backend service file | `backend/CLAUDE.md` → Services list |
-| New backend API router | `backend/CLAUDE.md` → router count |
-| New database model / column | `backend/CLAUDE.md` → Key Database Models + idempotent startup migration if needed |
-| New env var | `CLAUDE.md` (root) → Environment Variables |
-| New frontend component or hook | `frontend/AGENTS.md` (note the convention: this project uses `AGENTS.md` not `CLAUDE.md` for the frontend) |
-| New feature flag / view slug | `backend/app/services/access.py` `_VIEWS` catalog + `Sidebar.tsx` `requiredViews` + `CLAUDE.md` route table |
-| Renamed component or hook | Update every reference in CLAUDE.md / AGENTS.md (grep for the old name) |
-| Removed functionality | Delete mentions; don't leave "(removed)" stubs |
+| New backend service / module | Backend `CLAUDE.md` → services list |
+| New API route / endpoint group | Backend `CLAUDE.md` → routes/endpoints |
+| New database model / column | Backend `CLAUDE.md` → data models (+ a migration if needed) |
+| New env var | Root `CLAUDE.md` → Environment Variables |
+| New frontend component / hook | Frontend `CLAUDE.md`/`AGENTS.md` → key files |
+| Changes to app startup/boot logic | Backend `CLAUDE.md` → startup sequence |
+| **User-facing UX change** (new affordance, renamed concept, removed UI) | In-app help/glossary doc + the changelog |
+| New major feature (route + service + UI) | All relevant docs + a dedicated README section |
+| Removed functionality | Delete mentions everywhere; don't leave "(removed)" stubs |
 
-Keep edits concise — match existing style. If a doc isn't relevant to
-this round's changes, leave it alone.
+If docs need updates, make them directly (docs are non-protected), show what changed, then
+proceed. **Doc update rules:** keep entries concise, match existing style, don't add detail
+derivable from code (paths, line numbers), update counts ("15 routers" → "16"), update the
+doc closest to the changed code.
 
-## Step 4 — Run the CI pipeline
+## Step 3 — Code checks *(both)*
 
-Run these gates sequentially. Don't auto-fix lint without showing the user.
+Run **sequentially** for the layers that changed; stop and surface failures rather than
+auto-fixing large changes.
 
-1. **Lint**: `cd backend && uv run ruff check .`
-2. **Format**: `cd backend && uv run ruff format --check .` — auto-fix
-   if it would reformat anything, and show the user which files were
-   touched.
-3. **Types (backend)**: `cd backend && uv run mypy .`
-4. **Types (frontend)**: `cd frontend && npx tsc --noEmit`
-5. **Tests**: `cd backend && uv run pytest -q`
-6. **Security**: `semgrep scan --error --config auto --json --quiet`
-   from repo root, 5-minute timeout, 0 findings expected. Skip with a
-   warning if semgrep isn't installed.
+### Python — backend (if files under `backend/` changed)
 
-Stop and surface any failures — don't proceed to commit.
+Run from `backend/` (uv-managed; ruff + mypy configured in `backend/pyproject.toml`):
 
-## Step 5 — Commit
-
-Stage all relevant files (prefer specific paths over `git add -A` when
-it's a small set; full `git add -A` is OK when the round genuinely
-touched many files). Commit subject MUST match this format:
-
-```
-X.Y.Z — <short summary of the round>
+```bash
+cd backend
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy .
+uv run pytest -q          # /release only (see tier table) — backend/tests/
 ```
 
-(e.g. `0.3.6 — Group capabilities card + scoped pod toggle + Notion-style Overview comments`)
+### JS / TS — frontend (if files under `frontend/` changed)
 
-The body lists the 3–6 highest-impact changes, one per line, dash-prefixed.
+Run from `frontend/`:
 
-**Do NOT include `Co-Authored-By` lines** — see `feedback_no_coauthor.md`.
+```bash
+cd frontend
+npm run lint        # eslint
+npx tsc --noEmit    # type-check
+npm run build       # /release only — the frontend has no test script; build is the gate
+```
 
-The commit subject MUST start with the version in the same format as
-`version.ts`. Never invent shorthand like `v0.5` or `version 0.3.5`.
+**Tiering:** lint + type-check run on **both** paths. The slow steps — backend `pytest` and a
+full frontend `npm run build` — run on **`/release` only**. (The frontend defines no test
+script today; if one is added, swap `npm run build` for it. On `/commit`, skip both slow steps.)
 
-## Step 6 — Annotated tag (LOCAL ONLY)
+On failure:
+- **Lint** → show errors; offer `--fix` (`ruff check . --fix` / `eslint . --fix`); re-run.
+- **Format** → auto-fix (`ruff format .` / `prettier -w .`), show which files moved, re-run.
+- **Types** → show errors; offer to fix annotations/imports; re-run.
+- **Tests** → show failures; offer to fix the test or the code; re-run.
+
+## Step 4 — Security scan (semgrep) *(both)*
+
+Run from the **repository root** (covers all languages):
+
+```bash
+semgrep scan --error --config auto --json 2>/dev/null
+```
+
+Use a 5-minute timeout. If semgrep isn't installed, warn and skip (don't block the commit).
+
+If findings exist:
+- Parse JSON, group by severity (ERROR > WARNING > INFO).
+- Show `file:line`, rule, severity, issue, and the offending code for each.
+- Ask the user: **Fix all** / **Skip** (proceed anyway) / **Abort**.
+- If fixing, re-scan after fixes (max 3 iterations).
+
+> This is the toolkit's security gate, and it runs on **every commit** — not just releases.
+> There is intentionally no separate "security" skill; secret/vuln scanning belongs in the
+> commit path so it runs every time.
+
+## Step 5 — Commit *(both)*
+
+Only reach this step if the gate passes (or the user chose to skip security findings).
+
+1. Stage the relevant files (prefer specific paths over `git add -A`).
+2. Draft a concise commit message that summarizes the change, informed by the window from
+   Step 1. On `/release` the subject uses the version format (Step 7): `X.Y.Z — <summary>`.
+3. Show the message to the user for approval.
+4. Create the commit. **Never include a `Co-Authored-By` line.**
+
+> **If invoked as `/commit`: you are done. Report (below) and STOP — do not tag or push.**
+> The steps that follow run only for `/release`.
+
+## Step 6 — Version bump *(release only)*
+
+Editorial Hub uses **`0.PHASE.ITERATION`** (phases: `0.1` initial Hub · `0.2` data
+foundation · `0.3` UI maturity · `0.4` CP v2 → DB migration · `1.0` Hub-as-tool-of-record).
+**Default is the smallest bump — ITERATION (PATCH).**
+
+- **ITERATION / PATCH (default)** — bug fixes, small UX improvements, anything that doesn't
+  change the project's focus area. No confirmation needed (e.g. `0.3.28 → 0.3.29`).
+- **PHASE bump** (`0.3.x → 0.4.0`) — signals a new project focus area. **Requires explicit
+  confirmation.** Never auto-roll.
+- **`1.0`** — reserved for when CP v2 is wired to the database and RBAC is signed off. Never
+  roll without confirmation.
+
+State the proposed version + the reason. If it's a PHASE bump or `1.0`, **stop and wait for
+confirmation** before continuing. (PATCH runs through Step 8 unattended — but the tag push in
+Step 9 is always confirmed; see below.)
+
+## Step 7 — Version surfaces + CHANGELOG *(release only)*
+
+Update **all version surfaces in the same commit** so they never drift (Editorial Hub's four):
+
+1. **`frontend/src/lib/version.ts`** — the `VERSION` constant. **Single source of truth.**
+2. **Root `CLAUDE.md`** — the "Current version: `X.Y.Z`" line near the top.
+3. **`CHANGELOG.md`** — add a new top section `## X.Y.Z — <date>`. Plain-language, grouped by
+   feature area (not by file), covering the **whole window since the last tag** (Step 1).
+4. **Sidebar version chip** — reads `version.ts` automatically; **no edit needed** (just
+   confirm it still imports from there).
+
+Use the exact version format from your source-of-truth surface (never invent `v0.5` /
+`version 0.3.5`). Then make the release commit (Step 5 format: `X.Y.Z — <summary>`, body =
+3–6 highest-impact changes, one per dash-prefixed line, **no `Co-Authored-By`**).
+
+## Step 8 — Annotated tag *(release only)*
 
 ```bash
 git tag -a vX.Y.Z -m "<same subject as the commit>"
 ```
 
-Always annotated. Never lightweight. **Don't push the tag yet.**
+Always **annotated**, never lightweight.
 
-## Step 7 — Push branch (no confirmation), wait for tag confirmation
+## Step 9 — Push branch + tag *(release only)*
 
 ```bash
-git push origin main          # branch first — Vercel + Railway redeploy from this
-# WAIT for explicit "yes" / "go" / "push the tag" from the user before:
-git push origin vX.Y.Z        # tag push — gated on user confirmation
+git push origin main          # default branch — Railway (backend) + Vercel (frontend) redeploy from this
+# then, only after explicit confirmation:
+git push origin vX.Y.Z        # push the annotated tag
 ```
 
-Per `feedback_version_bump.md` rule #5, **the tag push always waits for
-explicit confirmation** from the user. Pushing the branch is fine on its
-own; the tag is the deliberate "this is the canonical release marker"
-step.
+Push the **branch** to `main` directly — that's the routine deploy trigger (Railway rebuilds
+the backend, Vercel the frontend). **Then stop and confirm before pushing the tag** —
+Editorial Hub's version-bump rule requires explicit OK on `git push origin vX.Y.Z`. **Never
+`--force`** — tags are immutable once pushed; never `--no-verify`.
 
-## Step 8 — Emit the Notion changelog block
+## Step 10 — Stakeholder changelog block *(release only, optional)*
 
-This is the deliverable the user pastes into the team's Notion
-changelog page. **Format is precise — don't deviate.**
+If the team keeps a human-facing changelog (Notion / Slack / a wiki), emit a scannable block
+the user can paste. Audience = non-engineers; they want **what visually changed and how to
+verify it** in under 30 seconds.
 
-### Format rules (locked-in conventions)
+Format rules (keep them strict — this is what makes it scannable):
+- Heading: `## X.Y.Z — <Month Day>`.
+- Group by where in the app the change appears (highest-traffic area first), as sub-headings.
+- **One line per bullet:** `- **<UX label>** — <what visually changed>. *Verify:* <2–5 word click path>.`
+  - **UX label** = the user-visible affordance, never a code/component name.
+  - **What changed** = the outcome in plain English, never the implementation.
+  - **Verify** = a concrete click path the reader can run.
+- One bullet = one change (never combine with "and"). No file paths, function/schema/library
+  names, hashes, or stack jargon. Bold + italic only — no code blocks or tables.
 
-The Notion block is **scannable, not exhaustive**. The audience is
-Editorial Ops + stakeholders — they want to know **what visually
-changed and how to test it** in under 30 seconds. No technical detail.
+Skip this step entirely if the project has no stakeholder changelog.
 
-- **Heading**: `## X.Y.Z — <Month Day>` (level-2 markdown so it nests
-  cleanly under the master "Changelog" page).
-- **Section sub-headings**: `#### <Page · Tab · Subsection>` describing
-  exactly where in the app the user will see the change. Highest-traffic
-  area first (Overview → Editorial Clients → Team KPIs → Capacity
-  Maintenance → Admin → Data Quality → Under the hood).
-- **Bullets — ONE LINE EACH.** Format strictly:
-  `- **<UX label>** — <what visually changed>. *Validate:* <2–5 word click path>.`
-  - **UX label** = the user-visible UI affordance (e.g. "Rich-text composer",
-    "Monthly grid", "1st Q tier label"). Never a code name or component name.
-  - **What changed** = the outcome in plain English ("bold, italic, links,
-    lists via toolbar"). Never the implementation ("Tiptap", "useEditor",
-    "context"). No "now persists in Postgres" — say "stays where you left
-    it when you reload".
-  - **Validate** = the concrete click path the reader can run themselves
-    to see the change. Keep it short — `click X → see Y`. Skip the
-    *Validate:* clause only when the change has no UX surface to click
-    on (rare — for under-the-hood entries only).
-- **One bullet = one change.** Never combine two changes with "and".
-  Two changes = two bullets.
-- **Non-technical vocabulary only.** No file paths, function names,
-  schema names, library names, commit hashes, version numbers
-  (other than the heading), or stack jargon. The reader doesn't know
-  what "upsert" or "stacking context" or "Postgres" means.
-- **No mid-bullet UI screenshots.** Notion will render the markdown
-  cleanly; resist the urge to add formatting beyond bold + italic.
-- **Inline emphasis** with `**bold**` (UX label, italicised value) and
-  `*Validate:*` only. No `<code>` blocks, no tables.
+## Results summary
 
-### Template
-
-```markdown
-## X.Y.Z — May 11
-
-#### Admin · Access Control · Groups tab
-
-- **Capability card** — each expanded group row lists views, axis-toggle, and client scope. *Validate:* expand any group row.
-- **Reference table** — "How groups work" collapsible at the top maps all six seeded groups. *Validate:* open the collapsible above the matrix.
-
-#### Top bar
-
-- **Editorial / Growth toggle** — only renders on the three dashboards now. *Validate:* visit Admin pages → toggle is gone.
-
-#### Overview · Comments
-
-- **Per-section icons** — chat-bubble next to each section title; click opens a popover anchored below. *Validate:* hover any section title.
-- **Empty-state icon** — empty sections show a faded "+ chat bubble" that fades in on hover. *Validate:* hover a section with no comments.
-- **Client picker** — typeahead search box matching the dashboards' "Search clients..." filter. *Validate:* click `+ Add comment` and start typing a client name.
-- **Notion-style timestamps** — `now / 42m / 2h / 10:42 AM / Yesterday / May 8 / May 8, 2024`. Hover shows full date. *Validate:* hover any timestamp.
-```
-
-### Reference
-
-If the user asks "remember how I want the Notion format," cite this
-SKILL.md `Step 8 — Format rules`. The three rules that matter most:
-
-1. **One line per bullet, with a *Validate:* clause.** This is the
-   single hardest rule to internalise — earlier drafts ran 2–4 lines
-   per bullet and felt like a wall. One line + click path.
-2. **UX label, not code label.** "Rich-text composer" beats "Tiptap
-   editor". "Monthly grid" beats "ClientDetailPopover goals variant".
-3. **No tech leak.** If the reader needs to know what a "stacking
-   context" or "upsert key" is to understand the bullet, rewrite it.
-
-## Step 9 — Report
-
-Show the user this table:
+Rows beyond the commit show `n/a (commit-only)` when invoked as `/commit`.
 
 | Surface | Result |
 |---|---|
-| Version bumped | `X.Y.Z` (PATCH/PHASE) |
-| `frontend/src/lib/version.ts` | Updated |
-| `CLAUDE.md` | Updated |
-| `CHANGELOG.md` | New `X.Y.Z — <date>` section added |
-| Other docs | Up to date / Updated (N files) |
-| Lint / Format / Types | Passed |
-| Tests | Passed (N tests) / Skipped (no tests) |
-| Security (semgrep) | Passed (0 findings) / Skipped |
+| Documentation | Up to date / Updated (N files) / Light glance (commit) |
+| Lint / Format / Types | Passed / Fixed |
+| Tests | Passed (N) / n/a (commit-only) |
+| Security (semgrep) | Passed / N findings / Skipped |
 | Commit | Created (`<hash>`) |
-| Tag (local) | `vX.Y.Z` created |
-| Push (branch) | Pushed to `origin/main` |
-| Push (tag) | **Awaiting user confirmation** |
-| Notion block | Emitted in chat (copy-paste ready) |
+| Version bumped | `X.Y.Z` (PATCH/MINOR/MAJOR) / n/a (commit-only) |
+| `CHANGELOG.md` | New `X.Y.Z — <date>` section / n/a |
+| Tag | `vX.Y.Z` created + pushed / n/a |
+| Push | Branch + tag pushed to `origin` / n/a (commit-only) |
+| Stakeholder block | Emitted / n/a |
 
 ## Important notes
 
-- Never push `--force` to `main` or `--force` a tag. Tags are immutable
-  once pushed.
-- Never skip hooks (`--no-verify`).
-- Never amend a commit that's already been pushed. If a fix is needed
-  post-push, create a follow-up commit and a `vX.Y.(Z+1)` patch tag.
-- If `pre-commit-checks` reveals failures that require significant
-  refactoring, stop and let the user decide rather than auto-fixing.
-- If the user says "no" to PHASE bump confirmation, fall back to PATCH.
-- This project uses `AGENTS.md` (not `CLAUDE.md`) for the frontend
-  directory. The backend uses `CLAUDE.md`. Don't accidentally rename
-  one to the other.
-- **Dev-server gotcha after version bump:** Turbopack can keep an old
-  `VERSION` value cached in an in-memory chunk after `version.ts` is
-  edited, which manifests as a hydration error in the Sidebar
-  ("server says v0.3.5 / client says v0.3.6"). Fix is to restart the
-  frontend container: `docker compose exec frontend rm -rf .next/cache
-  && docker compose restart frontend`. This affects dev only; prod
-  builds are fine.
+- **`/commit` never pushes** (commit-only); **`/release` pushes the branch + tag
+  automatically** (after the Step 6 bump confirmation, if any).
+- **Never include a `Co-Authored-By` line** in any commit or tag.
+- Never `--force` push a branch or a tag. Tags are immutable once pushed. Never `--no-verify`.
+- Never amend an already-pushed commit. If a post-push fix is needed, create a follow-up
+  commit and a `vX.Y.(Z+1)` patch tag.
+- If the user declines a MINOR/MAJOR bump, fall back to PATCH.
+- Run language tools from the package root, semgrep from the repo root. Use the project's
+  environment (`.venv` / `uv` / the right Node version), not system tooling.
+- **Do NOT modify protected files** (deploy/infra + generated): `docker-compose.yml`,
+  `backend/Dockerfile`, `railway.toml`, `backend/uv.lock`, `frontend/package-lock.json`, and
+  any `.env*`. Touch these only on explicit request. Note: `backend/Dockerfile` builds from
+  the **repo root** context (`COPY backend/...`) — never run `railway up --path-as-root backend`.
+- Watch for dev-server caches after a version bump (some bundlers cache the old version string
+  and show a hydration mismatch) — restart the dev server if so. Prod builds are unaffected.

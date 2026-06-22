@@ -81,7 +81,9 @@ async def monthly_article_counts(
     date_from: str | None = Query(None, description="Inclusive lower bound, 'YYYY-MM'"),
     date_to: str | None = Query(None, description="Inclusive upper bound, 'YYYY-MM'"),
     pod: str | None = Query(None, description="'Pod N', 'Unassigned', or 'All'/None"),
-    pod_axis: str = Query("editorial", description="'editorial' or 'growth' — which pod to group by"),
+    pod_axis: str = Query(
+        "editorial", description="'editorial' or 'growth' — which pod to group by"
+    ),
     clients: str | None = Query(None, description="CSV of canonical client names"),
     editors: str | None = Query(None, description="CSV of canonical editor names"),
     db: AsyncSession = Depends(get_db),
@@ -102,7 +104,12 @@ async def monthly_article_counts(
     if source == "bq":
         return await asyncio.to_thread(
             bq_dashboard.articles_monthly,
-            date_from, date_to, pod, pod_axis, client_list, editor_list,
+            date_from,
+            date_to,
+            pod,
+            pod_axis,
+            client_list,
+            editor_list,
         )
     growth = pod_axis == "growth"
     cre_pod = ArticleRecord.growth_pod if growth else ArticleRecord.editorial_pod
@@ -220,7 +227,9 @@ async def list_unmapped(
         {"kind": a.kind, "raw_value": a.raw_value, "canonical_value": a.canonical_value}
         for a in aliases_res.scalars()
     ]
-    client_alias_map = {a["raw_value"]: a["canonical_value"] for a in aliases if a["kind"] == "client"}
+    client_alias_map = {
+        a["raw_value"]: a["canonical_value"] for a in aliases if a["kind"] == "client"
+    }
 
     # Every client tab that produced articles, with status + article date span.
     # status: "alias" (a saved alias re-routes it — applies next sync) >
@@ -254,7 +263,13 @@ async def list_unmapped(
             }
         )
     # Unmapped first (by volume), then the resolved set alphabetically.
-    clients.sort(key=lambda r: (r["status"] != "unmapped", -r["occurrences"] if r["status"] == "unmapped" else 0, r["raw_value"].lower()))
+    clients.sort(
+        key=lambda r: (
+            r["status"] != "unmapped",
+            -r["occurrences"] if r["status"] == "unmapped" else 0,
+            r["raw_value"].lower(),
+        )
+    )
 
     # Editors + writers: distinct names with total credits AND their origin
     # tabs (which client sheets a name appears in) so the value can be fixed at

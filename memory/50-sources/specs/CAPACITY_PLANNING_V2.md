@@ -12,7 +12,7 @@
 > **ERD authority.** The Mermaid diagram below shows the *capacity* core only.
 > The full set of `cp2_*` tables (delivery / pipeline / production / KPI /
 > AI / Surfer / engagement rules / model assumptions) lives in the prototype
-> ERD viewer at [`frontend/src/app/(app)/capacity-planning/_erd.ts`](frontend/src/app/(app)/capacity-planning/_erd.ts)
+> ERD viewer at [`frontend/src/app/(app)/capacity-planning/_erd.ts`](../../../frontend/src/app/(app)/capacity-planning/_erd.ts)
 > — that file is the authoritative column-level reference; this doc is the
 > design narrative around it.
 
@@ -28,7 +28,7 @@ out of scope for this round.
 | `cp2_fact_delivery_monthly` needs `variance_cumulative` for the health-chip rule (`healthOf()` in `shared-helpers.tsx`) | ✅ Already in `_erd.ts` as `cumulative_delivered` + `cumulative_invoiced` (variance_cumulative = delivered − invoiced) | Synced the prototype's `DeliveryMonthlyRow` type in `_store.tsx` to expose `variance`, `cumulativeDelivered`, `cumulativeInvoiced` so the migration validator + Maintain UI can already read/write them. |
 | `cp2_fact_actuals_weekly` needs `pod_id` so per-pod goal rollups don't reimplement client→pod denorm in TS | ✅ Already present in both Mermaid ERD and `_erd.ts` | No change. |
 | Content-type weighting (`article ×1, jumbo ×2, LP ×0.5`) is hard-coded in `contentTypeRatio()` rather than data-driven | ⏳ Optional | When CP v2 lands, add `cp2_dim_content_type (id, name, weight_multiplier)` and an FK on `cp2_fact_actuals_weekly`. Until then the helper stays code-side; sheet `ratios` column is fallback only. |
-| `cp2_dim_delivery_template` rows must be backfilled before pacing endpoints cut over | ⏳ Backfill task | Add as a step in Phase A.4 of the cutover sequence (already noted in `.docs/dashboard-data-flow.md` §5). |
+| `cp2_dim_delivery_template` rows must be backfilled before pacing endpoints cut over | ⏳ Backfill task | Add as a step in Phase A.4 of the cutover sequence (already noted in `../../10-reference/dashboard-data-flow.md` §5). |
 | Dashboard renders the "as of …" labels from latest data row, not `Date.now()` | ✅ Already supported by `cp2_fact_actuals_weekly.week_key` + `cp2_fact_production_history.month_key` | No schema change. |
 
 Pre-computed view candidates (nice-to-have, not blockers): `cp2_v_client_delivery_summary`,
@@ -311,7 +311,7 @@ Interactive ERD, Tables, Glossary — all shipped.
 2. **One-time backfill:** ETL from `clients`, `team_members`, `deliverables_monthly`, `capacity_projections`, `goals_vs_delivery`, `cumulative_metrics`, `production_history`, `ai_monitoring_records`, `surfer_api_usage`, `kpi_scores`, `notion_articles` → `cp2_*`. Write script is `backend/scripts/cp2_backfill.py` (to be created).
 3. **CP2 routers:** `/api/cp2/dims/*` CRUD + `/api/cp2/facts/*` upsert + `/api/cp2/views/*` reads. Rewire the front-end store (`_store.tsx`) off `localStorage`.
 4. **Parallel run:** Keep legacy tables live. Dashboards read from `cp2_*` via new service wrappers; A/B compare against legacy for one sprint.
-5. **Cutover:** Flip each dashboard endpoint. See `.docs/dashboard-data-flow.md` for the per-metric sequence.
+5. **Cutover:** Flip each dashboard endpoint. See `../../10-reference/dashboard-data-flow.md` for the per-metric sequence.
 6. **Decommission:** Drop seed ingestion for sheets whose data is now owned by the app (`deliverables_monthly`, `capacity_projections`, `kpi_scores` first — they're already editable). Retire `cumulative_metrics` + `goals_vs_delivery` last since they're currently read-only.
 
 The phase-1–8 front-end works against a store that already models the `cp2_*`

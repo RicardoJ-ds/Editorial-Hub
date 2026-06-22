@@ -45,7 +45,6 @@ TABLES: list[TableSpec] = [
     TableSpec(m.SurferAPIUsage, "editorial_surfer_api_usage"),
     TableSpec(m.CumulativeMetric, "editorial_cumulative_metrics"),
     TableSpec(m.GoalsVsDelivery, "editorial_goals_vs_delivery"),
-    TableSpec(m.NotionArticle, "editorial_notion_articles"),
     TableSpec(m.ClientPodHistory, "editorial_client_pod_history"),
     TableSpec(m.IncompleteClient, "editorial_incomplete_clients"),
     TableSpec(m.ArticleRecord, "editorial_articles", transform="article_canonicals"),

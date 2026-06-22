@@ -260,10 +260,13 @@ async def sync_all():
 
             results = import_all(session, all_sheets)
 
-            # Refresh Notion KPIs for recent months
+            # Refresh Notion KPIs for recent months (content machine read from
+            # BigQuery — fetch once, reuse across all months).
             try:
+                from app.services.notion_bq import fetch_notion_content
                 from app.services.notion_kpi_service import refresh_notion_kpis
 
+                notion_rows = fetch_notion_content()
                 now = datetime.now()
                 for offset in range(7):
                     m = now.month - offset
@@ -271,7 +274,7 @@ async def sync_all():
                     if m <= 0:
                         m += 12
                         y -= 1
-                    refresh_notion_kpis(session, y, m)
+                    refresh_notion_kpis(session, y, m, notion_rows=notion_rows)
                 session.commit()
             except Exception:
                 logger.warning(
@@ -640,7 +643,7 @@ class RefreshKpisResponse(BaseModel):
 async def refresh_kpis():
     """Recompute Notion-derived KPIs (revision_rate, turnaround_time,
     second_reviews, capacity_utilization) for every (year, month) that has
-    source data in `notion_articles` or `capacity_projections`.
+    source data in the Notion content machine (BigQuery) or `capacity_projections`.
 
     The frontend calls this after the per-sheet `/import` loop completes so
     every KPI on the heatmap reflects fresh source data — without it, the

@@ -1,287 +1,244 @@
-before_log_name,after_full_name,status,article_rows,first_month,last_month,candidates,where_to_validate
-Dan,,ambiguous,28,2025-05,2025-08,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: EarnIn B2B
-Daniela,,ambiguous,4,2025-09,2025-10,"Daniela Quiroga, Daniela Rial",Monthly Article Count → WRITER column in: Engine · Ellis · Moss
-Dan*,,ambiguous,2,2025-05,2025-05,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: Better
-Daniel,,ambiguous,2,2025-08,2025-08,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: 
-Dani,,ambiguous,1,2025-09,2025-09,"Daniela Quiroga, Daniela Rial, Danielle MacKinlay",Monthly Article Count → WRITER column in: CoinTracker
-Eric Esposito,Eric Esposito,confirmed,1376,,,,Monthly Article Count → WRITER column in: dydx · Worldcoin · CoinTracker
-Kimberly Kruge,Kimberly Kruge,confirmed,1255,,,,Monthly Article Count → WRITER column in: Linktree · Practice · Jaanuu
-Chelsea Oliver,Chelsea Oliver,confirmed,897,,,,Monthly Article Count → WRITER column in: Quinn · Contra · ThredUp
-Aranyak Nanda,Aranyak Nanda,confirmed,791,,,,Monthly Article Count → WRITER column in: Webflow · Mirage · Worldcoin
-Kevin Vaughn,Kevin Vaughn,confirmed,788,,,,Monthly Article Count → WRITER column in: BetterUp · Onton · Oyster
-Camille Tovee,Camille Tovee,confirmed,695,2024-01,2024-01,,Monthly Article Count → WRITER column in: Tempo.io · Gopuff · BetterUp
-Ashton Playsted,Ashton Playsted,confirmed,484,,,,Monthly Article Count → WRITER column in: Invoice Simple · Better · Mirage
-Abby Norwood,Abby Norwood,confirmed,384,,,,Monthly Article Count → WRITER column in: EarnIn · Quinn · Fishbowl
-Sarah Foley,Sarah Foley,confirmed,381,,,,Monthly Article Count → WRITER column in: Webflow · Everand · Taskrabbit
-Rob Harper,Rob Harper,confirmed,376,,,,Monthly Article Count → WRITER column in: Webflow · Vimeo · Scribe
-Rich Dezso,Rich Dezso,confirmed,310,,,,Monthly Article Count → WRITER column in: Legit Security · Vimeo · Oyster
-Adaeze Nwakaeze,Adaeze Nwakaeze,confirmed,250,,,,Monthly Article Count → WRITER column in: Rox · Fishbowl · Tempo.io
-Rocco Pendola,Rocco Pendola,confirmed,215,,,,Monthly Article Count → WRITER column in: Gainbridge · Oyster · Mirage
-Meredith Kane,Meredith Kane,confirmed,207,,,,Monthly Article Count → WRITER column in: Athena2 · Felt · Gainbridge
-Jimmy Bunes,Jimmy Bunes,confirmed,203,,,,Monthly Article Count → WRITER column in: ThredUp · Mirage · Scribe
-Danielle MacKinlay,Danielle MacKinlay,confirmed,152,,,,Monthly Article Count → WRITER column in: Engine · Orderful 2 · Mirage
-Samantha McGrail,Samantha McGrail,confirmed,146,,,,Monthly Article Count → WRITER column in: Mirage · Oyster · Tempo.io
-Robert Thorpe,Robert Thorpe,confirmed,135,,,,Monthly Article Count → WRITER column in: Bergdorf · Neiman
-Patrick Sather,Patrick Sather,confirmed,134,,,,Monthly Article Count → WRITER column in: Mirage · Composer · EarnIn
-Jack Limebear,Jack Limebear,confirmed,129,,,,Monthly Article Count → WRITER column in: Fivetran · Ellis · ShareGate
-Tamara Siklosi,Tamara Siklosi,confirmed,119,,,,Monthly Article Count → WRITER column in: CoinTracker · Leapsome · Miter
-Jacob McPhail,Jacob McPhail,confirmed,118,,,,Monthly Article Count → WRITER column in: Rox · Sermo · Workleap
-Telisa Faye,Telisa Faye,confirmed,112,,,,Monthly Article Count → WRITER column in: Vimeo · Tempo.io · Pylon
-Alex Shoemaker,Alex Shoemaker,confirmed,112,,,,Monthly Article Count → WRITER column in: Smartling · Engine · Moss
-Brian Abrams,Brian Abrams,confirmed,96,,,,Monthly Article Count → WRITER column in: Pylon · Moss · Better
-Owen Murray,Owen Murray,confirmed,95,,,,Monthly Article Count → WRITER column in: Pylon · Fivetran · Photoroom
-Aysenur Zaza,Aysenur Zaza,confirmed,93,,,,Monthly Article Count → WRITER column in: Front · Fivetran · Workleap
-Andrew Blackman,Andrew Blackman,confirmed,82,,,,Monthly Article Count → WRITER column in: Pylon · Front · Mailjet
-Nadia Hlebowitsh,Nadia Hlebowitsh,confirmed,74,,,,Monthly Article Count → WRITER column in: Mistplay · HoneyBook · Genstore
-Tessina Grant,Tessina Grant,confirmed,74,,,,Monthly Article Count → WRITER column in: Legit Security · Fivetran · Huntress
-Eleanor Pitkin,Eleanor Pitkin,confirmed,54,,,,Monthly Article Count → WRITER column in: Boulevard · Miter · Oyster
-Tim Suleyman,Tim Suleyman,confirmed,49,,,,Monthly Article Count → WRITER column in: Tempo.io · Notion · n8n
-Linda L. Armstrong,Linda L. Armstrong,confirmed,47,,,,Monthly Article Count → WRITER column in: Mistplay · Webflow · Workleap
-Emily Pitkin,Emily Pitkin,confirmed,37,,,,Monthly Article Count → WRITER column in: Better · Miter · Ellis
-Garrett Schlichte,Garrett Schlichte,confirmed,37,,,,Monthly Article Count → WRITER column in: Grindr
-Brandon Morgan,Brandon Morgan,confirmed,31,,,,Monthly Article Count → WRITER column in: College HUNKS · Flex · Front
-Anabelle Zaluski,Anabelle Zaluski,confirmed,29,,,,Monthly Article Count → WRITER column in: HoneyBook · Miter · Mirage
-Shannon Canuelle,Shannon Canuelle,confirmed,25,,,,Monthly Article Count → WRITER column in: Fishbowl · Mirage · ThredUp
-Paulina Karadajiyan,Paulina Karadajiyan,confirmed,23,,,,Monthly Article Count → WRITER column in: Moss · Miter · Webflow
-Laura Soler,Laura Soler,confirmed,19,,,,Monthly Article Count → WRITER column in: Maven Clinic
-Haley Drucker,Haley Drucker,confirmed,13,,,,Monthly Article Count → WRITER column in: Webflow · Mirage
-Lee Anderson,Lee Anderson,confirmed,2,,,,Monthly Article Count → WRITER column in: Mirage
-Kennedy Stevens,Kennedy Stevens,confirmed,1,,,,Monthly Article Count → WRITER column in: Fellow
-Eric,Eric Esposito,confirmed_first_name,1346,2022-03,2026-12,,Monthly Article Count → WRITER column in: 
-Kimberly,Kimberly Kruge,confirmed_first_name,1245,2021-03,2026-04,,Monthly Article Count → WRITER column in: 
-Chelsea,Chelsea Oliver,confirmed_first_name,864,2022-10,2026-11,,Monthly Article Count → WRITER column in: 
-Aranyak,Aranyak Nanda,confirmed_first_name,751,2019-09,2026-12,,Monthly Article Count → WRITER column in: 
-Camille,Camille Tovee,confirmed_first_name,691,2022-02,2026-12,,Monthly Article Count → WRITER column in: 
-Kevin,Kevin Vaughn,confirmed_first_name,664,2022-11,2026-12,,Monthly Article Count → WRITER column in: 
-Ashton,Ashton Playsted,confirmed_first_name,472,2021-11,2026-08,,Monthly Article Count → WRITER column in: 
-Abby,Abby Norwood,confirmed_first_name,370,2023-01,2026-10,,Monthly Article Count → WRITER column in: 
-Rob,Rob Harper,confirmed_first_name,363,2021-10,2026-10,,Monthly Article Count → WRITER column in: 
-Adaeze,Adaeze Nwakaeze,confirmed_first_name,245,2024-11,2026-06,,Monthly Article Count → WRITER column in: 
-Rich,Rich Dezso,confirmed_first_name,241,2024-12,2026-06,,Monthly Article Count → WRITER column in: 
-Rocco,Rocco Pendola,confirmed_first_name,211,2020-10,2026-09,,Monthly Article Count → WRITER column in: 
-Jimmy,Jimmy Bunes,confirmed_first_name,198,2024-05,2026-08,,Monthly Article Count → WRITER column in: 
-Sarah,Sarah Foley,confirmed_first_name,164,2023-07,2026-10,,Monthly Article Count → WRITER column in: 
-Danielle,Danielle MacKinlay,confirmed_first_name,152,2024-10,2026-05,,Monthly Article Count → WRITER column in: 
-Meredith,Meredith Kane,confirmed_first_name,146,2020-10,2026-06,,Monthly Article Count → WRITER column in: 
-Sam,Samantha McGrail,confirmed_first_name,145,2024-04,2026-06,,Monthly Article Count → WRITER column in: 
-Robert,Robert Thorpe,confirmed_first_name,135,2022-10,2026-12,,Monthly Article Count → WRITER column in: 
-Jack,Jack Limebear,confirmed_first_name,123,2025-01,2026-11,,Monthly Article Count → WRITER column in: 
-Pat,Patrick Sather,confirmed_first_name,122,2023-11,2026-01,,Monthly Article Count → WRITER column in: 
-Telisa,Telisa Faye,confirmed_first_name,110,2025-04,2025-12,,Monthly Article Count → WRITER column in: 
-Jacob,Jacob McPhail,confirmed_first_name,109,2025-01,2026-06,,Monthly Article Count → WRITER column in: 
-Sara,Sarah Foley,confirmed_first_name,109,2019-09,2026-09,,Monthly Article Count → WRITER column in: 
-Alex,Alex Shoemaker,confirmed_first_name,108,2024-11,2026-01,,Monthly Article Count → WRITER column in: 
-Kev,Kevin Vaughn,confirmed_first_name,98,2024-05,2026-02,,Monthly Article Count → WRITER column in: 
-Tamara,Tamara Siklosi,confirmed_first_name,96,2025-09,2026-06,,Monthly Article Count → WRITER column in: 
-Sarah H,Sarah Foley,confirmed_first_name,94,2023-08,2024-04,,Monthly Article Count → WRITER column in: 
-Brian,Brian Abrams,confirmed_first_name,92,2025-08,2026-03,,Monthly Article Count → WRITER column in: 
-Aysenur,Aysenur Zaza,confirmed_first_name,85,2025-08,2026-10,,Monthly Article Count → WRITER column in: 
-Owen,Owen Murray,confirmed_first_name,77,2026-01,2026-06,,Monthly Article Count → WRITER column in: 
-Andrew,Andrew Blackman,confirmed_first_name,66,2025-12,2026-06,,Monthly Article Count → WRITER column in: 
-Tessina,Tessina Grant,confirmed_first_name,65,2025-08,2026-06,,Monthly Article Count → WRITER column in: 
-Nadia,Nadia Hlebowitsh,confirmed_first_name,61,2025-03,2026-06,,Monthly Article Count → WRITER column in: 
-Richard,Rich Dezso,confirmed_first_name,57,2024-10,2026-06,,Monthly Article Count → WRITER column in: 
-Tim,Tim Suleyman,confirmed_first_name,47,2023-08,2026-06,,Monthly Article Count → WRITER column in: 
-Eleanor,Eleanor Pitkin,confirmed_first_name,43,2026-01,2026-06,,Monthly Article Count → WRITER column in: 
-Linda,Linda L. Armstrong,confirmed_first_name,38,2026-01,2026-06,,Monthly Article Count → WRITER column in: 
-Garrett,Garrett Schlichte,confirmed_first_name,36,2024-05,2024-10,,Monthly Article Count → WRITER column in: 
-Emily,Emily Pitkin,confirmed_first_name,32,2025-11,2026-11,,Monthly Article Count → WRITER column in: 
-Shannon,Shannon Canuelle,confirmed_first_name,23,2024-07,2024-10,,Monthly Article Count → WRITER column in: 
-Chels,Chelsea Oliver,confirmed_first_name,18,2025-02,2025-05,,Monthly Article Count → WRITER column in: 
-Anabelle,Anabelle Zaluski,confirmed_first_name,18,2024-01,2026-06,,Monthly Article Count → WRITER column in: 
-Eric E,Eric Esposito,confirmed_first_name,17,2023-10,2024-11,,Monthly Article Count → WRITER column in: 
-Paulina,Paulina Karadajiyan,confirmed_first_name,14,2025-11,2026-02,,Monthly Article Count → WRITER column in: 
-Haley,Haley Drucker,confirmed_first_name,13,2023-05,2025-11,,Monthly Article Count → WRITER column in: 
-Brandon,Brandon Morgan,confirmed_first_name,13,2026-04,2026-06,,Monthly Article Count → WRITER column in: 
-Tam,Tamara Siklosi,confirmed_first_name,12,2025-09,2026-03,,Monthly Article Count → WRITER column in: 
-Patrick,Patrick Sather,confirmed_first_name,12,2023-09,2025-11,,Monthly Article Count → WRITER column in: 
-Laura,Laura Soler,confirmed_first_name,12,2026-04,2026-06,,Monthly Article Count → WRITER column in: 
-Pau,Paulina Karadajiyan,confirmed_first_name,5,2026-01,2026-01,,Monthly Article Count → WRITER column in: 
-Andre,Andrew Blackman,confirmed_first_name,4,2022-02,2025-02,,Monthly Article Count → WRITER column in: 
-Paul,Paulina Karadajiyan,confirmed_first_name,4,2023-10,2023-12,,Monthly Article Count → WRITER column in: 
-Kimberly/Aranyak,Kimberly Kruge,confirmed_first_name,4,2022-09,2022-09,,Monthly Article Count → WRITER column in: 
-Brian*,Brian Abrams,confirmed_first_name,3,2025-08,2025-08,,Monthly Article Count → WRITER column in: 
-KIMBERLY,Kimberly Kruge,confirmed_first_name,3,2024-01,2024-02,,Monthly Article Count → WRITER column in: 
-Richard*,Rich Dezso,confirmed_first_name,2,2024-10,2024-10,,Monthly Article Count → WRITER column in: 
-Jacob*,Jacob McPhail,confirmed_first_name,2,2025-01,2025-01,,Monthly Article Count → WRITER column in: 
-Alex*,Alex Shoemaker,confirmed_first_name,2,2024-11,2025-06,,Monthly Article Count → WRITER column in: 
-Sarah*,Sarah Foley,confirmed_first_name,2,2024-09,2024-09,,Monthly Article Count → WRITER column in: 
-Alex (audition),Alex Shoemaker,confirmed_first_name,2,2025-07,2025-09,,Monthly Article Count → WRITER column in: 
-Lee,Lee Anderson,confirmed_first_name,2,2025-11,2025-11,,Monthly Article Count → WRITER column in: 
-Rocco*,Rocco Pendola,confirmed_first_name,2,2025-02,2025-02,,Monthly Article Count → WRITER column in: 
-Kim,Kimberly Kruge,confirmed_first_name,2,2022-07,2025-11,,Monthly Article Count → WRITER column in: 
-Rob Harper - audtition,Rob Harper,confirmed_first_name,2,2023-12,2023-12,,Monthly Article Count → WRITER column in: 
-Telisa*,Telisa Faye,confirmed_first_name,2,2025-03,2025-04,,Monthly Article Count → WRITER column in: 
-Meredith*,Meredith Kane,confirmed_first_name,2,2025-03,2025-06,,Monthly Article Count → WRITER column in: 
-Shannon*,Shannon Canuelle,confirmed_first_name,2,2024-06,2024-07,,Monthly Article Count → WRITER column in: 
-Kennedy,Kennedy Stevens,confirmed_first_name,1,2024-05,2024-05,,Monthly Article Count → WRITER column in: 
-Jimmy*,Jimmy Bunes,confirmed_first_name,1,2024-05,2024-05,,Monthly Article Count → WRITER column in: 
-Eric E.,Eric Esposito,confirmed_first_name,1,2023-08,2023-08,,Monthly Article Count → WRITER column in: 
-JImmy,Jimmy Bunes,confirmed_first_name,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: 
-Adaeze*,Adaeze Nwakaeze,confirmed_first_name,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: 
-Brian A,Brian Abrams,confirmed_first_name,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: 
-Kevin`,Kevin Vaughn,confirmed_first_name,1,2024-04,2024-04,,Monthly Article Count → WRITER column in: 
-Sam*,Samantha McGrail,confirmed_first_name,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: 
-Kimberly*,Kimberly Kruge,confirmed_first_name,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: 
-Brandon*,Brandon Morgan,confirmed_first_name,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: 
-Garret,Garrett Schlichte,confirmed_first_name,1,2024-09,2024-09,,Monthly Article Count → WRITER column in: 
-Emile,Emile,first_name_only,413,2020-12,2026-12,,Monthly Article Count → WRITER column in: Email On Acid · Notion · Mailgun
-Dana,Dana,first_name_only,289,2022-01,2026-07,,Monthly Article Count → WRITER column in: Flip · Curology · Linktree
-Chantel,Chantel,first_name_only,234,2022-02,2026-11,,Monthly Article Count → WRITER column in: Little Passports · Flip · Practice
-Mark,Mark,first_name_only,221,2022-03,2026-12,,Monthly Article Count → WRITER column in: Shift · Mailjet · ESGgo
-Gabryel,Gabryel,first_name_only,221,2022-11,2023-10,,Monthly Article Count → WRITER column in: Neiman · BetterUp · Linktree
-Samaara,Samaara,first_name_only,199,2022-01,2026-09,,Monthly Article Count → WRITER column in: Curology · Cadre · Mailjet
-CJ,Cj,first_name_only,174,2023-10,2026-11,,Monthly Article Count → WRITER column in: Grindr
-Claire,Claire,first_name_only,173,2022-02,2024-12,,Monthly Article Count → WRITER column in: BetterUp · Oyster · Invoice Simple
-Paige,Paige,first_name_only,132,2024-08,2025-08,,Monthly Article Count → WRITER column in: 
-Cat,Cat,first_name_only,123,2023-07,2024-04,,Monthly Article Count → WRITER column in: Composer · EarnIn · Invoice Simple
-Martin,Martin,first_name_only,119,2023-06,2026-07,,Monthly Article Count → WRITER column in: Contra
-Miles,Miles,first_name_only,105,2022-04,2022-12,,Monthly Article Count → WRITER column in: Dynamite · Descript · Practice
-Curtis,Curtis,first_name_only,103,2023-01,2026-03,,Monthly Article Count → WRITER column in: Notion · Webflow · Neeva
-Tom,Tom,first_name_only,81,2022-12,2023-03,,Monthly Article Count → WRITER column in: Contra · BetterUp · Neeva
-Keenan,Keenan,first_name_only,76,2023-10,2026-12,,Monthly Article Count → WRITER column in: IronVest · dydx · EarnIn
-Joshua,Joshua,first_name_only,75,2023-08,2023-11,,Monthly Article Count → WRITER column in: Contra · Notion
-Jordan,Jordan,first_name_only,73,2025-03,2026-08,,Monthly Article Count → WRITER column in: 
-Meaghan,Meaghan,first_name_only,70,2022-07,2026-09,,Monthly Article Count → WRITER column in: Practice · Dynamite
-Lisa,Lisa,first_name_only,68,2024-05,2024-11,,Monthly Article Count → WRITER column in: Invoice Simple · Apartment List · Oyster
-Bonniey,Bonniey,first_name_only,68,2024-10,2026-12,,Monthly Article Count → WRITER column in: 
-Michael,Michael,first_name_only,67,2023-07,2026-07,,Monthly Article Count → WRITER column in: 
-CC,Cc,first_name_only,64,2023-05,2023-10,,Monthly Article Count → WRITER column in: Orderful
-Tyler,Tyler,first_name_only,62,2023-02,2026-01,,Monthly Article Count → WRITER column in: dydx · EarnIn · Webflow
-Prianca,Prianca,first_name_only,61,2023-08,2023-11,,Monthly Article Count → WRITER column in: Contra
-Candice,Candice,first_name_only,60,2023-09,2026-11,,Monthly Article Count → WRITER column in: Mirage · Linktree · Notion
-Mindy,Mindy,first_name_only,59,2024-11,2025-06,,Monthly Article Count → WRITER column in: 
-Jarrett,Jarrett,first_name_only,56,2024-04,2026-05,,Monthly Article Count → WRITER column in: Mirage
-Nick,Nick,first_name_only,47,2024-01,2024-03,,Monthly Article Count → WRITER column in: dydx · Invoice Simple
-Austin,Austin,first_name_only,45,2023-07,2024-04,,Monthly Article Count → WRITER column in: BetterUp · IronVest · EarnIn
-Jason,Jason,first_name_only,43,2022-03,2023-05,,Monthly Article Count → WRITER column in: Mailjet · Notion · Webflow
-Marinda,Marinda,first_name_only,42,2024-11,2025-03,,Monthly Article Count → WRITER column in: 
-GR0,Gr0,first_name_only,40,2024-01,2025-04,,Monthly Article Count → WRITER column in: Tempo.io · Grindr · Fishbowl
-James,James,first_name_only,37,2023-05,2024-09,,Monthly Article Count → WRITER column in: Scribe · Fellow · Orderful
-Christy,Christy,first_name_only,35,2024-04,2024-10,,Monthly Article Count → WRITER column in: Invoice Simple · Fishbowl · Fellow
-Shianne,Shianne,first_name_only,33,2021-12,2022-03,,Monthly Article Count → WRITER column in: Gopuff · Jaanuu
-Amanda,Amanda,first_name_only,31,2025-02,2025-08,,Monthly Article Count → WRITER column in: 
-Micah,Micah,first_name_only,29,2024-05,2024-08,,Monthly Article Count → WRITER column in: CoinTracker · Invoice Simple · dydx
-Braden,Braden,first_name_only,28,2024-07,2024-08,,Monthly Article Count → WRITER column in: EarnIn · CoinTracker · Invoice Simple
-Justine,Justine,first_name_only,26,2025-04,2025-06,,Monthly Article Count → WRITER column in: 
-Brad,Brad,first_name_only,24,2024-05,2026-07,,Monthly Article Count → WRITER column in: CoinTracker · Oyster · Invoice Simple
-Mike,Mike,first_name_only,23,2023-05,2025-06,,Monthly Article Count → WRITER column in: 
-Briley,Briley,first_name_only,23,2023-09,2024-04,,Monthly Article Count → WRITER column in: EarnIn
-Dave,Dave,first_name_only,21,2023-01,2024-05,,Monthly Article Count → WRITER column in: Oyster · Tempo.io · Invoice Simple
-Alyssa,Alyssa,first_name_only,18,2022-06,2024-02,,Monthly Article Count → WRITER column in: Notion · Tempo.io · OpenSea
-John,John,first_name_only,18,2023-05,2023-09,,Monthly Article Count → WRITER column in: Grindr · Notion
-Yonela,Yonela,first_name_only,17,2024-07,2024-08,,Monthly Article Count → WRITER column in: Fishbowl
-Marina,Marina,first_name_only,17,2023-08,2026-10,,Monthly Article Count → WRITER column in: Notion · Tempo.io
-Thea,Thea,first_name_only,14,2025-04,2025-07,,Monthly Article Count → WRITER column in: 
-Nicholas,Nicholas,first_name_only,13,2023-05,2023-05,,Monthly Article Count → WRITER column in: BetterUp · Contra
-Melissa,Melissa,first_name_only,13,2023-02,2023-04,,Monthly Article Count → WRITER column in: Linktree
-Roxana,Roxana,first_name_only,13,2024-10,2024-11,,Monthly Article Count → WRITER column in: Mirage
-Shelby,Shelby,first_name_only,11,2022-09,2023-08,,Monthly Article Count → WRITER column in: Curology · Tempo.io
-Madison,Madison,first_name_only,11,2024-09,2024-11,,Monthly Article Count → WRITER column in: Legit Security · Otter · Oyster
-Emeka,Emeka,first_name_only,10,2023-11,2026-12,,Monthly Article Count → WRITER column in: Webflow
-Kory,Kory,first_name_only,10,2022-10,2022-11,,Monthly Article Count → WRITER column in: ESGgo · Mailjet
-AI,Ai,first_name_only,10,2023-05,2026-04,,Monthly Article Count → WRITER column in: Webflow
-Neil,Neil,first_name_only,10,2022-08,2026-07,,Monthly Article Count → WRITER column in: OpenSea
-Megan,Megan,first_name_only,5,2022-04,2022-11,,Monthly Article Count → WRITER column in: Mailjet
-Yonela*,Yonela*,first_name_only,4,2024-05,2024-06,,Monthly Article Count → WRITER column in: Fishbowl
-Annabelle,Annabelle,first_name_only,3,2026-04,2026-05,,Monthly Article Count → WRITER column in: 
-Kyle,Kyle,first_name_only,3,2023-03,2023-04,,Monthly Article Count → WRITER column in: Contra
-freelancer,Freelancer,first_name_only,3,2025-09,2025-09,,Monthly Article Count → WRITER column in: Tempo.io · Engine
-Braden*,Braden*,first_name_only,3,2024-06,2024-06,,Monthly Article Count → WRITER column in: EarnIn · Webflow
-Paige*,Paige*,first_name_only,3,2024-07,2024-08,,Monthly Article Count → WRITER column in: Fishbowl
-Marriah*,Marriah*,first_name_only,3,2025-02,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Michael*,Michael*,first_name_only,3,2025-03,2025-06,,Monthly Article Count → WRITER column in: Mirage · Gainbridge · Otter
-Alison,Alison,first_name_only,2,2023-05,2023-05,,Monthly Article Count → WRITER column in: Orderful
-Dominique,Dominique,first_name_only,2,2025-04,2025-05,,Monthly Article Count → WRITER column in: ThredUp
-Roxana*,Roxana*,first_name_only,2,2024-10,2024-10,,Monthly Article Count → WRITER column in: Otter
-Dave/Kevin,Dave/Kevin,first_name_only,2,2023-01,2023-01,,Monthly Article Count → WRITER column in: BetterUp
-Lisa*,Lisa*,first_name_only,2,2024-05,2024-05,,Monthly Article Count → WRITER column in: Invoice Simple
-Ellie*,Ellie*,first_name_only,2,2025-03,2025-04,,Monthly Article Count → WRITER column in: Mirage
-Catherine,Catherine,first_name_only,2,2023-07,2023-07,,Monthly Article Count → WRITER column in: Orderful
-audition,Audition,first_name_only,2,2025-07,2025-09,,Monthly Article Count → WRITER column in: Rox · Smartling
-Emle,Emle,first_name_only,2,2024-10,2026-01,,Monthly Article Count → WRITER column in: Webflow
-Matt,Matt,first_name_only,2,2022-06,2022-06,,Monthly Article Count → WRITER column in: OpenSea
-Kendra,Kendra,first_name_only,2,2023-05,2023-05,,Monthly Article Count → WRITER column in: Webflow
-Madison*,Madison*,first_name_only,2,2024-08,2024-09,,Monthly Article Count → WRITER column in: Legit Security
-Alyson*,Alyson*,first_name_only,2,2024-11,2024-11,,Monthly Article Count → WRITER column in: Otter
-Kimberley,Kimberley,first_name_only,2,2025-09,2025-09,,Monthly Article Count → WRITER column in: 
-Yulia,Yulia,first_name_only,2,2024-04,2024-05,,Monthly Article Count → WRITER column in: Tempo.io
-Morgan,Morgan,first_name_only,2,2025-06,2025-06,,Monthly Article Count → WRITER column in: Engine
-Mikayla,Mikayla,first_name_only,2,2024-11,2024-12,,Monthly Article Count → WRITER column in: Mirage
-Britt*,Britt*,first_name_only,2,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Liam,Liam,first_name_only,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: EarnIn B2B
-Jerry,Jerry,first_name_only,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: Orderful 2
-Aby,Aby,first_name_only,1,2026-05,2026-05,,Monthly Article Count → WRITER column in: 
-Jose,Jose,first_name_only,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: Smartling
-Justin,Justin,first_name_only,1,2024-04,2024-04,,Monthly Article Count → WRITER column in: Fellow
-Savanna*,Savanna*,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Jemma,Jemma,first_name_only,1,2024-02,2024-02,,Monthly Article Count → WRITER column in: Mirage
-Marinda*,Marinda*,first_name_only,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: Gainbridge
-Dakota*,Dakota*,first_name_only,1,2024-09,2024-09,,Monthly Article Count → WRITER column in: EarnIn
-Cianna*,Cianna*,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: EarnIn
-Gabyrel,Gabyrel,first_name_only,1,2023-08,2023-08,,Monthly Article Count → WRITER column in: BetterUp
-Mindy*,Mindy*,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: Legit Security
-Liana*,Liana*,first_name_only,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: Moss
-JJ*,Jj*,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: Legit Security
-Genie*,Genie*,first_name_only,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: Better
-Mariah,Mariah,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Meesha,Meesha,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: dydx
-Hannah*,Hannah*,first_name_only,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: Fishbowl
-Lauren,Lauren,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: Tempo.io
-Renee*,Renee*,first_name_only,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: Otter
-Blain,Blain,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: Mirage
-Kasey*,Kasey*,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: Blu
-Ke,Ke,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: 
-Marcin,Marcin,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: Oyster
-Ayşenur,Ayşenur,first_name_only,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: 
-Tara*,Tara*,first_name_only,1,2024-09,2024-09,,Monthly Article Count → WRITER column in: EarnIn
-Cheslea,Cheslea,first_name_only,1,2024-04,2024-04,,Monthly Article Count → WRITER column in: Quinn
-Claire*,Claire*,first_name_only,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: Gainbridge
-Hannah,Hannah,first_name_only,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: EarnIn B2B
-Karisa,Karisa,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Daniele,Daniele,first_name_only,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: 
-Andrea*,Andrea*,first_name_only,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-https://docs.google.com/document/d/1ic2n_uoNdMktXBDNhhrWDsjYfT3g-1Vdf9HJolyTeyE/edit,Https://Docs.Google.Com/Document/D/1Ic2N_Uondmktxbdnhhrwdsjyft3G-1Vdf9Hjolyteye/Edit,first_name_only,1,2021-11,2021-11,,Monthly Article Count → WRITER column in: Athena
-Gr0,Gr0,first_name_only,1,2024-01,2024-01,,Monthly Article Count → WRITER column in: Grindr
-Trichelle,Trichelle,first_name_only,1,2024-12,2024-12,,Monthly Article Count → WRITER column in: Mirage
-Josh*,Josh*,first_name_only,1,2024-10,2024-10,,Monthly Article Count → WRITER column in: Otter
-Matthew,Matthew,first_name_only,1,2024-11,2024-11,,Monthly Article Count → WRITER column in: Mirage
-Camile,Camile,first_name_only,1,2022-03,2022-03,,Monthly Article Count → WRITER column in: Athena
-?,,junk,2,2025-08,2025-08,,Monthly Article Count → WRITER column in: Legit Security
-^^,,junk,2,,,,Monthly Article Count → WRITER column in: Webflow
-^,,junk,1,,,,Monthly Article Count → WRITER column in: Otter
-Trial writer,,trial,49,2025-09,2026-05,,Monthly Article Count → WRITER column in: Vimeo · Pylon · Moss
-Trial Writer,,trial,30,2025-11,2026-06,,Monthly Article Count → WRITER column in: Fivetran · ShareGate · Workleap
-trial writer,,trial,5,2025-09,2026-05,,Monthly Article Count → WRITER column in: Moss · Boulevard · Legit Security
-trial writer (no name in doc),,trial,3,2025-08,2025-09,,Monthly Article Count → WRITER column in: CoinTracker
-Jordan F (aud writer),,trial,2,2025-03,2025-03,,Monthly Article Count → WRITER column in: CoinTracker
-writer trial,,trial,2,2023-05,2025-09,,Monthly Article Count → WRITER column in: Notion · Tempo.io
-trial,,trial,1,2025-04,2025-04,,Monthly Article Count → WRITER column in: Athena2
-Trial,,trial,1,2026-04,2026-04,,Monthly Article Count → WRITER column in: Engine
-trial writer Michael Davis,,trial,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: Oyster
-Cynthia (trial writer),,trial,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: Legit Security
-trial writer Genie Davis,,trial,1,2025-05,2025-05,,Monthly Article Count → WRITER column in: Oyster
-trial writer jose triana,,trial,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: Oyster
-Jordan F (aud writer)*,,trial,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: CoinTracker
-Spencer (trial),,trial,1,2025-11,2025-11,,Monthly Article Count → WRITER column in: Workleap
-Michael D (aud writer)*,,trial,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: CoinTracker
-Brian (trial),,trial,1,2025-08,2025-08,,Monthly Article Count → WRITER column in: Engine
-Amanda W (aud writer),,trial,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: Orderful 2
-Auditioning writer (Kimberly),,trial,1,2025-06,2025-06,,Monthly Article Count → WRITER column in: Oyster
-John T,,unresolved,24,2023-07,2023-09,,Monthly Article Count → WRITER column in: Notion · Tempo.io
-crowd content,,unresolved,23,2023-03,2026-04,,Monthly Article Count → WRITER column in: Notion
-Austin DeNoce,,unresolved,10,2026-09,2026-10,,Monthly Article Count → WRITER column in: Webflow
-Michael D,,unresolved,8,2025-03,2025-08,,Monthly Article Count → WRITER column in: 
-writer audition,,unresolved,5,2025-05,2025-09,,Monthly Article Count → WRITER column in: Athena2 · EarnIn B2B · Smartling
-Naomi *,,unresolved,2,2025-05,2025-06,,Monthly Article Count → WRITER column in: Smartling
-David Chang*,,unresolved,2,2024-05,2024-06,,Monthly Article Count → WRITER column in: Tempo.io
-Chris Tepedino*,,unresolved,2,2025-02,2025-02,,Monthly Article Count → WRITER column in: CoinTracker
-Grace Anne*,,unresolved,2,2025-03,2025-03,,Monthly Article Count → WRITER column in: Mirage
-Michael D.,,unresolved,1,2025-07,2025-07,,Monthly Article Count → WRITER column in: 
-New writer,,unresolved,1,2023-01,2023-01,,Monthly Article Count → WRITER column in: Notion
-Marina D,,unresolved,1,2023-10,2023-10,,Monthly Article Count → WRITER column in: Notion
-michael davis,,unresolved,1,2025-03,2025-03,,Monthly Article Count → WRITER column in: CoinTracker
-freelance test,,unresolved,1,2023-08,2023-08,,Monthly Article Count → WRITER column in: Tempo.io
-Braden (REWRITTEN BY ERIC 6/3/25),,unresolved,1,2024-07,2024-07,,Monthly Article Count → WRITER column in: CoinTracker
-Dave G,,unresolved,1,2024-05,2024-05,,Monthly Article Count → WRITER column in: Webflow
-Thomas Hinds,,unresolved,1,2025-01,2025-01,,Monthly Article Count → WRITER column in: Tempo.io
+raw_in_sheet,resolved_writer,articles,first_month,last_month,source_of_truth
+?,?,2,2025-08,2025-08,DaniQ confirmation
+AI,AI,5,2023-05,2026-04,DaniQ confirmation
+Abby,Abby Norwood,371,2023-01,2026-10,DaniQ confirmation
+Aby,Abby Norwood,1,2026-05,2026-05,DaniQ confirmation
+Adaeze,Adaeze Nwakaeze,248,2024-11,2026-06,DaniQ confirmation
+Adaeze*,Adaeze Nwakaeze,1,2024-11,2024-11,DaniQ confirmation
+Alex,Alex Shoemaker,107,2024-11,2026-01,DaniQ confirmation
+Alex (audition),Alex Shoemaker,2,2025-07,2025-09,DaniQ confirmation
+Alex*,Alex Shoemaker,2,2024-11,2025-06,DaniQ confirmation
+Alison,Alison,1,2023-05,2023-05,DaniQ confirmation
+Alyson*,Alyson*,2,2024-11,2024-11,DaniQ confirmation
+Alyssa,Alyssa,18,2022-06,2024-02,DaniQ confirmation
+Amanda W (aud writer),Amanda W (aud writer),1,2025-03,2025-03,DaniQ confirmation
+Amanda,Amanda Walgrove,31,2025-02,2025-08,DaniQ confirmation
+Anabelle,Anabelle Zaluski,28,2024-01,2026-06,DaniQ confirmation
+Annabelle,Anabelle Zaluski,3,2026-04,2026-05,DaniQ confirmation
+Andrea*,Andrea*,1,2025-03,2025-03,DaniQ confirmation
+Andre,Andrew Blackman,4,2022-02,2025-02,DaniQ confirmation
+Andrew,Andrew Blackman,78,2025-12,2026-06,DaniQ confirmation
+Aranyak,Aranyak Nanda,642,2019-09,2026-12,DaniQ confirmation
+Ashton,Ashton Playsted,467,2021-11,2026-08,DaniQ confirmation
+Auditioning writer (Kimberly),Auditioning writer (Kimberly),1,2025-06,2025-06,DaniQ confirmation
+Austin,Austin,44,2023-07,2024-04,DaniQ confirmation
+Austin DeNoce,Austin DeNoce,10,2026-09,2026-10,DaniQ confirmation
+Aysenur,Aysenur Zaza,92,2025-08,2026-10,DaniQ confirmation
+Ayşenur,Aysenur Zaza,1,2025-08,2025-08,DaniQ confirmation
+Blain,Blain,1,2024-10,2024-10,DaniQ confirmation
+Bonniey,Bonniey Josef,68,2024-10,2026-12,DaniQ confirmation
+Brad,Brad,24,2024-05,2026-07,DaniQ confirmation
+Braden,Braden,28,2024-07,2024-08,DaniQ confirmation
+Braden*,Braden*,2,2024-06,2024-06,DaniQ confirmation
+Brandon,Brandon Morgan,30,2026-04,2026-06,DaniQ confirmation
+Brandon*,Brandon Morgan,1,2025-06,2025-06,DaniQ confirmation
+Brian (trial),Brian (trial),1,2025-08,2025-08,DaniQ confirmation
+Brian,Brian Abrams,89,2025-08,2026-03,DaniQ confirmation
+Brian A,Brian Abrams,1,2025-08,2025-08,DaniQ confirmation
+Brian*,Brian Abrams,2,2025-08,2025-08,DaniQ confirmation
+Briley,Briley,21,2023-09,2024-04,DaniQ confirmation
+Britt*,Britt*,2,2025-03,2025-03,DaniQ confirmation
+CC,CC,59,2023-05,2023-10,DaniQ confirmation
+CJ,CJ,174,2023-10,2026-11,DaniQ confirmation
+Camile,Camile,1,2022-03,2022-03,DaniQ confirmation
+Camille,Camille Tovee,669,2022-02,2026-12,DaniQ confirmation
+Camille Tovee,Camille Tovee,4,2024-01,2024-01,DaniQ confirmation
+Candice,Candice,54,2023-09,2026-11,DaniQ confirmation
+Cat,Cat,89,2023-07,2024-04,DaniQ confirmation
+Catherine,Catherine,2,2023-07,2023-07,DaniQ confirmation
+Chantel,Chantel,158,2022-02,2026-11,DaniQ confirmation
+Chels,Chelsea Oliver,17,2025-02,2025-05,DaniQ confirmation
+Chelsea,Chelsea Oliver,814,2022-10,2026-11,DaniQ confirmation
+Cheslea,Cheslea,1,2024-04,2024-04,DaniQ confirmation
+Chris Tepedino*,Chris Tepedino*,2,2025-02,2025-02,DaniQ confirmation
+Christy,Christy,35,2024-04,2024-10,DaniQ confirmation
+Cianna*,Cianna*,1,2024-12,2024-12,DaniQ confirmation
+Claire,Claire,165,2022-02,2024-12,DaniQ confirmation
+Claire*,Claire*,1,2024-11,2024-11,DaniQ confirmation
+Curtis,Curtis,93,2023-01,2026-03,DaniQ confirmation
+Cynthia (trial writer),Cynthia (trial writer),1,2025-08,2025-08,DaniQ confirmation
+Dakota*,Dakota*,1,2024-09,2024-09,DaniQ confirmation
+Dan,Dan,1,2025-05,2025-05,DaniQ confirmation
+Dan*,Dan*,2,2025-05,2025-05,DaniQ confirmation
+Dana,Dana,211,2022-01,2026-07,DaniQ confirmation
+Dani,Dani,1,2025-09,2025-09,DaniQ confirmation
+Dan,Daniel Pelberg,27,2025-06,2025-08,DaniQ confirmation
+Daniel,Daniel Pelberg,2,2025-08,2025-08,DaniQ confirmation
+Daniela,Daniela,4,2025-09,2025-10,DaniQ confirmation
+Daniele,Danielle MacKinlay,1,2025-07,2025-07,DaniQ confirmation
+Danielle,Danielle MacKinlay,152,2024-10,2026-05,DaniQ confirmation
+Dave,Dave,20,2023-01,2024-05,DaniQ confirmation
+Dave G,Dave G,1,2024-05,2024-05,DaniQ confirmation
+David Chang*,David Chang*,2,2024-05,2024-06,DaniQ confirmation
+Dominique,Dominique,2,2025-04,2025-05,DaniQ confirmation
+Eleanor,Eleanor Pitkin,54,2026-01,2026-06,DaniQ confirmation
+Ellie*,Ellie*,2,2025-03,2025-04,DaniQ confirmation
+Emeka,Emeka,10,2023-11,2026-12,DaniQ confirmation
+Emile,Emile,388,2020-12,2026-12,DaniQ confirmation
+Emily,Emily Pitkin,37,2025-11,2026-11,DaniQ confirmation
+Emle,Emle,2,2024-10,2026-01,DaniQ confirmation
+Eric,Eric Esposito,1008,2022-03,2026-12,DaniQ confirmation
+Eric E,Eric Esposito,17,2023-10,2024-11,DaniQ confirmation
+Eric E.,Eric Esposito,1,2023-08,2023-08,DaniQ confirmation
+GR0,GR0,40,2024-01,2025-04,DaniQ confirmation
+Gabryel,Gabryel,210,2022-11,2023-10,DaniQ confirmation
+Gabyrel,Gabyrel,1,2023-08,2023-08,DaniQ confirmation
+Garret,Garrett Schlichte,1,2024-09,2024-09,DaniQ confirmation
+Garrett,Garrett Schlichte,36,2024-05,2024-10,DaniQ confirmation
+Genie*,Genie*,1,2025-05,2025-05,DaniQ confirmation
+Gr0,Gr0,1,2024-01,2024-01,DaniQ confirmation
+Grace Anne*,Grace Anne*,2,2025-03,2025-03,DaniQ confirmation
+Haley,Haley Drucker,10,2023-05,2025-11,DaniQ confirmation
+Hannah,Hannah,1,2025-06,2025-06,DaniQ confirmation
+Hannah*,Hannah*,1,2025-06,2025-06,DaniQ confirmation
+JJ*,JJ*,1,2024-10,2024-10,DaniQ confirmation
+Jack,Jack Limebear,129,2025-01,2026-11,DaniQ confirmation
+Jacob,Jacob McPhail,116,2025-01,2026-06,DaniQ confirmation
+Jacob*,Jacob McPhail,2,2025-01,2025-01,DaniQ confirmation
+James,James,35,2023-05,2024-09,DaniQ confirmation
+Jarrett,Jarrett,56,2024-04,2026-05,DaniQ confirmation
+Jason,Jason,40,2022-03,2023-05,DaniQ confirmation
+Jemma,Jemma,1,2024-02,2024-02,DaniQ confirmation
+Jerry,Jerry,1,2024-11,2024-11,DaniQ confirmation
+JImmy,Jimmy Bunes,1,2025-03,2025-03,DaniQ confirmation
+Jimmy,Jimmy Bunes,201,2024-05,2026-08,DaniQ confirmation
+Jimmy*,Jimmy Bunes,1,2024-05,2024-05,DaniQ confirmation
+John,John,18,2023-05,2023-09,DaniQ confirmation
+John T,John T,24,2023-07,2023-09,DaniQ confirmation
+Jordan F (aud writer),Jordan F (aud writer),2,2025-03,2025-03,DaniQ confirmation
+Jordan F (aud writer)*,Jordan F (aud writer)*,1,2025-03,2025-03,DaniQ confirmation
+Jordan,Jordan Finneseth,73,2025-03,2026-08,DaniQ confirmation
+Jose,Jose,1,2025-05,2025-05,DaniQ confirmation
+Josh*,Josh*,1,2024-10,2024-10,DaniQ confirmation
+Joshua,Joshua,49,2023-08,2023-11,DaniQ confirmation
+Justin,Justin,1,2024-04,2024-04,DaniQ confirmation
+Justine,Justine Jade Smith,26,2025-04,2025-06,DaniQ confirmation
+Karisa,Karisa,1,2025-03,2025-03,DaniQ confirmation
+Kasey*,Kasey*,1,2024-12,2024-12,DaniQ confirmation
+Keenan,Keenan,63,2023-10,2026-12,DaniQ confirmation
+Kendra,Kendra,1,2023-05,2023-05,DaniQ confirmation
+Kennedy,Kennedy Stevens,1,2024-05,2024-05,DaniQ confirmation
+Ke,Kevin Vaughn,1,2025-03,2025-03,DaniQ confirmation
+Kev,Kevin Vaughn,95,2024-05,2026-02,DaniQ confirmation
+Kevin,Kevin Vaughn,645,2022-11,2026-12,DaniQ confirmation
+Kevin`,Kevin Vaughn,1,2024-04,2024-04,DaniQ confirmation
+kevin,Kevin Vaughn,3,2025-12,2026-02,DaniQ confirmation
+KIMBERLY,Kimberly Kruge,3,2024-01,2024-02,DaniQ confirmation
+Kim,Kimberly Kruge,2,2022-07,2025-11,DaniQ confirmation
+Kimberley,Kimberly Kruge,2,2025-09,2025-09,DaniQ confirmation
+Kimberly,Kimberly Kruge,949,2021-03,2026-04,DaniQ confirmation
+Kimberly*,Kimberly Kruge,1,2025-07,2025-07,DaniQ confirmation
+Kory,Kory,6,2022-10,2022-11,DaniQ confirmation
+Kyle,Kyle,3,2023-03,2023-04,DaniQ confirmation
+Laura,Laura Soler,19,2026-04,2026-06,DaniQ confirmation
+Lauren,Lauren,1,2024-12,2024-12,DaniQ confirmation
+Lee,Lee Anderson,2,2025-11,2025-11,DaniQ confirmation
+Liam,Liam,1,2025-05,2025-05,DaniQ confirmation
+Liana*,Liana*,1,2025-08,2025-08,DaniQ confirmation
+Linda,Linda L. Armstrong,47,2026-01,2026-06,DaniQ confirmation
+Lisa,Lisa,68,2024-05,2024-11,DaniQ confirmation
+Lisa*,Lisa*,2,2024-05,2024-05,DaniQ confirmation
+Madison,Madison,11,2024-09,2024-11,DaniQ confirmation
+Madison*,Madison*,2,2024-08,2024-09,DaniQ confirmation
+Marcin,Marcin,1,2024-10,2024-10,DaniQ confirmation
+Mariah,Mariah,1,2025-03,2025-03,DaniQ confirmation
+Marina,Marina,17,2023-08,2026-10,DaniQ confirmation
+Marina D,Marina D,1,2023-10,2023-10,DaniQ confirmation
+Marinda,Marinda Stuiver,42,2024-11,2025-03,DaniQ confirmation
+Marinda*,Marinda*,1,2024-11,2024-11,DaniQ confirmation
+Mark,Mark,183,2022-03,2026-12,DaniQ confirmation
+Marriah*,Marriah*,3,2025-02,2025-03,DaniQ confirmation
+Martin,Martin,79,2023-06,2026-07,DaniQ confirmation
+Matt,Matt,2,2022-06,2022-06,DaniQ confirmation
+Matthew,Matthew,1,2024-11,2024-11,DaniQ confirmation
+Meaghan,Meaghan,59,2022-07,2026-09,DaniQ confirmation
+Meesha,Meesha,1,2024-10,2024-10,DaniQ confirmation
+Megan,Megan,5,2022-04,2022-11,DaniQ confirmation
+Melissa,Melissa,8,2023-02,2023-04,DaniQ confirmation
+Meredith,Meredith Kane,204,2020-10,2026-06,DaniQ confirmation
+Meredith*,Meredith Kane,2,2025-03,2025-06,DaniQ confirmation
+meredith,Meredith Kane,1,2026-06,2026-06,DaniQ confirmation
+Micah,Micah,29,2024-05,2024-08,DaniQ confirmation
+Michael D (aud writer)*,Michael D (aud writer)*,1,2025-03,2025-03,DaniQ confirmation
+Michael,Michael Davis,64,2023-07,2026-07,DaniQ confirmation
+Michael D,Michael Davis,8,2025-03,2025-08,DaniQ confirmation
+Michael D.,Michael Davis,1,2025-07,2025-07,DaniQ confirmation
+Mike,Michael Ray,23,2023-05,2025-06,DaniQ confirmation
+Michael*,Michael*,3,2025-03,2025-06,DaniQ confirmation
+Mikayla,Mikayla,2,2024-11,2024-12,DaniQ confirmation
+Miles,Miles,98,2022-04,2022-12,DaniQ confirmation
+Mindy,Mindy Born,57,2024-11,2025-06,DaniQ confirmation
+Mindy*,Mindy*,1,2024-12,2024-12,DaniQ confirmation
+Morgan,Morgan,2,2025-06,2025-06,DaniQ confirmation
+Nadia,Nadia Hlebowitsh,74,2025-03,2026-06,DaniQ confirmation
+Naomi *,Naomi *,2,2025-05,2025-06,DaniQ confirmation
+Neil,Neil,10,2022-08,2026-07,DaniQ confirmation
+New writer,New writer,1,2023-01,2023-01,DaniQ confirmation
+Nicholas,Nicholas,13,2023-05,2023-05,DaniQ confirmation
+Nick,Nick,27,2024-01,2024-03,DaniQ confirmation
+Owen,Owen Murray,95,2026-01,2026-06,DaniQ confirmation
+Paige,Paige Greene,132,2024-08,2025-08,DaniQ confirmation
+Paige*,Paige*,3,2024-07,2024-08,DaniQ confirmation
+Pat,Patrick Sather,120,2023-11,2026-01,DaniQ confirmation
+Patrick,Patrick Sather,12,2023-09,2025-11,DaniQ confirmation
+Pau,Paulina Karadajiyan,5,2026-01,2026-01,DaniQ confirmation
+Paul,Paulina Karadajiyan,4,2023-10,2023-12,DaniQ confirmation
+Paulina,Paulina Karadajiyan,14,2025-11,2026-02,DaniQ confirmation
+Prianca,Prianca,35,2023-08,2023-11,DaniQ confirmation
+Renee*,Renee*,1,2025-06,2025-06,DaniQ confirmation
+Rich,Rich Dezso,241,2024-12,2026-06,DaniQ confirmation
+Richard,Rich Dezso,61,2024-10,2026-06,DaniQ confirmation
+Richard*,Rich Dezso,2,2024-10,2024-10,DaniQ confirmation
+Rob,Rob Harper,373,2021-10,2026-10,DaniQ confirmation
+Rob Harper - audtition,Rob Harper,2,2023-12,2023-12,DaniQ confirmation
+Robert,Robert Thorpe,134,2022-10,2026-12,DaniQ confirmation
+Rocco,Rocco Pendola,212,2020-10,2026-09,DaniQ confirmation
+Rocco*,Rocco Pendola,2,2025-02,2025-02,DaniQ confirmation
+Roxana,Roxana,13,2024-10,2024-11,DaniQ confirmation
+Roxana*,Roxana*,2,2024-10,2024-10,DaniQ confirmation
+Samaara,Samaara,181,2022-01,2026-09,DaniQ confirmation
+Sam,Samantha McGrail,143,2024-04,2026-06,DaniQ confirmation
+Sam*,Samantha McGrail,1,2024-12,2024-12,DaniQ confirmation
+Sara,Sarah Foley,95,2019-09,2026-09,DaniQ confirmation
+Sarah,Sarah Foley,176,2023-07,2026-10,DaniQ confirmation
+Sarah H,Sarah Foley,93,2023-08,2024-04,DaniQ confirmation
+Sarah*,Sarah Foley,2,2024-09,2024-09,DaniQ confirmation
+Savanna*,Savanna*,1,2025-03,2025-03,DaniQ confirmation
+Shannon,Shannon Canuelle,23,2024-07,2024-10,DaniQ confirmation
+Shannon*,Shannon Canuelle,2,2024-06,2024-07,DaniQ confirmation
+Shelby,Shelby,11,2022-09,2023-08,DaniQ confirmation
+Shianne,Shianne,33,2021-12,2022-03,DaniQ confirmation
+Spencer (trial),Spencer (trial),1,2025-11,2025-11,DaniQ confirmation
+Tam,Tamara Siklosi,12,2025-09,2026-03,DaniQ confirmation
+Tamara,Tamara Siklosi,107,2025-09,2026-06,DaniQ confirmation
+Tara*,Tara*,1,2024-09,2024-09,DaniQ confirmation
+Telisa,Telisa Faye,109,2025-04,2025-12,DaniQ confirmation
+Telisa*,Telisa Faye,2,2025-03,2025-04,DaniQ confirmation
+Tessina,Tessina Grant,74,2025-08,2026-06,DaniQ confirmation
+Thea,Thea Atkinson,14,2025-04,2025-07,DaniQ confirmation
+Thomas Hinds,Thomas Hinds,1,2025-01,2025-01,DaniQ confirmation
+Tim,Tim Suleyman,49,2023-08,2026-06,DaniQ confirmation
+Tom,Tom,66,2022-12,2023-03,DaniQ confirmation
+Trial,Trial,1,2026-04,2026-04,DaniQ confirmation
+Trial Writer,Trial Writer,30,2025-11,2026-06,DaniQ confirmation
+Trial writer,Trial writer,49,2025-09,2026-05,DaniQ confirmation
+Trichelle,Trichelle,1,2024-12,2024-12,DaniQ confirmation
+Tyler,Tyler,48,2023-02,2026-01,DaniQ confirmation
+Yonela,Yonela,17,2024-07,2024-08,DaniQ confirmation
+Yonela*,Yonela*,4,2024-05,2024-06,DaniQ confirmation
+Yulia,Yulia,2,2024-04,2024-05,DaniQ confirmation
+^,^,1,,,DaniQ confirmation
+^^,^^,2,,,DaniQ confirmation
+audition,audition,2,2025-07,2025-09,DaniQ confirmation
+crowd content,crowd content,23,2023-03,2026-04,DaniQ confirmation
+freelance test,freelance test,1,2023-08,2023-08,DaniQ confirmation
+freelancer,freelancer,3,2025-09,2025-09,DaniQ confirmation
+michael davis,michael davis,1,2025-03,2025-03,DaniQ confirmation
+trial,trial,1,2025-04,2025-04,DaniQ confirmation
+trial writer,trial writer,5,2025-09,2026-05,DaniQ confirmation
+trial writer (no name in doc),trial writer (no name in doc),3,2025-08,2025-09,DaniQ confirmation
+trial writer Genie Davis,trial writer Genie Davis,1,2025-05,2025-05,DaniQ confirmation
+trial writer Michael Davis,trial writer Michael Davis,1,2025-05,2025-05,DaniQ confirmation
+trial writer jose triana,trial writer jose triana,1,2025-06,2025-06,DaniQ confirmation
+writer audition,writer audition,5,2025-05,2025-09,DaniQ confirmation
+writer trial,writer trial,2,2023-05,2025-09,DaniQ confirmation

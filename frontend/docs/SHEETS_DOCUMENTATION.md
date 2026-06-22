@@ -2,9 +2,9 @@
 
 > **Last reviewed:** 2026-04-18
 > **Companion docs:**
-> - [`/.docs/dashboard-data-flow.md`](../../.docs/dashboard-data-flow.md) — dashboard → source mapping + CP v2 migration plan
-> - [`/.docs/sheet-inventory.md`](../../.docs/sheet-inventory.md) — which sheets we use vs skip
-> - [`/CAPACITY_PLANNING_V2.md`](../../CAPACITY_PLANNING_V2.md) — target `cp2_*` schema
+> - [`/memory/10-reference/dashboard-data-flow.md`](../../memory/10-reference/dashboard-data-flow.md) — dashboard → source mapping + CP v2 migration plan
+> - [`/memory/10-reference/sheet-inventory.md`](../../memory/10-reference/sheet-inventory.md) — which sheets we use vs skip
+> - [`/CAPACITY_PLANNING_V2.md`](../../memory/50-sources/specs/CAPACITY_PLANNING_V2.md) — target `cp2_*` schema
 
 Field-by-field explanation of every Google Sheet that feeds the Hub. When an
 entry says "derived," that column is a formula in the sheet and should become a
@@ -390,7 +390,7 @@ each sheet above gets one canonical destination:
 | Writer AI Monitoring | `ai_monitoring_records`, `surfer_api_usage` | `cp2_fact_ai_scan`, `cp2_fact_surfer_api_usage` | Add writer/editor FKs |
 | Notion Database | `notion_articles` | `cp2_fact_article` | Fuzzy-match writer/editor names to FK |
 
-See [`/.docs/dashboard-data-flow.md`](../../.docs/dashboard-data-flow.md) for the phased cutover order.
+See [`/memory/10-reference/dashboard-data-flow.md`](../../memory/10-reference/dashboard-data-flow.md) for the phased cutover order.
 
 ## How to update this doc
 

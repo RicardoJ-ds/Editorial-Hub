@@ -127,11 +127,11 @@ class MemberUtilizationRow(BaseModel):
     capacity: int | None
     matched: bool
     articles: int
-    pct_allocation: float          # 0–1
-    pct_distribution: float        # 0–1
-    projected_used: float          # member's share of pod raw projected
-    actual_used: float             # member's share of pod raw actual (fallback)
-    pct_util_real: float | None    # actual_used ÷ capacity
+    pct_allocation: float  # 0–1
+    pct_distribution: float  # 0–1
+    projected_used: float  # member's share of pod raw projected
+    actual_used: float  # member's share of pod raw actual (fallback)
+    pct_util_real: float | None  # actual_used ÷ capacity
     pct_util_weighted: float | None  # actual_used ÷ projected_used
     # Pod context (same for every member of the pod)
     pod_total_capacity: int
@@ -141,7 +141,7 @@ class MemberUtilizationRow(BaseModel):
     pod_projected_weighted: float
     pod_actual_weighted: float
     pod_util_projected_weighted: float | None  # pod weighted projected ÷ total cap
-    pod_util_actual_weighted: float | None     # pod weighted actual ÷ total cap
+    pod_util_actual_weighted: float | None  # pod weighted actual ÷ total cap
 
 
 async def _fetch_month_inputs(
@@ -301,13 +301,9 @@ async def client_contributions(
     ids = [r["client_id"] for r in cph]
     names: dict[int, str] = {}
     if ids:
-        for c in (
-            await db.execute(select(Client.id, Client.name).where(Client.id.in_(ids)))
-        ).all():
+        for c in (await db.execute(select(Client.id, Client.name).where(Client.id.in_(ids)))).all():
             names[c.id] = c.name
-    return [
-        ClientContributionRow(**r) for r in compute_client_contributions(cph, ph, names)
-    ]
+    return [ClientContributionRow(**r) for r in compute_client_contributions(cph, ph, names)]
 
 
 @router.get("/{capacity_id}", response_model=CapacityResponse)
