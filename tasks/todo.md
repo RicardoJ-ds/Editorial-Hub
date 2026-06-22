@@ -15,19 +15,32 @@ Goal: **Neon = thin app-state only**; **BigQuery = all ingested/analytical data 
 - **BQ is not transactional** → single in-memory ingestion pass, no intra-sync round-trips.
 - Two active sessions on the repo — coordinate before committing/pushing.
 
-## Phase 0 — baseline
-- [ ] Commit uncommitted tree (clean baseline, no push) — incl. the other session's Slack/Notion cutover
-- [ ] Plan → this file
+## Phase 0 — baseline ✅ DONE (2026-06-23)
+- [x] Commit uncommitted tree (clean baseline, no push) — `c41dbe7` (84 files; gate: ruff/format/mypy/tsc green, semgrep 11 pre-existing skipped)
+- [x] Plan → this file
 
-## Phase 1 — Mappings → BigQuery
-- [ ] Design `editorial_name_map` (BQ): kind · raw_value · canonical_value · canonical_id · valid_from/to · status · source · note · updated_at
-- [ ] Builder: origin-fed (Slack writers / Rippling editors / SF clients) + port ALL existing aliases (`article_name_aliases`, `client_name_aliases`, `pod_name_overrides`, 4 JSON dicts, in-code dicts) — zero loss
+## /GOAL (2026-06-23) — deliver the whole plan, validated, without breaking the Hub
+Ship the normalization to prod NOW (existing Neon mechanism), validate end-to-end, then migrate
+mappings to BigQuery and only THEN delete the Neon things — **ETL verified before any deletion.**
+Finish the other session's plan (writers→Slack propagation + sheet refresh). CP v2 = removable.
+
+## Phase 1 — SHIP normalization to prod NOW (existing Neon mechanism)
+- [x] Writer loader exists (`build_mappings --apply-writer-aliases`)
+- [ ] Add `--apply-editor-aliases` (confirmed + windowed) loader  ← editors (Tiffany→Tiffany Anderson, Sam windows)
+- [ ] (clients: handle separately w/ confirmation — higher blast radius)
+- [ ] Regen mappings (`build_mappings`, prod env, Slack-fed) → apply writers+editors to prod `article_name_aliases`
+- [ ] Re-sync Monthly Article Count on prod + warehouse publish → `article_records` canonical
+- [ ] `sheet_standardize --apply` → proposal sheet STANDARD columns show canonical names
+- [ ] VALIDATE: Fivetran spot-check (Aysenur→Aysenur Zaza, Tiffany→Tiffany Anderson) + parity gate + dashboards
+
+## Phase 1b — Migrate mappings to BigQuery (then drop Neon — GATED on validation)
+- [ ] Design `editorial_name_map` (BQ): kind · raw_value · canonical_value · canonical_id · valid_from/to · status · source · note
+- [ ] Builder: origin-fed (Slack/Rippling/SF) + port ALL aliases (zero loss)
 - [ ] `name_map_bq.py` reader (`fetch_name_map(kind)`, windowed) — `notion_bq` pattern
-- [ ] Repoint importer resolution (`_alias_map`/`_alias_resolve`/`_build_client_name_lookup`/`_resolve_client` + growth-pod override) → BQ
-- [ ] Repoint warehouse `build.py:543/548` → BQ map
-- [ ] Google Sheet "Editorial Name Mappings" (Writers/Editors/Clients) → BQ sync (manifest step)
-- [ ] Re-sync + publish → verify prod names canonical; parity gate
-- [ ] Retire 3 manual-edit endpoints; DQ tabs → read-only "what's unmapped" pointers
+- [ ] Repoint importer + warehouse `build.py:543/548` reads → BQ (ADD read, keep Neon fallback)
+- [ ] Google Sheet "Editorial Name Mappings" → BQ sync (manifest step) — the maintenance path
+- [ ] **GATE: validate ETL + dashboards on BQ map (parity green) BEFORE deleting anything**
+- [ ] Retire 3 manual-edit endpoints; DQ tabs → read-only pointers
 - [ ] Drop Neon alias/override tables (startup migration)
 
 ## Phase 2 — Delete CP v2 + deprecated

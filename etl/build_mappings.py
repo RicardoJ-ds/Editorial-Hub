@@ -691,11 +691,67 @@ def apply_writer_aliases(engine=None) -> dict:
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
+def apply_editor_aliases(engine=None) -> dict:
+    """Load confirmed editor aliases into `article_name_aliases` (kind='editor',
+    source='etl') so the next Monthly Article Count sync canonicalizes editor
+    names (e.g. Tiffany → Tiffany Anderson). Handles date-windowed aliases
+    (Sam → McGrail/Marceau) via valid_from/valid_to. Only 'confirmed' /
+    'confirmed_windowed' applied; ambiguous/unresolved/junk stay for DaniQ.
+    Reversible: DELETE FROM article_name_aliases WHERE source='etl' AND kind='editor'."""
+    eng = engine or make_sync_engine(settings.database_url)
+    with open(os.path.join(MAPPINGS_DIR, "editor_aliases.json")) as f:
+        aliases = json.load(f)["aliases"]
+    inserted = updated = skipped = 0
+    with eng.begin() as cx:
+        for v in aliases.values():
+            raw = v["raw"]
+            rows: list[tuple[str, str | None, str | None]] = []  # (canonical, valid_from, valid_to)
+            if v["status"] == "confirmed" and v.get("canonical") and v["canonical"] != raw:
+                rows.append((v["canonical"], None, None))
+            elif v["status"] == "confirmed_windowed":
+                for w in v.get("windows", []):
+                    if w.get("canonical"):
+                        rows.append((w["canonical"], w.get("from"), w.get("to")))
+            if not rows:
+                skipped += 1
+                continue
+            for canon, vf, vt in rows:
+                res = cx.execute(
+                    text(
+                        "UPDATE article_name_aliases SET canonical_value=:canon, valid_to=:vt "
+                        "WHERE kind='editor' AND raw_value=:raw "
+                        "AND COALESCE(valid_from,'')=COALESCE(:vf,'')"
+                    ),
+                    {"canon": canon, "raw": raw, "vf": vf, "vt": vt},
+                )
+                if res.rowcount:
+                    updated += res.rowcount
+                else:
+                    cx.execute(
+                        text(
+                            "INSERT INTO article_name_aliases (kind, raw_value, canonical_value, "
+                            "source, created_by, created_at, valid_from, valid_to) "
+                            "VALUES ('editor', :raw, :canon, 'etl', 'etl-mappings', NOW(), :vf, :vt)"
+                        ),
+                        {"raw": raw, "canon": canon, "vf": vf, "vt": vt},
+                    )
+                    inserted += 1
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
 if __name__ == "__main__":
     import sys
 
     if "--apply-writer-aliases" in sys.argv:
         print(json.dumps(apply_writer_aliases(), indent=2))
+    elif "--apply-editor-aliases" in sys.argv:
+        print(json.dumps(apply_editor_aliases(), indent=2))
+    elif "--apply-aliases" in sys.argv:  # writers + editors
+        print(
+            json.dumps(
+                {"writers": apply_writer_aliases(), "editors": apply_editor_aliases()}, indent=2
+            )
+        )
     else:
         s = build()
         print(json.dumps(s, indent=2))
