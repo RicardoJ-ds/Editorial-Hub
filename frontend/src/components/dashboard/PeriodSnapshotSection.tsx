@@ -69,6 +69,32 @@ const MONTH_NAMES_SHORT = [
 
 type LocalPeriodKey = "current" | "1m" | "3m" | "6m" | "12m" | "all";
 
+/** A client whose contract has ended — no in-progress quarter / current month. */
+function isInactiveStatus(status: string | undefined): boolean {
+  return status === "COMPLETED" || status === "CANCELLED" || status === "INACTIVE";
+}
+
+/** Latest editorial-month cell (year*12 + month-1) that carries DELIVERED
+ *  goals data for the given clients, or null. Zero-only placeholder / future
+ *  projection rows (common after a contract closes) are skipped — we anchor on
+ *  real delivery, so the Goals "Last month" lands on a month with numbers. */
+function latestDeliveredGoalCell(
+  goals: GoalsVsDeliveryRow[],
+  names: Set<string>,
+): number | null {
+  let latest: number | null = null;
+  for (const r of goals) {
+    if (!names.has(r.client_name)) continue;
+    const delivered = (r.cb_delivered_to_date ?? 0) + (r.ad_delivered_to_date ?? 0);
+    if (delivered <= 0) continue;
+    const ym = parseMonthYear(r.month_year);
+    if (!ym) continue;
+    const cell = ym.year * 12 + (ym.month - 1);
+    if (latest === null || cell > latest) latest = cell;
+  }
+  return latest;
+}
+
 interface PeriodScope {
   /** Inclusive list of months in the window, oldest first. */
   months: { year: number; month: number }[];
@@ -111,9 +137,25 @@ export function PeriodSnapshotSection({
     () => new Set(filteredClients.map((c) => c.name)),
     [filteredClients],
   );
+  // When EVERY in-scope client is inactive, the Goals column anchors to their
+  // last delivered month and the "Current month" option is dropped — both keyed
+  // off contract status so active / mixed scopes are completely unaffected.
+  const allInScopeInactive = useMemo(
+    () => filteredClients.length > 0 && filteredClients.every((c) => isInactiveStatus(c.status)),
+    [filteredClients],
+  );
+  const anchorEndCell = useMemo(
+    () => (allInScopeInactive ? latestDeliveredGoalCell(goals, clientNamesInScope) : null),
+    [allInScopeInactive, goals, clientNamesInScope],
+  );
+  // If the user is on "Current month" but the scope is now all-inactive (that
+  // option is hidden), resolve as "Last month" — derived at render, not via a
+  // state write, so widening the scope again restores "Current month" on its own.
+  const effectiveGoalsPeriod: LocalPeriodKey =
+    goalsPeriod === "current" && allInScopeInactive ? "1m" : goalsPeriod;
   const periodScope = useMemo<PeriodScope>(
-    () => resolveLocalPeriod(goalsPeriod, goals, clientNamesInScope),
-    [goalsPeriod, goals, clientNamesInScope],
+    () => resolveLocalPeriod(effectiveGoalsPeriod, goals, clientNamesInScope, anchorEndCell),
+    [effectiveGoalsPeriod, goals, clientNamesInScope, anchorEndCell],
   );
 
   return (
@@ -124,9 +166,11 @@ export function PeriodSnapshotSection({
       clientProduction={clientProduction}
       cumulative={cumulative}
       period={periodScope}
-      goalsPeriod={goalsPeriod}
+      goalsPeriod={effectiveGoalsPeriod}
       onGoalsPeriodChange={setGoalsPeriod}
       podAxis={podAxis}
+      anchorEndCell={anchorEndCell}
+      hideCurrentMonth={allInScopeInactive}
     />
   );
 }
@@ -420,11 +464,20 @@ function resolveLocalPeriod(
   period: LocalPeriodKey,
   goals?: GoalsVsDeliveryRow[],
   clientNames?: Set<string>,
+  /** When the in-scope clients are ALL inactive, this is their last month
+   *  WITH delivered data — the period END anchors here so "Last month" shows
+   *  their last real month instead of an empty post-contract calendar month.
+   *  null/undefined (active or mixed scope) → end stays at the last completed
+   *  month, exactly as before. */
+  anchorEndCell?: number | null,
 ): PeriodScope {
   const today = new Date();
   const lastCompleted = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const endY = lastCompleted.getFullYear();
-  const endM = lastCompleted.getMonth() + 1;
+  const lastCompletedCell = lastCompleted.getFullYear() * 12 + lastCompleted.getMonth();
+  const endCell =
+    anchorEndCell != null ? Math.min(lastCompletedCell, anchorEndCell) : lastCompletedCell;
+  const endY = Math.floor(endCell / 12);
+  const endM = (endCell % 12) + 1;
 
   let stepBack = 0;
   let caption = "Last completed month";
@@ -527,6 +580,10 @@ interface PodDeliveryRow {
   currentQDelivered: number;       // cumulative projected through end of current Q
   currentQInvoiced: number;        // cumulative invoiced through end of current Q
   currentQHasData: boolean;
+  /** True when EVERY client contributing to the Current Q total is inactive
+   *  (showing its last ended quarter) — no in-progress client. Drives the
+   *  pod tile chip wording ("Last quarter" vs "End of quarter"). */
+  currentQAllFinal: boolean;
   /** Invoiced-weighted average month-in-Q across pod's clients, used to
    *  compute the pod-level pace classification (so a pod whose clients
    *  are mid-Q on average reads as different from one whose clients are
@@ -565,12 +622,18 @@ interface PerClientRow {
   } | null;
   currentQ: {
     label: string;
+    monthsLabel: string;      // e.g. "Feb–Apr 26" — the quarter's month span
     projectedVariance: number;
     actualDelivered: number;  // cumulative ACTUALS through last completed month
     delivered: number;        // cumulative projected through end of current Q
     invoiced: number;         // cumulative invoiced through end of current Q
     monthInQ: number;         // 1-based position of today within the Q
     qLength: number;          // total months in the Q
+    /** True when this is NOT an in-progress quarter but the client's LAST
+     *  ended quarter, surfaced here because the client is inactive/completed
+     *  (no current Q exists). The cell then reads "Last quarter" + clicking
+     *  opens the lastQ drill-down. */
+    isFinal: boolean;
   } | null;
   isNew: boolean;
   // Lifetime
@@ -625,6 +688,8 @@ function PodDeliveryProgressCard({
   goalsPeriod,
   onGoalsPeriodChange,
   podAxis,
+  anchorEndCell,
+  hideCurrentMonth,
 }: {
   clients: Client[];
   summaries: SummaryRow[];
@@ -635,6 +700,10 @@ function PodDeliveryProgressCard({
   goalsPeriod: LocalPeriodKey;
   onGoalsPeriodChange: (k: LocalPeriodKey) => void;
   podAxis: "editorial" | "growth";
+  /** Inactive-scope period anchor (see resolveLocalPeriod); null otherwise. */
+  anchorEndCell: number | null;
+  /** Drop the "Current month" Goals option (all in-scope clients inactive). */
+  hideCurrentMonth: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailState | null>(null);
@@ -675,6 +744,7 @@ function PodDeliveryProgressCard({
           <span />
           <span />
           <GoalsHeaderWithSelector
+            anchored={hideCurrentMonth}
             sub={`CBs + Articles vs monthly goal · ${period.label}`}
             help={{
               title: "Goals",
@@ -693,6 +763,8 @@ function PodDeliveryProgressCard({
                 clientNames={
                   new Set(clients.map((c) => c.name))
                 }
+                anchorEndCell={anchorEndCell}
+                hideCurrent={hideCurrentMonth}
               />
             }
           />
@@ -891,10 +963,15 @@ function GoalsHeaderWithSelector({
   sub,
   help,
   selector,
+  anchored = false,
 }: {
   sub: string;
   help: { title: string; bullets: React.ReactNode[] };
   selector: React.ReactNode;
+  /** Every in-scope client is inactive → the period is anchored to their last
+   *  month WITH data. Show a "Last data month" badge so it's clear the goals
+   *  aren't the current/last-completed calendar month. */
+  anchored?: boolean;
 }) {
   return (
     <div className="min-w-0">
@@ -914,6 +991,28 @@ function GoalsHeaderWithSelector({
           </Tooltip>
         </TooltipProvider>
         {selector}
+        {anchored && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="inline-flex cursor-help self-center rounded-sm px-1.5 py-px font-mono text-[8px] font-semibold uppercase tracking-wider text-[#909090] bg-[#909090]/10" />
+                }
+              >
+                Last data month
+              </TooltipTrigger>
+              <TooltipContent>
+                <TooltipBody
+                  title="Last data month"
+                  bullets={[
+                    "This client is inactive — its contract has ended.",
+                    "Goals show the last month with delivered data.",
+                  ]}
+                />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {/* Small amber warning icon — surfaces the pre-Aug/Sep-2025 data
             quality caveat without putting a banner on the card. */}
         <TooltipProvider>
@@ -973,6 +1072,8 @@ function GoalsPeriodSelector({
   scope,
   goals,
   clientNames,
+  anchorEndCell,
+  hideCurrent = false,
 }: {
   value: LocalPeriodKey;
   onChange: (v: LocalPeriodKey) => void;
@@ -983,10 +1084,18 @@ function GoalsPeriodSelector({
    *  on the short label. */
   goals?: GoalsVsDeliveryRow[];
   clientNames?: Set<string>;
+  /** Inactive-scope period anchor, threaded into each option's label. */
+  anchorEndCell?: number | null;
+  /** Hide the "Current month" option — used when every in-scope client is
+   *  inactive/completed (no in-progress month). */
+  hideCurrent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const active = GOALS_PERIOD_OPTIONS.find((o) => o.id === value) ?? GOALS_PERIOD_OPTIONS[0];
+  const options = hideCurrent
+    ? GOALS_PERIOD_OPTIONS.filter((o) => o.id !== "current")
+    : GOALS_PERIOD_OPTIONS;
+  const active = options.find((o) => o.id === value) ?? options[0];
 
   useEffect(() => {
     if (!open) return;
@@ -1023,12 +1132,12 @@ function GoalsPeriodSelector({
       </button>
       {open && (
         <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-md border border-[#2a2a2a] bg-[#0d0d0d] shadow-xl">
-          {GOALS_PERIOD_OPTIONS.map((o) => {
+          {options.map((o) => {
             const isActive = o.id === value;
             // Resolve the concrete month range for this option so
             // users can preview the window before picking it. Cheap —
             // the helper just walks the goals list once per option.
-            const optionScope = resolveLocalPeriod(o.id, goals, clientNames);
+            const optionScope = resolveLocalPeriod(o.id, goals, clientNames, anchorEndCell);
             return (
               <button
                 key={o.id}
@@ -1158,6 +1267,10 @@ function aggregatePodDelivery(
     let currentQDelivered = 0;
     let currentQInvoiced = 0;
     let currentQHasData = false;
+    // Track whether the Current Q total mixes in-progress clients with
+    // inactive ones (showing their last ended Q) — drives the pod tile chip.
+    let currentQHasLive = false;
+    let currentQHasFinal = false;
     // Invoiced-weighted month-in-Q and qLength accumulators for the pod
     // pace metric. We weight by invoiced so larger clients pull the avg
     // more — matches how the pod's variance + numbers are aggregated.
@@ -1175,6 +1288,10 @@ function aggregatePodDelivery(
       const g = perClientGoals.get(c.name) ?? { cbGoal: 0, cbDel: 0, adGoal: 0, adDel: 0 };
       cbDel += g.cbDel; cbGoal += g.cbGoal;
       adDel += g.adDel; adGoal += g.adGoal;
+
+      // Inactive clients have no in-progress Q, so their Current Q column
+      // would read "—". Instead we surface their LAST ended quarter there.
+      const isInactive = isInactiveStatus(c.status);
 
       const row = summaryById.get(c.id);
       let currentQ: PerClientRow["currentQ"] = null;
@@ -1198,12 +1315,14 @@ function aggregatePodDelivery(
         if (cq) {
           currentQ = {
             label: cq.label,
+            monthsLabel: cq.monthsLabel,
             projectedVariance: cq.projectedVariance,
             actualDelivered: cq.delivered,    // cumulative actuals so far
             delivered: cq.projectedEnd,       // cumulative projected end-of-Q
             invoiced: cq.invoiced,
             monthInQ: cq.monthInQ,
             qLength: cq.qLength,
+            isFinal: false,
           };
           // Actual delivered/invoiced numbers ALWAYS aggregate every
           // client with a current Q — including 1st-Q clients. Their
@@ -1215,6 +1334,7 @@ function aggregatePodDelivery(
           currentQDelivered += cq.projectedEnd;
           currentQInvoiced += cq.invoiced;
           currentQHasData = true;
+          currentQHasLive = true;
           if (!isNew) {
             currentQVariance += cq.projectedVariance;
             const weight = Math.max(1, cq.invoiced);
@@ -1222,6 +1342,29 @@ function aggregatePodDelivery(
             currentQQLengthWeighted += cq.qLength * weight;
             currentQPaceWeight += weight;
           }
+        } else if (isInactive && lq) {
+          // No in-progress Q + the contract has ended → show the client's
+          // LAST ended quarter in the Current Q column (cumulative numbers,
+          // no projection — the quarter is closed). Folded into the pod
+          // total so the pod tile isn't empty either; excluded from the
+          // pace metric (a fully-elapsed quarter has no "pacing").
+          currentQ = {
+            label: lq.label,
+            monthsLabel: lq.monthsLabel,
+            projectedVariance: lq.cumVariance,
+            actualDelivered: lq.cumDelivered,
+            delivered: lq.cumDelivered,
+            invoiced: lq.cumInvoiced,
+            monthInQ: 0,
+            qLength: 0,
+            isFinal: true,
+          };
+          currentQActualDelivered += lq.cumDelivered;
+          currentQDelivered += lq.cumDelivered;
+          currentQInvoiced += lq.cumInvoiced;
+          currentQHasData = true;
+          currentQHasFinal = true;
+          if (!lq.isFirstQ) currentQVariance += lq.cumVariance;
         }
         if (lq) {
           // Cumulative through end of last full Q — matches the
@@ -1277,6 +1420,7 @@ function aggregatePodDelivery(
       currentQDelivered,
       currentQInvoiced,
       currentQHasData,
+      currentQAllFinal: currentQHasFinal && !currentQHasLive,
       currentQAvgMonthInQ: currentQPaceWeight > 0
         ? currentQMonthInQWeighted / currentQPaceWeight
         : 0,
@@ -1347,7 +1491,8 @@ function PodDeliveryRowHeader({
           The variance + tier are still computed from the projected
           end-of-Q outcome. */}
       <QTile
-        kind="current"
+        kind={row.currentQAllFinal ? "last" : "current"}
+        isFinal={row.currentQAllFinal}
         variance={row.currentQHasData ? row.currentQVariance : null}
         delivered={row.currentQActualDelivered}
         invoiced={row.currentQInvoiced}
@@ -1404,6 +1549,7 @@ function QTile({
   newCount,
   muted = false,
   kind,
+  isFinal = false,
 }: {
   variance: number | null;
   /** Delivered cumulative through end of THIS Q (per-Q snapshot, not
@@ -1420,6 +1566,9 @@ function QTile({
   /** "current" → End-of-Q chip; "last" → Last Close chip. Drives chip
    *  wording only; the rest of the layout is identical. */
   kind: "last" | "current";
+  /** Pod whose Current Q total is entirely last-ended-quarter data (all
+   *  clients inactive) — show the "Last full Q" badge above the bars. */
+  isFinal?: boolean;
 }) {
   if (variance === null) {
     return (
@@ -1440,38 +1589,45 @@ function QTile({
   const tier = muted ? { color: "#909090", label: base.label } : base;
   const barColor = muted ? "#909090" : "#42CA80";
   return (
-    <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
-      {/* LEFT: the two progress bars take the lion's share of the cell. */}
-      <div className="flex-1 min-w-0 space-y-1.5 text-left">
-        <LifetimeBar
-          label="Delivered"
-          num={delivered}
-          numUnit="delivered"
-          denom={invoiced}
-          denomUnit="invoiced"
-          color={barColor}
-          muted={muted}
-        />
-        <LifetimeBar
-          label="Invoiced"
-          num={invoiced}
-          numUnit="invoiced"
-          denom={sow}
-          denomUnit="SOW"
-          color={barColor}
+    <div className="space-y-1">
+      {isFinal && (
+        <div className="flex items-center">
+          <FinalQBadge text="Last full Q" />
+        </div>
+      )}
+      <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
+        {/* LEFT: the two progress bars take the lion's share of the cell. */}
+        <div className="flex-1 min-w-0 space-y-1.5 text-left">
+          <LifetimeBar
+            label="Delivered"
+            num={delivered}
+            numUnit="delivered"
+            denom={invoiced}
+            denomUnit="invoiced"
+            color={barColor}
+            muted={muted}
+          />
+          <LifetimeBar
+            label="Invoiced"
+            num={invoiced}
+            numUnit="invoiced"
+            denom={sow}
+            denomUnit="SOW"
+            color={barColor}
+            muted={muted}
+          />
+        </div>
+        {/* RIGHT: variance + tier hugs the bars on the right. Compact
+            vertical badge — same data as the old QInfoBlock, smaller
+            footprint, visually attached to the bars they explain. */}
+        <QInfoBlock
+          qLabel=""
+          variance={variance}
+          tier={tier}
+          chipLabel={kind === "current" ? "End of quarter" : "Last quarter"}
           muted={muted}
         />
       </div>
-      {/* RIGHT: variance + tier hugs the bars on the right. Compact
-          vertical badge — same data as the old QInfoBlock, smaller
-          footprint, visually attached to the bars they explain. */}
-      <QInfoBlock
-        qLabel=""
-        variance={variance}
-        tier={tier}
-        chipLabel={kind === "current" ? "End of quarter" : "Last quarter"}
-        muted={muted}
-      />
     </div>
   );
 }
@@ -1673,10 +1829,15 @@ function PerClientDeliveryList({
                 last completed month), NOT projected end-of-Q. The chip
                 still shows END-OF-Q variance — the only thing that's
                 projection-based is the variance number. */}
-            <CellButton onClick={(e) => openCell("currentQ", r, e)} ariaLabel={`Open Current Q detail for ${r.name}`}>
+            <CellButton
+              onClick={(e) => openCell(r.currentQ?.isFinal ? "lastQ" : "currentQ", r, e)}
+              ariaLabel={`Open ${r.currentQ?.isFinal ? "last" : "current"} Q detail for ${r.name}`}
+            >
               <ClientQCell
                 label={r.currentQ?.label ?? "Curr Q"}
-                kind="current"
+                kind={r.currentQ?.isFinal ? "last" : "current"}
+                isFinal={r.currentQ?.isFinal ?? false}
+                monthsLabel={r.currentQ?.monthsLabel}
                 q={r.currentQ
                   ? {
                       delivered: r.currentQ.actualDelivered,
@@ -1771,6 +1932,8 @@ function ClientQCell({
   isNew,
   kind,
   muted = false,
+  isFinal = false,
+  monthsLabel,
 }: {
   label: string;
   q: {
@@ -1786,6 +1949,11 @@ function ClientQCell({
   /** Render in muted greys. Last Q passes `muted` so it stays calm
    *  against a coloured Current Q in the same row. */
   muted?: boolean;
+  /** This is an inactive client's LAST ended quarter shown in the Current Q
+   *  column — render a "Last full Q" badge + month span so it's unmistakable
+   *  the numbers aren't an in-progress quarter. */
+  isFinal?: boolean;
+  monthsLabel?: string;
 }) {
   if (!q) {
     return (
@@ -1802,38 +1970,67 @@ function ClientQCell({
   const tierLabel = base.label;
   const barColor = muted ? "#909090" : "#42CA80";
   return (
-    <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
-      {/* LEFT: the two progress bars take the lion's share. */}
-      <div className="flex-1 min-w-0 space-y-1.5 text-left">
-        <LifetimeBar
-          label="Delivered"
-          num={q.delivered}
-          numUnit="delivered"
-          denom={q.invoiced}
-          denomUnit="invoiced"
-          color={barColor}
-          muted={muted}
-        />
-        <LifetimeBar
-          label="Invoiced"
-          num={q.invoiced}
-          numUnit="invoiced"
-          denom={sow}
-          denomUnit="SOW"
-          color={barColor}
+    <div className="space-y-1">
+      {/* Inactive client: a "Last full Q" badge + the quarter's month span
+          above the bars makes it unmistakable the Current Q column is showing
+          the last ended quarter, not an in-progress one. */}
+      {isFinal && (
+        <div className="flex items-center gap-1.5">
+          <FinalQBadge text="Last full Q" />
+          <span className="truncate font-mono text-[9px] tabular-nums text-[#707070]">
+            {label}
+            {monthsLabel ? ` · ${monthsLabel}` : ""}
+          </span>
+        </div>
+      )}
+      <div className="flex items-center gap-2 font-mono text-[10px] tabular-nums">
+        {/* LEFT: the two progress bars take the lion's share. */}
+        <div className="flex-1 min-w-0 space-y-1.5 text-left">
+          <LifetimeBar
+            label="Delivered"
+            num={q.delivered}
+            numUnit="delivered"
+            denom={q.invoiced}
+            denomUnit="invoiced"
+            color={barColor}
+            muted={muted}
+          />
+          <LifetimeBar
+            label="Invoiced"
+            num={q.invoiced}
+            numUnit="invoiced"
+            denom={sow}
+            denomUnit="SOW"
+            color={barColor}
+            muted={muted}
+          />
+        </div>
+        {/* RIGHT: Q label + variance chip stacked — sits adjacent to the
+            bars it explains. The Q label is suppressed for a final quarter
+            since the badge above already names it. */}
+        <QInfoBlock
+          qLabel={isFinal ? "" : label}
+          variance={q.variance}
+          tier={{ color, label: tierLabel }}
+          chipLabel={kind === "current" ? "End of quarter" : "Last quarter"}
           muted={muted}
         />
       </div>
-      {/* RIGHT: Q label + variance chip stacked — sits adjacent to the
-          bars it explains. */}
-      <QInfoBlock
-        qLabel={label}
-        variance={q.variance}
-        tier={{ color, label: tierLabel }}
-        chipLabel={kind === "current" ? "End of quarter" : "Last quarter"}
-        muted={muted}
-      />
     </div>
+  );
+}
+
+/** Small grey pill marking past-quarter / past-month reference data — mirrors
+ *  the "Last Full Q" badge on the Client Delivery cards so the two surfaces
+ *  read the same. */
+function FinalQBadge({ text }: { text: string }) {
+  return (
+    <span
+      className="shrink-0 rounded-sm px-1.5 py-px font-mono text-[8px] font-semibold uppercase tracking-wider"
+      style={{ color: "#909090", backgroundColor: "rgba(144,144,144,0.10)" }}
+    >
+      {text}
+    </span>
   );
 }
 
