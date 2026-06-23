@@ -739,6 +739,45 @@ def apply_editor_aliases(engine=None) -> dict:
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
+def apply_client_aliases(engine=None) -> dict:
+    """Load confirmed article-tab → Hub-client aliases into `article_name_aliases`
+    (kind='client', source='etl') so the Monthly Article Count importer routes a
+    tab to the right Hub client (+ pod). Only entries with a resolved `hub_client`
+    and status 'applied'/'proposed' (DaniQ-reviewed) are applied; ambiguous rows
+    (hub_client=None, e.g. EarnIn / Athena2) stay for confirmation. Reversible:
+    DELETE FROM article_name_aliases WHERE source='etl' AND kind='client'."""
+    eng = engine or make_sync_engine(settings.database_url)
+    with open(os.path.join(MAPPINGS_DIR, "client_aliases.json")) as f:
+        tabs = json.load(f).get("article_tabs_unmapped", {})
+    inserted = updated = skipped = 0
+    with eng.begin() as cx:
+        for raw, e in tabs.items():
+            hub = e.get("hub_client")
+            if not hub or e.get("status") not in ("applied", "proposed"):
+                skipped += 1
+                continue
+            res = cx.execute(
+                text(
+                    "UPDATE article_name_aliases SET canonical_value=:canon "
+                    "WHERE kind='client' AND raw_value=:raw"
+                ),
+                {"canon": hub, "raw": raw},
+            )
+            if res.rowcount:
+                updated += res.rowcount
+            else:
+                cx.execute(
+                    text(
+                        "INSERT INTO article_name_aliases (kind, raw_value, canonical_value, "
+                        "source, created_by, created_at) "
+                        "VALUES ('client', :raw, :canon, 'etl', 'etl-mappings', NOW())"
+                    ),
+                    {"raw": raw, "canon": hub},
+                )
+                inserted += 1
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
 if __name__ == "__main__":
     import sys
 
@@ -746,10 +785,17 @@ if __name__ == "__main__":
         print(json.dumps(apply_writer_aliases(), indent=2))
     elif "--apply-editor-aliases" in sys.argv:
         print(json.dumps(apply_editor_aliases(), indent=2))
-    elif "--apply-aliases" in sys.argv:  # writers + editors
+    elif "--apply-client-aliases" in sys.argv:
+        print(json.dumps(apply_client_aliases(), indent=2))
+    elif "--apply-aliases" in sys.argv:  # writers + editors + clients
         print(
             json.dumps(
-                {"writers": apply_writer_aliases(), "editors": apply_editor_aliases()}, indent=2
+                {
+                    "writers": apply_writer_aliases(),
+                    "editors": apply_editor_aliases(),
+                    "clients": apply_client_aliases(),
+                },
+                indent=2,
             )
         )
     else:
