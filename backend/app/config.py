@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # dashboard already uses, so no extra ACL is required.
     article_count_id: str = "1X_M82VzstJCulkl6l62jaubn2yI0ODBTz33iZ4XqZWU"
 
+    # "Editorial Name Mappings" sheet (Writers/Editors/Clients tabs) — DaniQ-editable
+    # source of truth for the normalization map; synced to BigQuery editorial_name_map.
+    name_mappings_sheet_id: str = "1p0tFg4D8BypZlG6Rfch7KKsqaNa8xUUZRn2BFv6oLsc"
+
     # Daily server-side sync (sheets -> Postgres -> dual-sink warehouse).
     # OFF locally; turn ON in prod so BigQuery + dashboards stay fresh without
     # anyone pressing SYNC. Hour is UTC; scope=current auto-escalates to full

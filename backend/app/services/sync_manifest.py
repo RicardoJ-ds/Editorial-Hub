@@ -167,6 +167,35 @@ def _refresh_kpis_run(session: Session) -> list[ImportResult]:
     ]
 
 
+NAME_MAP_KEY = "@name-mappings"
+NAME_MAP_LABEL = "Editorial Name Mappings → BigQuery"
+
+
+def _name_mappings_run(session: Session) -> "list[ImportResult]":
+    """Publish the DaniQ-editable 'Editorial Name Mappings' sheet to BigQuery
+    `editorial_name_map` — the source the importer + warehouse read for
+    name/client normalization (Phase 1b). Runs BEFORE Monthly Article Count so
+    the names it resolves are fresh. Fails loudly if the etl package is absent."""
+    try:
+        from etl.build_mappings import publish_name_map_from_sheet
+    except ImportError as exc:
+        return [
+            ImportResult(
+                sheet=NAME_MAP_LABEL,
+                rows_parsed=0,
+                rows_imported=0,
+                success=False,
+                errors=[f"etl package unavailable: {exc}"],
+            )
+        ]
+    info = publish_name_map_from_sheet()
+    return [
+        ImportResult(
+            sheet=NAME_MAP_LABEL, rows_parsed=info["rows"], rows_imported=info["rows"], success=True
+        )
+    ]
+
+
 # ── current scope — what SYNC refreshes on every click ──────────────────────
 # Mirrors what the frontend used to hardcode in IMPORTABLE_EXACT/PREFIXES, now
 # owned here. The two dynamic-prefix entries expand to the live versioned tabs.
@@ -184,6 +213,13 @@ CURRENT_STEPS: list[ManifestStep] = [
     _sheet("Master Tracker - Cumulative"),
     _sheet("Master Tracker - Goals vs Delivery"),  # current month (default mode)
     _sheet("Growth Pods"),
+    ManifestStep(
+        NAME_MAP_KEY,
+        NAME_MAP_LABEL,
+        "current",
+        run=_name_mappings_run,
+        description="Publish the Name Mappings sheet to BigQuery editorial_name_map",
+    ),
     _sheet("Monthly Article Count"),
     ManifestStep("@et-cp", "ET CP 2026 (current version)", "current", dynamic_prefix="ET CP 2026"),
     ManifestStep(

@@ -862,10 +862,84 @@ def build_name_map(bq=None) -> dict:
     }
 
 
+def read_name_map_sheet() -> list[dict]:
+    """Read the DaniQ-editable 'Editorial Name Mappings' sheet (Writers / Editors /
+    Clients tabs) → unified rows for `editorial_name_map`. This is the live,
+    editable source of truth once mappings are off Neon. Columns (row 1 = header):
+    RAW · CANONICAL · VALID FROM · VALID TO · STATUS · SOURCE · NOTE."""
+    from googleapiclient.discovery import build as _gbuild
+
+    from app.services.google_auth import get_google_credentials
+
+    svc = _gbuild(
+        "sheets",
+        "v4",
+        credentials=get_google_credentials(
+            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        ),
+    )
+    sid = settings.name_mappings_sheet_id
+    out: list[dict] = []
+    for kind, tab in (("writer", "Writers"), ("editor", "Editors"), ("client", "Clients")):
+        vals = (
+            svc.spreadsheets()
+            .values()
+            .get(spreadsheetId=sid, range=f"'{tab}'!A2:G")
+            .execute()
+            .get("values", [])
+        )
+        for row in vals:
+            cells = [(c or "").strip() for c in (row + [""] * 7)[:7]]
+            raw, canon, vf, vt, status, source, _note = cells
+            if not raw or not canon:
+                continue
+            out.append(
+                {
+                    "kind": kind,
+                    "raw_value": raw,
+                    "canonical_value": canon,
+                    "valid_from": vf or None,
+                    "valid_to": vt or None,
+                    "status": status or "confirmed",
+                    "source": source or "sheet",
+                }
+            )
+    return out
+
+
+def publish_name_map_from_sheet(bq=None) -> dict:
+    """Read the mappings sheet → publish `editorial_name_map` to BigQuery
+    (WRITE_TRUNCATE). Run as a sync step so DaniQ's sheet edits flow to BQ, where
+    the importer + warehouse read them — no Neon involved."""
+    from etl.load import get_bq, load_rows, schema_from_spec
+
+    rows = read_name_map_sheet()
+    schema = schema_from_spec(
+        [
+            ("kind", "STRING"),
+            ("raw_value", "STRING"),
+            ("canonical_value", "STRING"),
+            ("valid_from", "STRING"),
+            ("valid_to", "STRING"),
+            ("status", "STRING"),
+            ("source", "STRING"),
+        ]
+    )
+    load_rows(bq or get_bq(), "editorial_name_map", rows, schema)
+    return {
+        "rows": len(rows),
+        "by_kind": {
+            k: sum(1 for r in rows if r["kind"] == k) for k in ("writer", "editor", "client")
+        },
+    }
+
+
 if __name__ == "__main__":
     import sys
 
-    if "--build-name-map" in sys.argv:
+    if "--publish-name-map-from-sheet" in sys.argv:
+        print(json.dumps(publish_name_map_from_sheet(), indent=2))
+    elif "--build-name-map" in sys.argv:
         print(json.dumps(build_name_map(), indent=2))
     elif "--apply-writer-aliases" in sys.argv:
         print(json.dumps(apply_writer_aliases(), indent=2))
