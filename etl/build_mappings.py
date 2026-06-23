@@ -778,10 +778,96 @@ def apply_client_aliases(engine=None) -> dict:
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
+def build_name_map_rows() -> list[dict]:
+    """The unified raw→canonical mapping rows from the 3 JSON dicts — the SAME
+    confirmed set the `apply_*_aliases` loaders write to Neon `article_name_aliases`,
+    collapsed into one shape for the BigQuery `editorial_name_map` table
+    (kind ∈ writer|editor|client). Source of truth = the JSON (built from
+    Slack / Rippling / Salesforce + DaniQ decisions)."""
+    rows: list[dict] = []
+
+    def _row(kind, raw, canon, vf, vt, status, source):
+        return {
+            "kind": kind,
+            "raw_value": raw,
+            "canonical_value": canon,
+            "valid_from": vf,
+            "valid_to": vt,
+            "status": status,
+            "source": source,
+        }
+
+    with open(os.path.join(MAPPINGS_DIR, "writer_aliases.json")) as f:
+        for v in json.load(f)["aliases"].values():
+            if (
+                v["status"] in ("confirmed", "confirmed_first_name")
+                and v.get("canonical")
+                and v["canonical"] != v["raw"]
+            ):
+                rows.append(
+                    _row("writer", v["raw"], v["canonical"], None, None, v["status"], "slack")
+                )
+    with open(os.path.join(MAPPINGS_DIR, "editor_aliases.json")) as f:
+        for v in json.load(f)["aliases"].values():
+            if v["status"] == "confirmed" and v.get("canonical") and v["canonical"] != v["raw"]:
+                rows.append(
+                    _row("editor", v["raw"], v["canonical"], None, None, "confirmed", "rippling")
+                )
+            elif v["status"] == "confirmed_windowed":
+                for w in v.get("windows", []):
+                    if w.get("canonical"):
+                        rows.append(
+                            _row(
+                                "editor",
+                                v["raw"],
+                                w["canonical"],
+                                w.get("from"),
+                                w.get("to"),
+                                "confirmed_windowed",
+                                "rippling",
+                            )
+                        )
+    with open(os.path.join(MAPPINGS_DIR, "client_aliases.json")) as f:
+        for raw, v in json.load(f).get("article_tabs_unmapped", {}).items():
+            if v.get("hub_client") and v.get("status") in ("applied", "proposed"):
+                rows.append(
+                    _row("client", raw, v["hub_client"], None, None, v["status"], "salesforce")
+                )
+    return rows
+
+
+def build_name_map(bq=None) -> dict:
+    """Publish the unified mapping to BigQuery `editorial_name_map` (WRITE_TRUNCATE).
+    This is what the importer + warehouse read once mappings move off Neon."""
+    from etl.load import get_bq, load_rows, schema_from_spec
+
+    rows = build_name_map_rows()
+    schema = schema_from_spec(
+        [
+            ("kind", "STRING"),
+            ("raw_value", "STRING"),
+            ("canonical_value", "STRING"),
+            ("valid_from", "STRING"),
+            ("valid_to", "STRING"),
+            ("status", "STRING"),
+            ("source", "STRING"),
+        ]
+    )
+    load_rows(bq or get_bq(), "editorial_name_map", rows, schema)
+    return {
+        "rows": len(rows),
+        "by_kind": {
+            k: sum(1 for r in rows if r["kind"] == k) for k in ("writer", "editor", "client")
+        },
+    }
+
+
 if __name__ == "__main__":
     import sys
 
-    if "--apply-writer-aliases" in sys.argv:
+    if "--build-name-map" in sys.argv:
+        print(json.dumps(build_name_map(), indent=2))
+    elif "--apply-writer-aliases" in sys.argv:
         print(json.dumps(apply_writer_aliases(), indent=2))
     elif "--apply-editor-aliases" in sys.argv:
         print(json.dumps(apply_editor_aliases(), indent=2))
