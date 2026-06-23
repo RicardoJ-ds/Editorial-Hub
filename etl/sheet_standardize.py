@@ -243,10 +243,326 @@ def std_col_positions(
     return ed, wr, rev1, rev2
 
 
+def standardize_meta(apply: bool = False) -> int:
+    """Standardize the Meta Editorial Tracker (single TRACKER tab) — same
+    treatment as the main sheet, adapted to Meta's layout:
+      • append WRITER (STANDARD) / EDITOR (STANDARD) after their raw columns and
+        1ST/2ND REVISION (STANDARD) after the last REVISION column,
+      • fill them from article_records (source_tab='TRACKER'),
+      • normalize the DELIVERED date in place (year-less → ISO),
+      • gate with strict must-be-a-date validation on DELIVERED + the two revision
+        STANDARD columns, and inline ONE_OF_LIST roster dropdowns on the name
+        columns (the main sheet uses a cross-spreadsheet Rosters range, which BQ
+        validation can't reference from another file — so the roster values are
+        embedded directly; re-run to refresh).
+    Dry-run unless apply=True (prints the plan + the computed column letters)."""
+    sid = settings.meta_tracker_id
+    if not sid:
+        print("[meta] meta_tracker_id not set — nothing to do")
+        return 1
+    svc = sheets()
+    TAB = "TRACKER"
+    props = {
+        s["properties"]["title"]: s["properties"]
+        for s in svc.spreadsheets()
+        .get(spreadsheetId=sid, fields="sheets.properties")
+        .execute()["sheets"]
+    }
+    if TAB not in props:
+        print(f"[meta] no {TAB} tab in the Meta sheet")
+        return 1
+    gid = props[TAB]["sheetId"]
+    rowcount = props[TAB]["gridProperties"]["rowCount"]
+
+    # Roster (inline ONE_OF_LIST) + DaniQ writer overrides — same sources as main.
+    roster_editors, writers = build_rosters()
+    daniq_wr: dict = {}
+    try:
+        with open(os.path.join(_MAPPINGS_DIR, "daniq_writer_confirmations.json")) as fh:
+            daniq_wr = {k.lower(): v for k, v in json.load(fh).items()}
+    except OSError:
+        pass
+
+    def daniq_writer(raw: str, ym: str | None) -> str | None:
+        e = daniq_wr.get((raw or "").strip().lower())
+        if not e:
+            return None
+        if "windows" in e and ym:
+            for w in e["windows"]:
+                if (w.get("from") is None or w["from"] <= ym) and (
+                    w.get("to") is None or ym <= w["to"]
+                ):
+                    return w["value"]
+        return e.get("value")
+
+    dq_names = {
+        v
+        for e in daniq_wr.values()
+        for v in [e.get("value"), *[w["value"] for w in e.get("windows", [])]]
+        if v
+    }
+    editor_list = sorted({e["name"] for e in roster_editors})
+    writer_list = sorted(set(writers) | dq_names)
+    db = load_db_rows()
+
+    grid = read_grids(svc, sid, [TAB]).get(TAB, [])
+    header_idx = None
+    cols: dict[str, int] = {}
+    for hi in range(min(5, len(grid))):
+        up = [str(c).strip().upper() for c in grid[hi]]
+        if "VERTICAL" in up and "EDITOR" in up:
+            header_idx, cols = hi, {n: i for i, n in enumerate(up) if n}
+            break
+    if header_idx is None:
+        print("[meta] no header row with VERTICAL + EDITOR")
+        return 1
+    ed_std_i, wr_std_i, rev1_std_i, rev2_std_i = std_col_positions(grid[header_idx])
+
+    # ── STRUCTURE: insert missing (STANDARD) columns (highest anchor first) ──
+    last_rev = next(
+        (cols[r] for r in ("REVISION 3", "REVISION 2", "REVISION 1") if r in cols), None
+    )
+    anchors: list[tuple[int, list[str]]] = []
+    if "EDITOR" in cols and ed_std_i is None:
+        anchors.append((cols["EDITOR"], [ED_STD]))
+    if "WRITER" in cols and wr_std_i is None:
+        anchors.append((cols["WRITER"], [WR_STD]))
+    if last_rev is not None and rev1_std_i is None:
+        anchors.append((last_rev, [REV1_STD, REV2_STD]))
+
+    def final_positions() -> dict[str, int]:
+        before, prefix, out = 0, {}, {}
+        for a_i, titles in sorted(anchors, key=lambda a: a[0]):
+            prefix[a_i] = before
+            before += len(titles)
+        for a_i, titles in anchors:
+            base = a_i + prefix[a_i] + 1
+            for k, t in enumerate(titles):
+                out[t] = base + k
+        return out
+
+    if anchors:
+        insert_reqs = [
+            {
+                "insertDimension": {
+                    "range": {
+                        "sheetId": gid,
+                        "dimension": "COLUMNS",
+                        "startIndex": a_i + 1,
+                        "endIndex": a_i + 1 + len(titles),
+                    },
+                    "inheritFromBefore": False,
+                }
+            }
+            for a_i, titles in sorted(anchors, key=lambda a: a[0], reverse=True)
+        ]
+        pos = final_positions()
+        header_writes = [
+            {"range": f"'{TAB}'!{col_letter(c)}{header_idx + 1}", "values": [[t]]}
+            for t, c in pos.items()
+        ]
+        if apply:
+            svc.spreadsheets().batchUpdate(
+                spreadsheetId=sid, body={"requests": insert_reqs}
+            ).execute()
+            svc.spreadsheets().values().batchUpdate(
+                spreadsheetId=sid, body={"valueInputOption": "RAW", "data": header_writes}
+            ).execute()
+            grid = read_grids(svc, sid, [TAB]).get(TAB, [])
+            ed_std_i, wr_std_i, rev1_std_i, rev2_std_i = std_col_positions(grid[header_idx])
+        else:
+            ed_std_i, wr_std_i = pos.get(ED_STD, ed_std_i), pos.get(WR_STD, wr_std_i)
+            rev1_std_i, rev2_std_i = pos.get(REV1_STD, rev1_std_i), pos.get(REV2_STD, rev2_std_i)
+    print(
+        f"[meta] structure: insert {sum(len(t) for _, t in anchors)} cols → "
+        f"WR_STD={col_letter(wr_std_i) if wr_std_i is not None else '?'} "
+        f"ED_STD={col_letter(ed_std_i) if ed_std_i is not None else '?'} "
+        f"REV1_STD={col_letter(rev1_std_i) if rev1_std_i is not None else '?'} "
+        f"REV2_STD={col_letter(rev2_std_i) if rev2_std_i is not None else '?'} "
+        f"DELIVERED={col_letter(cols['DELIVERED']) if 'DELIVERED' in cols else '?'}"
+    )
+
+    # ── FILL from article_records (source_tab='TRACKER') ──
+    n_rows = len(grid) - (header_idx + 1)
+    dt_i = cols.get("DELIVERED")
+    ed_vals, wr_vals, r1_vals, r2_vals, dt_updates = [], [], [], [], []
+    ed_fill = wr_fill = r1_fill = r2_fill = dt_fix = 0
+    dt_changed = False
+    for r_off in range(n_rows):
+        sheet_row = header_idx + 2 + r_off
+        row = grid[header_idx + 1 + r_off]
+        rec = db.get((TAB, sheet_row))
+        ed = wr = r1 = r2 = ""
+        if rec:
+            if rec["editors"]:
+                ed = " / ".join(rec["editors"])
+                ed_fill += 1
+            if rec["writer_name"]:
+                wr = daniq_writer(rec["writer_raw"], rec.get("ym")) or rec["writer_name"]
+                wr_fill += 1
+            revs = rec.get("revisions") or []
+            if len(revs) >= 1:
+                r1, r1_fill = revs[0], r1_fill + 1
+            if len(revs) >= 2:
+                r2, r2_fill = revs[1], r2_fill + 1
+        ed_vals.append([ed])
+        wr_vals.append([wr])
+        r1_vals.append([r1])
+        r2_vals.append([r2])
+        if dt_i is not None:
+            cur = str(row[dt_i]) if dt_i < len(row) else ""
+            new = cur
+            if (
+                rec
+                and rec["date_raw"]
+                and cur.strip() == str(rec["date_raw"]).strip()
+                and rec["date_iso"]
+                and cur.strip()
+                and not re.search(r"\b20\d{2}\b", cur)
+            ):
+                new, dt_fix, dt_changed = rec["date_iso"], dt_fix + 1, True
+            dt_updates.append([new])
+    print(
+        f"[meta] fills (of {n_rows} rows): editor {ed_fill} · writer {wr_fill} · "
+        f"rev1 {r1_fill} · rev2 {r2_fill} · date-fix {dt_fix}"
+    )
+
+    first, last = header_idx + 2, header_idx + 1 + n_rows
+    value_updates: list[dict] = []
+
+    def vu(ci, vals):
+        if ci is not None and ci >= 0:
+            value_updates.append(
+                {"range": f"'{TAB}'!{col_letter(ci)}{first}:{col_letter(ci)}{last}", "values": vals}
+            )
+
+    if ed_fill:
+        vu(ed_std_i, ed_vals)
+    if wr_fill:
+        vu(wr_std_i, wr_vals)
+    if r1_fill:
+        vu(rev1_std_i, r1_vals)
+    if r2_fill:
+        vu(rev2_std_i, r2_vals)
+    if dt_changed:
+        vu(dt_i, dt_updates)
+
+    # ── VALIDATION (inline ONE_OF_LIST roster + strict dates) ──
+    val_reqs: list[dict] = []
+    start, end = header_idx + 1, rowcount
+
+    def dv(ci, rule):
+        if ci is not None and ci >= 0:
+            val_reqs.append(
+                {
+                    "setDataValidation": {
+                        "range": {
+                            "sheetId": gid,
+                            "startRowIndex": start,
+                            "endRowIndex": end,
+                            "startColumnIndex": ci,
+                            "endColumnIndex": ci + 1,
+                        },
+                        "rule": rule,
+                    }
+                }
+            )
+
+    def isofmt(ci):
+        if ci is not None and ci >= 0:
+            val_reqs.append(
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": gid,
+                            "startRowIndex": start,
+                            "endRowIndex": end,
+                            "startColumnIndex": ci,
+                            "endColumnIndex": ci + 1,
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "numberFormat": {"type": "DATE", "pattern": "yyyy-mm-dd"}
+                            }
+                        },
+                        "fields": "userEnteredFormat.numberFormat",
+                    }
+                }
+            )
+
+    dv(
+        ed_std_i,
+        {
+            "condition": {
+                "type": "ONE_OF_LIST",
+                "values": [{"userEnteredValue": n} for n in editor_list],
+            },
+            "strict": True,
+            "showCustomUi": True,
+            "inputMessage": "Pick ONE editor from the roster.",
+        },
+    )
+    dv(
+        wr_std_i,
+        {
+            "condition": {
+                "type": "ONE_OF_LIST",
+                "values": [{"userEnteredValue": n} for n in writer_list],
+            },
+            "strict": False,
+            "showCustomUi": True,
+            "inputMessage": "Pick the writer from the roster.",
+        },
+    )
+    if dt_i is not None:
+        dv(
+            dt_i,
+            {
+                "condition": {"type": "DATE_IS_VALID"},
+                "strict": True,
+                "showCustomUi": False,
+                "inputMessage": "One real date (e.g. 2026-04-07). No free text.",
+            },
+        )
+        isofmt(dt_i)
+    for ri in (rev1_std_i, rev2_std_i):
+        dv(
+            ri,
+            {
+                "condition": {"type": "DATE_IS_VALID"},
+                "strict": True,
+                "showCustomUi": False,
+                "inputMessage": "One real revision date (e.g. 2026-04-07) or blank.",
+            },
+        )
+        isofmt(ri)
+    print(
+        f"[meta] validation: {len(val_reqs)} requests · roster {len(editor_list)} editors / "
+        f"{len(writer_list)} writers"
+    )
+
+    if not apply:
+        print("[meta] DRY-RUN — no writes. Re-run with --apply to execute.")
+        return 0
+    if value_updates:
+        svc.spreadsheets().values().batchUpdate(
+            spreadsheetId=sid, body={"valueInputOption": "USER_ENTERED", "data": value_updates}
+        ).execute()
+    if val_reqs:
+        svc.spreadsheets().batchUpdate(spreadsheetId=sid, body={"requests": val_reqs}).execute()
+    print("[meta] APPLIED.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--meta", action="store_true", help="standardize the Meta Editorial Tracker (TRACKER tab)"
+    )
     ap.add_argument("--apply", action="store_true", help="execute writes (default: dry-run)")
     args = ap.parse_args(argv)
+    if args.meta:
+        return standardize_meta(apply=args.apply)
     svc = sheets()
     sid = settings.article_count_id
 

@@ -18,6 +18,19 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.30 — June 23
+
+**Meta's article counts now appear in the Hub, and Meta's tracker got the same name-normalization columns as the main sheet.**
+
+### Team KPIs → Monthly Articles
+
+- **Meta is now counted.** Meta's editorial work lives in its own tracker (split by the three verticals — AI, Reality Labs, for Business) and had never shown up in the Hub. Those **204 articles now appear under Pod 5** as Meta AI, Meta RL, and Meta BMG, with the same editor/writer credit and revision counts as every other client. *Verify:* Team KPIs → Monthly Articles → Pod 5.
+- Note: Meta RL and Meta BMG are completed engagements, so they show when the status filter includes Inactive/Completed; Meta AI is active.
+
+### Meta Editorial Tracker (sheet)
+
+- The Meta tracker now carries the same **WRITER / EDITOR (STANDARD)** and **1ST / 2ND REVISION (STANDARD)** columns as the main article sheet — canonical names pulled from the roster, parsed revision dates, roster dropdowns, and strict date validation — so it stays consistent and clean to maintain.
+
 ## 0.3.29 — June 23
 
 **Data Quality became a read-only "what to fix and where" view, name mappings moved to a sheet anyone on the team can edit, and the deprecated planning prototype was removed.**
