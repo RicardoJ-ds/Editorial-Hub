@@ -542,16 +542,11 @@ def build_int_pod_assignments(session) -> list[Job]:
     clients = session.execute(select(m.Client)).scalars().all()
     lookup = _build_client_name_lookup(clients, session)
 
-    # date-windowed editor aliases (raw_lower -> [(from, to, canonical)])
-    amap: dict[str, list[tuple[str | None, str | None, str]]] = {}
-    for a in (
-        session.execute(select(m.ArticleNameAlias).where(m.ArticleNameAlias.kind == "editor"))
-        .scalars()
-        .all()
-    ):
-        amap.setdefault(a.raw_value.strip().lower(), []).append(
-            (a.valid_from, a.valid_to, a.canonical_value)
-        )
+    # date-windowed editor aliases (raw_lower -> [(from, to, canonical)]) from the
+    # BigQuery editorial_name_map (Phase 1b); falls back to Neon if BQ is empty.
+    from app.services.name_map_bq import fetch_name_map
+
+    amap = fetch_name_map("editor", session)
 
     def canon_person(name: str, ym: str) -> str:
         # chip cells sometimes render the email as the display text

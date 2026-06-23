@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import (
     AIMonitoringRecord,
-    ArticleNameAlias,
     ArticleRecord,
     ArticleRevision,
     ArticleUnmappedName,
@@ -5860,29 +5859,25 @@ def import_monthly_article_count(session: Session) -> ImportResult:
     # 1. Fuzzy client lookup + DB-stored aliases (admin-added) merged in.
     clients = session.execute(select(Client)).scalars().all()
     lookup = _build_client_name_lookup(clients)
-    for a in (
-        session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == "client"))
-        .scalars()
-        .all()
-    ):
-        canon = _resolve_client(lookup, a.canonical_value)
-        if canon is not None:
-            lookup.setdefault(a.raw_value.strip().lower(), canon)
+    from app.services.name_map_bq import fetch_name_map
+
+    for raw_lower, alias_rows in fetch_name_map("client", session).items():
+        for _vf, _vt, canon_name in alias_rows:
+            canon = _resolve_client(lookup, canon_name)
+            if canon is not None:
+                lookup.setdefault(raw_lower, canon)
+                break
 
     # Aliases may carry a date window ('YYYY-MM', inclusive bounds, NULL =
     # open) so one raw name can map to different people over time (e.g. "Sam").
     # {raw_lower: [(valid_from, valid_to, canonical), ...]}
     def _alias_map(kind: str) -> dict[str, list[tuple[str | None, str | None, str]]]:
-        out: dict[str, list[tuple[str | None, str | None, str]]] = {}
-        for a in (
-            session.execute(select(ArticleNameAlias).where(ArticleNameAlias.kind == kind))
-            .scalars()
-            .all()
-        ):
-            out.setdefault(a.raw_value.strip().lower(), []).append(
-                (a.valid_from, a.valid_to, a.canonical_value)
-            )
-        return out
+        # Mappings now live in BigQuery `editorial_name_map` (Phase 1b);
+        # `fetch_name_map` falls back to Neon `article_name_aliases` if BQ is
+        # empty/unavailable, so the cutover is non-breaking.
+        from app.services.name_map_bq import fetch_name_map
+
+        return fetch_name_map(kind, session)
 
     def _alias_resolve(
         amap: dict[str, list[tuple[str | None, str | None, str]]],
