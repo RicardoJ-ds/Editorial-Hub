@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -479,129 +479,6 @@ async def list_discrepancies(
     )
 
 
-@router.post("/missing-clients/{item_id}/dismiss")
-async def dismiss_missing_client(item_id: int, db: AsyncSession = Depends(get_db)):
-    """Dismiss a 'missing client' row — for noise rows that aren't real clients
-    (e.g. 'Sales', 'New clients', section headers). Sets `resolved_at` so it
-    drops off the Data Quality list and won't be re-flagged on the next sync
-    (the importers skip names already resolved)."""
-    from app.models import IncompleteClient
-
-    ic = (
-        (await db.execute(select(IncompleteClient).where(IncompleteClient.id == item_id)))
-        .scalars()
-        .first()
-    )
-    if ic is None:
-        raise HTTPException(status_code=404, detail="Missing-client row not found")
-    if ic.resolved_at is None:
-        ic.resolved_at = datetime.utcnow()
-        await db.commit()
-    return {"dismissed": True, "id": item_id}
-
-
-class MapMissingClientRequest(BaseModel):
-    client_id: int
-
-
-@router.post("/missing-clients/{item_id}/map")
-async def map_missing_client(
-    item_id: int, body: MapMissingClientRequest, db: AsyncSession = Depends(get_db)
-):
-    """Map a 'missing client' row to an existing Hub client — for sheet names
-    that are a variant/acronym of a real client the fuzzy matcher can't catch
-    (e.g. 'WL/SG support (Feb)' → 'Workleap+Sharegate'). Writes a
-    `client_name_aliases` row so the SOW-client resolution picks it up on the
-    next sync, and resolves the flag now so it drops off the list."""
-    from app.models import ClientNameAlias, IncompleteClient
-
-    ic = (
-        (await db.execute(select(IncompleteClient).where(IncompleteClient.id == item_id)))
-        .scalars()
-        .first()
-    )
-    if ic is None:
-        raise HTTPException(status_code=404, detail="Missing-client row not found")
-
-    client = (await db.execute(select(Client).where(Client.id == body.client_id))).scalars().first()
-    if client is None:
-        raise HTTPException(status_code=404, detail="Target client not found")
-
-    existing = (
-        (await db.execute(select(ClientNameAlias).where(ClientNameAlias.raw_name == ic.name_raw)))
-        .scalars()
-        .first()
-    )
-    if existing is None:
-        db.add(ClientNameAlias(raw_name=ic.name_raw, client_name=client.name))
-    else:
-        existing.client_name = client.name
-    # Clear the flag now; it stays cleared because the alias resolves the name
-    # on the next sync.
-    ic.resolved_at = datetime.utcnow()
-    await db.commit()
-    return {"mapped": True, "raw_name": ic.name_raw, "client": client.name}
-
-
-@router.post("/missing-clients/{item_id}/reopen")
-async def reopen_missing_client(item_id: int, db: AsyncSession = Depends(get_db)):
-    """Undo a map/dismiss — drops any alias for the name and clears `resolved_at`
-    so the row returns to 'open'. Lets the operator correct a wrong mapping."""
-    from app.models import ClientNameAlias, IncompleteClient
-
-    ic = (
-        (await db.execute(select(IncompleteClient).where(IncompleteClient.id == item_id)))
-        .scalars()
-        .first()
-    )
-    if ic is None:
-        raise HTTPException(status_code=404, detail="Missing-client row not found")
-
-    aliases = (
-        (await db.execute(select(ClientNameAlias).where(ClientNameAlias.raw_name == ic.name_raw)))
-        .scalars()
-        .all()
-    )
-    for a in aliases:
-        await db.delete(a)
-    ic.resolved_at = None
-    await db.commit()
-    return {"reopened": True, "id": item_id}
-
-
-@router.post("/pod-import-issues/{item_id}/reopen")
-async def reopen_pod_import_issue(item_id: int, db: AsyncSession = Depends(get_db)):
-    """Undo a pod-name override — drops the override for this (raw_name, pod_kind)
-    and clears `resolved_at` so the row returns to 'open'."""
-    from app.models import PodNameOverride
-
-    issue = (
-        (await db.execute(select(PodImportIssue).where(PodImportIssue.id == item_id)))
-        .scalars()
-        .first()
-    )
-    if issue is None:
-        raise HTTPException(status_code=404, detail="Pod-import-issue row not found")
-
-    overrides = (
-        (
-            await db.execute(
-                select(PodNameOverride).where(
-                    PodNameOverride.raw_name == issue.raw_name,
-                    PodNameOverride.pod_kind == issue.pod_kind,
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
-    for o in overrides:
-        await db.delete(o)
-    issue.resolved_at = None
-    await db.commit()
-    return {"reopened": True, "id": item_id}
-
-
 # ---------------------------------------------------------------------------
 # Pod-name overrides — user-editable BQ→DB client name mappings
 # ---------------------------------------------------------------------------
@@ -615,12 +492,6 @@ class PodNameOverrideItem(BaseModel):
     client_name: str
     created_by: str | None
     created_at: datetime
-
-
-class PodNameOverrideCreate(BaseModel):
-    raw_name: str
-    pod_kind: str
-    client_id: int
 
 
 @router.get("/pod-name-overrides", response_model=list[PodNameOverrideItem])
@@ -642,67 +513,6 @@ async def list_pod_name_overrides(db: AsyncSession = Depends(get_db)):
         )
         for row in rows
     ]
-
-
-@router.post("/pod-name-overrides", response_model=PodNameOverrideItem, status_code=201)
-async def create_pod_name_override(
-    body: PodNameOverrideCreate,
-    db: AsyncSession = Depends(get_db),
-    user_email: str | None = None,
-):
-    """Create or replace a pod-name override mapping."""
-    # Verify the client exists.
-    client_result = await db.execute(select(Client).where(Client.id == body.client_id))
-    client = client_result.scalars().first()
-    if client is None:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    # Upsert on (raw_name, pod_kind).
-    existing_result = await db.execute(
-        select(PodNameOverride).where(
-            PodNameOverride.raw_name == body.raw_name,
-            PodNameOverride.pod_kind == body.pod_kind,
-        )
-    )
-    existing = existing_result.scalars().first()
-    if existing:
-        existing.client_id = body.client_id
-        existing.created_by = user_email
-        row = existing
-    else:
-        row = PodNameOverride(
-            raw_name=body.raw_name,
-            pod_kind=body.pod_kind,
-            client_id=body.client_id,
-            created_by=user_email,
-        )
-        db.add(row)
-
-    # NOTE: get_db() does not auto-commit — must commit explicitly or the row
-    # rolls back on session close (this silently broke override persistence).
-    await db.commit()
-    await db.refresh(row)
-
-    return PodNameOverrideItem(
-        id=row.id,
-        raw_name=row.raw_name,
-        pod_kind=row.pod_kind,
-        client_id=row.client_id,
-        client_name=client.name,
-        created_by=row.created_by,
-        created_at=row.created_at,
-    )
-
-
-@router.delete("/pod-name-overrides/{override_id}", status_code=204)
-async def delete_pod_name_override(override_id: int, db: AsyncSession = Depends(get_db)):
-    """Delete a pod-name override by ID."""
-    result = await db.execute(select(PodNameOverride).where(PodNameOverride.id == override_id))
-    row = result.scalars().first()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Override not found")
-    await db.delete(row)
-    await db.commit()
 
 
 # ---------------------------------------------------------------------------

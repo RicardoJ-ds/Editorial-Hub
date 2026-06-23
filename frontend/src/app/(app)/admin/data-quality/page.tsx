@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, ChevronDown, Database, ExternalLink, Info, Link2, RefreshCcw, Unlink, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, Database, ExternalLink, Info, Link2, RefreshCcw, Unlink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArticleMappingsTab } from "@/components/admin/ArticleMappingsTab";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet } from "@/lib/api";
 import {
   ClearFiltersButton,
   type ColumnFilterValue,
@@ -337,15 +336,15 @@ function sourceMeta(tab: string): { book: string; href: string; affects: string 
 }
 
 // Per-row recommended fix. Heuristic: names with test/placeholder/support
-// markers are almost certainly NOT real clients → suggest Dismiss; everything
-// else is probably a client missing from the SOW Overview → suggest Add. It's
-// only a hint — the operator still chooses.
+// markers are almost certainly NOT real clients → can be ignored; everything
+// else is probably a client missing from the SOW Overview → add it there. It's
+// only a hint shown read-only; the actual fix happens in the source sheet.
 function suggestFix(name: string): { kind: "add" | "dismiss"; text: string } {
   const n = (name || "").toLowerCase();
   const looksLikeNoise =
     /\[test\]|\[new client\]|\bko\s*#|\bsales\b|\bnew clients\b|\(support\)|\(test\)|\btest\b|ai articles/.test(n);
   return looksLikeNoise
-    ? { kind: "dismiss", text: "Looks like a non-client → Dismiss" }
+    ? { kind: "dismiss", text: "Likely not a real client — can be ignored" }
     : { kind: "add", text: "Add to SOW Overview, then SYNC" };
 }
 
@@ -395,47 +394,12 @@ function SyncHint({ className = "" }: { className?: string }) {
 }
 
 // Dedicated tab: clients that appear in a source sheet but have NO record in
-// the Hub, so the importer drops all their rows. Each row states the problem,
-// where the source data lives (tab + spreadsheet, linked), and which dashboard
-// it hits. Resolved rows (mapped / dismissed / added) stay visible — filter by
-// To-do / Resolved — with an Undo to correct a mistake.
-function MissingFromHubTab({
-  rows,
-  onRefresh,
-}: {
-  rows: MissingClient[];
-  onRefresh: () => void;
-}) {
-  const [dismissing, setDismissing] = useState<number | null>(null);
-  const [reopening, setReopening] = useState<number | null>(null);
-  const [clients, setClients] = useState<ClientOption[]>([]);
+// the Hub, so the importer drops all their rows. Read-only — each row states the
+// problem, where the source data lives (tab + spreadsheet, linked), and which
+// dashboard it hits. Rows that self-heal on a later SYNC flip to Resolved (filter
+// by To-do / Resolved); the fix is made in the source sheet, not here.
+function MissingFromHubTab({ rows }: { rows: MissingClient[]; onRefresh?: () => void }) {
   const [view, setView] = useState<"all" | "todo" | "resolved">("all");
-
-  useEffect(() => {
-    apiGet<ClientOption[]>("/api/clients/?limit=500")
-      .then((r) => setClients(r ?? []))
-      .catch(() => {});
-  }, []);
-
-  const dismiss = async (id: number) => {
-    setDismissing(id);
-    try {
-      await apiPost(`/api/admin/missing-clients/${id}/dismiss`, {});
-      onRefresh();
-    } finally {
-      setDismissing(null);
-    }
-  };
-
-  const reopen = async (id: number) => {
-    setReopening(id);
-    try {
-      await apiPost(`/api/admin/missing-clients/${id}/reopen`, {});
-      onRefresh();
-    } finally {
-      setReopening(null);
-    }
-  };
 
   const openCount = rows.filter((r) => r.status === "open").length;
   const resolvedCount = rows.length - openCount;
@@ -453,15 +417,14 @@ function MissingFromHubTab({
           drops all of its rows, and its delivery never reaches the dashboards.
         </p>
         <p className="text-[#606060]">
-          <span className="text-[#C4BCAA] font-semibold">How to fix:</span>{" "}
-          <span className="text-[#C4BCAA]">Map</span> it to an existing Hub client if it&apos;s just a
-          name variant — Hub clients are the rows in the{" "}
+          <span className="text-[#C4BCAA] font-semibold">How to fix (at the source):</span>{" "}
+          add the client to the{" "}
           <a href={DQ_SHEET_LINKS.capacity} target="_blank" rel="noopener noreferrer" className="text-[#42CA80] hover:underline">
             SOW Overview
           </a>{" "}
-          sheet, so the picker lists exactly those (writes an alias — resolves on next SYNC). Or add a
-          genuinely new client to SOW Overview then SYNC; or <span className="text-[#C4BCAA]">Dismiss</span>{" "}
-          a row that isn&apos;t a real client (a header / total / placeholder like &quot;New clients&quot;).
+          sheet — or correct its name there to match an existing Hub client — then SYNC. Names that
+          aren&apos;t real clients (a header / total / placeholder like &quot;New clients&quot;) can be
+          ignored. This list is read-only: fixing the source corrects the data everywhere.
         </p>
       </div>
 
@@ -486,7 +449,7 @@ function MissingFromHubTab({
                   <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">How to fix</th>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Where it hits</th>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Source (tab · spreadsheet)</th>
-                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">Action</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -519,43 +482,8 @@ function MissingFromHubTab({
                         <span className="text-[#606060]"> · {meta.book}</span>
                       </td>
                       <td className="px-3 py-1.5">
-                        <div className="flex items-center justify-end gap-3">
-                          {isOpen ? (
-                            <>
-                              <AssignDropdown
-                                rawName={m.name_raw}
-                                clients={clients}
-                                suggestion={null}
-                                triggerLabel="Map to client"
-                                onConfirm={(c) =>
-                                  apiPost(`/api/admin/missing-clients/${m.id}/map`, { client_id: c.id })
-                                }
-                                onAssigned={onRefresh}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => dismiss(m.id)}
-                                disabled={dismissing === m.id}
-                                title="Not a real client (header / placeholder) — hide it"
-                                className="font-mono text-[10px] uppercase tracking-wider text-[#505050] hover:text-[#909090] disabled:opacity-40"
-                              >
-                                {dismissing === m.id ? "…" : "Dismiss"}
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <MapStatusBadge status={m.status} mappedTo={m.mapped_to} />
-                              <button
-                                type="button"
-                                onClick={() => reopen(m.id)}
-                                disabled={reopening === m.id}
-                                title="Undo — reopen this row"
-                                className="font-mono text-[10px] uppercase tracking-wider text-[#505050] hover:text-[#909090] disabled:opacity-40"
-                              >
-                                {reopening === m.id ? "…" : "Undo"}
-                              </button>
-                            </>
-                          )}
+                        <div className="flex items-center justify-end">
+                          <MapStatusBadge status={m.status} mappedTo={m.mapped_to} />
                         </div>
                       </td>
                     </tr>
@@ -742,278 +670,12 @@ function DeliveredDriftTab({ rows, asOfLabel }: { rows: DeliveredDriftDiscrepanc
   );
 }
 
-interface ClientOption {
-  id: number;
-  name: string;
-}
-
-function tokenize(name: string): Set<string> {
-  const tokens = name
-    .replace(/([a-z])([A-Z])/g, "$1 $2") // "JustFoodForDogs" → "Just Food For Dogs"
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-  return new Set(tokens);
-}
-
-function jaccard(a: Set<string>, b: Set<string>): number {
-  const intersection = [...a].filter((t) => b.has(t)).length;
-  const union = new Set([...a, ...b]).size;
-  return union === 0 ? 0 : intersection / union;
-}
-
-/**
- * Suggest the single best-matching client using word-token Jaccard similarity.
- * Returns null when no client scores ≥ 0.4 or when two clients are tied at the top.
- */
-function suggestClient(rawName: string, clients: ClientOption[]): ClientOption | null {
-  const rawTokens = tokenize(rawName);
-  if (rawTokens.size === 0) return null;
-
-  const THRESHOLD = 0.4;
-  let topScore = 0;
-  let topClient: ClientOption | null = null;
-  let tied = false;
-
-  for (const c of clients) {
-    const score = jaccard(rawTokens, tokenize(c.name));
-    if (score >= THRESHOLD) {
-      if (score > topScore) {
-        topScore = score;
-        topClient = c;
-        tied = false;
-      } else if (score === topScore) {
-        tied = true;
-      }
-    }
-  }
-
-  return tied ? null : topClient;
-}
-
-function AssignDropdown({
-  rawName,
-  clients,
-  suggestion,
-  onConfirm,
-  onAssigned,
-  triggerLabel = "Assign client",
-}: {
-  rawName: string;
-  clients: ClientOption[];
-  suggestion: ClientOption | null;
-  /** Persist the chosen mapping (the caller hits its own endpoint). */
-  onConfirm: (client: ClientOption) => Promise<void>;
-  onAssigned: (rawName: string, clientName: string) => void;
-  triggerLabel?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<ClientOption | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [dropPos, setDropPos] = useState<{ top: number; left: number } | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const userPicked = useRef(false);
-
-  useEffect(() => {
-    if (suggestion && !userPicked.current) setSelected(suggestion);
-  }, [suggestion]);
-
-  // Click outside works across both trigger and portaled dropdown.
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const t = e.target as Node;
-      if (!triggerRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  // Close on outside scroll so the fixed panel doesn't drift from its
-  // trigger — but allow scrolling inside the dropdown itself (the list).
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: Event) => {
-      const t = e.target as Node | null;
-      if (t && dropdownRef.current?.contains(t)) return; // inner list scroll
-      setOpen(false);
-    };
-    window.addEventListener("scroll", close, true);
-    return () => window.removeEventListener("scroll", close, true);
-  }, [open]);
-
-  function handleToggle() {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const PANEL_HEIGHT = 280;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setDropPos({
-        top: spaceBelow >= PANEL_HEIGHT ? rect.bottom + 4 : rect.top - PANEL_HEIGHT - 4,
-        left: rect.left,
-      });
-    }
-    setOpen((v) => !v);
-  }
-
-  const filtered = useMemo(
-    () =>
-      query.trim() === ""
-        ? clients.slice(0, 30)
-        : clients.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 30),
-    [clients, query]
-  );
-
-  async function handleConfirm() {
-    if (!selected) return;
-    setSaving(true);
-    try {
-      await onConfirm(selected);
-      setSaved(true);
-      setOpen(false);
-      onAssigned(rawName, selected.name);
-    } catch {
-      // keep open so user can retry
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (saved) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-sm bg-[#42CA80]/10 px-2 py-0.5 font-mono text-[10px] text-[#42CA80]">
-        <Check className="h-3 w-3" />
-        Mapped · Pending SYNC
-      </span>
-    );
-  }
-
-  const panel =
-    open && dropPos
-      ? createPortal(
-          <div
-            ref={dropdownRef}
-            style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: 256, zIndex: 9999 }}
-            className="rounded-md border border-[#2a2a2a] bg-[#161616] shadow-xl"
-          >
-            <div className="border-b border-[#2a2a2a] p-2">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Search clients…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full rounded-sm bg-[#0d0d0d] px-2 py-1 font-mono text-[11px] text-white placeholder-[#606060] outline-none ring-1 ring-[#2a2a2a] focus:ring-[#42CA80]/40"
-              />
-              <p className="mt-1 font-mono text-[10px] text-[#606060]">
-                From <span className="text-[#42CA80]">SOW Overview</span> sheet · missing? Add it there first
-              </p>
-            </div>
-            <div className="max-h-48 overflow-y-auto">
-              {filtered.length === 0 ? (
-                <p className="px-3 py-2 font-mono text-[11px] text-[#606060]">No matches</p>
-              ) : (
-                filtered.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      userPicked.current = true;
-                      setSelected(c);
-                      setQuery("");
-                      setOpen(false);
-                    }}
-                    className={
-                      "block w-full px-3 py-1.5 text-left font-mono text-[11px] hover:bg-[#0d0d0d] " +
-                      (selected?.id === c.id ? "text-[#42CA80]" : "text-[#C4BCAA]")
-                    }
-                  >
-                    {c.name}
-                  </button>
-                ))
-              )}
-            </div>
-            {selected && (
-              <div className="flex items-center justify-between border-t border-[#2a2a2a] px-2 py-1.5">
-                <button
-                  type="button"
-                  onClick={() => { userPicked.current = true; setSelected(null); setOpen(false); }}
-                  className="rounded-sm px-1.5 py-0.5 font-mono text-[10px] text-[#606060] hover:text-white"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-          </div>,
-          document.body
-        )
-      : null;
-
-  return (
-    <div className="flex items-center gap-1">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={handleToggle}
-        className={
-          "inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 font-mono text-[10px] hover:border-[#42CA80]/40 hover:text-white " +
-          (selected
-            ? "border-[#42CA80]/30 bg-[#42CA80]/8 text-[#42CA80]"
-            : "border-[#2a2a2a] bg-[#161616] text-[#909090]")
-        }
-      >
-        {selected ? selected.name : triggerLabel}
-        <ChevronDown className="h-3 w-3 opacity-60" />
-      </button>
-
-      {selected && !open && (
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={saving}
-          className="rounded-sm bg-[#42CA80]/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#42CA80] hover:bg-[#42CA80]/25 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Confirm"}
-        </button>
-      )}
-
-      {panel}
-    </div>
-  );
-}
-
-function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; onRefresh: () => void }) {
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [pending, setPending] = useState<Record<string, string>>({});
-  const [reopening, setReopening] = useState<number | null>(null);
+function PodImportIssuesTab({ rows }: { rows: PodImportIssueItem[]; onRefresh?: () => void }) {
   const [view, setView] = useState<"all" | "todo" | "resolved">("all");
   const [colFilters, setColFilters] = useState<Record<string, ColumnFilterValue>>({});
 
-  useEffect(() => {
-    apiGet<ClientOption[]>("/api/clients/?limit=500").then((r) => setClients(r ?? []));
-  }, []);
-
-  const reopen = async (id: number) => {
-    setReopening(id);
-    try {
-      await apiPost(`/api/admin/pod-import-issues/${id}/reopen`, {});
-      onRefresh();
-    } finally {
-      setReopening(null);
-    }
-  };
-
   const openCount = rows.filter((r) => r.status === "open").length;
   const resolvedCount = rows.length - openCount;
-
-  const suggestions = useMemo(
-    () => Object.fromEntries(rows.map((r) => [r.raw_name, suggestClient(r.raw_name, clients)])),
-    [rows, clients]
-  );
 
   const podOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.pod_label ?? "").filter(Boolean))).sort(),
@@ -1035,10 +697,6 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
     return iso.length >= 10 ? iso.slice(0, 10) : iso;
   }
 
-  function handleAssigned(rawName: string, clientName: string) {
-    setPending((p) => ({ ...p, [rawName]: clientName }));
-  }
-
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
       if (view === "todo" && r.status !== "open") return false;
@@ -1055,15 +713,14 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
     <div className="flex h-full flex-col gap-2">
       <div className="space-y-0.5 font-mono text-[11px] shrink-0">
         <p className="text-[#606060]">
-          <span className="text-[#C4BCAA] font-semibold">Source:</span>{" "}
-          Names from the Growth Pods sheet that didn&apos;t match any Hub client during SYNC.
+          <span className="text-[#C4BCAA] font-semibold">What&apos;s flagged:</span>{" "}
+          names from the Growth Pods sheet that didn&apos;t match any Hub client during SYNC.
         </p>
         <p className="text-[#606060]">
-          <span className="text-[#C4BCAA] font-semibold">Map to Hub client:</span>{" "}
-          The dropdown lists every client in the <span className="text-[#42CA80]">SOW Overview</span> sheet. If your target isn&apos;t there, add it to SOW Overview first then run SYNC.
-        </p>
-        <p className="text-[#606060]">
-          Close names self-heal automatically — only assign when fuzzy-match won&apos;t catch it. Run SYNC after saving.
+          <span className="text-[#C4BCAA] font-semibold">How to fix (at the source):</span>{" "}
+          correct the name in the Growth Pods (Team Pods) sheet so it matches a Hub client — or add the
+          client to <span className="text-[#42CA80]">SOW Overview</span> — then SYNC. Close names self-heal
+          automatically. This list is read-only: fixing the source corrects the data everywhere.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 shrink-0">
@@ -1096,7 +753,7 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
               <th className="px-3 py-1.5 text-left font-medium">
                 <FilterableHeader label="Last seen" filterKey="last_seen" def={{ kind: "date" }} filters={colFilters} setFilters={setColFilters} />
               </th>
-              <th className="px-3 py-1.5 text-left font-medium">Map to Hub client</th>
+              <th className="px-3 py-1.5 text-left font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -1107,54 +764,12 @@ function PodImportIssuesTab({ rows, onRefresh }: { rows: PodImportIssueItem[]; o
                 <td className="px-3 py-1.5 text-[#606060]">{formatDate(r.first_seen_at)}</td>
                 <td className="px-3 py-1.5 text-[#606060]">{formatDate(r.last_seen_at)}</td>
                 <td className="px-3 py-1.5">
-                  {r.status === "open" ? (
-                    <AssignDropdown
-                      rawName={r.raw_name}
-                      clients={clients}
-                      suggestion={suggestions[r.raw_name] ?? null}
-                      onConfirm={(c) =>
-                        apiPost("/api/admin/pod-name-overrides", {
-                          raw_name: r.raw_name,
-                          pod_kind: r.pod_kind,
-                          client_id: c.id,
-                        })
-                      }
-                      onAssigned={handleAssigned}
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <MapStatusBadge status={r.status} mappedTo={r.mapped_to} />
-                      <button
-                        type="button"
-                        onClick={() => reopen(r.id)}
-                        disabled={reopening === r.id}
-                        title="Undo — drop the override and reopen this row"
-                        className="font-mono text-[10px] uppercase tracking-wider text-[#505050] hover:text-[#909090] disabled:opacity-40"
-                      >
-                        {reopening === r.id ? "…" : "Undo"}
-                      </button>
-                    </div>
-                  )}
+                  <MapStatusBadge status={r.status} mappedTo={r.mapped_to} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        </div>
-      )}
-      {Object.keys(pending).length > 0 && (
-        <div className="rounded-md border border-[#F5BC4E]/30 bg-[#F5BC4E]/5 px-3 py-2 flex items-center justify-between gap-3 shrink-0">
-          <p className="font-mono text-[11px] text-[#F5BC4E]">
-            {Object.keys(pending).length} override{Object.keys(pending).length !== 1 ? "s" : ""} saved — run SYNC to apply.
-          </p>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="inline-flex items-center gap-1 rounded-sm border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-0.5 font-mono text-[10px] text-[#C4BCAA] hover:text-white"
-          >
-            <RefreshCcw className="h-3 w-3" />
-            Refresh
-          </button>
         </div>
       )}
     </div>

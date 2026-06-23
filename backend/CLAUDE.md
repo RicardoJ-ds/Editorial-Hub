@@ -38,11 +38,11 @@ admins may impersonate via `X-Preview-As`.
 | `dashboard` | `/api/dashboard` | Overview / exec snapshot data |
 | `client_delivery` | `/api/dashboard/client-delivery` | Client delivery sub-resource |
 | `goals_delivery` | `/api/goals-delivery` | Goals vs delivery |
-| `articles` | `/api/articles` | Monthly Articles (`/monthly`, `/editors`, `/unmapped`, `/aliases`) |
+| `articles` | `/api/articles` | Monthly Articles (`/monthly`, `/editors`, `/unmapped` — all read-only; name edits live in the Editorial Name Mappings sheet → BQ `editorial_name_map`) |
 | `ai_monitoring` | `/api/ai-monitoring` | Writer AI compliance |
 | `notion_articles` | `/api/notion-articles` | Notion Content Machine mirror |
 | `access` | `/api/access` | RBAC matrix CRUD |
-| `admin` | `/api/admin` | Data Quality: discrepancies, pod-history, missing-clients |
+| `admin` | `/api/admin` | Data Quality (read-only): discrepancies, pod-history, pod-name-overrides (GET). Map/dismiss/override **writes removed** — DQ problems are fixed at the source sheet, not mapped in the UI |
 | `overview_comments` | `/api/overview/comments` | Overview comment threads |
 | `analytics` | `/api/analytics` | Usage analytics (admin-only) |
 | `migration` | `/api/migrate` | sync-plan / sync-step / sync-run / status / resync |

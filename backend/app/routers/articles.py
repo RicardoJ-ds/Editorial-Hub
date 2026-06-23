@@ -19,10 +19,8 @@ endpoints gate on `require_access_editor`.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,7 +30,6 @@ from app.models import (
     ArticleNameAlias,
     ArticleRecord,
     ArticleRevision,
-    ArticleUnmappedName,
     Client,
 )
 from app.services import bq_dashboard
@@ -312,60 +309,3 @@ async def list_unmapped(
         "client_options": client_options,
         "aliases": aliases,
     }
-
-
-class AliasBody(BaseModel):
-    kind: str  # 'client' | 'editor' | 'writer'
-    raw_value: str
-    canonical_value: str
-
-
-@router.post("/aliases")
-async def upsert_alias(
-    body: AliasBody,
-    profile=Depends(require_access_editor),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Add/replace a name alias. Takes effect on the next Monthly Article Count
-    sync (client aliases re-route to the canonical Hub client + pod; editor
-    aliases merge name variants)."""
-    kind = body.kind.strip().lower()
-    raw = body.raw_value.strip()
-    canonical = body.canonical_value.strip()
-    if kind not in ("client", "editor", "writer") or not raw or not canonical:
-        return {"ok": False, "error": "kind must be client|editor|writer; raw/canonical required"}
-
-    existing = await db.execute(
-        select(ArticleNameAlias).where(
-            ArticleNameAlias.kind == kind, ArticleNameAlias.raw_value == raw
-        )
-    )
-    row = existing.scalar_one_or_none()
-    if row is None:
-        db.add(
-            ArticleNameAlias(
-                kind=kind,
-                raw_value=raw,
-                canonical_value=canonical,
-                source="manual",
-                created_by=profile.email or None,
-            )
-        )
-    else:
-        row.canonical_value = canonical
-        row.created_by = profile.email or row.created_by
-
-    # If a client alias resolves a previously-unmapped name, mark it resolved
-    # so it drops out of the review list immediately (the next sync confirms).
-    if kind == "client":
-        unmapped = await db.execute(
-            select(ArticleUnmappedName).where(
-                ArticleUnmappedName.kind == "client", ArticleUnmappedName.raw_value == raw
-            )
-        )
-        u = unmapped.scalar_one_or_none()
-        if u is not None and u.resolved_at is None:
-            u.resolved_at = datetime.utcnow()
-
-    await db.commit()
-    return {"ok": True}
