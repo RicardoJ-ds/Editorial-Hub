@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.31 — June 23
+
+**Meta now shows under Growth Pod 4 for all three verticals (not just Meta AI).**
+
+- Meta's three verticals are all assigned to **Growth Pod 4** in Salesforce, but two were spelled differently there than in the Hub (`Meta Reality Labs` vs `Meta RL`, `Meta for Business` vs `Meta BMG`), so the growth-pod match missed them and they showed as Unassigned on the Growth view. Added the name mappings, so **Meta AI, Meta RL, and Meta BMG all land under Growth Pod 4** now. *Verify:* Team KPIs → Monthly Articles → Growth axis → Pod 4 (RL + BMG under the Inactive/Completed filter).
+
 ## 0.3.30 — June 23
 
 **Meta's article counts now appear in the Hub, and Meta's tracker got the same name-normalization columns as the main sheet.**

@@ -4320,6 +4320,11 @@ _GROWTH_POD_NAME_OVERRIDES: dict[str, str] = {
     "Genstore": "GenstoreAI",
     "Workleap": "Workleap + Sharegate",
     "Workleap+Sharegate": "Workleap + Sharegate",
+    # Meta verticals: Salesforce spells them out, the Hub uses the short codes,
+    # so the growth-pod join misses two of three. All three are growth Pod 4 in
+    # SF (Meta AI matches directly). Map the SF names → the Hub client names.
+    "Meta Reality Labs": "Meta RL",
+    "Meta for Business": "Meta BMG",
 }
 
 
