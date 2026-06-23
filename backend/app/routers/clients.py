@@ -64,7 +64,26 @@ def _scope_filter(profile: AccessProfile) -> set[str] | None:
         # Postgres and BigQuery scope filters match client names
         # case-insensitively (pod_assignments stores "N8N" while clients.name
         # is "n8n").
-        return {r[0].lower() for r in rows if r[0]}
+        allowed = {r[0].lower() for r in rows if r[0]}
+
+        # Also widen to every client in the caller's OWN pod, keyed off the
+        # client's canonical pod column — not the pod_assignments name. The
+        # Team Pods sheet sometimes chips a client under a different label
+        # than clients.name (e.g. the growth tab lists Meta as "Meta 1" /
+        # "Meta 2" while the client rows are "Meta AI" / "Meta RL" /
+        # "Meta BMG"), so name-matching pod_assignments alone silently drops
+        # those clients for the whole pod. clients.{growth,editorial}_pod is
+        # the source of truth for pod membership, so union it in: a Growth
+        # Pod N member sees every client whose growth_pod == "Pod N".
+        if profile.pod_kind_lock and profile.pod_number_lock:
+            pod_label = f"Pod {profile.pod_number_lock}"
+            pod_col = (
+                Client.growth_pod if profile.pod_kind_lock == "growth" else Client.editorial_pod
+            )
+            pod_rows = session.execute(select(Client.name).where(pod_col == pod_label)).all()
+            allowed |= {r[0].lower() for r in pod_rows if r[0]}
+
+        return allowed
 
 
 async def _operating_model_end_dates(db: AsyncSession, client_ids: list[int]) -> dict[int, date]:

@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.36 — June 23
+
+**Pod teams now see every client in their pod — including Meta.**
+
+- Growth and Editorial pod members were missing clients their pod owns when the Team Pods sheet listed the client under a different label than its real name (e.g. the growth tab chips Meta as "Meta 1" / "Meta 2" while the clients are "Meta AI" / "Meta RL" / "Meta BMG"). Those clients silently dropped out of the pod's view — visible to admins but not to the pod's own directors. Client visibility now follows each client's canonical pod assignment, so a pod sees its full roster regardless of how the sheet spells the name. *Verify:* Preview as a Growth Pod 4 member → Overview shows Meta AI / Meta RL / Meta BMG.
+
 ## 0.3.35 — June 23
 
 **Contract start/end dates no longer show a day early.**
