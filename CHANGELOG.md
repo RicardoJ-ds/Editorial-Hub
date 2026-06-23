@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.33 — June 23
+
+**Preview Access now has a searchable person dropdown instead of a type-in email box.**
+
+- On Access Control, "Start preview" opens a **search box that lists each person by name with their email(s)** — pick someone instead of typing an exact address. People with two work emails show as one entry (both addresses), matching how access now resolves. *Verify:* Access Control → Start preview → search a name.
+
 ## 0.3.32 — June 23
 
 **People with two work emails now see all their clients (not just some).**

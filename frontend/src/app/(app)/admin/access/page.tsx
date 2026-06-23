@@ -17,6 +17,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -251,25 +260,64 @@ function AccessTabs({ profile }: { profile: AccessProfile }) {
 // Preview-as control (admin only)
 // ────────────────────────────────────────────────────────────────────────
 
+interface PreviewPerson {
+  name: string;
+  emails: string[];
+  pod_kind: string | null;
+  pod_number: string | null;
+  role: string | null;
+}
+
 function PreviewAsControl() {
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
+  const [comboOpen, setComboOpen] = useState(false);
+  const [people, setPeople] = useState<PreviewPerson[]>([]);
   const router = useRouter();
   const pathname = usePathname();
-  const onSubmit = useCallback(async () => {
-    if (!email.trim()) return;
-    // Capture the admin's current path so the Exit Preview button can
-    // return them here. Then redirect to the previewed user's first
-    // accessible route — otherwise they'd land on Access Control's
-    // No Access wall when previewing as a non-admin.
-    const fresh = await setPreviewAs(email.trim().toLowerCase(), pathname);
-    setOpen(false);
-    setEmail("");
-    if (fresh && !fresh.view_slugs.includes("admin.access")) {
-      const target = firstAccessibleRoute(fresh.view_slugs);
-      if (target) router.push(target);
-    }
-  }, [email, pathname, router]);
+
+  // Load the user list once and group by PERSON (display_name): one option per
+  // person carrying all their email(s). Some people are in Team Pods under two
+  // addresses (name@ + name.lastname@); both now resolve to the same access, so
+  // a single per-person entry is correct.
+  useEffect(() => {
+    apiGet<ApiUserMatrixRow[]>("/api/access/users")
+      .then((rows) => {
+        const byName = new Map<string, PreviewPerson>();
+        for (const r of rows) {
+          const key = r.display_name || r.email;
+          const e =
+            byName.get(key) ??
+            ({
+              name: key,
+              emails: [],
+              pod_kind: r.pod_kind,
+              pod_number: r.pod_number,
+              role: r.role,
+            } as PreviewPerson);
+          if (!e.emails.includes(r.email)) e.emails.push(r.email);
+          byName.set(key, e);
+        }
+        setPeople([...byName.values()].sort((a, b) => a.name.localeCompare(b.name)));
+      })
+      .catch(() => {});
+  }, []);
+
+  const launch = useCallback(
+    async (em: string) => {
+      if (!em) return;
+      // Capture the admin's current path so the Exit Preview button can return
+      // them here. Then redirect to the previewed user's first accessible route
+      // — otherwise they'd land on Access Control's No Access wall.
+      const fresh = await setPreviewAs(em.toLowerCase(), pathname);
+      setComboOpen(false);
+      setOpen(false);
+      if (fresh && !fresh.view_slugs.includes("admin.access")) {
+        const target = firstAccessibleRoute(fresh.view_slugs);
+        if (target) router.push(target);
+      }
+    },
+    [pathname, router],
+  );
   return (
     <div className="rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2">
       <div className="flex flex-wrap items-center gap-3">
@@ -293,19 +341,44 @@ function PreviewAsControl() {
       </div>
       {open && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="email@graphitehq.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="h-8 max-w-[280px] text-xs"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void onSubmit();
-              if (e.key === "Escape") setOpen(false);
-            }}
-          />
-          <Button size="sm" onClick={onSubmit} disabled={!email.trim()}>
-            Apply
-          </Button>
+          <Popover open={comboOpen} onOpenChange={setComboOpen}>
+            <PopoverTrigger
+              aria-expanded={comboOpen}
+              className="inline-flex h-8 w-[320px] items-center justify-between rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 text-xs font-normal text-[#C4BCAA] hover:bg-[#161616]"
+            >
+              Search a person by name or email…
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[360px] border-[#2a2a2a] bg-[#0d0d0d] p-0"
+              align="start"
+            >
+              <Command>
+                <CommandInput placeholder="Name or email…" className="text-xs" />
+                <CommandList>
+                  <CommandEmpty className="py-4 text-center text-xs text-[#606060]">
+                    No matching user.
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {people.map((p) => (
+                      <CommandItem
+                        key={p.name + (p.emails[0] ?? "")}
+                        value={`${p.name} ${p.emails.join(" ")}`}
+                        onSelect={() => void launch(p.emails[0])}
+                        className="flex flex-col items-start gap-0.5"
+                      >
+                        <span className="text-xs font-medium text-white">{p.name}</span>
+                        <span className="font-mono text-[10px] text-[#707070]">
+                          {p.emails.join(", ")}
+                          {p.pod_kind ? ` · ${p.pod_kind} Pod ${p.pod_number ?? "?"}` : ""}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
             Cancel
           </Button>
@@ -668,7 +741,7 @@ function HowGroupsWorkLegend() {
       </summary>
       <div className="border-t border-[#1f1f1f] px-3 py-2.5 font-mono text-[11px] text-[#C4BCAA]">
         <p className="mb-2 text-[#909090]">
-          Each group&apos;s row below carries a small "What this group can do"
+          Each group&apos;s row below carries a small &quot;What this group can do&quot;
           card. As a quick reference, here&apos;s the spec all five seeded
           groups follow:
         </p>
