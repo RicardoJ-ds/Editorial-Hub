@@ -5440,6 +5440,12 @@ _ARTICLE_EDITOR_BLANKS = frozenset(
     {"", "-", "—", "N/A", "NA", "TBD", "PENDING", "ENDED", "PAUSED", "PAUSE", "EDITOR"}
 )
 
+# A "^" / "^^" / "^^^" marker row means the article ABOVE is a jumbo — it counts
+# as one EXTRA unit per caret row (JAD x2 → one caret, x3 → two). These rows carry
+# no editor of their own, so the importer used to drop them, undercounting jumbos
+# vs the Operating Model. The importer credits each caret to the article above.
+_CARET_RE = re.compile(r"^\^{1,4}$")
+
 # Per-tab header strings → canonical key (row 2 is the header row).
 _ARTICLE_HDR_ALIASES = {
     "EDITOR": "EDITOR",
@@ -6189,6 +6195,9 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         else:
             client_name, client_id, gpod = tab.strip(), None, None
 
+        # Context of the most recent titled article on this tab — a jumbo
+        # caret row ("^^") credits an extra unit to it. Reset per tab.
+        last_jumbo: dict | None = None
         for r_idx, row in enumerate(values[header_idx + 1 :], start=header_idx + 2):
             if not row:
                 continue
@@ -6198,6 +6207,44 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                 return _row[idx] if idx is not None and idx < len(_row) else ""
 
             editor_raw = str(cell("EDITOR")).strip()
+            # Jumbo continuation: a "^^" marker (in the title or editor cell) means
+            # the article above is a jumbo — credit ONE extra unit to that article's
+            # editor(s)/client/month/pod (one record per caret row → x2, x3, …).
+            if _CARET_RE.match(str(cell("TITLE")).strip()) or _CARET_RE.match(editor_raw):
+                if last_jumbo is not None:
+                    j = last_jumbo
+                    juid = hashlib.sha256(f"{tab}|{r_idx}|jumbo".encode()).hexdigest()[:16]
+                    for en in j["editor_names"]:
+                        records.append(
+                            {
+                                "article_uid": juid,
+                                "client_name": j["client_name"],
+                                "client_id": j["client_id"],
+                                "source_tab": tab,
+                                "editor_name": en,
+                                "editor_raw": j["editor_raw"],
+                                "collaboration": j["collab"],
+                                "writer_name": j["writer_name"],
+                                "writer_raw": j["writer_raw"],
+                                "editorial_pod": j["eff_pod"],
+                                "growth_pod": j["gpod"],
+                                "article_title": j["title"],
+                                "copy_name": None,
+                                "link": None,
+                                "word_count": None,
+                                "date_submitted_raw": None,
+                                "submitted_date": j["sub_date"],
+                                "year": j["year"],
+                                "month": j["month"],
+                                "month_year": j["month_year"],
+                                "revised_raw": None,
+                                "revision_count": 0,
+                                "revision_dates": None,
+                                "task_id": None,
+                                "source_row": r_idx,
+                            }
+                        )
+                continue
             if editor_raw.upper() in _ARTICLE_EDITOR_BLANKS:
                 continue
             parsed += 1
@@ -6247,6 +6294,24 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             task_id = str(cell("TASK_ID")).strip() or None
             rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
             rev_dates_iso = [d.isoformat() for d, _ in rev_events]
+            # Remember this article so a following "^^" caret row can credit it an
+            # extra jumbo unit (same editors / client / month / pod).
+            last_jumbo = {
+                "editor_names": editor_names,
+                "editor_raw": editor_raw,
+                "collab": collab,
+                "writer_name": writer_name,
+                "writer_raw": writer_raw,
+                "client_name": client_name,
+                "client_id": client_id,
+                "gpod": gpod,
+                "eff_pod": eff_pod,
+                "sub_date": sub_date,
+                "year": year,
+                "month": month,
+                "month_year": month_year,
+                "title": title,
+            }
             for editor_name in editor_names:
                 records.append(
                     {

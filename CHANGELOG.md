@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.34 — June 23
+
+**Jumbo articles are now counted correctly — the article count matches the Operating Model.**
+
+- A Jumbo (a "JAD x2/x3" article) occupies extra "^^" marker rows in the source sheet to represent its 2-3 article units. Those marker rows had no editor, so the importer dropped them — undercounting jumbo-heavy clients vs the Operating Model (e.g. Boulevard May read 24 instead of 26). Now each "^^" row credits one extra article to the jumbo above (same editor, month, client), so Monthly Articles ties out to the OM. *Verify:* Team KPIs → Monthly Articles for Webflow / CoinTracker / Boulevard.
+
 ## 0.3.33 — June 23
 
 **Preview Access now has a searchable person dropdown instead of a type-in email box.**
