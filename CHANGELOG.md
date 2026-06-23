@@ -18,6 +18,31 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.29 — June 23
+
+**Data Quality became a read-only "what to fix and where" view, name mappings moved to a sheet anyone on the team can edit, and the deprecated planning prototype was removed.**
+
+### Data Quality
+
+- The Data Quality tabs (Article mappings, Missing from Hub, Pod assignment issues) are now **read-only**. Rather than mapping or dismissing a row in the Hub, each row shows the problem and **where to fix it at the source** — add the client to the SOW Overview sheet, or correct a name in the Team Pods sheet. Fixing the source corrects the data everywhere, not just in the Hub, and the row clears itself on the next sync.
+
+### Name normalization
+
+- Writer, editor, and client name mappings now live in the **Editorial Name Mappings** Google Sheet, editable directly by the team; the Hub picks up changes on the next SYNC. (Stored in the data warehouse behind the scenes, with the previous list kept as a safety net.)
+
+### Notion content
+
+- Published-article status is now read **live from the data warehouse** instead of being copied into the Hub's own database — fewer moving parts and always current.
+
+### AI Monitoring
+
+- The Writer AI Monitoring sheets are **no longer part of the automatic SYNC** (upstream scans are paused). They remain importable on demand from the Import Wizard.
+
+### Housekeeping
+
+- Removed the deprecated **Capacity Planning v2** prototype, superseded by the current dashboards.
+- Fixed an occasional data-refresh hiccup so dashboard numbers publish reliably.
+
 ## 0.3.28 — June 18
 
 **Help & Glossary trimmed to the essentials; changelog hidden.**
