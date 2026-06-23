@@ -10,7 +10,6 @@ import {
   Users,
   Download,
   Search,
-  Sparkles,
   Shield,
   ShieldAlert,
   BarChart3,
@@ -60,13 +59,9 @@ const dashboardNav: NavItem[] = [
 ];
 
 // Maintain CRUD pages (Clients / Deliverables / Capacity / KPI Scores) are
-// still routable but hidden from the nav — they'll be superseded by the
-// Capacity Planning v2 maintain screens once that proposal lands. The
-// "Capacity Maintenance" entry below is the proposal prototype; the
-// proposal banner inside that page declares its prototype status.
+// still routable but hidden from the nav.
 const dataManagementNav: NavItem[] = [
   { label: "Import Data", href: "/data-management/import", icon: Download, requiredViews: ["data.import"] },
-  { label: "Capacity Maintenance", href: "/capacity-planning", icon: Sparkles, requiredViews: ["cp2"] },
 ];
 
 const adminNav: NavItem[] = [

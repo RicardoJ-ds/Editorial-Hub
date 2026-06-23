@@ -61,7 +61,6 @@ _VIEWS: list[tuple[str, str, str, str, int]] = [
     ("d2.kpi", "KPI Performance", "Team KPIs", "Dashboards", 30),
     ("d2.capacity", "Capacity Projections", "Team KPIs", "Dashboards", 31),
     ("d2.ai", "AI Compliance", "Team KPIs", "Dashboards", 32),
-    ("cp2", "Capacity Planning v2", "Capacity Planning v2", "Data", 40),
     ("data.import", "Import Data", "Import Data", "Data", 50),
     ("admin.access", "Access Control", "Access Control", "Admin", 60),
     # Edit privilege for the Access Control matrix. Rendered as a second
@@ -196,7 +195,6 @@ _DEFAULT_PERMISSIONS: dict[str, set[str]] = {
         "d2.kpi",
         "d2.capacity",
         "d2.ai",
-        "cp2",
         "admin.access",
     },
     "bi_team": {
@@ -261,6 +259,14 @@ def seed_access_baseline(session: Session) -> None:
             v.dashboard_label = dashboard_label
             v.parent_label = parent
             v.sort_order = order
+
+    # Prune views removed from the catalog (e.g. `cp2` after CP v2 removal) so
+    # the matrix + permissions/overrides don't keep dead rows — `_VIEWS` is the
+    # source of truth (FK ON DELETE CASCADE clears their permissions/overrides).
+    _catalog_slugs = {v[0] for v in _VIEWS}
+    for _slug, _v in existing_views.items():
+        if _slug not in _catalog_slugs:
+            session.delete(_v)
 
     # 2) Groups — insert missing, update mutable metadata (description /
     #    flags / sort_order) on existing rows. `sort_order` comes from
@@ -359,12 +365,6 @@ def seed_access_baseline(session: Session) -> None:
         ("growth_team", "d2.kpi"),
         ("growth_team", "d2.capacity"),
         ("growth_team", "d2.ai"),
-        # CP2 is limited to Admin + Leadership (see forced-grants below).
-        # Prototype audience is the leadership-track maintainer crowd;
-        # BI Team / Editorial / Growth teams don't need it.
-        ("bi_team", "cp2"),
-        ("editorial_team", "cp2"),
-        ("growth_team", "cp2"),
         # Admin · Analytics is admin-only. The summary endpoint exposes
         # other users' activity (email, last seen, top route, return
         # cadence), so we revoke it explicitly on every non-admin
@@ -375,10 +375,7 @@ def seed_access_baseline(session: Session) -> None:
         ("editorial_team", "admin.analytics"),
         ("growth_team", "admin.analytics"),
     ]
-    _FORCED_GRANTS: list[tuple[str, str]] = [
-        # Leadership — only non-admin group with CP2 access.
-        ("leadership", "cp2"),
-    ]
+    _FORCED_GRANTS: list[tuple[str, str]] = []
     for group_slug, view_slug in _FORCED_REVOKES:
         group = groups_by_slug.get(group_slug)
         view = views_by_slug.get(view_slug)

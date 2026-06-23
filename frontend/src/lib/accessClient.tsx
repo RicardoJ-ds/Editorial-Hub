@@ -199,7 +199,6 @@ const ROUTE_PRIORITY: Array<{ views: string[]; href: string }> = [
   { views: ["overview"], href: "/overview" },
   { views: ["d1.contract", "d1.deliverables"], href: "/editorial-clients" },
   { views: ["d2.kpi", "d2.capacity", "d2.ai"], href: "/team-kpis" },
-  { views: ["cp2"], href: "/capacity-planning" },
   { views: ["data.import"], href: "/data-management/import" },
   { views: ["admin.access"], href: "/admin/access" },
   { views: ["admin.data_quality"], href: "/admin/data-quality" },
