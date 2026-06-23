@@ -49,33 +49,60 @@ Finish the other session's plan (writers→Slack propagation + sheet refresh). C
 
 ## Phase 2 — Delete CP v2 + deprecated
 - [x] Remove `frontend/(app)/capacity-planning/*` + sidebar entry + cp2 RBAC view + docs — `c606568` (49 files, −11,403)
-- [ ] Remove phase-1 flat mirror (`etl/manifest.py` mirror, `editorial_hub_*`, `drop_legacy`)
-- [ ] Remove Postgres `warehouse` sink (Phase 3)
+- [x] Remove phase-1 flat mirror `editorial_hub_*` — **already gone** (0 tables in `graphite_bi_sandbox`, verified 2026-06-23)
+- [ ] PG `warehouse` sink retirement → folded into **Neon-Retirement Stage 7** below
 - [ ] (in-app changelog forward-note still says "0.4.x CP v2 → DB" — hidden doc, refresh later)
 
-## Phase 3 — Retire Postgres `warehouse` sink
-- [ ] Confirm nothing reads `warehouse` schema at request time (`DASHBOARD_SOURCE=bq`)
-- [ ] Stop dual-sink to PG `warehouse`; BQ-only publish
-- [ ] Define new rollback path
+## Phases 3+4 — NEON RETIREMENT (ingestion → BigQuery) — full design in `etl/NEON_RETIREMENT_PLAN.md`
+> **Grounded analysis 2026-06-23.** Multi-session re-architecture, NOT a flag. Four Neon-`public`
+> readers must move: importer fuzzy client-resolution (`_resolve_client`, **8 importers**) · warehouse
+> `fetch_model_rows` · the `pg_advisory_lock(815001)` publish lock · DQ admin discrepancy reads (29 q's).
+> Importers: **10 easy / 6 medium / 2 hard** (Growth Pods, Monthly Article Count). No BQ upsert → each
+> importer becomes a full-rebuild `WRITE_TRUNCATE` load. The int/view math is already source-agnostic
+> (pure fns of in-memory dicts) → migration = "change where the raw dicts come from."
 
-## Phase 4 — Ingestion → BigQuery (the big lift) — **full design in `etl/NEON_RETIREMENT_PLAN.md`**
-Grounded analysis 2026-06-23: this is a multi-session re-architecture, NOT a flag. Four Neon-`public`
-readers must move (importers' fuzzy client-resolution across 8 importers · warehouse `fetch_model_rows` ·
-the `pg_advisory_lock` publish lock · DQ admin discrepancy reads). Importers: 10 easy / 6 medium / 2 hard.
-**Critical:** local+prod SHARE BQ dataset `graphite_bi_sandbox` → all dev/validation must use an isolated
-`graphite_bi_migration` dataset. Stages (each parity-gated, prod untouched until Stage 4 cutover):
-- [ ] Stage 0 — isolated dataset + parity harness wired
-- [ ] Stage 1 — warehouse reads raw from BQ (`WAREHOUSE_RAW_SOURCE` seam) + parity
-- [ ] Stage 2 — in-memory client resolution (refactor `_resolve_client`)
-- [ ] Stage 3 — importer output → BQ raw, dual-write, per-domain parity (easy 10 → medium 6 → hard 2)
-- [ ] Stage 4 — cutover warehouse to BQ raw (prod, full 53-endpoint parity gate)
-- [ ] Stage 5 — stop Neon `public` writes (DQ queues stay)
-- [ ] Stage 6 — migrate publish lock + DQ admin reads off Neon `public`
-- [ ] Stage 7 — retire PG warehouse sink; drop Neon `public` + `warehouse` schemas
+**⚠️ SAFETY GATES (read before any session):**
+- Local + prod SHARE BQ dataset `graphite_bi_sandbox`. **All dev/validation MUST set
+  `BQ_DATASET=graphite_bi_migration`** or you overwrite what prod serves.
+- Work on branch `feature/neon-to-bq-ingestion`. Prod stays on `0.3.29` until Stage 4 parity is GREEN.
+- Validation = `python -m etl.warehouse.parity` + `python -m etl.warehouse.endpoint_parity` (53 endpoints,
+  `X-Data-Source` postgres-vs-bq). **Zero diff required before any prod cutover.**
+
+**Legend:** ☀️ = safe anytime (isolated dataset / branch, prod untouched) · 🌙 = do in a LOW-TRAFFIC
+window (touches prod / runs a SYNC; avoid 09:00 UTC daily cron + editorial working hours).
+
+- [ ] **Stage 0 ☀️** — create `graphite_bi_migration` dataset; add `BQ_DATASET` override path; run a local
+      warehouse build into it from local Neon; wire both parity harnesses against it.
+- [ ] **Stage 1 ☀️** — add `WAREHOUSE_RAW_SOURCE=neon|bq` + `fetch_model_rows_from_bq(table)`; int builders
+      read `editorial_raw_*` from BQ when `bq`. Validate: int/views from Neon == from BQ-raw (identical).
+- [ ] **Stage 2 ☀️** — refactor `_resolve_client` / `_build_client_name_lookup` to use an in-memory
+      clients+aliases lookup (built from the SOW pass); Neon-backed shim behind a flag for rollback.
+- [ ] **Stage 3 ☀️** — importer output → `editorial_raw_*` (truncate+load), DUAL-WRITE (keep Neon too).
+      Order: easy 10 → medium 6 → hard 2 (Growth Pods, Monthly Article Count). Parity-gate EACH domain.
+- [ ] **Stage 4 🌙** — prod cutover: flip `WAREHOUSE_RAW_SOURCE=bq`; warehouse builds int/views from
+      importer-written BQ raw. Full 53-endpoint parity gate first. Bake ≥1 daily cron cycle.
+- [ ] **Stage 5 🌙** — stop Neon `public` writes (BQ-only ingestion). DQ queues (`incomplete_clients`,
+      `article_unmapped_names`, `pod_import_issues`) STILL write Neon. Also drop Step-5 alias tables
+      (`article_name_aliases`, `client_name_aliases`, `pod_name_overrides`) once resolution is in-memory/BQ.
+- [ ] **Stage 6 🌙** — migrate publish lock (`pg_advisory_lock` → tiny Neon app-state lock row) + repoint
+      `admin.py` discrepancy detection to read BQ raw.
+- [ ] **Stage 7 🌙** — flag-gate + remove `pg_sink` data writes; drop Neon `public` ingested tables +
+      `warehouse` schema. New rollback = re-enable + republish (minutes) / BQ serve-stale-on-error.
 
 ## Phase 5 — Verify + document
-- [ ] Confirm Neon = app-state only
-- [ ] Docs + memory + version bump
+- [ ] Confirm Neon = app-state only (RBAC, comments, usage_events, cache_version, audit_log,
+      sheet_sync_history, DQ queues, publish-lock row)
+- [ ] Full audit + endpoint parity + version bump (→ likely `0.4.0`, PHASE bump — needs confirmation)
+- [ ] Docs + memory (`reference_*_cutover`, `NOW.md`) + CHANGELOG
+
+## Suggested execution sessions (off-hours plan)
+- **Session A (anytime ☀️):** Stages 0–1 — isolated dataset + the BQ-raw seam + parity. Low risk, reviewable.
+- **Session B (anytime ☀️):** Stage 2 — in-memory resolution. The trickiest refactor; parity per importer.
+- **Session C (anytime ☀️):** Stage 3 — dual-write all importers to BQ raw, domain-by-domain parity.
+- **Session D (off-hours 🌙):** Stage 4 cutover + bake.
+- **Session E (off-hours 🌙):** Stages 5–7 — stop Neon writes, migrate lock/DQ, drop schemas, version bump.
+> Most of the build (A–C) is prod-safe and can happen during the day on the branch/isolated dataset.
+> Only D–E touch prod and should run in a low-traffic window (not ~09:00 UTC cron, not editorial hours).
 
 ## Review
 _(append outcomes per phase here)_
@@ -201,3 +228,29 @@ unchanged. Lowest-impact, preserves all current dashboard numbers.
   old `notion_articles` / `/api/notion-articles/` as "current source" — cosmetic, the
   prototype is unwired (localStorage). Refresh when CP v2 is built.
 - `config.notion_database_id` left in place (unused, harmless).
+
+---
+
+# Plan — Editorial Name Mappings everywhere + proposal-sheet columns (2026-06-23)
+
+**Decisions (locked with Ricardo):** 2nd Review = STRICT (Sr Editors only) · columns on BOTH MAC + Meta · apply mappings in ALL places (incl. Notion + Capacity).
+
+Context: DaniQ reviewed the Editorial Name Mappings sheet; her changes were Writers-only (16 raws → "Auditioning Writer"). The article importer already reads the live BQ `editorial_name_map`, but the proposal standardizer + warehouse + Notion-KPI + capacity still use stale local JSON / first-name matching.
+
+## Phase A — mappings take effect in ALL places
+- [ ] Add shared windowed resolver `resolve(name_map, raw, ym)` to `name_map_bq.py` (mirror `migration_service._alias_resolve`).
+- [ ] `sheet_standardize.py`: replace local-JSON writer source (`daniq_writer_confirmations.json` + `writer_aliases.json`) with live BQ `editorial_name_map` (writer + editor); roster + WRITER/EDITOR (STANDARD) fill reflect DaniQ's sheet incl. Auditioning Writer.
+- [ ] `warehouse/build.py`: writer canon from BQ `editorial_name_map`, not local JSON.
+- [ ] `notion_kpi_service.py`: canonicalize Notion editor + sr_editor names through the editor map before matching.
+- [ ] `capacity_calc.py`: route the editor matcher through canonical names (assess; article side already canonical).
+
+## Phase B — proposal-sheet columns (MAC main path + standardize_meta)
+- [ ] `3RD REVISION (STANDARD)` date column on both sheets (REV3_STD); structure-insert (idempotent add to already-structured tabs), fill 3rd parsed revision date, strict-date validation.
+- [ ] `2ND REVIEW (STANDARD)` column on both sheets; Sr Editor roster (titles `Sr. Editor` + `Sr. Editor II`, active-at-top); STRICT dropdown.
+
+## Phase C — gate + apply + verify + release
+- [ ] ruff/format/mypy on changed backend + etl.
+- [ ] Re-sync `@name-mappings` so BQ is fresh; dry-run both standardizers; review; `--apply`.
+- [ ] Verify: 16 Auditioning Writers flow to article_records + Monthly Articles; Hub numbers unchanged; columns + dropdowns present.
+- [ ] Resolve DaniQ's "Sarah H" comment (does it have 2025/2026 rows?).
+- [ ] Version bump + changelog + commit + push.

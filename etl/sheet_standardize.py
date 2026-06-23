@@ -11,26 +11,33 @@ the originals, so Hub numbers don't move.
 
 Passes (dry-run by default; --apply to execute):
 
-  1. STRUCTURE  insert the (STANDARD) columns after EDITOR / WRITER and the two
-                revision-date columns after REVISED on every client tab +
-                TEMPLATE (skipped when already present). One generic
-                anchor→new-columns planner so the inserts compose without
-                index drift.
+  1. STRUCTURE  insert the (STANDARD) columns: EDITOR (STANDARD) + 2ND REVIEW
+                (STANDARD) after EDITOR, WRITER (STANDARD) after WRITER, and the
+                three revision-date columns after REVISED, on every client tab +
+                TEMPLATE (skipped when already present; the 3rd-revision + 2nd-
+                review columns are added even to tabs structured by an earlier
+                run). One generic anchor→new-columns planner so the inserts
+                compose without index drift.
   2. ROSTERS    create/refresh `📋 Rosters`: A = Active editors (new entries) ·
                 B = All editors (validation list — active A→Z, then terminated
                 A→Z so history still validates) · C = Status · D = Hire date ·
-                E = Termination date · G = Writers. Editor validation points at
-                $B (ONE_OF_RANGE); writer validation at $G. Terminated editors
-                who never appear in the article log are dropped (and stay
-                dropped — see build_rosters).
+                E = Termination date · G = Writers · H = Sr editors (2nd-review
+                list, active first). Editor validation → $B (ONE_OF_RANGE),
+                writer → $G, 2nd-review → $H. Editor/writer rosters come from the
+                LIVE BigQuery editorial_name_map (DaniQ-editable sheet → BQ),
+                incl. the "Auditioning Writer" bucket. Terminated editors who
+                never appear in the article log are dropped (and stay dropped —
+                see build_rosters).
   3. FILL       EDITOR (STANDARD) = canonical name (date-windowed Sam/Lauren
                 rules included). Slash collaborations are filled as
                 "Name A / Name B" — strict validation flags them red on
                 purpose: they're pending DaniQ's real-assignment list.
-                WRITER (STANDARD) = canonical writer name.
-                1ST / 2ND REVISION (STANDARD) = the article's parsed revision
-                dates, sorted ascending (1st = earliest). The original REVISED
-                cell is never touched, so 3rd+ revisions are not lost.
+                WRITER (STANDARD) = the importer's already-canonical writer name
+                (same BQ map). 1ST / 2ND / 3RD REVISION (STANDARD) = the
+                article's parsed revision dates, sorted ascending (1st =
+                earliest). 2ND REVIEW (STANDARD) is a NEW manual column (no fill)
+                — a Sr-editor dropdown DaniQ fills in. The original REVISED cell
+                is never touched, so 4th+ revisions are not lost.
   4. DATES      SUBMITTED normalized IN PLACE (same value, real date): only
                 year-less text cells (e.g. "Aug 26") are rewritten to the
                 importer-confirmed ISO date; the column gets a yyyy-mm-dd
@@ -39,8 +46,10 @@ Passes (dry-run by default; --apply to execute):
   5. VALIDATE   EDITOR (STANDARD): dropdown = All editors (STRICT).
                 WRITER (STANDARD): dropdown = Writers (warning-only — legacy
                 first-name-only history would drown a strict rule).
-                1ST / 2ND REVISION: must-be-a-date STRICT (rejects free text /
-                partial dates / comma-lists, blanks OK) + yyyy-mm-dd display.
+                2ND REVIEW (STANDARD): dropdown = Sr editors (STRICT, active
+                first). 1ST / 2ND / 3RD REVISION: must-be-a-date STRICT (rejects
+                free text / partial dates / comma-lists, blanks OK) + yyyy-mm-dd
+                display.
   6. AUDIT      `✅ VALIDATION AUDIT` tab: per tab — header row position (the
                 Felt bug class), missing required columns, rows, std-column
                 fill counts (editor / writer / revision dates), slash cells
@@ -54,8 +63,6 @@ Run inside the backend container:
 from __future__ import annotations
 
 import argparse
-import json
-import os
 import re
 import sys
 import time
@@ -73,15 +80,13 @@ from etl.extract import get_session
 from etl.load import get_bq
 
 ROSTERS_TAB = "📋 Rosters"
-# Resolve the mappings dir relative to THIS file so the script runs both in the
-# container (/app/etl/mappings) and locally / via `railway run` (repo etl/mappings).
-_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mappings")
-
 AUDIT_TAB = "✅ VALIDATION AUDIT"
 ED_STD = "EDITOR (STANDARD)"
 WR_STD = "WRITER (STANDARD)"
 REV1_STD = "1ST REVISION (STANDARD)"
 REV2_STD = "2ND REVISION (STANDARD)"
+REV3_STD = "3RD REVISION (STANDARD)"
+REVIEW2_STD = "2ND REVIEW (STANDARD)"
 # canon header keys (from _article_build_header_map) → friendly names
 REQUIRED_COLS = {
     "TITLE": "ARTICLE TITLE",
@@ -121,46 +126,61 @@ def build_rosters() -> tuple[list[dict], list[str]]:
       Lead" — those are pruned later in main() if they never appear in the
       article log, so terminated non-editors (e.g. Andres Rojas / Jose Maria
       Sosa, Editorial Leads gone since early 2023) don't clutter the dropdown.
-    writers: canonical writer names (unchanged)."""
+      Each editor dict also carries `title` + `is_senior` ("Sr. Editor" /
+      "Sr. Editor II") — the latter drives the 2nd-Review dropdown.
+    writers: canonical writer names from the LIVE BigQuery editorial_name_map
+      (DaniQ-editable sheet → BQ), incl. the "Auditioning Writer" bucket — so her
+      latest writer corrections flow into the proposal rosters."""
+    from app.services.name_map_bq import canonical_values
+
     bq = get_bq()
     editors: dict[str, dict] = {}
     for r in bq.query(
-        "SELECT employee_name, status, start_date, termination_date "
+        "SELECT employee_name, status, start_date, termination_date, title "
         "FROM `graphite-data.graphite_bi_sandbox.v_headcount` "
         "WHERE LOWER(department) LIKE 'editorial%' "
         "AND (LOWER(title) LIKE '%editor%' OR LOWER(title) LIKE '%editorial%')"
     ).result():
         if not (r.employee_name or "").strip():
             continue
+        title = (r.title or "").strip()
         editors[r.employee_name] = {
             "name": r.employee_name,
             "status": r.status or "",
             "hire": r.start_date.isoformat() if r.start_date else "",
             "term": r.termination_date.isoformat() if r.termination_date else "",
+            "title": title,
+            # "Sr. Editor" / "Sr. Editor II" — the 2nd-review reviewers.
+            "is_senior": title.lower().startswith("sr"),
         }
-    with open(os.path.join(_MAPPINGS_DIR, "editor_aliases.json")) as f:
-        ed = json.load(f)
 
     def _add_alias(name: str) -> None:
         if name and name not in editors:
-            editors[name] = {"name": name, "status": "", "hire": "", "term": ""}
+            editors[name] = {
+                "name": name,
+                "status": "",
+                "hire": "",
+                "term": "",
+                "title": "",
+                "is_senior": False,
+            }
 
-    for v in ed["aliases"].values():
-        if v["status"] == "confirmed" and v.get("canonical"):
-            _add_alias(v["canonical"])
-        elif v["status"] == "confirmed_windowed":
-            for w in v.get("windows", []):
-                _add_alias(w["canonical"])
-    with open(os.path.join(_MAPPINGS_DIR, "writer_aliases.json")) as f:
-        wr = json.load(f)
-    writers = {
-        v["canonical"]
-        for v in wr["aliases"].values()
-        if v.get("canonical")
-        and v["status"] in ("confirmed", "confirmed_first_name", "roster")
-        and " " in v["canonical"]
-    }
+    # Historical editor canonicals from the live name map (DaniQ sheet → BQ), so
+    # names that only appear in the article log still validate.
+    for canon in canonical_values("editor"):
+        _add_alias(canon)
+    writers = canonical_values("writer")
     return list(editors.values()), sorted(writers)
+
+
+def _sr_editor_list(roster_editors: list[dict]) -> list[str]:
+    """Senior-editor names for the 2nd-Review dropdown — active first (A→Z),
+    then terminated (A→Z) so historical reviewers still validate. Source =
+    `is_senior` ("Sr. Editor" / "Sr. Editor II") editors from build_rosters."""
+    srs = [e for e in roster_editors if e.get("is_senior")]
+    active = sorted((e["name"] for e in srs if e["status"] == "ACTIVE"), key=str.lower)
+    rest = sorted((e["name"] for e in srs if e["status"] != "ACTIVE"), key=str.lower)
+    return active + rest
 
 
 def load_db_rows() -> dict[tuple[str, int], dict]:
@@ -225,6 +245,15 @@ def find_header(values: list[list[str]]) -> tuple[int | None, dict]:
     return None, {}
 
 
+def _find_std(header_row: list, title: str) -> int | None:
+    """Index of a single (STANDARD) column by exact title, or None. Used for the
+    newer 3RD REVISION / 2ND REVIEW columns so the legacy 4-tuple stays stable."""
+    for i, h in enumerate(header_row):
+        if str(h).strip().upper() == title:
+            return i
+    return None
+
+
 def std_col_positions(
     header_row: list,
 ) -> tuple[int | None, int | None, int | None, int | None]:
@@ -275,34 +304,12 @@ def standardize_meta(apply: bool = False) -> int:
     rowcount = props[TAB]["gridProperties"]["rowCount"]
 
     # Roster (inline ONE_OF_LIST) + DaniQ writer overrides — same sources as main.
+    # Rosters from the LIVE BigQuery editorial_name_map (DaniQ sheet → BQ); the
+    # WRITER (STANDARD) fill uses the importer's already-canonical writer name.
     roster_editors, writers = build_rosters()
-    daniq_wr: dict = {}
-    try:
-        with open(os.path.join(_MAPPINGS_DIR, "daniq_writer_confirmations.json")) as fh:
-            daniq_wr = {k.lower(): v for k, v in json.load(fh).items()}
-    except OSError:
-        pass
-
-    def daniq_writer(raw: str, ym: str | None) -> str | None:
-        e = daniq_wr.get((raw or "").strip().lower())
-        if not e:
-            return None
-        if "windows" in e and ym:
-            for w in e["windows"]:
-                if (w.get("from") is None or w["from"] <= ym) and (
-                    w.get("to") is None or ym <= w["to"]
-                ):
-                    return w["value"]
-        return e.get("value")
-
-    dq_names = {
-        v
-        for e in daniq_wr.values()
-        for v in [e.get("value"), *[w["value"] for w in e.get("windows", [])]]
-        if v
-    }
     editor_list = sorted({e["name"] for e in roster_editors})
-    writer_list = sorted(set(writers) | dq_names)
+    writer_list = sorted(writers)
+    sr_editor_list = _sr_editor_list(roster_editors)
     db = load_db_rows()
 
     grid = read_grids(svc, sid, [TAB]).get(TAB, [])
@@ -317,6 +324,8 @@ def standardize_meta(apply: bool = False) -> int:
         print("[meta] no header row with VERTICAL + EDITOR")
         return 1
     ed_std_i, wr_std_i, rev1_std_i, rev2_std_i = std_col_positions(grid[header_idx])
+    rev3_std_i = _find_std(grid[header_idx], REV3_STD)
+    review2_std_i = _find_std(grid[header_idx], REVIEW2_STD)
 
     # ── STRUCTURE: insert missing (STANDARD) columns (highest anchor first) ──
     last_rev = next(
@@ -324,11 +333,20 @@ def standardize_meta(apply: bool = False) -> int:
     )
     anchors: list[tuple[int, list[str]]] = []
     if "EDITOR" in cols and ed_std_i is None:
-        anchors.append((cols["EDITOR"], [ED_STD]))
+        # new tab: editor-std + 2nd-review (right after it) in one insert
+        anchors.append(
+            (cols["EDITOR"], [ED_STD] + ([REVIEW2_STD] if review2_std_i is None else []))
+        )
+    elif review2_std_i is None and ed_std_i is not None:
+        # already-structured tab: 2nd-review after the existing EDITOR (STANDARD)
+        anchors.append((ed_std_i, [REVIEW2_STD]))
     if "WRITER" in cols and wr_std_i is None:
         anchors.append((cols["WRITER"], [WR_STD]))
     if last_rev is not None and rev1_std_i is None:
-        anchors.append((last_rev, [REV1_STD, REV2_STD]))
+        anchors.append((last_rev, [REV1_STD, REV2_STD, REV3_STD]))
+    elif rev3_std_i is None and rev2_std_i is not None:
+        # already-structured tab: 3rd-revision after the existing 2nd revision
+        anchors.append((rev2_std_i, [REV3_STD]))
 
     def final_positions() -> dict[str, int]:
         before, prefix, out = 0, {}, {}
@@ -370,45 +388,54 @@ def standardize_meta(apply: bool = False) -> int:
             ).execute()
             grid = read_grids(svc, sid, [TAB]).get(TAB, [])
             ed_std_i, wr_std_i, rev1_std_i, rev2_std_i = std_col_positions(grid[header_idx])
+            rev3_std_i = _find_std(grid[header_idx], REV3_STD)
+            review2_std_i = _find_std(grid[header_idx], REVIEW2_STD)
         else:
             ed_std_i, wr_std_i = pos.get(ED_STD, ed_std_i), pos.get(WR_STD, wr_std_i)
             rev1_std_i, rev2_std_i = pos.get(REV1_STD, rev1_std_i), pos.get(REV2_STD, rev2_std_i)
+            rev3_std_i = pos.get(REV3_STD, rev3_std_i)
+            review2_std_i = pos.get(REVIEW2_STD, review2_std_i)
     print(
         f"[meta] structure: insert {sum(len(t) for _, t in anchors)} cols → "
         f"WR_STD={col_letter(wr_std_i) if wr_std_i is not None else '?'} "
         f"ED_STD={col_letter(ed_std_i) if ed_std_i is not None else '?'} "
         f"REV1_STD={col_letter(rev1_std_i) if rev1_std_i is not None else '?'} "
         f"REV2_STD={col_letter(rev2_std_i) if rev2_std_i is not None else '?'} "
+        f"REV3_STD={col_letter(rev3_std_i) if rev3_std_i is not None else '?'} "
+        f"REVIEW2_STD={col_letter(review2_std_i) if review2_std_i is not None else '?'} "
         f"DELIVERED={col_letter(cols['DELIVERED']) if 'DELIVERED' in cols else '?'}"
     )
 
     # ── FILL from article_records (source_tab='TRACKER') ──
     n_rows = len(grid) - (header_idx + 1)
     dt_i = cols.get("DELIVERED")
-    ed_vals, wr_vals, r1_vals, r2_vals, dt_updates = [], [], [], [], []
-    ed_fill = wr_fill = r1_fill = r2_fill = dt_fix = 0
+    ed_vals, wr_vals, r1_vals, r2_vals, r3_vals, dt_updates = [], [], [], [], [], []
+    ed_fill = wr_fill = r1_fill = r2_fill = r3_fill = dt_fix = 0
     dt_changed = False
     for r_off in range(n_rows):
         sheet_row = header_idx + 2 + r_off
         row = grid[header_idx + 1 + r_off]
         rec = db.get((TAB, sheet_row))
-        ed = wr = r1 = r2 = ""
+        ed = wr = r1 = r2 = r3 = ""
         if rec:
             if rec["editors"]:
                 ed = " / ".join(rec["editors"])
                 ed_fill += 1
             if rec["writer_name"]:
-                wr = daniq_writer(rec["writer_raw"], rec.get("ym")) or rec["writer_name"]
+                wr = rec["writer_name"]
                 wr_fill += 1
             revs = rec.get("revisions") or []
             if len(revs) >= 1:
                 r1, r1_fill = revs[0], r1_fill + 1
             if len(revs) >= 2:
                 r2, r2_fill = revs[1], r2_fill + 1
+            if len(revs) >= 3:
+                r3, r3_fill = revs[2], r3_fill + 1
         ed_vals.append([ed])
         wr_vals.append([wr])
         r1_vals.append([r1])
         r2_vals.append([r2])
+        r3_vals.append([r3])
         if dt_i is not None:
             cur = str(row[dt_i]) if dt_i < len(row) else ""
             new = cur
@@ -424,7 +451,7 @@ def standardize_meta(apply: bool = False) -> int:
             dt_updates.append([new])
     print(
         f"[meta] fills (of {n_rows} rows): editor {ed_fill} · writer {wr_fill} · "
-        f"rev1 {r1_fill} · rev2 {r2_fill} · date-fix {dt_fix}"
+        f"rev1 {r1_fill} · rev2 {r2_fill} · rev3 {r3_fill} · date-fix {dt_fix}"
     )
 
     first, last = header_idx + 2, header_idx + 1 + n_rows
@@ -444,6 +471,8 @@ def standardize_meta(apply: bool = False) -> int:
         vu(rev1_std_i, r1_vals)
     if r2_fill:
         vu(rev2_std_i, r2_vals)
+    if r3_fill:
+        vu(rev3_std_i, r3_vals)
     if dt_changed:
         vu(dt_i, dt_updates)
 
@@ -514,6 +543,18 @@ def standardize_meta(apply: bool = False) -> int:
             "inputMessage": "Pick the writer from the roster.",
         },
     )
+    dv(
+        review2_std_i,
+        {
+            "condition": {
+                "type": "ONE_OF_LIST",
+                "values": [{"userEnteredValue": n} for n in sr_editor_list],
+            },
+            "strict": True,
+            "showCustomUi": True,
+            "inputMessage": "Pick the Sr Editor who did the 2nd review (active first).",
+        },
+    )
     if dt_i is not None:
         dv(
             dt_i,
@@ -525,7 +566,7 @@ def standardize_meta(apply: bool = False) -> int:
             },
         )
         isofmt(dt_i)
-    for ri in (rev1_std_i, rev2_std_i):
+    for ri in (rev1_std_i, rev2_std_i, rev3_std_i):
         dv(
             ri,
             {
@@ -538,7 +579,7 @@ def standardize_meta(apply: bool = False) -> int:
         isofmt(ri)
     print(
         f"[meta] validation: {len(val_reqs)} requests · roster {len(editor_list)} editors / "
-        f"{len(writer_list)} writers"
+        f"{len(writer_list)} writers / {len(sr_editor_list)} sr editors"
     )
 
     if not apply:
@@ -573,37 +614,13 @@ def main(argv: list[str] | None = None) -> int:
     if "TEMPLATE" in props and "TEMPLATE" not in tabs:
         tabs.append("TEMPLATE")  # gets the columns + rules so new tabs inherit
 
-    # DaniQ's green-confirmed writer map (the ONLY source of truth for writers
-    # — no BQ table exists). Overrides the importer's name on the WRITER
-    # (STANDARD) column: full names where she gave one, "audition" for the
-    # trial bucket, windowed for the one split (Dan).
-    daniq_wr: dict = {}
-    try:
-        with open(os.path.join(_MAPPINGS_DIR, "daniq_writer_confirmations.json")) as fh:
-            daniq_wr = {k.lower(): v for k, v in json.load(fh).items()}
-    except OSError:
-        pass
-
-    def daniq_writer(raw: str, ym: str | None) -> str | None:
-        e = daniq_wr.get((raw or "").strip().lower())
-        if not e:
-            return None
-        if "windows" in e and ym:
-            for w in e["windows"]:
-                if (w.get("from") is None or w["from"] <= ym) and (
-                    w.get("to") is None or ym <= w["to"]
-                ):
-                    return w["value"]
-        return e.get("value")
-
+    # Writer + editor rosters come from the LIVE BigQuery editorial_name_map
+    # (DaniQ-editable sheet → BQ) via build_rosters — incl. the "Auditioning
+    # Writer" bucket — so her latest corrections flow into the proposal sheet.
+    # The WRITER (STANDARD) fill uses the importer's already-canonicalized
+    # rec["writer_name"] (same BQ map), so no local override is needed.
     roster_editors, writers = build_rosters()
-    # add DaniQ's confirmed writer names (+ the audition bucket) to the roster
-    dq_names = set()
-    for e in daniq_wr.values():
-        for val in [e.get("value")] + [w["value"] for w in e.get("windows", [])]:
-            if val:
-                dq_names.add(val)
-    writers = sorted(set(writers) | dq_names)
+    sr_editor_list = _sr_editor_list(roster_editors)
     db = load_db_rows()
 
     # Durable ex-editor prune: keep a TERMINATED editor only if their first name
@@ -648,17 +665,28 @@ def main(argv: list[str] | None = None) -> int:
             continue
         hdr_row = values[header_idx]
         ed_std_i, wr_std_i, rev1_std_i, rev2_std_i = std_col_positions(hdr_row)
+        rev3_std_i = _find_std(hdr_row, REV3_STD)
+        review2_std_i = _find_std(hdr_row, REVIEW2_STD)
         # Each anchor = (original column index, [new standard titles to insert
         # right after it]). Only anchors whose std columns are still missing.
         anchors: list[tuple[int, list[str]]] = []
         if "EDITOR" in hmap and ed_std_i is None:
-            anchors.append((hmap["EDITOR"], [ED_STD]))
+            # new tab: editor-std + 2nd-review (right after it) in one insert
+            anchors.append(
+                (hmap["EDITOR"], [ED_STD] + ([REVIEW2_STD] if review2_std_i is None else []))
+            )
+        elif review2_std_i is None and ed_std_i is not None:
+            # already-structured tab: 2nd-review after the existing EDITOR (STANDARD)
+            anchors.append((ed_std_i, [REVIEW2_STD]))
         if "WRITER" in hmap and wr_std_i is None:
             anchors.append((hmap["WRITER"], [WR_STD]))
         if "REVISED" in hmap and rev1_std_i is None:
-            anchors.append((hmap["REVISED"], [REV1_STD, REV2_STD]))
+            anchors.append((hmap["REVISED"], [REV1_STD, REV2_STD, REV3_STD]))
+        elif rev3_std_i is None and rev2_std_i is not None:
+            # already-structured tab: 3rd-revision after the existing 2nd revision
+            anchors.append((rev2_std_i, [REV3_STD]))
         if not anchors:
-            continue  # already structured
+            continue  # already structured (incl. rev3 + 2nd-review present)
         needs_insert.append(tab)
         gid = props[tab]["sheetId"]
         # Insert from the highest anchor first so lower anchors stay valid inside
@@ -723,14 +751,20 @@ def main(argv: list[str] | None = None) -> int:
         n_rows = max(0, len(values) - (header_idx + 1)) if header_idx is not None else 0
         hdr_row = values[header_idx] if header_idx is not None else []
         ed_std_i, wr_std_i, rev1_std_i, rev2_std_i = std_col_positions(hdr_row)
-        if not args.apply and header_idx is not None and ed_std_i is None:
+        rev3_std_i = _find_std(hdr_row, REV3_STD)
+        review2_std_i = _find_std(hdr_row, REVIEW2_STD)
+        if not args.apply and header_idx is not None:
             # dry-run preview: columns not inserted yet — report would-be fills.
             # -1 sentinels keep the fill loop counting without emitting writes.
-            ed_std_i = wr_std_i = -1
-            if "REVISED" in hmap:
-                rev1_std_i = rev2_std_i = -1
+            if ed_std_i is None:
+                ed_std_i = wr_std_i = -1
+                if "REVISED" in hmap:
+                    rev1_std_i = rev2_std_i = -1
+            # 3rd-revision is added even to already-structured tabs.
+            if rev3_std_i is None and (rev2_std_i is not None or "REVISED" in hmap):
+                rev3_std_i = -1
 
-        ed_fill = wr_fill = dt_fix = slash = bad_dates = rev1_fill = rev2_fill = 0
+        ed_fill = wr_fill = dt_fix = slash = bad_dates = rev1_fill = rev2_fill = rev3_fill = 0
 
         if header_idx is not None and n_rows:
             dt_i = hmap.get("DATE")
@@ -738,13 +772,14 @@ def main(argv: list[str] | None = None) -> int:
             wr_col_vals: list[list[str]] = []
             rev1_col_vals: list[list[str]] = []
             rev2_col_vals: list[list[str]] = []
+            rev3_col_vals: list[list[str]] = []
             dt_updates: list[list[str]] = []
             dt_changed = False
             for r_off in range(n_rows):
                 sheet_row = header_idx + 2 + r_off
                 row = values[header_idx + 1 + r_off]
                 rec = db.get((tab, sheet_row))
-                ed_val = wr_val = rev1_val = rev2_val = ""
+                ed_val = wr_val = rev1_val = rev2_val = rev3_val = ""
                 if rec:
                     if rec["editors"]:
                         ed_val = " / ".join(rec["editors"])
@@ -754,11 +789,8 @@ def main(argv: list[str] | None = None) -> int:
                         ):
                             slash += 1
                     if rec["writer_name"]:
-                        # DaniQ's confirmation wins (full name / audition);
-                        # else the importer's resolved name.
-                        wr_val = (
-                            daniq_writer(rec["writer_raw"], rec.get("ym")) or rec["writer_name"]
-                        )
+                        # the importer's already-canonical writer name (BQ map)
+                        wr_val = rec["writer_name"]
                         wr_fill += 1
                     # revision dates are pre-sorted ascending in load_db_rows
                     revs = rec.get("revisions") or []
@@ -768,10 +800,14 @@ def main(argv: list[str] | None = None) -> int:
                     if len(revs) >= 2:
                         rev2_val = revs[1]
                         rev2_fill += 1
+                    if len(revs) >= 3:
+                        rev3_val = revs[2]
+                        rev3_fill += 1
                 ed_col_vals.append([ed_val])
                 wr_col_vals.append([wr_val])
                 rev1_col_vals.append([rev1_val])
                 rev2_col_vals.append([rev2_val])
+                rev3_col_vals.append([rev3_val])
                 # in-place date fix: only year-less text cells with a confident parse
                 if dt_i is not None:
                     cur = str(row[dt_i]) if dt_i < len(row) else ""
@@ -833,6 +869,16 @@ def main(argv: list[str] | None = None) -> int:
                         "values": rev2_col_vals,
                     }
                 )
+            if rev3_std_i is not None and rev3_std_i >= 0 and rev3_fill:
+                value_updates.append(
+                    {
+                        "range": (
+                            f"'{tab}'!{col_letter(rev3_std_i)}{first_data}:"
+                            f"{col_letter(rev3_std_i)}{last_data}"
+                        ),
+                        "values": rev3_col_vals,
+                    }
+                )
             if dt_i is not None and dt_changed:
                 value_updates.append(
                     {
@@ -892,6 +938,20 @@ def main(argv: list[str] | None = None) -> int:
                         "Missing? Add them there first.",
                     },
                 )
+            if review2_std_i is not None and review2_std_i >= 0:
+                dv(
+                    review2_std_i,
+                    {
+                        "condition": {
+                            "type": "ONE_OF_RANGE",
+                            "values": [{"userEnteredValue": f"='{ROSTERS_TAB}'!$H$2:$H"}],
+                        },
+                        "strict": True,
+                        "showCustomUi": True,
+                        "inputMessage": "Pick the Sr Editor who did the 2nd review "
+                        "(📋 Rosters tab, column H — active first).",
+                    },
+                )
 
             def iso_date_format(col_i: int) -> None:
                 # unambiguous ISO display — the legacy "MMM d" format hid the year
@@ -933,7 +993,7 @@ def main(argv: list[str] | None = None) -> int:
             # free text / partial dates / comma-lists are refused on entry. The
             # original REVISED cell stays untouched (3rd+ revisions, raw lists
             # still live there); only these standardized split columns are gated.
-            for rev_i in (rev1_std_i, rev2_std_i):
+            for rev_i in (rev1_std_i, rev2_std_i, rev3_std_i):
                 if rev_i is not None and rev_i >= 0:
                     dv(
                         rev_i,
@@ -981,6 +1041,7 @@ def main(argv: list[str] | None = None) -> int:
             ("wr", wr_fill),
             ("rev1", rev1_fill),
             ("rev2", rev2_fill),
+            ("rev3", rev3_fill),
             ("slash", slash),
             ("dt", dt_fix),
             ("baddate", bad_dates),
@@ -990,6 +1051,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"\nPLAN — std editor cells: {totals['ed']} · std writer cells: {totals['wr']} · "
         f"1st rev dates: {totals['rev1']} · 2nd rev dates: {totals['rev2']} · "
+        f"3rd rev dates: {totals['rev3']} · "
         f"slash pending DaniQ: {totals['slash']} · year-less dates → ISO: {totals['dt']} · "
         f"unparseable dates: {totals['baddate']} · validation+format requests: "
         f"{len(validation_requests)} · value ranges: {len(value_updates)}"
@@ -1008,9 +1070,10 @@ def main(argv: list[str] | None = None) -> int:
         svc.spreadsheets().batchUpdate(spreadsheetId=sid, body={"requests": add_reqs}).execute()
     # Layout: A active editors (quick-pick for new entries) · B all editors
     # (the validation list — active A→Z then terminated A→Z) · C/D/E status +
-    # hire + termination dates aligned to B · F spacer · G writers. Editor
-    # dropdown points at $B, writer dropdown at $G.
-    n = max(len(active_ed), len(roster_editors), len(writers))
+    # hire + termination dates aligned to B · F spacer · G writers · H sr editors
+    # (2nd-review validation — active first, then terminated). Editor dropdown
+    # points at $B, writer dropdown at $G, 2nd-review dropdown at $H.
+    n = max(len(active_ed), len(roster_editors), len(writers), len(sr_editor_list))
     roster_rows = [
         [
             "ACTIVE EDITORS (new entries)",
@@ -1020,6 +1083,7 @@ def main(argv: list[str] | None = None) -> int:
             "TERMINATION DATE",
             "",
             "WRITERS (validation)",
+            "SR EDITORS (2nd review)",
         ]
     ]
     for i in range(n):
@@ -1033,10 +1097,11 @@ def main(argv: list[str] | None = None) -> int:
                 ed["term"] if ed else "",
                 "",
                 writers[i] if i < len(writers) else "",
+                sr_editor_list[i] if i < len(sr_editor_list) else "",
             ]
         )
     svc.spreadsheets().values().clear(
-        spreadsheetId=sid, range=f"'{ROSTERS_TAB}'!A:G", body={}
+        spreadsheetId=sid, range=f"'{ROSTERS_TAB}'!A:H", body={}
     ).execute()
     svc.spreadsheets().values().update(
         spreadsheetId=sid,

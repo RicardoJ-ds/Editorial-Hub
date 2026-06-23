@@ -584,7 +584,6 @@ def build_int_pod_assignments(session) -> list[Job]:
     # sheet's OWN clean single-name cells. Greedy longest-first matching splits
     # multi-name blobs — known names act as separators, so even glued text
     # ("Jack LimebearJacob McPhail") splits.
-    import json as _json
     from collections import defaultdict as _dd
 
     _W_JUNK = re.compile(
@@ -595,17 +594,22 @@ def build_int_pod_assignments(session) -> list[Job]:
     )
     _NAME_RE = re.compile(r"^[A-Za-z][A-Za-z.'\-]+( [A-Za-z][A-Za-z.'\-]+){1,2}$")
     writer_canon: dict[str, str] = {}  # lower variant -> canonical
-    try:
-        with open("/app/etl/mappings/writer_aliases.json") as fh:
-            for v in _json.load(fh)["aliases"].values():
-                canon = v.get("canonical")
-                if canon and " " in canon and len(canon) >= 7:
-                    writer_canon.setdefault(canon.lower(), canon)
-                    raw = v.get("raw")
-                    if raw and " " in raw and len(raw) >= 7:
-                        writer_canon.setdefault(raw.lower(), canon)
-    except OSError:
-        pass
+    # Writer normalization now comes from the LIVE BigQuery `editorial_name_map`
+    # (DaniQ-editable sheet → BQ), not a stale local JSON — so her writer
+    # corrections (incl. the "Auditioning Writer" bucket) flow into the
+    # warehouse. Both the canonical and any multi-word raw variant become
+    # dictionary keys for the greedy longest-first splitter below.
+    wmap = fetch_name_map("writer", session)
+    for raw_l, rows_ in wmap.items():
+        canon = next((c for vf, vt, c in rows_ if vf is None and vt is None), None) or (
+            rows_[0][2] if rows_ else None
+        )
+        if not canon:
+            continue
+        if " " in canon and len(canon) >= 7:
+            writer_canon.setdefault(canon.lower(), canon)
+        if " " in raw_l and len(raw_l) >= 7:
+            writer_canon.setdefault(raw_l, canon)
     for (wn,) in session.execute(
         text(
             "SELECT DISTINCT writer_name FROM article_records "

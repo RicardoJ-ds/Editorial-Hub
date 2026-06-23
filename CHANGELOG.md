@@ -18,6 +18,14 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.37 — June 23
+
+**Name corrections now flow everywhere, plus two new columns on the article sheets.**
+
+- The Editorial Name Mappings (including the writers DaniQ reclassified as "Auditioning Writer") now take effect in every place a name is used — the article counts, the warehouse, the Team-KPI editor matching, and the proposal sheets — not just the importer. Her latest list was published to the warehouse so the corrections apply on the next sync. *Verify:* Team KPIs → Monthly Articles after the next SYNC.
+- Both proposal article sheets (Monthly Article Count + Meta) gained a **3rd revision date** column. *Verify:* open a client tab in the Monthly Article Count sheet.
+- Both also gained a **2nd Review** column — a Senior-Editor dropdown (active editors listed first) for the newer second-review step that not every client had yet. *Verify:* the 2ND REVIEW (STANDARD) column on any client tab.
+
 ## 0.3.36 — June 23
 
 **Pod teams now see every client in their pod — including Meta.**

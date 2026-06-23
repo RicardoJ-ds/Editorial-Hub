@@ -67,14 +67,28 @@ def refresh_notion_kpis(
             used = cp.projected_used_capacity or cp.actual_used_capacity or 0
             pod_utilization[cp.pod] = round((used / cp.total_capacity) * 100, 1)
 
-    # Build editor → rows mapping (by normalized name).
+    # Build editor → rows mapping (by canonical, normalized name). Notion's
+    # editor / sr_editor cells carry raw first-names; route them through the
+    # DaniQ-editable BigQuery `editorial_name_map` (same source the article
+    # importer uses) so name variants consolidate onto one canonical person —
+    # otherwise "Sam" and "Samantha Marceau" would split the KPI rows.
+    from app.services.name_map_bq import fetch_name_map, resolve
+
+    emap = fetch_name_map("editor", session)
+
+    def _canon(name: str, a: NotionRow) -> str:
+        ym = f"{a.created_date.year:04d}-{a.created_date.month:02d}" if a.created_date else None
+        return resolve(emap, name, ym) or name
+
     editor_articles: dict[str, list[NotionRow]] = {}
     sr_editor_articles: dict[str, list[NotionRow]] = {}
     for a in notion_rows:
         if a.editor:
-            editor_articles.setdefault(_normalize_team_name(a.editor), []).append(a)
+            editor_articles.setdefault(_normalize_team_name(_canon(a.editor, a)), []).append(a)
         if a.sr_editor:
-            sr_editor_articles.setdefault(_normalize_team_name(a.sr_editor), []).append(a)
+            sr_editor_articles.setdefault(_normalize_team_name(_canon(a.sr_editor, a)), []).append(
+                a
+            )
 
     updated = 0
     for member in members:

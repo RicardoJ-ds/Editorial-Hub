@@ -64,3 +64,32 @@ def fetch_name_map(kind: str, session: Any | None = None) -> NameMap:
                 (a.valid_from, a.valid_to, a.canonical_value)
             )
     return out
+
+
+def resolve(name_map: NameMap, raw: str, ym: str | None) -> str | None:
+    """Resolve a raw name + article month ('YYYY-MM' | None) to its canonical.
+
+    Windowed rows win when the article's month falls inside; a windowless row is
+    the fallback. Undated articles only match windowless aliases. Mirrors
+    `migration_service._alias_resolve` so every consumer (importer, warehouse,
+    Notion KPIs, the proposal standardizer) shares ONE resolution rule."""
+    rows = name_map.get((raw or "").strip().lower())
+    if not rows:
+        return None
+    fallback = None
+    for vfrom, vto, canon in rows:
+        if vfrom is None and vto is None:
+            fallback = canon
+            continue
+        if ym is not None and (vfrom is None or vfrom <= ym) and (vto is None or ym <= vto):
+            return canon
+    return fallback
+
+
+def canonical_values(kind: str, session: Any | None = None) -> set[str]:
+    """Every distinct canonical name for a kind (writer | editor | client) —
+    the DaniQ-confirmed universe for that kind, including buckets like
+    "Auditioning Writer". Drives the proposal-sheet roster dropdowns."""
+    return {
+        canon for rows in fetch_name_map(kind, session).values() for (_, _, canon) in rows if canon
+    }
