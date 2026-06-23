@@ -350,7 +350,7 @@ function PreviewAsControl() {
               <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
             </PopoverTrigger>
             <PopoverContent
-              className="w-[360px] border-[#2a2a2a] bg-[#0d0d0d] p-0"
+              className="w-[360px] overflow-hidden rounded-lg border border-[#3a3a3a] bg-[#161616] p-0 shadow-2xl ring-1 ring-black/50"
               align="start"
             >
               <Command>
