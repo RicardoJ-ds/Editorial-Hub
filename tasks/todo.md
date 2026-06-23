@@ -1,6 +1,12 @@
 # Plan — Retire Neon for ingested/analytical data → BigQuery-native Hub
 
 **Approved all-in (Phases 1–5), 2026-06-23.**
+
+> **SHIPPED 2026-06-23 — `v0.3.29` deployed to prod** (Vercel + Railway both green on `dad406d`).
+> Verified live: removed DQ write endpoints → 404/405, kept reads → 200, dashboards serve (84 clients from BQ),
+> sync plan = 11 steps with `@name-mappings` before MAC + AI-monitoring absent, BQ `editorial_name_map` = 121 rows,
+> `fetch_name_map` resolves with windowing. Full gate green (ruff/mypy/pytest/tsc/build/semgrep).
+> **Phase 1b name-map BQ read is now baking in prod** — next SYNC exercises it; then Step 5 (drop Neon alias/override tables) is unblocked.
 Goal: **Neon = thin app-state only**; **BigQuery = all ingested/analytical data + warehouse + mappings → feeds dashboards**. Remove CP v2 + deprecated. ETL writes BQ; dashboards read BQ.
 (The other session's Content-Machine→BQ + Writers→Slack work — preserved below — is part of the Phase 0 baseline and folds into Phase 1.)
 
@@ -24,42 +30,48 @@ Ship the normalization to prod NOW (existing Neon mechanism), validate end-to-en
 mappings to BigQuery and only THEN delete the Neon things — **ETL verified before any deletion.**
 Finish the other session's plan (writers→Slack propagation + sheet refresh). CP v2 = removable.
 
-## Phase 1 — SHIP normalization to prod NOW (existing Neon mechanism)
-- [x] Writer loader exists (`build_mappings --apply-writer-aliases`)
-- [ ] Add `--apply-editor-aliases` (confirmed + windowed) loader  ← editors (Tiffany→Tiffany Anderson, Sam windows)
-- [ ] (clients: handle separately w/ confirmation — higher blast radius)
-- [ ] Regen mappings (`build_mappings`, prod env, Slack-fed) → apply writers+editors to prod `article_name_aliases`
-- [ ] Re-sync Monthly Article Count on prod + warehouse publish → `article_records` canonical
-- [ ] `sheet_standardize --apply` → proposal sheet STANDARD columns show canonical names
-- [ ] VALIDATE: Fivetran spot-check (Aysenur→Aysenur Zaza, Tiffany→Tiffany Anderson) + parity gate + dashboards
+## Phase 1 — SHIP normalization to prod (existing Neon mechanism) ✅ writers+editors DONE (2026-06-23)
+- [x] Writer + editor loaders (`build_mappings --apply-writer-aliases` / `--apply-editor-aliases` / `--apply-aliases`) — `7a8ab34`
+- [x] Applied writers+editors to prod `article_name_aliases` (113: 78 wr + 35 ed, incl. windowed Sam)
+- [x] Re-synced MAC on prod + warehouse published → `article_records` canonical (editor 14,475/14,926, writer 10,529; was 0)
+- [x] `sheet_standardize --apply` → proposal sheet STANDARD columns canonical
+- [x] VALIDATED: Fivetran Aysenur→Aysenur Zaza, Tiffany→Tiffany Anderson; backend healthy; web report updated
+- [x] **Clients:** `--apply-client-aliases` (`118d2a2`) → 8 confirmed tab→Hub aliases applied to prod + re-synced → 7-8 tabs resolved (Genstore→GenstoreAI, Workleap/ShareGate, Orderful I/II, Neiman, FRC, Men's W). All 3 entities now canonical in prod.
+- [ ] **Residual (NOT code-fixable — DaniQ data decision):** 18 tabs genuinely **not in the Hub** `clients` table (Mirage, Curology, Gopuff, Credit Karma, …) → add to the Editorial SOW overview sheet (then they sync in) OR accept out-of-scope · EarnIn + Athena2 = **ambiguous** (EarnIn is split B2B/B2C) → need DaniQ to pick the target. All tracked in DQ → Missing from Hub.
 
 ## Phase 1b — Migrate mappings to BigQuery (then drop Neon — GATED on validation)
-- [ ] Design `editorial_name_map` (BQ): kind · raw_value · canonical_value · canonical_id · valid_from/to · status · source · note
-- [ ] Builder: origin-fed (Slack/Rippling/SF) + port ALL aliases (zero loss)
-- [ ] `name_map_bq.py` reader (`fetch_name_map(kind)`, windowed) — `notion_bq` pattern
-- [ ] Repoint importer + warehouse `build.py:543/548` reads → BQ (ADD read, keep Neon fallback)
-- [ ] Google Sheet "Editorial Name Mappings" → BQ sync (manifest step) — the maintenance path
-- [ ] **GATE: validate ETL + dashboards on BQ map (parity green) BEFORE deleting anything**
-- [ ] Retire 3 manual-edit endpoints; DQ tabs → read-only pointers
-- [ ] Drop Neon alias/override tables (startup migration)
+- [x] `editorial_name_map` (BQ) + builder (`build_mappings --build-name-map`) — `a7de7b5`; published == Neon (78/35/8=121)
+- [x] `name_map_bq.py::fetch_name_map(kind)` (windowed, Neon fallback) + repoint importer + warehouse — `ae77671`; **validated identical** (editor 14,475 / writer 10,529 / 7 client tabs from BQ)
+- [x] Google Sheet "Editorial Name Mappings" → BQ sync — `433c9c8`. Sheet (Writers/Editors/Clients, 121 rows) = DaniQ-editable source; `@name-mappings` manifest step (runs before MAC) publishes `editorial_name_map`. Verified round-trip sheet→BQ→importer.
+- [x] **DQ section → READ-ONLY** (Ricardo's ask, refined: "fix at the source, no UI mapping in all kinds"). Article-mappings tab read-only + "Edit in the sheet" link — `a68946e`. Missing-from-Hub + Pod-issues tabs read-only (map/dismiss/undo/override controls gone; "How to fix (at the source)" framing + Status badge) — `d9c54fc`. Backend writes removed: admin.py missing-clients map/dismiss/reopen + pod-import-issues reopen + pod-name-overrides create/delete; articles.py POST /aliases. **Existing aliases/overrides still consulted** (nothing currently resolving breaks) — only new-from-UI creation stops. Reads (`/discrepancies`, `/unmapped`, GET `/pod-name-overrides`) intact. **Shipped in `v0.3.29` (`dad406d`, 2026-06-23) — prod-verified** (write endpoints 404/405 live).
+- [x] **GATE PASSED — manual prod SYNC 2026-06-23 09:1x UTC resolved cleanly via `editorial_name_map`.** Post-SYNC == baseline (20 unmapped clients / 40 editors / 208 writers / 121 aliases), BQ map 121, warehouse republished 09:20:41 UTC, dashboards serve (84 clients). MAC 14,926 rows all_ok. (Note: full `sync-run` over external HTTP hits a 300s proxy 502 but completes server-side; per-step or the in-process cron avoid it.)
+- [ ] **Step 5 now UNBLOCKED:** drop Neon alias/override tables (`article_name_aliases`, `client_name_aliases`/`ClientNameAlias`, `pod_name_overrides`) + remove their consultation, via startup migration. Keep the read-only DQ surfaces. Do after confirming the daily cron run also stays clean.
 
 ## Phase 2 — Delete CP v2 + deprecated
-- [ ] Remove `frontend/(app)/capacity-planning/*` + `_store` + `_erd` + sidebar entry + docs
+- [x] Remove `frontend/(app)/capacity-planning/*` + sidebar entry + cp2 RBAC view + docs — `c606568` (49 files, −11,403)
 - [ ] Remove phase-1 flat mirror (`etl/manifest.py` mirror, `editorial_hub_*`, `drop_legacy`)
-- [ ] Remove `notion_articles` remnants (verify none) + the CP v2 ERD docs that still label old notion source
-- [ ] Update CLAUDE.md / memory / version
+- [ ] Remove Postgres `warehouse` sink (Phase 3)
+- [ ] (in-app changelog forward-note still says "0.4.x CP v2 → DB" — hidden doc, refresh later)
 
 ## Phase 3 — Retire Postgres `warehouse` sink
 - [ ] Confirm nothing reads `warehouse` schema at request time (`DASHBOARD_SOURCE=bq`)
 - [ ] Stop dual-sink to PG `warehouse`; BQ-only publish
 - [ ] Define new rollback path
 
-## Phase 4 — Ingestion → BigQuery (the big lift)
-- [ ] Design single in-memory ingestion pass → raw BQ tables (no Neon landing zone)
-- [ ] Per-domain migrate importers (emit rows; self-heal reads from BQ)
-- [ ] Repoint warehouse build to read BQ raw (not Neon `public`)
-- [ ] Parity gate per domain
-- [ ] Remove Neon `public` ingested tables
+## Phase 4 — Ingestion → BigQuery (the big lift) — **full design in `etl/NEON_RETIREMENT_PLAN.md`**
+Grounded analysis 2026-06-23: this is a multi-session re-architecture, NOT a flag. Four Neon-`public`
+readers must move (importers' fuzzy client-resolution across 8 importers · warehouse `fetch_model_rows` ·
+the `pg_advisory_lock` publish lock · DQ admin discrepancy reads). Importers: 10 easy / 6 medium / 2 hard.
+**Critical:** local+prod SHARE BQ dataset `graphite_bi_sandbox` → all dev/validation must use an isolated
+`graphite_bi_migration` dataset. Stages (each parity-gated, prod untouched until Stage 4 cutover):
+- [ ] Stage 0 — isolated dataset + parity harness wired
+- [ ] Stage 1 — warehouse reads raw from BQ (`WAREHOUSE_RAW_SOURCE` seam) + parity
+- [ ] Stage 2 — in-memory client resolution (refactor `_resolve_client`)
+- [ ] Stage 3 — importer output → BQ raw, dual-write, per-domain parity (easy 10 → medium 6 → hard 2)
+- [ ] Stage 4 — cutover warehouse to BQ raw (prod, full 53-endpoint parity gate)
+- [ ] Stage 5 — stop Neon `public` writes (DQ queues stay)
+- [ ] Stage 6 — migrate publish lock + DQ admin reads off Neon `public`
+- [ ] Stage 7 — retire PG warehouse sink; drop Neon `public` + `warehouse` schemas
 
 ## Phase 5 — Verify + document
 - [ ] Confirm Neon = app-state only
