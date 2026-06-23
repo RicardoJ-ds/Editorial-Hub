@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.32 — June 23
+
+**People with two work emails now see all their clients (not just some).**
+
+- A few teammates appear in the Team Pods sheet under two email formats (e.g. `name@` and `name.lastname@`), chipped onto different clients per address. The Hub scoped a user's visible clients by their login email only, so they saw just the subset tied to whichever email they logged in with. Now the Hub resolves clients by **person (name)**, unioning both emails — still limited to the user's own pod. *Verify:* the affected leads (e.g. Daniel Kai, Alex Reynolds) now see every client in their pod. No effect on single-email users; no cross-person access.
+
 ## 0.3.31 — June 23
 
 **Meta now shows under Growth Pod 4 for all three verticals (not just Meta AI).**

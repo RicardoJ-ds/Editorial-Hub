@@ -34,15 +34,36 @@ def _scope_filter(profile: AccessProfile) -> set[str] | None:
         return None
 
     with get_sync_session() as session:
-        q = select(PodAssignment.client_name).where(PodAssignment.email == profile.email)
+        # Match the PERSON, not just the login email. Some people are in the
+        # Team Pods sheet under two email formats (e.g. daniel@ + daniel.kai@)
+        # and were chipped onto different clients per address, so a login-email-
+        # only filter under-scoped them (they saw only the clients tied to the
+        # email they happened to log in with). Resolve login email →
+        # display_name(s) → every client for that name. The pod_kind_lock
+        # narrowing is kept, which also caps any name-collision blast radius to
+        # a single pod kind.
+        names = {
+            r[0]
+            for r in session.execute(
+                select(PodAssignment.display_name).where(PodAssignment.email == profile.email)
+            ).all()
+            if r[0]
+        }
+        q = select(PodAssignment.client_name)
+        # No pod_assignment row for the login email → nothing to widen by;
+        # fall back to the strict email match (unchanged behavior).
+        q = (
+            q.where(PodAssignment.display_name.in_(names))
+            if names
+            else q.where(PodAssignment.email == profile.email)
+        )
         if profile.pod_kind_lock:
             q = q.where(PodAssignment.pod_kind == profile.pod_kind_lock)
         rows = session.execute(q).all()
         # Lowercase the allowed-name set at its single source so both the
         # Postgres and BigQuery scope filters match client names
         # case-insensitively (pod_assignments stores "N8N" while clients.name
-        # is "n8n"). Only the client_name projection is folded — the email /
-        # pod_kind predicates above are untouched.
+        # is "n8n").
         return {r[0].lower() for r in rows if r[0]}
 
 
