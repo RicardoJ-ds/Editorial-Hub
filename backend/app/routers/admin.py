@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime
 from typing import Any
 
@@ -634,3 +635,73 @@ async def get_sync_status(db: AsyncSession = Depends(get_db)):
         )
 
     return SyncStatusResponse(last_syncs=entries)
+
+
+# ---------------------------------------------------------------------------
+# Normalization summary — live stats for the Data Quality "Normalization" tab.
+# Replaces the static claude.ai artifact; reads real counts so it never drifts.
+# ---------------------------------------------------------------------------
+
+
+class NormalizationSummary(BaseModel):
+    distinct_articles: int  # COUNT(DISTINCT article_uid) — physical articles
+    editor_credits: int  # article_records rows (one per article-editor)
+    auditioning_writers: int  # distinct articles credited to "Auditioning Writer"
+    distinct_editors: int
+    distinct_writers: int
+    total_client_tabs: int
+    unresolved_client_tabs: int  # source tabs with no resolved Hub client
+    tab_coverage_pct: float
+    mappings_writer: int  # rows in BQ editorial_name_map by kind
+    mappings_editor: int
+    mappings_client: int
+    generated_at: datetime
+
+
+@router.get("/normalization-summary", response_model=NormalizationSummary)
+async def normalization_summary(db: AsyncSession = Depends(get_db)):
+    """Live counts behind the DQ Normalization tab: article volume, mapping
+    inventory (BQ `editorial_name_map`), and client-tab resolution coverage."""
+
+    async def _scalar(stmt) -> int:
+        return (await db.execute(stmt)).scalar() or 0
+
+    distinct_articles = await _scalar(select(func.count(func.distinct(ArticleRecord.article_uid))))
+    editor_credits = await _scalar(select(func.count(ArticleRecord.id)))
+    auditioning = await _scalar(
+        select(func.count(func.distinct(ArticleRecord.article_uid))).where(
+            ArticleRecord.writer_name == "Auditioning Writer"
+        )
+    )
+    distinct_editors = await _scalar(select(func.count(func.distinct(ArticleRecord.editor_name))))
+    distinct_writers = await _scalar(select(func.count(func.distinct(ArticleRecord.writer_name))))
+    total_tabs = await _scalar(select(func.count(func.distinct(ArticleRecord.source_tab))))
+    unresolved_tabs = await _scalar(
+        select(func.count(func.distinct(ArticleRecord.source_tab))).where(
+            ArticleRecord.client_id.is_(None)
+        )
+    )
+
+    # BQ editorial_name_map row counts by kind (blocking client → thread).
+    def _map_counts() -> dict[str, int]:
+        from app.services.name_map_bq import fetch_name_map
+
+        return {k: len(fetch_name_map(k)) for k in ("writer", "editor", "client")}
+
+    mc = await asyncio.to_thread(_map_counts)
+
+    coverage = round((total_tabs - unresolved_tabs) / total_tabs * 100, 1) if total_tabs else 0.0
+    return NormalizationSummary(
+        distinct_articles=distinct_articles,
+        editor_credits=editor_credits,
+        auditioning_writers=auditioning,
+        distinct_editors=distinct_editors,
+        distinct_writers=distinct_writers,
+        total_client_tabs=total_tabs,
+        unresolved_client_tabs=unresolved_tabs,
+        tab_coverage_pct=coverage,
+        mappings_writer=mc["writer"],
+        mappings_editor=mc["editor"],
+        mappings_client=mc["client"],
+        generated_at=datetime.utcnow(),
+    )

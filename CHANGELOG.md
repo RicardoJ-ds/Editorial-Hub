@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.38 — June 24
+
+**New "Normalization" view in Data Quality.**
+
+- Data Quality has a new **Normalization** tab — a *live* snapshot of how messy spreadsheet names become canonical editors / writers / clients. It shows real counts (article rows, name mappings, auditioning writers, unresolved client tabs, coverage %) and a sources → mapping layer → dashboards lineage. It reads live data, so unlike the old static diagram it never goes out of date. *Verify:* Data Quality → Normalization.
+
 ## 0.3.37 — June 23
 
 **Name corrections now flow everywhere, plus two new columns on the article sheets.**

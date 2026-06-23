@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, Database, ExternalLink, Info, Link2, RefreshCcw, Unlink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArticleMappingsTab } from "@/components/admin/ArticleMappingsTab";
+import { NormalizationMapTab } from "@/components/admin/NormalizationMapTab";
 import { apiGet } from "@/lib/api";
 import {
   ClearFiltersButton,
@@ -1299,6 +1300,7 @@ const TAB_LENSES: Record<string, LensKey[]> = {
   pod_history: ["team_kpis"],
   article_mappings: ["team_kpis"],
   pod_coverage: ["team_kpis"],
+  normalization: ["team_kpis", "platform"],
   modeling: ["platform"],
 };
 
@@ -1311,6 +1313,7 @@ const TAB_ORDER = [
   "pod_history",
   "article_mappings",
   "pod_coverage",
+  "normalization",
   "modeling",
 ];
 
@@ -1546,6 +1549,15 @@ export default function DataQualityPage() {
                   Pod coverage ({data.unassigned_article_pods.length})
                 </TabsTrigger>
               )}
+              {tabInLens("normalization", lens) && (
+                <TabsTrigger
+                  value="normalization"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <Database className="mr-2 inline-block h-3.5 w-3.5" />
+                  Normalization
+                </TabsTrigger>
+              )}
               {tabInLens("modeling", lens) && (
                 <TabsTrigger
                   value="modeling"
@@ -1577,6 +1589,9 @@ export default function DataQualityPage() {
             </TabsContent>
             <TabsContent value="pod_coverage" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <UnassignedPodsTab rows={data.unassigned_article_pods} />
+            </TabsContent>
+            <TabsContent value="normalization" className="mt-3 flex-1 min-h-0 overflow-hidden">
+              <NormalizationMapTab />
             </TabsContent>
             <TabsContent value="modeling" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <KnownLimitationsTab />
