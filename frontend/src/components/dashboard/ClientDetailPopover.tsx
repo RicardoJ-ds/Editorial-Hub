@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowUpRight, X } from "lucide-react";
 import type { Client, ClientProductionRow, GoalsVsDeliveryRow } from "@/lib/types";
+import { parseISODateLocal } from "@/lib/utils";
 import {
   computeCurrentQ,
   computeLastFullQ,
@@ -1387,9 +1388,10 @@ function LifetimeBody({
 function ContractMetaBlock({ client }: { client: Client }) {
   // Compose a contract summary line: dates + term + SOW + content type.
   const fmt = (iso: string | null) => {
-    if (!iso) return null;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
+    // Local calendar date, not UTC — `new Date("2026-06-01")` is UTC midnight
+    // and renders a day early in UTC-negative timezones.
+    const d = parseISODateLocal(iso);
+    if (!d || Number.isNaN(d.getTime())) return null;
     return d.toLocaleDateString("en-US", {
       month: "short", day: "numeric", year: "numeric",
     });

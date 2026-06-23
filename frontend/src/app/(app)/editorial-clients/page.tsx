@@ -74,8 +74,11 @@ const laterYm = (a: YM, b: YM): YM => (ymIdx(a) >= ymIdx(b) ? a : b);
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "\u2014";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "\u2014";
+  // Parse as a LOCAL calendar date, not UTC: `new Date("2026-06-01")` is UTC
+  // midnight, which renders as the day before in any UTC-negative timezone
+  // (the SOW says Jun 1, the table showed May 31).
+  const d = parseISODateLocal(dateStr);
+  if (!d || isNaN(d.getTime())) return "\u2014";
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "2-digit",

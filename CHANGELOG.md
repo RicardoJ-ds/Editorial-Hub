@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.35 — June 23
+
+**Contract start/end dates no longer show a day early.**
+
+- In Editorial Clients → Contract & Timeline Detail (and the Overview client popover), contract dates were rendered a day before the SOW Overview — e.g. a June 1 start showed as May 31. Cause: the date was read as UTC midnight and displayed in a behind-UTC timezone. Now dates are read as plain calendar dates, so they match the SOW exactly. *Verify:* Editorial Clients → Contract & Timeline → Chapter / Tempo show Jun 1, 2026.
+
 ## 0.3.34 — June 23
 
 **Jumbo articles are now counted correctly — the article count matches the Operating Model.**

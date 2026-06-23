@@ -117,8 +117,8 @@ export function FilterBar({
     let minYear = Infinity;
     let maxYear = -Infinity;
     for (const c of clients) {
-      const start = c.start_date ? new Date(c.start_date) : null;
-      const end = c.end_date ? new Date(c.end_date) : null;
+      const start = parseISODateLocal(c.start_date);
+      const end = parseISODateLocal(c.end_date);
       if (start && !Number.isNaN(start.getTime())) {
         minYear = Math.min(minYear, start.getFullYear());
       }
