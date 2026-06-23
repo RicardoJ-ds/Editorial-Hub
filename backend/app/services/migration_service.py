@@ -5846,9 +5846,196 @@ def _apply_notion_published(records: list[dict]) -> tuple[int, int]:
     return matched, published
 
 
+# Meta's article log lives in its own "Meta Editorial Tracker" sheet (single
+# TRACKER tab, rows grouped by VERTICAL) rather than per-client tabs. Each
+# vertical maps to an existing Hub client (all editorial Pod 5).
+_META_VERTICAL_TO_CLIENT = {
+    "ai": "Meta AI",
+    "reality labs": "Meta RL",
+    "for business": "Meta BMG",
+}
+
+
+def _parse_meta_tracker(
+    service,
+    lookup: dict[str, Client],
+    editor_alias: dict[str, list[tuple[str | None, str | None, str]]],
+    writer_alias: dict[str, list[tuple[str | None, str | None, str]]],
+    editorial_weeks: list[tuple[date, date, int, int]],
+    editor_roles,
+    pod_by_cm: dict[tuple[int, int, int], str | None],
+    alias_resolve,
+) -> tuple[list[dict], list[dict], dict[str, int]]:
+    """Parse the Meta Editorial Tracker (single TRACKER tab) into the SAME
+    article_records / article_revisions shape as the per-client tabs. Rows are
+    grouped by the VERTICAL column → Hub clients Meta AI / Meta RL / Meta BMG.
+    Reuses every parsing rule of the main importer (copy-name date, editorial
+    month, editor/writer windowed aliases, SE+Editor collab rule, revision
+    bucketing) so Meta counts tie out the same way. Returns (records, revision
+    rows, unresolved-client counts)."""
+    import hashlib
+
+    records: list[dict] = []
+    revision_rows: list[dict] = []
+    unresolved: dict[str, int] = {}
+    sid = settings.meta_tracker_id
+    if not sid:
+        return records, revision_rows, unresolved
+    try:
+        resp = _article_retry(
+            lambda: (
+                service.spreadsheets()
+                .values()
+                .get(
+                    spreadsheetId=sid,
+                    range="TRACKER!A1:R3000",
+                    valueRenderOption="FORMATTED_VALUE",
+                )
+                .execute()
+            )
+        )
+    except Exception:  # noqa: BLE001 — Meta is additive; never break the main sync
+        return records, revision_rows, unresolved
+    values = resp.get("values", [])
+    if len(values) < 2:
+        return records, revision_rows, unresolved
+
+    # Header row carries both VERTICAL and EDITOR (row 2 under the banner).
+    header_idx = None
+    cols: dict[str, int] = {}
+    for hi in range(min(5, len(values))):
+        upper = [str(c).strip().upper() for c in values[hi]]
+        if "VERTICAL" in upper and "EDITOR" in upper:
+            header_idx = hi
+            cols = {name: i for i, name in enumerate(upper) if name}
+            break
+    if header_idx is None:
+        return records, revision_rows, unresolved
+
+    for r_idx, row in enumerate(values[header_idx + 1 :], start=header_idx + 2):
+        if not row:
+            continue
+
+        def cell(name, _row=row):
+            i = cols.get(name)
+            return str(_row[i]).strip() if i is not None and i < len(_row) else ""
+
+        client_canon = _META_VERTICAL_TO_CLIENT.get(cell("VERTICAL").lower())
+        if not client_canon:
+            continue  # blank / total / unknown-vertical rows
+        editor_raw = cell("EDITOR")
+        if not editor_raw or editor_raw.upper() in _ARTICLE_EDITOR_BLANKS:
+            continue
+
+        client_obj = _resolve_client(lookup, client_canon)
+        if client_obj is not None:
+            client_name, client_id = client_obj.name, client_obj.id
+            gpod = _normalize_editorial_pod(client_obj.growth_pod)
+        else:
+            client_name, client_id, gpod = client_canon, None, None
+
+        copy_name = cell("COPY TITLE")
+        date_text = cell("DELIVERED")
+        sub_date, cal_year, cal_month = _article_parse_full(copy_name, date_text)
+        em = _editorial_month_for(sub_date, editorial_weeks)
+        year, month = em if em else (cal_year, cal_month)
+        month_year = f"{year:04d}-{month:02d}" if year and month else None
+        # As-of-month pod; fall back to the client's current pod (Meta is a stable
+        # Pod 5; the fallback guarantees the rows are visible under Pod 5 even for
+        # months outside ClientPodHistory coverage).
+        eff_pod = pod_by_cm.get((client_id, year, month)) if client_id and year and month else None
+        if eff_pod is None and client_obj is not None:
+            eff_pod = _normalize_editorial_pod(client_obj.editorial_pod)
+
+        uid = hashlib.sha256(f"META-TRACKER|{r_idx}".encode()).hexdigest()[:16]
+        editors = _split_editors(editor_raw)
+        collab = len(editors) > 1
+        editor_names = [
+            alias_resolve(editor_alias, ed.strip().lower(), month_year) or _clean_editor(ed)
+            for ed in editors
+        ]
+        if len(editor_names) == 2:
+            rc = [_editor_role_class(editor_roles, year, month, n) for n in editor_names]
+            if rc.count("SE") == 1 and rc.count("ED") == 1:
+                editor_names = [editor_names[rc.index("ED")]]
+        writer_raw = cell("WRITER") or None
+        writer_name = (
+            alias_resolve(writer_alias, writer_raw.strip().lower(), month_year)
+            or _clean_editor(writer_raw)
+            if writer_raw
+            else None
+        )
+        title = cell("ARTICLE TITLE") or None
+        link = cell("COPY LINK") or None
+        words = _article_parse_int(cell("WORD COUNT"))
+        # Meta uses SEPARATE REVISION 1/2/3 columns; join into the comma-list the
+        # shared revision parser expects (year inferred from the submit date).
+        rev_parts = [cell(c) for c in ("REVISION 1", "REVISION 2", "REVISION 3") if cell(c)]
+        revised = ", ".join(rev_parts) or None
+        rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
+        rev_dates_iso = [d.isoformat() for d, _ in rev_events]
+
+        for editor_name in editor_names:
+            records.append(
+                {
+                    "article_uid": uid,
+                    "client_name": client_name,
+                    "client_id": client_id,
+                    "source_tab": "TRACKER",
+                    "editor_name": editor_name,
+                    "editor_raw": editor_raw,
+                    "collaboration": collab,
+                    "writer_name": writer_name,
+                    "writer_raw": writer_raw,
+                    "editorial_pod": eff_pod,
+                    "growth_pod": gpod,
+                    "article_title": title,
+                    "copy_name": copy_name or None,
+                    "link": link,
+                    "word_count": words,
+                    "date_submitted_raw": date_text or None,
+                    "submitted_date": sub_date,
+                    "year": year,
+                    "month": month,
+                    "month_year": month_year,
+                    "revised_raw": revised,
+                    "revision_count": rev_count,
+                    "revision_dates": rev_dates_iso or None,
+                    "task_id": None,
+                    "source_row": r_idx,
+                }
+            )
+            for rd, rmy in rev_events:
+                rev_pod = (
+                    pod_by_cm.get((client_id, int(rmy[:4]), int(rmy[5:7])))
+                    if client_id and rmy and len(rmy) == 7
+                    else None
+                )
+                if rev_pod is None and client_obj is not None:
+                    rev_pod = _normalize_editorial_pod(client_obj.editorial_pod)
+                revision_rows.append(
+                    {
+                        "article_uid": uid,
+                        "client_name": client_name,
+                        "editor_name": editor_name,
+                        "writer_name": writer_name,
+                        "editorial_pod": rev_pod,
+                        "growth_pod": gpod,
+                        "revision_date": rd,
+                        "month_year": rmy,
+                    }
+                )
+            if client_id is None:
+                unresolved[client_name] = unresolved.get(client_name, 0) + 1
+
+    return records, revision_rows, unresolved
+
+
 def import_monthly_article_count(session: Session) -> ImportResult:
     """Stack every client tab of the Monthly Article Count sheet into
-    article_records (one row per article-editor; full rebuild each run)."""
+    article_records (one row per article-editor; full rebuild each run).
+    Also folds in Meta's separate editorial tracker (3 verticals → Pod-5 Meta
+    clients) so Meta article counts are included in the same rebuild."""
     import hashlib
 
     from sqlalchemy import delete
@@ -6108,6 +6295,25 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                     )
                 if client_id is None:
                     unresolved[client_name] = unresolved.get(client_name, 0) + 1
+
+    # 5b. Fold in Meta's separate editorial tracker (3 verticals → Pod-5 Meta
+    # clients) BEFORE the Notion match + the single rebuild, so Meta articles
+    # also get published-status and land in the same atomic delete+insert.
+    if settings.meta_tracker_id:
+        m_recs, m_revs, m_unres = _parse_meta_tracker(
+            service,
+            lookup,
+            editor_alias,
+            writer_alias,
+            editorial_weeks,
+            editor_roles,
+            pod_by_cm,
+            _alias_resolve,
+        )
+        records.extend(m_recs)
+        revision_rows.extend(m_revs)
+        for _k, _v in m_unres.items():
+            unresolved[_k] = unresolved.get(_k, 0) + _v
 
     # 5. Notion published match (TASK ID → unique-title fallback).
     matched, published = _apply_notion_published(records)

@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     # dashboard already uses, so no extra ACL is required.
     article_count_id: str = "1X_M82VzstJCulkl6l62jaubn2yI0ODBTz33iZ4XqZWU"
 
+    # "Copy of [INTERNAL] Meta Editorial Tracker" — Meta's article log lives in its
+    # OWN sheet (single TRACKER tab, rows grouped by VERTICAL: AI / Reality Labs /
+    # for Business), NOT in the per-client tabs of the Monthly Article Count sheet.
+    # import_monthly_article_count folds these 3 verticals in as the Hub clients
+    # Meta AI / Meta RL / Meta BMG (all editorial Pod 5). Empty disables the fold.
+    meta_tracker_id: str = "1eiFh7dNB3GMoOPbH28ydhQeEJYnHdZXFL8fCgMURWJM"
+
     # "Editorial Name Mappings" sheet (Writers/Editors/Clients tabs) — DaniQ-editable
     # source of truth for the normalization map; synced to BigQuery editorial_name_map.
     name_mappings_sheet_id: str = "1p0tFg4D8BypZlG6Rfch7KKsqaNa8xUUZRn2BFv6oLsc"
