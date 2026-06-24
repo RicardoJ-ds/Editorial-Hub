@@ -90,12 +90,24 @@ function plan_() {
   const ss = SpreadsheetApp.getActive();
   const cfg = getConfig_();
   if (!ss.getSheetByName(cfg.TEMPLATE_TAB)) throw new Error('Template tab not found: ' + cfg.TEMPLATE_TAB);
-  const existing = {};
-  ss.getSheets().forEach(function (s) { existing[normKey_(s.getName())] = true; });
+  const tabNames = ss.getSheets().map(function (s) { return s.getName().trim(); });
+  const exact = {};
+  tabNames.forEach(function (n) { exact[normKey_(n)] = true; });
+  // A client is "covered" if a tab matches it exactly (punctuation-insensitive),
+  // OR a tab is the leading words of the client name at a WORD boundary — so
+  // "Tempo XYZ" is covered by the "Tempo" tab, but "BetterUp" is NOT by "Better".
+  function covered(name) {
+    if (exact[normKey_(name)]) return true;
+    const lower = name.toLowerCase();
+    return tabNames.some(function (t) {
+      const tl = t.toLowerCase();
+      return tl && lower.startsWith(tl + ' ');
+    });
+  }
   const missing = [];
   fetchClients_(cfg).forEach(function (name) {
     name = String(name).trim();
-    if (name && !existing[normKey_(name)]) { missing.push(name); existing[normKey_(name)] = true; }
+    if (name && !covered(name)) { missing.push(name); exact[normKey_(name)] = true; }
   });
   return { ss: ss, cfg: cfg, missing: missing };
 }

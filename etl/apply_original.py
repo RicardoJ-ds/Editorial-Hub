@@ -70,7 +70,7 @@ def _resolve(values) -> dict | None:
         "n": n,
         "editor": hmap["EDITOR"],
         "writer": hmap["WRITER"],
-        "revised": hmap.get("REVISED"),
+        "revised": _find_exact(hdr, "REVISED", "REVISED DATE"),
         "rev1": _find_exact(hdr, "REVISION 1", "1ST REVISION"),
         "rev2": _find_exact(hdr, "REVISION 2", "2ND REVISION"),
         "rev3": _find_exact(hdr, "REVISION 3", "3RD REVISION"),
@@ -146,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", choices=("mac", "meta"), required=True)
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--only", default="", help="comma-separated tab names to scope to")
     args = ap.parse_args(argv)
     sid = MAC_ID if args.target == "mac" else META_ID
     svc = sheets()
@@ -158,7 +159,10 @@ def main(argv: list[str] | None = None) -> int:
         tabs = ["TRACKER"]
     else:
         skip = set(_ARTICLE_NON_CLIENT_TABS) | {ROSTER_LOCAL}
-        tabs = [t for t in props if t not in skip and not t.startswith(("📋", "✅", "🔍", "🔬"))]
+        tabs = [t for t in props if t not in skip and not t.startswith(("📋", "✅", "🔍", "🔬", "🧩", "⚙️"))]
+    if args.only:
+        only = {t.strip() for t in args.only.split(",") if t.strip()}
+        tabs = [t for t in tabs if t in only]
     grids = read_grids(svc, sid, tabs)
 
     # ── PHASE A — structure (column inserts + REVISED→1ST rename + new titles) ──
