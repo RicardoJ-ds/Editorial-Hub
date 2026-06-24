@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # Drives the Team KPIs → Monthly Articles tab (per-editor productivity).
     # Read by the same Hub service account that the standalone editorial
     # dashboard already uses, so no extra ACL is required.
-    article_count_id: str = "1X_M82VzstJCulkl6l62jaubn2yI0ODBTz33iZ4XqZWU"
+    article_count_id: str = "1TIfMsXr7Vpoip4NcEWMlPaTrj3F4VTXZKk7cVlxKYM0"
 
     # "Copy of [INTERNAL] Meta Editorial Tracker" — Meta's article log lives in its
     # OWN sheet (single TRACKER tab, rows grouped by VERTICAL: AI / Reality Labs /
