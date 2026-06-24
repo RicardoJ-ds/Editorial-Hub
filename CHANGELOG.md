@@ -18,6 +18,12 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.39 — June 24
+
+**Trial / auditioning writers now roll up consistently.**
+
+- Any writer flagged as auditioning in the article sheets — a `*`, or a "trial" / "audition" note — now collapses to the single **Auditioning Writer** bucket. Previously only 16 hand-mapped names did; ~160 more trial-writer credits were scattered as raw text ("Trial writer", `Yonela*`, "Spencer (trial)", etc.). It's pattern-based, so new trial writers are caught automatically, and an explicit name mapping still wins. *Verify:* Data Quality → Normalization (auditioning count) after the next SYNC.
+
 ## 0.3.38 — June 24
 
 **New "Normalization" view in Data Quality.**

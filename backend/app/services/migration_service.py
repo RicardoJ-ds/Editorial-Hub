@@ -5445,6 +5445,14 @@ _ARTICLE_EDITOR_BLANKS = frozenset(
 # no editor of their own, so the importer used to drop them, undercounting jumbos
 # vs the Operating Model. The importer credits each caret to the article above.
 _CARET_RE = re.compile(r"^\^{1,4}$")
+# Auditioning/trial writer marker: any "*" (DaniQ's trial flag), or a "trial" /
+# "audition" mention in the raw writer cell. These all collapse to the single
+# "Auditioning Writer" bucket — pattern-based (not an enumerated alias list) so
+# new trial writers are caught automatically. An EXPLICIT editorial_name_map
+# entry still wins (so an asterisked name DaniQ maps to a real person stays
+# that person); this is only the fallback before the cleaned-raw fallback.
+_AUDITION_RE = re.compile(r"\*|trial|audition", re.I)
+_AUDITIONING_CANON = "Auditioning Writer"
 
 # Per-tab header strings → canonical key (row 2 is the header row).
 _ARTICLE_HDR_ALIASES = {
@@ -5972,7 +5980,9 @@ def _parse_meta_tracker(
         writer_raw = cell("WRITER") or None
         writer_name = (
             alias_resolve(writer_alias, writer_raw.strip().lower(), month_year)
-            or _clean_editor(writer_raw)
+            or (
+                _AUDITIONING_CANON if _AUDITION_RE.search(writer_raw) else _clean_editor(writer_raw)
+            )
             if writer_raw
             else None
         )
@@ -6283,7 +6293,11 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             writer_raw = str(cell("WRITER")).strip() or None
             writer_name = (
                 _alias_resolve(writer_alias, writer_raw.strip().lower(), month_year)
-                or _clean_editor(writer_raw)
+                or (
+                    _AUDITIONING_CANON
+                    if _AUDITION_RE.search(writer_raw)
+                    else _clean_editor(writer_raw)
+                )
                 if writer_raw
                 else None
             )
