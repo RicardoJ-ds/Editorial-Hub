@@ -170,6 +170,15 @@ def build_rosters() -> tuple[list[dict], list[str]]:
     for canon in canonical_values("editor"):
         _add_alias(canon)
     writers = canonical_values("writer")
+    # Also pull the live writer roster from Slack — the source of truth (writer
+    # contractors carry @*.writing.graphitehq.com emails). New writers then
+    # appear in the dropdown without waiting for a manual editorial_name_map row.
+    try:
+        from etl.build_mappings import _fetch_slack_writers
+
+        writers |= {w["display_name"] for w in _fetch_slack_writers() if w.get("display_name")}
+    except Exception:
+        pass
     return list(editors.values()), sorted(writers)
 
 

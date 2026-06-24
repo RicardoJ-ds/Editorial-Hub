@@ -5664,6 +5664,16 @@ def _safe_article_date(y: int, m: int, d: int) -> date | None:
         return None
 
 
+def _article_infer_year(mm: int, dd: int) -> int:
+    """Year for a year-less 'Mon DD' date — the most recent (mm, dd) on/before
+    today. A month already past this year → this year; a month still ahead
+    (e.g. 'Dec 19' read in June) → last year, since an article isn't submitted
+    in the future."""
+    today = date.today()
+    cand = _safe_article_date(today.year, mm, dd)
+    return today.year if (cand is not None and cand <= today) else today.year - 1
+
+
 def _excel_serial_to_date(text_val: str) -> date | None:
     from datetime import timedelta
 
@@ -5712,6 +5722,10 @@ def _article_parse_full(
         yr = int(yr_match.group(1)) if yr_match else None
         day_match = re.search(r"\b(\d{1,2})\b", txt[mword.end() :])
         dd = int(day_match.group(1)) if day_match else None
+        # Year-less "Mon DD" (e.g. "Feb 14", "Oct 31"): infer the most recent
+        # occurrence on/before today instead of dropping the row as unparseable.
+        if yr is None and dd:
+            yr = _article_infer_year(mm, dd)
         if yr and dd:
             return _safe_article_date(yr, mm, dd), yr, mm
         return None, yr, mm

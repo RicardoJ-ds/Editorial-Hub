@@ -18,6 +18,13 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.40 — June 24
+
+**Year-less article dates now resolve, and the writer roster pulls from Slack.**
+
+- Article dates written without a year ("Feb 14", "Oct 31") were being dropped as unparseable. They now get the right year inferred — the most recent occurrence on or before today, so "Dec 19" read in June correctly becomes last year (an article isn't submitted in the future). Cleared ~990 unparseable dates on the new sheet (859 → 3). *Verify:* the SUBMITTED column shows full dates, not red cells.
+- The writer dropdown now also pulls **live from Slack** (the writer source of truth), so a newly-onboarded writer appears without a manual mappings entry. *Verify:* a new Slack writer shows in the WRITER (STANDARD) dropdown.
+
 ## 0.3.39 — June 24
 
 **Trial / auditioning writers now roll up consistently.**
