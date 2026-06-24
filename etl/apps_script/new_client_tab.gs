@@ -135,8 +135,16 @@ function syncNewClientTabs() {
   return created;
 }
 
-// Slot the new tab into alphabetical order among the letter-named client tabs
-// (utility tabs starting with an emoji are ignored as boundaries).
+// A "client" tab = letter-named and not a summary/audit/utility tab. Used as the
+// alphabetical boundary so a new tab isn't slotted next to MONTHLY_ARTICLES_COUNT,
+// Word Counts, the audits, Roster, etc.
+function isClientTab_(n) {
+  if (!/^[A-Za-z]/.test(n)) return false;
+  const u = n.toUpperCase();
+  return ['MONTHLY', 'WORD COUNT', 'COMPARE', 'AUDIT', 'MISSES', 'RECONCIL', 'ROSTER', 'CONFIG', 'TEMPLATE', 'AUTOCREATE'].every(function (k) { return u.indexOf(k) < 0; });
+}
+
+// Slot the new tab into alphabetical order among the CLIENT tabs only.
 function moveAlpha_(ss, tab) {
   const lower = tab.getName().toLowerCase();
   const sheets = ss.getSheets();
@@ -144,7 +152,7 @@ function moveAlpha_(ss, tab) {
   for (let i = 0; i < sheets.length; i++) {
     if (sheets[i].getSheetId() === tab.getSheetId()) continue;
     const n = sheets[i].getName();
-    if (/^[A-Za-z]/.test(n) && n.toLowerCase() > lower) { pos = i + 1; break; }
+    if (isClientTab_(n) && n.toLowerCase() > lower) { pos = i + 1; break; }
   }
   ss.setActiveSheet(tab);
   ss.moveActiveSheet(pos);
