@@ -5683,6 +5683,9 @@ def _parse_month_context(val: object) -> tuple[int, int] | None:
     article titles never false-match. Returns (year, month) or None. Used to place
     year-less dates by their row's editorial-month context — NOT by guessing the
     current year (a year-less "submitted Mar 29" under an "Apr '22" banner is 2022)."""
+    sd = _excel_serial_to_date(str(val))  # a date-serial marker (UNFORMATTED read)
+    if sd:
+        return (sd.year, sd.month)
     s = str(val or "").strip()
     if not s or len(s) > 20:
         return None
@@ -5727,14 +5730,27 @@ def _article_parse_full(
     """Parse (full_date, year, month). full_date is set only when the day is
     known (copy-name YYMMDD, m/d/yyyy, month-word + day + year, or Excel serial).
     year/month are the best-effort calendar fallback used when no full date."""
+    # 0. The DATE cell read UNFORMATTED is a date SERIAL when it's a real date —
+    #    the most reliable source (carries the true year; e.g. "October 10" that is
+    #    actually 2023-10-10). Text dates fall through to the heuristics below.
+    d0 = _excel_serial_to_date(str(date_text))
+    if d0:
+        return d0, d0.year, d0.month
     # 1. Copy-name YYMMDD suffix — most reliable (year + month + day).
     m = _ARTICLE_DATE_SUFFIX_RE.search(str(copy_name))
     if m:
         s = m.group(1)
-        yy, mm, dd = int(s[:2]), int(s[2:4]), int(s[4:6])
-        yr = _article_two_digit_year(yy)
-        if yr and 1 <= mm <= 12:
-            return _safe_article_date(yr, mm, dd), yr, mm
+        today = date.today()
+        # Try YYMMDD, then DDMMYY (Webflow uses "260923" = 26 Sep 2023, NOT 2026).
+        # Accept only a plausible, non-future editorial date so a misread format
+        # can't land an article in the future.
+        for yy_i, mm_i, dd_i in ((0, 2, 4), (4, 2, 0)):
+            yr = _article_two_digit_year(int(s[yy_i : yy_i + 2]))
+            mm, dd = int(s[mm_i : mm_i + 2]), int(s[dd_i : dd_i + 2])
+            if yr and 2019 <= yr <= today.year and 1 <= mm <= 12 and 1 <= dd <= 31:
+                dt = _safe_article_date(yr, mm, dd)
+                if dt and dt <= today:
+                    return dt, yr, mm
     txt = str(date_text)
     # 2a. ISO yyyy-mm-dd — the standardized target format (sheet proposal).
     iso = re.search(r"\b(20\d{2})-(\d{1,2})-(\d{1,2})\b", txt)
@@ -5832,6 +5848,23 @@ def _parse_revisions(
     for token in str(revised_raw).split(","):
         token = token.strip()
         if not token:
+            continue
+        sd = _excel_serial_to_date(token)  # revision cell read UNFORMATTED → date serial
+        if sd:
+            count += 1
+            rd = sd
+            # A revision dated before its article or >1y after is implausible — almost
+            # always a stale year written by an earlier buggy parse. Re-anchor it to the
+            # (now-correct) submit date, keeping its month/day. Plausible years are trusted.
+            if submit_date is not None and not (
+                submit_date.year <= sd.year <= submit_date.year + 1
+            ):
+                yr = submit_date.year + (1 if sd.month < submit_date.month else 0)
+                rd = _safe_article_date(yr, sd.month, sd.day) or sd
+            em = _editorial_month_for(rd, weeks)
+            events.append(
+                (rd, f"{em[0]:04d}-{em[1]:02d}" if em else f"{rd.year:04d}-{rd.month:02d}")
+            )
             continue
         mword = _ARTICLE_MONTH_WORD_RE.search(token)
         slash = re.search(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](20\d{2}))?\b", token)
@@ -5953,7 +5986,7 @@ def _parse_meta_tracker(
                 .get(
                     spreadsheetId=sid,
                     range="TRACKER!A1:R3000",
-                    valueRenderOption="FORMATTED_VALUE",
+                    valueRenderOption="UNFORMATTED_VALUE",
                 )
                 .execute()
             )
@@ -6202,7 +6235,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                     .batchGet(
                         spreadsheetId=ARTICLE_COUNT_ID,
                         ranges=r,
-                        valueRenderOption="FORMATTED_VALUE",
+                        valueRenderOption="UNFORMATTED_VALUE",
                     )
                     .execute()
                 )

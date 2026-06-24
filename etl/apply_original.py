@@ -92,6 +92,9 @@ def _plan_inserts(r) -> tuple[list[tuple[int, list[str]]], tuple[int, str] | Non
     elif r["revised"] is not None:  # MAC single REVISED → rename + add 2nd/3rd
         rename = (r["revised"], REV_TITLES[0])
         anchors.append((r["revised"], [REV_TITLES[1], REV_TITLES[2]]))
+    else:  # no revision column at all → add all three (empty) so every tab is uniform
+        anchor = r["review"] if r["review"] is not None else r["writer"]
+        anchors.append((anchor, REV_TITLES[:]))
     return anchors, rename
 
 

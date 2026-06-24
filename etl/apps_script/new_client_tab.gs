@@ -128,12 +128,26 @@ function syncNewClientTabs() {
   p.missing.forEach(function (name) {
     const tab = template.copyTo(p.ss).setName(name);
     tab.getRange('A1').setValue('MONTHLY ARTICLES COUNT  🔍  [' + name.toUpperCase() + ']');
-    p.ss.setActiveSheet(tab);
-    p.ss.moveActiveSheet(p.ss.getNumSheets());
+    moveAlpha_(p.ss, tab);
     created.push(name);
   });
   log_(p.ss, created.length ? created.join(', ') : '(none)');
   return created;
+}
+
+// Slot the new tab into alphabetical order among the letter-named client tabs
+// (utility tabs starting with an emoji are ignored as boundaries).
+function moveAlpha_(ss, tab) {
+  const lower = tab.getName().toLowerCase();
+  const sheets = ss.getSheets();
+  let pos = sheets.length;
+  for (let i = 0; i < sheets.length; i++) {
+    if (sheets[i].getSheetId() === tab.getSheetId()) continue;
+    const n = sheets[i].getName();
+    if (/^[A-Za-z]/.test(n) && n.toLowerCase() > lower) { pos = i + 1; break; }
+  }
+  ss.setActiveSheet(tab);
+  ss.moveActiveSheet(pos);
 }
 
 function log_(ss, msg) {

@@ -18,6 +18,16 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.43 — June 25
+
+**Article + revision dates now come from the real cell values, not the on-screen text.**
+
+- **Root-cause date fix.** The importer was reading the *formatted display* ("October 10") and losing the year, then guessing. It now reads the actual underlying date, so every real date lands in its true year. Undated rows fell to a handful, and **no article is dated in the future**.
+- **Revision dates self-heal.** Where an earlier pass had stamped a stale year (e.g. a 2024 article with a "2026" revision), the year is now re-anchored to the article's submit date (month/day kept) — **89 bad revision dates → 0**.
+- **Submission dates were never changed** (audited: zero mismatches).
+- **Every client tab now carries the standard columns** — editor/writer dropdowns, `1st/2nd/3rd revision`, `2nd review` — including the ~36 tabs that previously had a single or no revision column.
+- **New-client tabs are created in alphabetical order** by the auto-create script.
+
 ## 0.3.42 — June 24
 
 **Article dates now land in the correct month — no more wrong-year guessing.**
