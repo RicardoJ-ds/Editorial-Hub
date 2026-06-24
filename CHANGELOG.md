@@ -18,6 +18,16 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.41 — June 24
+
+**The Hub now reads the real, normalized source sheets — and the article dropdowns stop blocking valid entries.**
+
+- **Source sheets normalized in place.** The real Monthly Article Count + Meta Editorial Tracker sheets now carry canonical editor/writer names, split `1st/2nd/3rd revision` date columns, a `2nd review` column, and roster dropdowns — so the data is clean at the source, not just in a demo copy.
+- **The Hub ingests those originals directly.** Production was pointed at an old, deleted copy (article data had stopped refreshing); it now reads the live, normalized sheet. Revisions survive the new split-column layout.
+- **Editor dropdown no longer blocks collaborations.** Cells with two people (`A / B`) and legacy/inactive-client names now show a soft warning instead of a hard "invalid" error, so historical rows and team-ups don't break data entry.
+- **Roster nickname cleaned up.** A Slack account whose name was just "Kev" no longer appears beside "Kevin Vaughn"; auto-discovered writers now require a real first-and-last name.
+- **2nd-review column fix.** On Meta, the new 2nd-review column had picked up a stray `FALSE` checkbox from its neighbor — corrected to a blank Senior-Editor dropdown (no data was lost).
+
 ## 0.3.40 — June 24
 
 **Year-less article dates now resolve, and the writer roster pulls from Slack.**

@@ -39,14 +39,19 @@ class Settings(BaseSettings):
     # Drives the Team KPIs → Monthly Articles tab (per-editor productivity).
     # Read by the same Hub service account that the standalone editorial
     # dashboard already uses, so no extra ACL is required.
-    article_count_id: str = "1TIfMsXr7Vpoip4NcEWMlPaTrj3F4VTXZKk7cVlxKYM0"
+    # 2026-06-24: repointed to the REAL original (normalized in REPLACE mode by
+    # etl/apply_original.py — canonical EDITOR/WRITER + split 1ST/2ND/3RD REVISION),
+    # superseding the proposal copy 1TIfMsXr… so the Hub ingests the clean source.
+    article_count_id: str = "15WxjOrJtX98YvnWl71Oz0HtVhPtvefB37PbcmAc8BBc"
 
     # "Copy of [INTERNAL] Meta Editorial Tracker" — Meta's article log lives in its
     # OWN sheet (single TRACKER tab, rows grouped by VERTICAL: AI / Reality Labs /
     # for Business), NOT in the per-client tabs of the Monthly Article Count sheet.
     # import_monthly_article_count folds these 3 verticals in as the Hub clients
     # Meta AI / Meta RL / Meta BMG (all editorial Pod 5). Empty disables the fold.
-    meta_tracker_id: str = "1eiFh7dNB3GMoOPbH28ydhQeEJYnHdZXFL8fCgMURWJM"
+    # 2026-06-24: repointed to the REAL original (normalized in REPLACE mode),
+    # superseding the proposal copy 1eiFh7…
+    meta_tracker_id: str = "1FgYpfZ5NRwCXe1nWtqJqlAjlmNiFhJd7oC-2MDs_TSs"
 
     # "Editorial Name Mappings" sheet (Writers/Editors/Clients tabs) — DaniQ-editable
     # source of truth for the normalization map; synced to BigQuery editorial_name_map.

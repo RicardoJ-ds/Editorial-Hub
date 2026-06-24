@@ -211,8 +211,12 @@ def _fetch_slack_writers() -> list[dict]:
             "WHERE COALESCE(deleted, FALSE) = FALSE AND COALESCE(is_bot, FALSE) = FALSE "
             "AND LOWER(JSON_VALUE(profile,'$.email')) LIKE '%writing.graphitehq.com'"
         ).result():
-            if r["real_name"] and r["email"]:
-                rows.append({"display_name": r["real_name"], "email": r["email"]})
+            # require a full "First Last" name — a single-token Slack real_name
+            # (e.g. "Kev") is a nickname; if it's a real writer it gets added via
+            # the canonical name map (DaniQ's authority), not auto-discovered here
+            name = (r["real_name"] or "").strip()
+            if name and r["email"] and " " in name:
+                rows.append({"display_name": name, "email": r["email"]})
     except Exception:
         pass
     return rows

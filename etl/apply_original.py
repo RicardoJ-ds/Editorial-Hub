@@ -182,7 +182,9 @@ def main(argv: list[str] | None = None) -> int:
                             "startIndex": a_i + 1,
                             "endIndex": a_i + 1 + len(titles),
                         },
-                        "inheritFromBefore": False,
+                        # inherit the LEFT neighbour (EDITOR/REVISED — always text),
+                        # never the RIGHT one (Meta's "MOVED DOC?" is a checkbox → FALSE)
+                        "inheritFromBefore": True,
                     }
                 }
             )
@@ -309,6 +311,12 @@ def main(argv: list[str] | None = None) -> int:
         vu(revc[0], c1)
         vu(revc[1], c2)
         vu(revc[2], c3)
+        # a freshly-inserted 2nd-review column starts blank — clear any value the
+        # insert inherited (a checkbox neighbour leaves FALSE); existing 2nd-review
+        # columns (already had data) are left untouched
+        _, anchors_a, _ = plans[tab]
+        if any(REVIEW_TITLE in t for _, t in anchors_a) and r["review"] is not None:
+            vu(r["review"], [[""] for _ in range(n)])
 
         start, end = hi + 1, props[tab]["gridProperties"]["rowCount"]
         val_reqs.append(
@@ -317,7 +325,9 @@ def main(argv: list[str] | None = None) -> int:
                 start,
                 end,
                 r["editor"],
-                _range_rule(f"='{ROSTER_LOCAL}'!$B$2:$B", True, "Pick an editor from the roster."),
+                # NON-strict: editors legitimately appear as "/" collaborations and
+                # legacy/inactive-client names have no canonical entry — warn, don't block
+                _range_rule(f"='{ROSTER_LOCAL}'!$B$2:$B", False, "Pick an editor from the roster."),
             )
         )
         val_reqs.append(

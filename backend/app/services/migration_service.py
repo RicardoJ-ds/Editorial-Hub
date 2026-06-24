@@ -5472,6 +5472,14 @@ _ARTICLE_HDR_ALIASES = {
     "LINK": "LINK",
     "TASK ID": "TASK_ID",
     "REVISED": "REVISED",
+    "REVISED DATE": "REVISED",  # some tabs (e.g. CoinTracker) name it this way
+    # normalized originals split the single REVISED cell into three dated columns
+    "1ST REVISION": "REVISED_1",
+    "2ND REVISION": "REVISED_2",
+    "3RD REVISION": "REVISED_3",
+    # standard Sr-editor 2nd-review column (recognized; captured downstream later)
+    "2ND REVIEW": "SECOND_REVIEW",
+    "SECOND REVIEW": "SECOND_REVIEW",
 }
 
 _ARTICLE_DATE_SUFFIX_RE = re.compile(r"\b(\d{6})\b")  # YYMMDD in copy name
@@ -6318,7 +6326,12 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             title = str(cell("TITLE")).strip() or None
             link = str(cell("LINK")).strip() or None
             words = _article_parse_int(cell("WORDS"))
+            # "REVISED" on the legacy copies; the normalized originals split it into
+            # "1ST/2ND/3RD REVISION" — read whichever the sheet carries (order-tolerant)
             revised = str(cell("REVISED")).strip() or None
+            if not revised:
+                _rparts = [str(cell(k)).strip() for k in ("REVISED_1", "REVISED_2", "REVISED_3")]
+                revised = ", ".join(p for p in _rparts if p) or None
             task_id = str(cell("TASK_ID")).strip() or None
             rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
             rev_dates_iso = [d.isoformat() for d, _ in rev_events]
