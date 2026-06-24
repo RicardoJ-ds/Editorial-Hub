@@ -18,6 +18,16 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.42 — June 24
+
+**Article dates now land in the correct month — no more wrong-year guessing.**
+
+- **Year-less dates resolve from their real context.** A date like *"submitted Mar 29"* or *"Nov 4"* with no year now takes its year from the row's editorial-month grouping — the client tab's month banner (*"Mar '22"*, Vimeo's *"12/24"* markers) or Meta's *Editorial Month* column — instead of being guessed as the current year.
+- **Hundreds of historical articles moved back to their true years** (2022–2024) and out of 2025/2026 where the old guess had piled them. Vimeo's articles (previously undated) now all land correctly.
+- **Anything with genuinely no date context is left blank** rather than mis-dated — safer than a wrong guess.
+- **Normalization review tabs now show accurate timeframes**, which shrank the "still-active unknown writer" list from 23 to a handful.
+- **New-client tooling:** a copy-me column template + a daily BigQuery-driven script that auto-creates a new client's tab from it.
+
 ## 0.3.41 — June 24
 
 **The Hub now reads the real, normalized source sheets — and the article dropdowns stop blocking valid entries.**

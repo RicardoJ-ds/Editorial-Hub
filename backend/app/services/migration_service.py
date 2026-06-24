@@ -5672,14 +5672,38 @@ def _safe_article_date(y: int, m: int, d: int) -> date | None:
         return None
 
 
-def _article_infer_year(mm: int, dd: int) -> int:
-    """Year for a year-less 'Mon DD' date — the most recent (mm, dd) on/before
-    today. A month already past this year → this year; a month still ahead
-    (e.g. 'Dec 19' read in June) → last year, since an article isn't submitted
-    in the future."""
-    today = date.today()
-    cand = _safe_article_date(today.year, mm, dd)
-    return today.year if (cand is not None and cand <= today) else today.year - 1
+_GROUP_BANNER_RE = re.compile(r"^\s*([A-Za-z]{3,9})\.?\s*['’]?\s*(\d{2,4})\s*$")
+_ISO_YM_RE = re.compile(r"^\s*(20\d{2})[-/](\d{1,2})\s*$")
+_MMYY_RE = re.compile(r"^\s*(\d{1,2})\s*/\s*(\d{2})\s*$")  # Vimeo-style "12/24" = Dec 2024
+
+
+def _parse_month_context(val: object) -> tuple[int, int] | None:
+    """A month-year grouping signal: MAC's column-A banner ("Mar '22"), Meta's
+    EDITORIAL/CALENDAR MONTH cell ("Nov 2025"), or "2022-03". Strict + anchored so
+    article titles never false-match. Returns (year, month) or None. Used to place
+    year-less dates by their row's editorial-month context — NOT by guessing the
+    current year (a year-less "submitted Mar 29" under an "Apr '22" banner is 2022)."""
+    s = str(val or "").strip()
+    if not s or len(s) > 20:
+        return None
+    m = _ISO_YM_RE.match(s)
+    if m:
+        y, mm = int(m.group(1)), int(m.group(2))
+        return (y, mm) if 1 <= mm <= 12 else None
+    m = _MMYY_RE.match(s)
+    if m:
+        mm, yr = int(m.group(1)), _article_two_digit_year(int(m.group(2)))
+        # year-range guard so a day ("12/17" → 2017) can't masquerade as a year
+        return (yr, mm) if (yr and 2018 <= yr <= 2030 and 1 <= mm <= 12) else None
+    m = _GROUP_BANNER_RE.match(s)
+    if m:
+        mm2 = _ARTICLE_MONTH_NAMES.get(m.group(1).upper())
+        if not mm2:
+            return None
+        ys = m.group(2)
+        yr = int(ys) if len(ys) == 4 else _article_two_digit_year(int(ys))
+        return (yr, mm2) if yr else None
+    return None
 
 
 def _excel_serial_to_date(text_val: str) -> date | None:
@@ -5730,10 +5754,9 @@ def _article_parse_full(
         yr = int(yr_match.group(1)) if yr_match else None
         day_match = re.search(r"\b(\d{1,2})\b", txt[mword.end() :])
         dd = int(day_match.group(1)) if day_match else None
-        # Year-less "Mon DD" (e.g. "Feb 14", "Oct 31"): infer the most recent
-        # occurrence on/before today instead of dropping the row as unparseable.
-        if yr is None and dd:
-            yr = _article_infer_year(mm, dd)
+        # Year-less "Mon DD": leave the year unset — the caller fills it from the
+        # row's month context (MAC column-A banner / Meta EDITORIAL MONTH). Never
+        # guess the current year: a year-less date is not necessarily "this year".
         if yr and dd:
             return _safe_article_date(yr, mm, dd), yr, mm
         return None, yr, mm
@@ -5978,6 +6001,12 @@ def _parse_meta_tracker(
         copy_name = cell("COPY TITLE")
         date_text = cell("DELIVERED")
         sub_date, cal_year, cal_month = _article_parse_full(copy_name, date_text)
+        if cal_year is None:  # year-less DELIVERED → take year from the month column
+            ctx = _parse_month_context(cell("EDITORIAL MONTH")) or _parse_month_context(
+                cell("CALENDAR MONTH")
+            )
+            if ctx:
+                cal_year, cal_month = ctx[0], (cal_month or ctx[1])
         em = _editorial_month_for(sub_date, editorial_weeks)
         year, month = em if em else (cal_year, cal_month)
         month_year = f"{year:04d}-{month:02d}" if year and month else None
@@ -6230,9 +6259,13 @@ def import_monthly_article_count(session: Session) -> ImportResult:
         # Context of the most recent titled article on this tab — a jumbo
         # caret row ("^^") credits an extra unit to it. Reset per tab.
         last_jumbo: dict | None = None
+        group_ym: tuple[int, int] | None = None  # forward-filled column-A month banner
         for r_idx, row in enumerate(values[header_idx + 1 :], start=header_idx + 2):
             if not row:
                 continue
+            gb = _parse_month_context(row[0])
+            if gb:
+                group_ym = gb
 
             def cell(canon, _row=row, _hmap=hmap):
                 idx = _hmap.get(canon)
@@ -6283,6 +6316,11 @@ def import_monthly_article_count(session: Session) -> ImportResult:
             copy_name = str(cell("COPY"))
             date_text = str(cell("DATE"))
             sub_date, cal_year, cal_month = _article_parse_full(copy_name, date_text)
+            # Year-less date → take the year from the forward-filled column-A month
+            # banner (e.g. "Apr '22"); never from a current-year guess.
+            if cal_year is None and group_ym is not None:
+                cal_year = group_ym[0]
+                cal_month = cal_month or group_ym[1]
             if cal_year is None or cal_month is None:
                 scan = _article_row_scan_year_month(row)
                 if scan:
