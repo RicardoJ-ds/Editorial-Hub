@@ -389,6 +389,13 @@ async def lifespan(app: FastAPI):
     # then seed the RBAC baseline (views + groups + seed members + default
     # permission matrix). All idempotent.
     async with engine.begin() as conn:
+        # Serialize startup DDL across overlapping instances (two deploys racing,
+        # or >1 replica) so the idempotent ALTERs in _run_data_migrations can't
+        # deadlock on table locks and abort the whole startup transaction — which
+        # otherwise cascades into the _seed_access read and crash-loops startup.
+        # Advisory lock = wait, not deadlock; auto-released at txn end. Distinct
+        # from the warehouse-publish lock 815001.
+        await conn.execute(text("SELECT pg_advisory_xact_lock(815002)"))
         await conn.run_sync(Base.metadata.create_all)
         await _run_data_migrations(conn)
         await conn.run_sync(_seed_access)
