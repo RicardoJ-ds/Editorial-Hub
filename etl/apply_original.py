@@ -356,7 +356,9 @@ def main(argv: list[str] | None = None) -> int:
                     end,
                     r["review"],
                     _range_rule(
-                        f"='{ROSTER_LOCAL}'!$H$2:$H",
+                        # SR EDITORS list lives in roster col F (moved 2026-06-26
+                        # so the writer block — G/H/I — is contiguous)
+                        f"='{ROSTER_LOCAL}'!$F$2:$F",
                         True,
                         "Pick the Sr Editor who did the 2nd review.",
                     ),
