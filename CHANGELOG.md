@@ -18,6 +18,16 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.44 — June 25
+
+**Deep cell-by-cell cleanup of the Monthly Article Count sheet — every date verified, nothing lost.**
+
+- **Typed submission dates recovered.** 57 cells that read as words ("submitted May 10 revised Aug 2") are now real dates; the original text is kept in a new **Submission Notes** column.
+- **Wrong-year dates corrected.** 15 cells were valid dates with a typo'd year (e.g. a 2026 date that belonged in 2024) — fixed only where the surrounding articles and the chronological order agreed; originals preserved.
+- **Duplicate revision columns retired.** 5 client tabs carried an old leftover revision column beside the standard ones; every date was migrated into the standard columns *first* (one tab had 109 revisions only there) and verified before the old column was removed.
+- **Stray non-date entries relocated.** Notes and markers sitting inside revision-date columns moved to a **Revision Notes** column, leaving the date columns clean.
+- **Submission Date column is now 100% dates-or-blank** across all 97 client tabs, and the corrections are live in the dashboards. Zero data lost — every original sits in a notes column.
+
 ## 0.3.43 — June 25
 
 **Article + revision dates now come from the real cell values, not the on-screen text.**
