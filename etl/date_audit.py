@@ -468,6 +468,108 @@ def fix_revision_junk(svc, sid, grids, props, tabs, apply: bool) -> int:
     return 0
 
 
+def fix_year_outliers(svc, sid, grids, props, tabs, apply: bool) -> int:
+    """Correct SUBMISSION DATE cells that are real dates with the WRONG YEAR.
+    Safe only when the year is unambiguous: (a) the cell is an isolated outlier
+    whose 6 nearest clean-date neighbours UNANIMOUSLY share one year, or (b) the
+    cell is future-dated (impossible) and exactly one non-future neighbour year
+    exists. Month/day are kept; the original date is preserved in SUBMISSION NOTES.
+    Clusters with mixed candidate years are FLAGGED, never auto-changed."""
+    fixes: dict[str, list] = defaultdict(list)  # tab -> [(row, orig_iso, new_iso)]
+    flagged: list = []
+    for tab in tabs:
+        values = grids.get(tab, [])
+        hi, hmap, hdr = _resolve_header(values)
+        if hi is None or hmap.get("DATE") is None:
+            continue
+        di = hmap["DATE"]
+        clean = []
+        for r_idx, row in enumerate(values[hi + 1 :], start=hi + 2):
+            if row and di < len(row) and isinstance(row[di], (int, float)):
+                d = _excel_serial_to_date(str(row[di]))
+                if d:
+                    clean.append((r_idx, d))
+        if len(clean) < 7:
+            continue
+        for r_idx, d in clean:
+            others = sorted(clean, key=lambda x: abs(x[0] - r_idx))[1:7]
+            nyears = {o[1].year for o in others}
+            target = None
+            if len(nyears) == 1 and next(iter(nyears)) != d.year:
+                target = next(iter(nyears))
+            elif d > date.today():
+                nonfut = {
+                    y
+                    for y in nyears
+                    if y != d.year and (_safe_article_date(y, d.month, d.day) or d) <= date.today()
+                }
+                if len(nonfut) == 1:
+                    target = next(iter(nonfut))
+                else:
+                    flagged.append((tab, r_idx, d.isoformat(), sorted(nyears)))
+            if target:
+                cand = _safe_article_date(target, d.month, d.day)
+                if cand and cand <= date.today() and cand != d:
+                    fixes[tab].append((r_idx, d.isoformat(), cand.isoformat()))
+    total = sum(len(v) for v in fixes.values())
+    print(f"\n── WRONG-YEAR SUBMISSION DATES ── {total} fix(es), {len(flagged)} flagged")
+    for tab, items in fixes.items():
+        for r, orig, new in items:
+            print(f"  {tab} r{r}: {orig} -> {new}")
+    for tab, r, iso, yrs in flagged:
+        print(f"  FLAG {tab} r{r}: {iso}  (candidate years {yrs} — confirm)")
+    if not apply:
+        print("[year-fix] DRY-RUN — no writes.")
+        return 0
+    struct: list[dict] = []
+    vu: list[dict] = []
+    for tab, items in fixes.items():
+        values = grids.get(tab, [])
+        hi, hmap, hdr = _resolve_header(values)
+        di = hmap["DATE"]
+        gid = props[tab]["sheetId"]
+        ni = next((i for i, h in enumerate(hdr) if str(h).strip().upper() == NOTES_HDR), None)
+        if ni is None:
+            ni = len(hdr)
+            cc = props[tab]["gridProperties"]["columnCount"]
+            if ni >= cc:
+                struct.append(
+                    {
+                        "appendDimension": {
+                            "sheetId": gid,
+                            "dimension": "COLUMNS",
+                            "length": ni - cc + 1,
+                        }
+                    }
+                )
+            struct.append(
+                {
+                    "updateCells": {
+                        "rows": [{"values": [{"userEnteredValue": {"stringValue": NOTES_HDR}}]}],
+                        "fields": "userEnteredValue",
+                        "start": {"sheetId": gid, "rowIndex": hi, "columnIndex": ni},
+                    }
+                }
+            )
+        for r, orig, new in items:
+            vu.append({"range": f"'{tab}'!{col_letter(di)}{r}", "values": [[new]]})
+            cur = _cellval(values[r - 1], ni) if r - 1 < len(values) else ""
+            note = f"year corrected (was {orig})"
+            newnote = f"{str(cur).strip()}; {note}" if str(cur).strip() else note
+            vu.append({"range": f"'{tab}'!{col_letter(ni)}{r}", "values": [[newnote]]})
+    if struct:
+        svc.spreadsheets().batchUpdate(spreadsheetId=sid, body={"requests": struct}).execute()
+        time.sleep(0.5)
+    for i in range(0, len(vu), 100):
+        svc.spreadsheets().values().batchUpdate(
+            spreadsheetId=sid,
+            body={"valueInputOption": "USER_ENTERED", "data": vu[i : i + 100]},
+        ).execute()
+        time.sleep(0.5)
+    print(f"[year-fix] APPLIED — {total} dates corrected (original kept in SUBMISSION NOTES)")
+    return 0
+
+
 def clean_status_cells(svc, sid, grids, props, tabs, apply: bool) -> int:
     """The remaining SUBMISSION DATE cells hold status words ('submitted', 'pool',
     'editor review', 'maybe in July?') not dates. Move the text to SUBMISSION NOTES
@@ -736,6 +838,11 @@ def main(argv=None) -> int:
         action="store_true",
         help="move status-word submission cells into SUBMISSION NOTES + blank the date",
     )
+    ap.add_argument(
+        "--year-fix",
+        action="store_true",
+        help="correct wrong-year submission dates (isolated outliers / future-dated)",
+    )
     args = ap.parse_args(argv)
     only = {t.strip() for t in args.only.split(",") if t.strip()} or None
     svc = sheets()
@@ -749,6 +856,8 @@ def main(argv=None) -> int:
         return fix_revision_junk(svc, MAC_ID, grids, props, tabs, args.apply)
     if args.clean_status:
         return clean_status_cells(svc, MAC_ID, grids, props, tabs, args.apply)
+    if args.year_fix:
+        return fix_year_outliers(svc, MAC_ID, grids, props, tabs, args.apply)
 
     sub = audit_submission(grids, props, tabs)
     print(
