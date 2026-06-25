@@ -18,6 +18,14 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.45 — June 25
+
+**2nd Review is now tracked in the Hub.**
+
+- **New "2nd review %" metric** on Team KPIs → Revisions — the share of articles that got a Senior-editor 2nd review, shown in the at-a-glance card, the trend chart, and the by-editor matrix.
+- The sheet's `2ND REVIEW` column was recognized before but never stored; it now flows all the way from the Monthly Article Count + Meta sheets into the database, the warehouse, and the dashboards.
+- Reads **0%** until editors start logging 2nd reviews in the sheet — the tracking is ready and waiting for the data.
+
 ## 0.3.44 — June 25
 
 **Deep cell-by-cell cleanup of the Monthly Article Count sheet — every date verified, nothing lost.**
