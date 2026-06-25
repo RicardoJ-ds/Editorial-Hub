@@ -849,6 +849,10 @@ class ArticleRecord(Base):
     revised_raw: Mapped[str | None] = mapped_column(String(255))
     revision_count: Mapped[int] = mapped_column(Integer, default=0)
     revision_dates: Mapped[list | None] = mapped_column(JSONB)
+    # Canonical Sr-editor who performed the 2nd review (the sheet's "2ND REVIEW"
+    # dropdown — a strict Sr-editor roster). NULL when no 2nd review was logged.
+    # Same value across an article's exploded per-editor rows.
+    second_review: Mapped[str | None] = mapped_column(String(255))
     task_id: Mapped[str | None] = mapped_column(String(64), index=True)
     # Published status from the Notion Content Machine DB, matched by TASK ID
     # then normalized title. notion_matched distinguishes "not published" from

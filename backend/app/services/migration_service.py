@@ -6079,6 +6079,13 @@ def _parse_meta_tracker(
         revised = ", ".join(rev_parts) or None
         rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
         rev_dates_iso = [d.isoformat() for d, _ in rev_events]
+        # 2nd-review Sr-editor — Meta names the column "2ND REVIEW (STANDARD)".
+        sr_raw = cell("2ND REVIEW (STANDARD)") or cell("2ND REVIEW") or cell("SECOND REVIEW")
+        second_review = (
+            alias_resolve(editor_alias, sr_raw.lower(), month_year) or _clean_editor(sr_raw)
+            if sr_raw
+            else None
+        )
 
         for editor_name in editor_names:
             records.append(
@@ -6106,6 +6113,7 @@ def _parse_meta_tracker(
                     "revised_raw": revised,
                     "revision_count": rev_count,
                     "revision_dates": rev_dates_iso or None,
+                    "second_review": second_review,
                     "task_id": None,
                     "source_row": r_idx,
                 }
@@ -6338,6 +6346,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                                 "revised_raw": None,
                                 "revision_count": 0,
                                 "revision_dates": None,
+                                "second_review": j.get("second_review"),
                                 "task_id": None,
                                 "source_row": r_idx,
                             }
@@ -6404,6 +6413,14 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                 _rparts = [str(cell(k)).strip() for k in ("REVISED_1", "REVISED_2", "REVISED_3")]
                 revised = ", ".join(p for p in _rparts if p) or None
             task_id = str(cell("TASK_ID")).strip() or None
+            # 2nd-review Sr-editor (strict roster dropdown) → canonicalize like an
+            # editor so legacy variants still resolve; NULL when no 2nd review.
+            sr_raw = str(cell("SECOND_REVIEW")).strip()
+            second_review = (
+                _alias_resolve(editor_alias, sr_raw.lower(), month_year) or _clean_editor(sr_raw)
+                if sr_raw
+                else None
+            )
             rev_count, rev_events = _parse_revisions(revised, sub_date, editorial_weeks)
             rev_dates_iso = [d.isoformat() for d, _ in rev_events]
             # Remember this article so a following "^^" caret row can credit it an
@@ -6423,6 +6440,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                 "month": month,
                 "month_year": month_year,
                 "title": title,
+                "second_review": second_review,
             }
             for editor_name in editor_names:
                 records.append(
@@ -6450,6 +6468,7 @@ def import_monthly_article_count(session: Session) -> ImportResult:
                         "revised_raw": revised,
                         "revision_count": rev_count,
                         "revision_dates": rev_dates_iso or None,
+                        "second_review": second_review,
                         "task_id": task_id,
                         "source_row": r_idx,
                     }

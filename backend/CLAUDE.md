@@ -56,7 +56,7 @@ admins may impersonate via `X-Preview-As`.
 | `clients` | Client SOW / contract roster |
 | `deliverables_monthly` | Per-month delivered/invoiced (self-heals removed months) |
 | `team_members`, `capacity_projections`, `editorial_member_capacity` | Roster + pod-level + per-slot capacity |
-| `article_records` + `article_revisions` | One row per (article, editor); revisions bucketed by their own month |
+| `article_records` + `article_revisions` | One row per (article, editor); revisions bucketed by their own month; `second_review` = canonical Sr-editor from the sheet's 2ND REVIEW column |
 | `goals_vs_delivery` | Weekly goals vs delivery (uq on month/week/client/content_type) |
 | `production_history` | Operating-model actuals/projected (+ `projected_original`) |
 | `pod_assignments` + `pod_assignment_history` | Current + historical member↔pod↔client |

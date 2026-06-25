@@ -225,6 +225,9 @@ async def _run_data_migrations(conn) -> None:
         await conn.execute(
             text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS submitted_date DATE")
         )
+        await conn.execute(
+            text("ALTER TABLE article_records ADD COLUMN IF NOT EXISTS second_review VARCHAR(255)")
+        )
     except Exception:
         logger.exception("article_records.submitted_date migration failed (continuing)")
 

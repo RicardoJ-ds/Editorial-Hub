@@ -152,8 +152,15 @@ def build_member_utilization_mart(session: Session, mappings: dict) -> list[dict
         cph, ph, ar, emc = fetch_month_inputs(session, year, month)
         for r in compute_member_utilization(cph, ph, ar, emc):
             canon, status = _member_canonical(r["member"], mappings)
-            out.append({"year": year, "month": month, **r,
-                        "member_canonical": canon, "member_match_status": status})
+            out.append(
+                {
+                    "year": year,
+                    "month": month,
+                    **r,
+                    "member_canonical": canon,
+                    "member_match_status": status,
+                }
+            )
     return out
 
 
@@ -258,6 +265,7 @@ def build_articles_monthly_mart(session: Session) -> list[dict]:
             SELECT month_year, editorial_pod, growth_pod, client_name, editor_name,
                    COUNT(*) AS count,
                    COUNT(*) FILTER (WHERE revision_count > 0) AS revised,
+                   COUNT(*) FILTER (WHERE second_review IS NOT NULL AND second_review <> '') AS second_reviews,
                    COUNT(*) FILTER (WHERE is_published) AS published,
                    COUNT(*) FILTER (WHERE is_published AND revision_count > 0) AS published_revised,
                    COUNT(*) FILTER (WHERE notion_matched) AS matched

@@ -28,61 +28,111 @@ logger = logging.getLogger("etl.run")
 
 MART_SCHEMAS: dict[str, list[tuple[str, str]]] = {
     "editorial_capacity_pod": [
-        ("year", "INTEGER"), ("month", "INTEGER"), ("pod", "STRING"),
-        ("version", "STRING"), ("total_capacity", "INTEGER"),
-        ("projected_used_capacity", "INTEGER"), ("actual_used_capacity", "INTEGER"),
+        ("year", "INTEGER"),
+        ("month", "INTEGER"),
+        ("pod", "STRING"),
+        ("version", "STRING"),
+        ("total_capacity", "INTEGER"),
+        ("projected_used_capacity", "INTEGER"),
+        ("actual_used_capacity", "INTEGER"),
     ],
     "editorial_capacity_member_utilization": [
-        ("year", "INTEGER"), ("month", "INTEGER"), ("pod", "STRING"),
-        ("role", "STRING"), ("member", "STRING"),
-        ("member_canonical", "STRING"), ("member_match_status", "STRING"),
-        ("capacity", "INTEGER"), ("matched", "BOOLEAN"), ("articles", "INTEGER"),
-        ("pct_allocation", "FLOAT"), ("pct_distribution", "FLOAT"),
-        ("projected_used", "FLOAT"), ("actual_used", "FLOAT"),
-        ("pct_util_real", "FLOAT"), ("pct_util_weighted", "FLOAT"),
-        ("pod_total_capacity", "INTEGER"), ("pod_total_articles", "INTEGER"),
-        ("pod_projected_raw", "INTEGER"), ("pod_actual_raw", "INTEGER"),
-        ("pod_projected_weighted", "FLOAT"), ("pod_actual_weighted", "FLOAT"),
-        ("pod_util_projected_weighted", "FLOAT"), ("pod_util_actual_weighted", "FLOAT"),
+        ("year", "INTEGER"),
+        ("month", "INTEGER"),
+        ("pod", "STRING"),
+        ("role", "STRING"),
+        ("member", "STRING"),
+        ("member_canonical", "STRING"),
+        ("member_match_status", "STRING"),
+        ("capacity", "INTEGER"),
+        ("matched", "BOOLEAN"),
+        ("articles", "INTEGER"),
+        ("pct_allocation", "FLOAT"),
+        ("pct_distribution", "FLOAT"),
+        ("projected_used", "FLOAT"),
+        ("actual_used", "FLOAT"),
+        ("pct_util_real", "FLOAT"),
+        ("pct_util_weighted", "FLOAT"),
+        ("pod_total_capacity", "INTEGER"),
+        ("pod_total_articles", "INTEGER"),
+        ("pod_projected_raw", "INTEGER"),
+        ("pod_actual_raw", "INTEGER"),
+        ("pod_projected_weighted", "FLOAT"),
+        ("pod_actual_weighted", "FLOAT"),
+        ("pod_util_projected_weighted", "FLOAT"),
+        ("pod_util_actual_weighted", "FLOAT"),
     ],
     "editorial_capacity_client_contributions": [
-        ("year", "INTEGER"), ("month", "INTEGER"), ("pod", "STRING"),
-        ("client_id", "INTEGER"), ("client_name", "STRING"), ("sf_client_name", "STRING"),
-        ("category", "STRING"), ("weight", "FLOAT"),
-        ("projected_raw", "INTEGER"), ("actual_raw", "INTEGER"),
-        ("projected_weighted", "FLOAT"), ("actual_weighted", "FLOAT"),
+        ("year", "INTEGER"),
+        ("month", "INTEGER"),
+        ("pod", "STRING"),
+        ("client_id", "INTEGER"),
+        ("client_name", "STRING"),
+        ("sf_client_name", "STRING"),
+        ("category", "STRING"),
+        ("weight", "FLOAT"),
+        ("projected_raw", "INTEGER"),
+        ("actual_raw", "INTEGER"),
+        ("projected_weighted", "FLOAT"),
+        ("actual_weighted", "FLOAT"),
     ],
     "editorial_articles_monthly": [
-        ("month_year", "STRING"), ("editorial_pod", "STRING"), ("growth_pod", "STRING"),
-        ("client_name", "STRING"), ("editor_name", "STRING"),
-        ("count", "INTEGER"), ("revised", "INTEGER"), ("published", "INTEGER"),
-        ("published_revised", "INTEGER"), ("matched", "INTEGER"),
+        ("month_year", "STRING"),
+        ("editorial_pod", "STRING"),
+        ("growth_pod", "STRING"),
+        ("client_name", "STRING"),
+        ("editor_name", "STRING"),
+        ("count", "INTEGER"),
+        ("revised", "INTEGER"),
+        ("second_reviews", "INTEGER"),
+        ("published", "INTEGER"),
+        ("published_revised", "INTEGER"),
+        ("matched", "INTEGER"),
     ],
     "editorial_revisions_monthly": [
-        ("month_year", "STRING"), ("editorial_pod", "STRING"), ("growth_pod", "STRING"),
-        ("client_name", "STRING"), ("editor_name", "STRING"), ("revisions", "INTEGER"),
+        ("month_year", "STRING"),
+        ("editorial_pod", "STRING"),
+        ("growth_pod", "STRING"),
+        ("client_name", "STRING"),
+        ("editor_name", "STRING"),
+        ("revisions", "INTEGER"),
     ],
     "editorial_month_basis": [
-        ("client_name", "STRING"), ("year", "INTEGER"), ("month", "INTEGER"),
-        ("operating_model_actual", "INTEGER"), ("log_editorial_month", "INTEGER"),
-        ("log_calendar_month", "INTEGER"), ("edit_minus_prod", "INTEGER"),
+        ("client_name", "STRING"),
+        ("year", "INTEGER"),
+        ("month", "INTEGER"),
+        ("operating_model_actual", "INTEGER"),
+        ("log_editorial_month", "INTEGER"),
+        ("log_calendar_month", "INTEGER"),
+        ("edit_minus_prod", "INTEGER"),
         ("verdict", "STRING"),
     ],
 }
 
 MAPPING_SCHEMAS: dict[str, list[tuple[str, str]]] = {
     "editorial_map_editors": [
-        ("raw_name", "STRING"), ("canonical_name", "STRING"), ("status", "STRING"),
-        ("hr_status", "STRING"), ("article_rows", "INTEGER"),
-        ("candidates", "STRING"), ("note", "STRING"),
+        ("raw_name", "STRING"),
+        ("canonical_name", "STRING"),
+        ("status", "STRING"),
+        ("hr_status", "STRING"),
+        ("article_rows", "INTEGER"),
+        ("candidates", "STRING"),
+        ("note", "STRING"),
     ],
     "editorial_map_clients": [
-        ("hub_name", "STRING"), ("sf_client_name", "STRING"), ("sf_account_id", "STRING"),
-        ("status", "STRING"), ("hub_status", "STRING"), ("note", "STRING"),
+        ("hub_name", "STRING"),
+        ("sf_client_name", "STRING"),
+        ("sf_account_id", "STRING"),
+        ("status", "STRING"),
+        ("hub_status", "STRING"),
+        ("note", "STRING"),
     ],
     "editorial_map_writers": [
-        ("raw_name", "STRING"), ("canonical_name", "STRING"), ("status", "STRING"),
-        ("article_rows", "INTEGER"), ("candidates", "STRING"),
+        ("raw_name", "STRING"),
+        ("canonical_name", "STRING"),
+        ("status", "STRING"),
+        ("article_rows", "INTEGER"),
+        ("candidates", "STRING"),
     ],
 }
 
@@ -155,17 +205,33 @@ def run_publish(
         t0 = time.time()
         try:
             n = fn()
-            results.append({"table": name, "kind": kind, "rows": n, "success": True,
-                            "seconds": round(time.time() - t0, 1)})
+            results.append(
+                {
+                    "table": name,
+                    "kind": kind,
+                    "rows": n,
+                    "success": True,
+                    "seconds": round(time.time() - t0, 1),
+                }
+            )
             logger.info("publish %-45s OK rows=%s (%.1fs)", name, n, time.time() - t0)
         except Exception as exc:
-            results.append({"table": name, "kind": kind, "rows": 0, "success": False,
-                            "error": str(exc), "seconds": round(time.time() - t0, 1)})
+            results.append(
+                {
+                    "table": name,
+                    "kind": kind,
+                    "rows": 0,
+                    "success": False,
+                    "error": str(exc),
+                    "seconds": round(time.time() - t0, 1),
+                }
+            )
             logger.exception("publish %s FAILED", name)
 
     with get_session() as session:
         # 1:1 tables (+ canonical columns)
         for spec in TABLES:
+
             def _load(spec=spec):
                 rows = fetch_model_rows(session, spec.model)
                 extra = TRANSFORM_EXTRA_COLUMNS.get(spec.transform or "", [])
@@ -174,6 +240,7 @@ def run_publish(
                 elif spec.transform == "article_canonicals":
                     rows = transform.add_article_canonicals(rows, mappings)
                 return load_rows(bq, spec.bq_name, rows, schema_for_model(spec.model, extra))
+
             _record(spec.bq_name, "table", _load)
 
         # marts
@@ -182,33 +249,55 @@ def run_publish(
                 "editorial_capacity_pod": lambda: transform.build_capacity_pod_mart(
                     fetch_model_rows(session, CapacityProjection)
                 ),
-                "editorial_capacity_member_utilization": lambda: transform.build_member_utilization_mart(session, mappings),
-                "editorial_capacity_client_contributions": lambda: transform.build_client_contributions_mart(session, mappings),
-                "editorial_articles_monthly": lambda: transform.build_articles_monthly_mart(session),
-                "editorial_revisions_monthly": lambda: transform.build_revisions_monthly_mart(session),
+                "editorial_capacity_member_utilization": lambda: (
+                    transform.build_member_utilization_mart(session, mappings)
+                ),
+                "editorial_capacity_client_contributions": lambda: (
+                    transform.build_client_contributions_mart(session, mappings)
+                ),
+                "editorial_articles_monthly": lambda: transform.build_articles_monthly_mart(
+                    session
+                ),
+                "editorial_revisions_monthly": lambda: transform.build_revisions_monthly_mart(
+                    session
+                ),
                 "editorial_month_basis": lambda: transform.build_month_basis_mart(session),
             }
             for name in MARTS:
-                _record(name, "mart", lambda name=name: load_rows(
-                    bq, name, builders[name](), schema_from_spec(MART_SCHEMAS[name])
-                ))
+                _record(
+                    name,
+                    "mart",
+                    lambda name=name: load_rows(
+                        bq, name, builders[name](), schema_from_spec(MART_SCHEMAS[name])
+                    ),
+                )
 
         # mapping review tables
         if not skip_mappings:
             map_rows = transform.mapping_table_rows(mappings)
             for name in MAPPING_TABLES:
-                _record(name, "mapping", lambda name=name: load_rows(
-                    bq, name, map_rows[name], schema_from_spec(MAPPING_SCHEMAS[name])
-                ))
+                _record(
+                    name,
+                    "mapping",
+                    lambda name=name: load_rows(
+                        bq, name, map_rows[name], schema_from_spec(MAPPING_SCHEMAS[name])
+                    ),
+                )
 
     return results
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Editorial ETL → BigQuery")
-    ap.add_argument("--scope", choices=["current", "past", "full"], default=None,
-                    help="run sheet ingest first (same steps as the SYNC button / Re-sync)")
-    ap.add_argument("--tables", default=None, help="CSV of BQ table names to publish (default: all)")
+    ap.add_argument(
+        "--scope",
+        choices=["current", "past", "full"],
+        default=None,
+        help="run sheet ingest first (same steps as the SYNC button / Re-sync)",
+    )
+    ap.add_argument(
+        "--tables", default=None, help="CSV of BQ table names to publish (default: all)"
+    )
     ap.add_argument("--skip-marts", action="store_true")
     ap.add_argument("--skip-mappings", action="store_true")
     args = ap.parse_args(argv)
@@ -233,9 +322,11 @@ def main(argv: list[str] | None = None) -> int:
     with open(out_path, "w") as f:
         json.dump(summary, f, indent=2)
     n_pub = sum(1 for r in publish_results if r["success"])
-    print(f"\nETL {'OK' if summary['ok'] else 'FAILED'} — ingest steps: "
-          f"{len(ingest_results)}, published: {n_pub}/{len(publish_results)} tables "
-          f"(log: {out_path})")
+    print(
+        f"\nETL {'OK' if summary['ok'] else 'FAILED'} — ingest steps: "
+        f"{len(ingest_results)}, published: {n_pub}/{len(publish_results)} tables "
+        f"(log: {out_path})"
+    )
     return 0 if summary["ok"] else 1
 
 

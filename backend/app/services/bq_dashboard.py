@@ -463,6 +463,7 @@ def articles_monthly(date_from, date_to, pod, pod_axis, client_list, editor_list
     creation = q(
         f"""SELECT month_year, IFNULL({pod_col}, 'Unassigned') AS pod, client_name,
                    editor_name, SUM(count) AS count, SUM(revised) AS revised,
+                   SUM(second_reviews) AS second_reviews,
                    SUM(published) AS published, SUM(published_revised) AS published_revised,
                    SUM(matched) AS matched
             FROM {DS}.v_editorial_fct_articles_monthly WHERE {where}

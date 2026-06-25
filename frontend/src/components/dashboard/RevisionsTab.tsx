@@ -36,6 +36,7 @@ interface CreationRow {
   editor_name: string;
   count: number;
   revised: number;
+  second_reviews: number;
   published: number;
   published_revised: number;
   matched: number;
@@ -58,7 +59,9 @@ interface EditorOpt {
 
 type Dim = "pod" | "client" | "editor";
 type ViewMode = Dim;
-type Metric = "articles" | "rate" | "revisions";
+type Metric = "articles" | "rate" | "revisions" | "review";
+// rate-style metrics pool num/den and render as a percentage.
+const isRate = (m: Metric) => m === "rate" || m === "review";
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "pod", label: "Per Pod" },
@@ -68,6 +71,7 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
 const METRICS: { key: Metric; label: string }[] = [
   { key: "articles", label: "Articles" },
   { key: "rate", label: "Revision rate" },
+  { key: "review", label: "2nd review %" },
   { key: "revisions", label: "Revisions" },
 ];
 const DIM_LABEL: Record<Dim, string> = { pod: "Pod", client: "Client", editor: "Editor" };
@@ -96,9 +100,9 @@ function seriesLabel(mode: Dim, key: string, axis: PodAxis): string {
   return mode === "pod" ? displayPod(key, axis) : key;
 }
 
-// Heat tint for revision-rate cells: redder = higher rate (more rework).
+// Heat tint for rate cells: redder = higher rate.
 function rateCellStyle(v: number | null, metric: Metric): CSSProperties {
-  if (metric !== "rate" || v === null || v === undefined) return {};
+  if (!isRate(metric) || v === null || v === undefined) return {};
   const a = Math.min(0.35, (v / 100) * 0.55);
   return a <= 0.03 ? {} : { backgroundColor: `rgba(237, 105, 88, ${a.toFixed(2)})` };
 }
@@ -114,23 +118,24 @@ function addAcc(a: Acc, num: number, den: number) {
   a.den += den;
 }
 function finalize(acc: Acc | undefined, metric: Metric): number | null {
-  if (!acc) return metric === "rate" ? null : 0;
-  if (metric === "rate") return acc.den > 0 ? (acc.num / acc.den) * 100 : null;
+  if (!acc) return isRate(metric) ? null : 0;
+  if (isRate(metric)) return acc.den > 0 ? (acc.num / acc.den) * 100 : null;
   return acc.num;
 }
 function fmtValue(v: number | null, metric: Metric): string {
   if (v === null || v === undefined) return "—";
-  return metric === "rate" ? `${Math.round(v)}%` : String(v);
+  return isRate(metric) ? `${Math.round(v)}%` : String(v);
 }
 
-// Raw per-group counters for the single-month snapshot (all three metrics shown
-// as columns, so we keep the components rather than a single accumulator).
+// Raw per-group counters for the single-month snapshot (every metric shown as a
+// column, so we keep the components rather than a single accumulator).
 interface Cell {
   articles: number;
   revised: number;
+  second_reviews: number;
   revisions: number;
 }
-const emptyCell = (): Cell => ({ articles: 0, revised: 0, revisions: 0 });
+const emptyCell = (): Cell => ({ articles: 0, revised: 0, second_reviews: 0, revisions: 0 });
 const cellRate = (c: Cell): number | null =>
   c.articles > 0 ? Math.round((c.revised / c.articles) * 100) : null;
 
@@ -429,11 +434,13 @@ export function RevisionsTab({
   const glance = useMemo(() => {
     let articles = 0;
     let revised = 0;
+    let secondReviews = 0;
     let revisions = 0;
     for (const r of data.creation) {
       if (r.month_year !== selectedMonth || !visiblePod(r.pod)) continue;
       articles += r.count;
       revised += r.revised;
+      secondReviews += r.second_reviews;
     }
     for (const r of data.revisions) {
       if (r.month_year !== selectedMonth || !visiblePod(r.pod)) continue;
@@ -443,6 +450,7 @@ export function RevisionsTab({
       articles,
       revisions,
       rate: articles > 0 ? Math.round((revised / articles) * 100) : null,
+      reviewRate: articles > 0 ? Math.round((secondReviews / articles) * 100) : null,
     };
   }, [data, selectedMonth, visiblePod]);
 
@@ -466,8 +474,13 @@ export function RevisionsTab({
               pod: r.pod,
               client_name: r.client_name,
               editor_name: r.editor_name,
-              num: chartMetric === "rate" ? (r as CreationRow).revised : (r as CreationRow).count,
-              den: chartMetric === "rate" ? (r as CreationRow).count : 0,
+              num:
+                chartMetric === "rate"
+                  ? (r as CreationRow).revised
+                  : chartMetric === "review"
+                    ? (r as CreationRow).second_reviews
+                    : (r as CreationRow).count,
+              den: isRate(chartMetric) ? (r as CreationRow).count : 0,
             },
       );
   }, [data, chartMetric, visiblePod]);
@@ -477,7 +490,7 @@ export function RevisionsTab({
       chartView === "pod" ? r.pod : chartView === "client" ? r.client_name : r.editor_name;
     const weights = new Map<string, number>();
     for (const r of chartRows) {
-      weights.set(keyOf(r), (weights.get(keyOf(r)) ?? 0) + (chartMetric === "rate" ? r.den : r.num));
+      weights.set(keyOf(r), (weights.get(keyOf(r)) ?? 0) + (isRate(chartMetric) ? r.den : r.num));
     }
     const ranked = [...weights.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
     const cap = chartView === "pod" ? ranked.length : SERIES_CAP;
@@ -524,7 +537,14 @@ export function RevisionsTab({
     const ensurePod = (key: string) => {
       let p = pods.get(key);
       if (!p) {
-        p = { articles: 0, revised: 0, revisions: 0, editors: new Map(), clients: new Map() };
+        p = {
+          articles: 0,
+          revised: 0,
+          second_reviews: 0,
+          revisions: 0,
+          editors: new Map(),
+          clients: new Map(),
+        };
         pods.set(key, p);
       }
       return p;
@@ -542,12 +562,15 @@ export function RevisionsTab({
       const p = ensurePod(r.pod);
       p.articles += r.count;
       p.revised += r.revised;
+      p.second_reviews += r.second_reviews;
       const e = ensure(p.editors, r.editor_name);
       e.articles += r.count;
       e.revised += r.revised;
+      e.second_reviews += r.second_reviews;
       const c = ensure(p.clients, r.client_name);
       c.articles += r.count;
       c.revised += r.revised;
+      c.second_reviews += r.second_reviews;
     }
     for (const r of data.revisions) {
       if (r.month_year !== selectedMonth || !visiblePod(r.pod)) continue;
@@ -566,6 +589,7 @@ export function RevisionsTab({
     for (const [, p] of podSnap) {
       t.articles += p.articles;
       t.revised += p.revised;
+      t.second_reviews += p.second_reviews;
       t.revisions += p.revisions;
     }
     return t;
@@ -604,6 +628,7 @@ export function RevisionsTab({
       const c = cellAt(id, r.month_year);
       c.articles += r.count;
       c.revised += r.revised;
+      c.second_reviews += r.second_reviews;
       meta.get(id)!.articles += r.count;
     }
     for (const r of data.revisions) {
@@ -631,21 +656,27 @@ export function RevisionsTab({
       if (!c) return null;
       if (matrixMetric === "articles") return c.articles;
       if (matrixMetric === "revisions") return c.revisions;
+      if (matrixMetric === "review")
+        return c.articles > 0 ? Math.round((c.second_reviews / c.articles) * 100) : null;
       return c.articles > 0 ? Math.round((c.revised / c.articles) * 100) : null;
     };
     const podValueAt = (pod: string, month: string): number | null => {
       let articles = 0;
       let revised = 0;
+      let second_reviews = 0;
       let revisions = 0;
       for (const { id } of byPod.get(pod) ?? []) {
         const c = cells.get(id)?.get(month);
         if (!c) continue;
         articles += c.articles;
         revised += c.revised;
+        second_reviews += c.second_reviews;
         revisions += c.revisions;
       }
       if (matrixMetric === "articles") return articles;
       if (matrixMetric === "revisions") return revisions;
+      if (matrixMetric === "review")
+        return articles > 0 ? Math.round((second_reviews / articles) * 100) : null;
       return articles > 0 ? Math.round((revised / articles) * 100) : null;
     };
     return { pods, valueAt, podValueAt };
@@ -654,7 +685,7 @@ export function RevisionsTab({
   if (loading) return <Skeleton className="h-96 w-full" />;
 
   const monthLabel = selectedMonth ? fmtMonth(selectedMonth) : "—";
-  const heatMetric = matrixMetric === "rate";
+  const heatMetric = isRate(matrixMetric);
 
   return (
     <div className="space-y-10">
@@ -688,13 +719,18 @@ export function RevisionsTab({
             onChange={setSelectedEditors}
           />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard title="Articles" value={glance.articles} description="delivered this month" />
           <SummaryCard
             title="Revision rate"
             value={glance.rate === null ? "—" : `${glance.rate}%`}
             valueColor={glance.rate === null ? "white" : glance.rate > 40 ? "red" : "green"}
             description="articles revised ÷ articles"
+          />
+          <SummaryCard
+            title="2nd review %"
+            value={glance.reviewRate === null ? "—" : `${glance.reviewRate}%`}
+            description="articles 2nd-reviewed ÷ articles"
           />
           <SummaryCard title="Revisions" value={glance.revisions} description="revision events this month" />
         </div>
@@ -733,8 +769,8 @@ export function RevisionsTab({
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
-                      domain={chartMetric === "rate" ? [0, 100] : undefined}
-                      tickFormatter={chartMetric === "rate" ? (v: number) => `${v}%` : undefined}
+                      domain={isRate(chartMetric) ? [0, 100] : undefined}
+                      tickFormatter={isRate(chartMetric) ? (v: number) => `${v}%` : undefined}
                     />
                     <Tooltip
                       content={<ChartTooltip metric={chartMetric} />}

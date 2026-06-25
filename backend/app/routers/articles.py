@@ -120,6 +120,11 @@ async def monthly_article_counts(
             ArticleRecord.editor_name,
             func.count().label("count"),
             func.count().filter(ArticleRecord.revision_count > 0).label("revised"),
+            func.count()
+            .filter(
+                and_(ArticleRecord.second_review.isnot(None), ArticleRecord.second_review != "")
+            )
+            .label("second_reviews"),
             func.count().filter(ArticleRecord.is_published.is_(True)).label("published"),
             func.count()
             .filter(and_(ArticleRecord.is_published.is_(True), ArticleRecord.revision_count > 0))
@@ -170,6 +175,7 @@ async def monthly_article_counts(
             "editor_name": r.editor_name,
             "count": r.count,
             "revised": r.revised,
+            "second_reviews": r.second_reviews,
             "published": r.published,
             "published_revised": r.published_revised,
             "matched": r.matched,
