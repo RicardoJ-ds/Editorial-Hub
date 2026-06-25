@@ -126,8 +126,9 @@ function refreshOMReconciliation_(dry) {
     ".editorial_raw_articles WHERE month_year IS NOT NULL GROUP BY 1,2")
     .forEach(function (r) { (log[r[0]] = log[r[0]] || {})[r[1]] = Number(r[2]); });
   var om = {};
-  bq_("SELECT client_name, FORMAT('%04d-%02d', year, month) my, SUM(articles_actual) a FROM " +
-    DS + ".editorial_raw_production WHERE year IS NOT NULL GROUP BY 1,2")
+  bq_("SELECT cl.name, FORMAT('%04d-%02d', p.year, p.month) my, SUM(p.articles_actual) a FROM " +
+    DS + ".editorial_raw_production p JOIN " + DS + ".editorial_raw_clients cl ON cl.id = p.client_id " +
+    "WHERE p.year IS NOT NULL GROUP BY 1,2")
     .forEach(function (r) { (om[r[0]] = om[r[0]] || {})[r[1]] = Number(r[2] || 0); });
   var clients = {};
   Object.keys(log).forEach(function (c) { clients[c] = true; });
