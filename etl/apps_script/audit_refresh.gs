@@ -1,39 +1,26 @@
-/**
- * Daily refresh of the audit / normalization tabs in the Monthly Article Count sheet.
- * ───────────────────────────────────────────────────────────────────────────
- * Reads the always-fresh warehouse in BigQuery (republished on every SYNC) and
- * updates the audit tabs so they stay current without anyone running a script.
- *
- *   • ✅ VALIDATION AUDIT — recomputes per-tab ARTICLES + UNDATED counts.
- *   • 🔬 Normalization Misses + … Client Detail — APPENDS newly-appeared orphan
- *       names only; NEVER edits existing rows or the manual Canonical / Full Name cols.
- *   • 🔍 OM RECONCILIATION — fully regenerated (pure computed, no manual data).
- *
- * Tabs are matched by their TEXT (emoji-agnostic) so a stripped emoji on
- * copy-paste can't break the lookup. SETUP: reuses the ⚙️ CONFIG tab
- * (BQ_PROJECT + AUTH_MODE). Run previewAudits() first (writes nothing), then
- * createDailyAuditTrigger().
- */
+/* Daily refresh of the audit/normalization tabs in the Monthly Article Count sheet.
+   Reads the BigQuery warehouse and updates: VALIDATION AUDIT (per-tab ARTICLES +
+   UNDATED counts), Normalization Misses + Client Detail (appends NEW orphan names
+   only - never edits existing rows or the manual Canonical/Full Name columns), and
+   OM RECONCILIATION (regenerated). Tabs are matched by text so emoji cannot break it.
+   Run previewAudits() first (writes nothing), then createDailyAuditTrigger(). */
 
-const DS = '`graphite-data.graphite_bi_sandbox`';
+var DS = '`graphite-data.graphite_bi_sandbox`';
 
-// Find a sheet by case-insensitive text match (ignores the emoji prefix). `notKw`
-// excludes a sibling — e.g. "NORMALIZATION MISSES" without "CLIENT" = the summary.
 function findSheet_(kw, notKw) {
   kw = kw.toUpperCase();
-  const exc = notKw ? notKw.toUpperCase() : null;
-  const all = SpreadsheetApp.getActive().getSheets();
-  for (let i = 0; i < all.length; i++) {
-    const n = all[i].getName().toUpperCase();
+  var exc = notKw ? notKw.toUpperCase() : null;
+  var all = SpreadsheetApp.getActive().getSheets();
+  for (var i = 0; i < all.length; i++) {
+    var n = all[i].getName().toUpperCase();
     if (n.indexOf(kw) >= 0 && (!exc || n.indexOf(exc) < 0)) return all[i];
   }
-  throw new Error('Tab not found containing "' + kw + '"' + (notKw ? ' (excluding "' + notKw + '")' : ''));
+  throw new Error('Tab not found containing "' + kw + '"');
 }
 
-// ── config + BigQuery (mirrors new_client_tab.gs) ──────────────────────────
 function aGetConfig_() {
-  const sh = findSheet_('CONFIG');
-  const cfg = {};
+  var sh = findSheet_('CONFIG');
+  var cfg = {};
   sh.getRange(1, 1, sh.getLastRow(), 2).getValues().forEach(function (r) {
     if (r[0]) cfg[String(r[0]).trim()] = String(r[1]).trim();
   });
@@ -43,9 +30,9 @@ function aGetConfig_() {
 }
 
 function bq_(sql) {
-  const cfg = aGetConfig_();
-  let job = BigQuery.Jobs.query({ query: sql, useLegacySql: false }, cfg.BQ_PROJECT);
-  const id = job.jobReference.jobId;
+  var cfg = aGetConfig_();
+  var job = BigQuery.Jobs.query({ query: sql, useLegacySql: false }, cfg.BQ_PROJECT);
+  var id = job.jobReference.jobId;
   while (!job.jobComplete) {
     Utilities.sleep(800);
     job = BigQuery.Jobs.getQueryResults(cfg.BQ_PROJECT, id);
@@ -54,54 +41,49 @@ function bq_(sql) {
 }
 
 function rosterSets_() {
-  const vals = findSheet_('ROSTER').getDataRange().getValues();
-  const ed = {}, wr = {};
-  for (let i = 1; i < vals.length; i++) {
-    if (vals[i][1]) ed[String(vals[i][1]).trim()] = true;          // col B = ALL EDITORS
-    if (vals[i][6]) wr[String(vals[i][6]).trim()] = true;          // col G = WRITERS
+  var vals = findSheet_('ROSTER').getDataRange().getValues();
+  var ed = {}, wr = {};
+  for (var i = 1; i < vals.length; i++) {
+    if (vals[i][1]) ed[String(vals[i][1]).trim()] = true;
+    if (vals[i][6]) wr[String(vals[i][6]).trim()] = true;
   }
   return { ed: ed, wr: wr };
 }
 
-// ── 1. VALIDATION AUDIT — per-tab ARTICLES + UNDATED ───────────────────────
 function refreshValidationCounts_(dry) {
-  const rows = bq_(
-    'SELECT source_tab, COUNT(DISTINCT article_uid) articles, ' +
-    'COUNTIF(submitted_date IS NULL) undated FROM ' + DS + '.editorial_raw_articles ' +
-    'GROUP BY source_tab');
-  const cnt = {};
+  var rows = bq_('SELECT source_tab, COUNT(DISTINCT article_uid) articles, ' +
+    'COUNTIF(submitted_date IS NULL) undated FROM ' + DS + '.editorial_raw_articles GROUP BY source_tab');
+  var cnt = {};
   rows.forEach(function (r) { cnt[r[0]] = { a: Number(r[1]), u: Number(r[2]) }; });
-  const sh = findSheet_('VALIDATION AUDIT');
-  const data = sh.getDataRange().getValues();
-  let hdr = -1, artCol = -1, undCol = -1;
-  for (let i = 0; i < data.length; i++) {
-    const row = data[i].map(function (c) { return String(c).trim().toUpperCase(); });
+  var sh = findSheet_('VALIDATION AUDIT');
+  var data = sh.getDataRange().getValues();
+  var hdr = -1, artCol = -1, undCol = -1;
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i].map(function (c) { return String(c).trim().toUpperCase(); });
     if (row.indexOf('SHEET') >= 0 && row.indexOf('ARTICLES') >= 0) {
       hdr = i; artCol = row.indexOf('ARTICLES'); undCol = row.indexOf('UNDATED'); break;
     }
   }
   if (hdr < 0) return 0;
-  let changed = 0;
-  for (let i = hdr + 1; i < data.length; i++) {
-    const tab = String(data[i][0]).trim();
+  var changed = 0;
+  for (var j = hdr + 1; j < data.length; j++) {
+    var tab = String(data[j][0]).trim();
     if (!tab || !cnt[tab]) continue;
-    const c = cnt[tab];
-    if (Number(data[i][artCol]) !== c.a || Number(data[i][undCol]) !== c.u) {
+    var c = cnt[tab];
+    if (Number(data[j][artCol]) !== c.a || Number(data[j][undCol]) !== c.u) {
       changed++;
       if (!dry) {
-        sh.getRange(i + 1, artCol + 1).setValue(c.a);
-        sh.getRange(i + 1, undCol + 1).setValue(c.u);
+        sh.getRange(j + 1, artCol + 1).setValue(c.a);
+        sh.getRange(j + 1, undCol + 1).setValue(c.u);
       }
     }
   }
   return changed;
 }
 
-// ── 2. Normalization Misses — APPEND new orphans (never edit existing) ─────
 function appendNewOrphans_(kw, notKw, perClient, dry) {
-  const r = rosterSets_();
-  const sql =
-    "SELECT k, n, " + (perClient ? "client, " : "") + "occ, y0, y1 FROM (" +
+  var r = rosterSets_();
+  var sql = "SELECT k, n, " + (perClient ? "client, " : "") + "occ, y0, y1 FROM (" +
     "  SELECT 'Editor' k, editor_name n, " + (perClient ? "client_name client, " : "") +
     "    COUNT(*) occ, MIN(EXTRACT(YEAR FROM submitted_date)) y0, MAX(EXTRACT(YEAR FROM submitted_date)) y1" +
     "  FROM " + DS + ".editorial_raw_articles WHERE editor_name IS NOT NULL" +
@@ -111,22 +93,22 @@ function appendNewOrphans_(kw, notKw, perClient, dry) {
     "    COUNT(*), MIN(EXTRACT(YEAR FROM submitted_date)), MAX(EXTRACT(YEAR FROM submitted_date))" +
     "  FROM " + DS + ".editorial_raw_articles WHERE writer_name IS NOT NULL" +
     "  GROUP BY writer_name" + (perClient ? ", client_name" : "") + ")";
-  const rows = bq_(sql);
-  const sh = findSheet_(kw, notKw);
-  const existing = {};
+  var rows = bq_(sql);
+  var sh = findSheet_(kw, notKw);
+  var existing = {};
   sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues()
     .forEach(function (x) { if (x[0]) existing[String(x[0]).trim().toLowerCase()] = true; });
-  const out = [];
+  var out = [];
   rows.forEach(function (r2) {
-    const kind = r2[0], name = String(r2[1] || '').trim();
+    var kind = r2[0], name = String(r2[1] || '').trim();
     if (!name) return;
-    const inRoster = kind === 'Editor' ? r.ed[name] : r.wr[name];
-    if (inRoster || existing[name.toLowerCase()]) return;          // canonical or already listed
-    const occ = perClient ? r2[3] : r2[2];
-    const y0 = perClient ? r2[4] : r2[3];
-    const y1 = perClient ? r2[5] : r2[4];
-    const years = (y0 && y1) ? (y0 + '–' + y1) : '';
-    const note = 'auto-detected — needs identification';
+    var inRoster = kind === 'Editor' ? r.ed[name] : r.wr[name];
+    if (inRoster || existing[name.toLowerCase()]) return;
+    var occ = perClient ? r2[3] : r2[2];
+    var y0 = perClient ? r2[4] : r2[3];
+    var y1 = perClient ? r2[5] : r2[4];
+    var years = (y0 && y1) ? (y0 + '-' + y1) : '';
+    var note = 'auto-detected - needs identification';
     if (perClient) out.push([name, kind, r2[2], occ, years, 'Needs attention', note, '']);
     else out.push([name, kind, occ, years, 'Needs attention', note, '', '', '']);
     existing[name.toLowerCase()] = true;
@@ -135,59 +117,53 @@ function appendNewOrphans_(kw, notKw, perClient, dry) {
   return out.length;
 }
 
-// ── 3. OM RECONCILIATION — regenerate (no manual data) ─────────────────────
 function refreshOMReconciliation_(dry) {
-  const months = bq_(
-    'SELECT DISTINCT month_year FROM ' + DS + '.editorial_raw_articles ' +
-    'WHERE month_year IS NOT NULL ORDER BY month_year DESC LIMIT 6')
-    .map(function (r) { return r[0]; }).sort();
+  var months = bq_('SELECT DISTINCT month_year FROM ' + DS + '.editorial_raw_articles ' +
+    'WHERE month_year IS NOT NULL ORDER BY month_year DESC LIMIT 6').map(function (r) { return r[0]; }).sort();
   if (!months.length) return 0;
-  const log = {};
+  var log = {};
   bq_('SELECT client_name, month_year, COUNT(DISTINCT article_uid) c FROM ' + DS +
     ".editorial_raw_articles WHERE month_year IS NOT NULL GROUP BY 1,2")
     .forEach(function (r) { (log[r[0]] = log[r[0]] || {})[r[1]] = Number(r[2]); });
-  const om = {};
+  var om = {};
   bq_("SELECT client_name, FORMAT('%04d-%02d', year, month) my, SUM(articles_actual) a FROM " +
     DS + ".editorial_raw_production WHERE year IS NOT NULL GROUP BY 1,2")
     .forEach(function (r) { (om[r[0]] = om[r[0]] || {})[r[1]] = Number(r[2] || 0); });
-  const clients = {};
+  var clients = {};
   Object.keys(log).forEach(function (c) { clients[c] = true; });
   Object.keys(om).forEach(function (c) { clients[c] = true; });
-  const names = Object.keys(clients).sort();
-  const header = ['CLIENT'].concat(months.map(function (m) { return 'OM ' + m; }))
+  var names = Object.keys(clients).sort();
+  var header = ['CLIENT'].concat(months.map(function (m) { return 'OM ' + m; }))
     .concat(months.map(function (m) { return 'LOG ' + m; }));
-  const grid = [header];
+  var grid = [header];
   names.forEach(function (c) {
-    const row = [c];
+    var row = [c];
     months.forEach(function (m) { row.push((om[c] && om[c][m]) || 0); });
     months.forEach(function (m) { row.push((log[c] && log[c][m]) || 0); });
     grid.push(row);
   });
   if (!dry) {
-    const sh = findSheet_('OM RECONCILIATION');
+    var sh = findSheet_('OM RECONCILIATION');
     sh.clearContents();
     sh.getRange(1, 1, grid.length, grid[0].length).setValues(grid);
   }
   return grid.length - 1;
 }
 
-// ── entry points ───────────────────────────────────────────────────────────
 function previewAudits() {
-  const v = refreshValidationCounts_(true);
-  const m = appendNewOrphans_('NORMALIZATION MISSES', 'CLIENT', false, true);
-  const d = appendNewOrphans_('CLIENT DETAIL', null, true, true);
-  const o = refreshOMReconciliation_(true);
-  Logger.log('[PREVIEW] VALIDATION counts to update: %s · new orphans (summary): %s · ' +
-    'new orphans (client detail): %s · OM-recon client rows: %s', v, m, d, o);
+  var v = refreshValidationCounts_(true);
+  var m = appendNewOrphans_('NORMALIZATION MISSES', 'CLIENT', false, true);
+  var d = appendNewOrphans_('CLIENT DETAIL', null, true, true);
+  var o = refreshOMReconciliation_(true);
+  Logger.log('[PREVIEW] validation rows to update=%s  new orphans summary=%s  client detail=%s  OM rows=%s', v, m, d, o);
 }
 
 function refreshAllAudits() {
-  const v = refreshValidationCounts_(false);
-  const m = appendNewOrphans_('NORMALIZATION MISSES', 'CLIENT', false, false);
-  const d = appendNewOrphans_('CLIENT DETAIL', null, true, false);
-  const o = refreshOMReconciliation_(false);
-  Logger.log('VALIDATION counts updated: %s · new orphans appended (summary): %s · ' +
-    '(client detail): %s · OM-recon rows: %s', v, m, d, o);
+  var v = refreshValidationCounts_(false);
+  var m = appendNewOrphans_('NORMALIZATION MISSES', 'CLIENT', false, false);
+  var d = appendNewOrphans_('CLIENT DETAIL', null, true, false);
+  var o = refreshOMReconciliation_(false);
+  Logger.log('validation updated=%s  orphans summary=%s  client detail=%s  OM rows=%s', v, m, d, o);
 }
 
 function createDailyAuditTrigger() {
