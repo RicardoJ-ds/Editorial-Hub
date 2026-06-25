@@ -3,7 +3,7 @@
  * ───────────────────────────────────────────────────────────────────────────
  * Lives in the Monthly Article Count sheet (Extensions → Apps Script).
  * On a daily trigger it reads the canonical client list from BigQuery and, for
- * every client that has no tab yet, duplicates "🧩 TEMPLATE (copy me)" and
+ * every client that has no tab yet, duplicates "🧩 TEMPLATE" and
  * renames the copy to the client name. It NEVER touches existing tabs.
  *
  * SETUP (once)
@@ -11,7 +11,7 @@
  *  2. Add a "⚙️ CONFIG" tab to the sheet with key/value rows in A:B —
  *       BQ_PROJECT     graphite-data
  *       CLIENT_QUERY   SELECT name FROM `graphite-data.graphite_bi_sandbox.editorial_clients` WHERE status IN ('ACTIVE','SOON_TO_BE_ACTIVE')
- *       TEMPLATE_TAB   🧩 TEMPLATE (copy me)
+ *       TEMPLATE_TAB   🧩 TEMPLATE
  *       AUTH_MODE      advanced            (or: sa)
  *     CLIENT_QUERY must return ONE column = the canonical client name (first column is used).
  *  3a. AUTH_MODE=advanced (simplest): Apps Script editor → Services (+) → add
@@ -36,7 +36,7 @@ function getConfig_() {
     if (r[0]) cfg[String(r[0]).trim()] = String(r[1]).trim();
   });
   if (!cfg.BQ_PROJECT || !cfg.CLIENT_QUERY) throw new Error('CONFIG needs BQ_PROJECT and CLIENT_QUERY.');
-  cfg.TEMPLATE_TAB = cfg.TEMPLATE_TAB || '🧩 TEMPLATE (copy me)';
+  cfg.TEMPLATE_TAB = cfg.TEMPLATE_TAB || '🧩 TEMPLATE';
   cfg.AUTH_MODE = (cfg.AUTH_MODE || 'advanced').toLowerCase();
   return cfg;
 }
