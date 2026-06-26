@@ -953,12 +953,14 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "condition": {
                             "type": "ONE_OF_RANGE",
-                            "values": [{"userEnteredValue": f"='{ROSTERS_TAB}'!$H$2:$H"}],
+                            # SR EDITORS moved to col F in the master Roster (2026-06-26);
+                            # keep this in sync with apply_original.py + the live re-point.
+                            "values": [{"userEnteredValue": f"='{ROSTERS_TAB}'!$F$2:$F"}],
                         },
                         "strict": True,
                         "showCustomUi": True,
                         "inputMessage": "Pick the Sr Editor who did the 2nd review "
-                        "(📋 Rosters tab, column H — active first).",
+                        "(📋 Rosters tab, column F — active first).",
                     },
                 )
 

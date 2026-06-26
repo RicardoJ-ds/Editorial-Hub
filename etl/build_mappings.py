@@ -938,6 +938,70 @@ def publish_name_map_from_sheet(bq=None) -> dict:
     }
 
 
+def read_roster_exclusions_sheet() -> list[dict]:
+    """Read the DaniQ-editable 'Exclusions' tab of the Editorial Name Mappings sheet
+    → rows for `editorial_roster_exclusions`. This is how a person who shows up in
+    Rippling/Slack but is NOT actually an editor/writer is removed from the roster
+    permanently (e.g. someone with the title "Editorial Lead" who never edited).
+    Columns (row 1 = header): NAME · ROLE · SOURCE_ID · REASON · DATE."""
+    from googleapiclient.discovery import build as _gbuild
+
+    from app.services.google_auth import get_google_credentials
+
+    svc = _gbuild(
+        "sheets",
+        "v4",
+        credentials=get_google_credentials(
+            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        ),
+    )
+    vals = (
+        svc.spreadsheets()
+        .values()
+        .get(spreadsheetId=settings.name_mappings_sheet_id, range="'Exclusions'!A2:E")
+        .execute()
+        .get("values", [])
+    )
+    out: list[dict] = []
+    for row in vals:
+        cells = [(c or "").strip() for c in (row + [""] * 5)[:5]]
+        name, role, source_id, reason, dt = cells
+        if not name:
+            continue
+        out.append(
+            {
+                "name": name,
+                "role": role.lower() or None,
+                "source_id": source_id or None,
+                "reason": reason or None,
+                "excluded_on": dt or None,
+            }
+        )
+    return out
+
+
+def publish_roster_exclusions_from_sheet(bq=None) -> dict:
+    """Read the Exclusions tab → publish `editorial_roster_exclusions` to BigQuery
+    (WRITE_TRUNCATE). The `v_editorial_roster` view LEFT JOINs + filters this, so a
+    sheet edit removes someone from the roster everywhere on the next publish. Safe
+    to run locally — it only truncates this small sheet-sourced table (like the
+    name-map publish), never a warehouse data table."""
+    from etl.load import get_bq, load_rows, schema_from_spec
+
+    rows = read_roster_exclusions_sheet()
+    schema = schema_from_spec(
+        [
+            ("name", "STRING"),
+            ("role", "STRING"),
+            ("source_id", "STRING"),
+            ("reason", "STRING"),
+            ("excluded_on", "STRING"),
+        ]
+    )
+    load_rows(bq or get_bq(), "editorial_roster_exclusions", rows, schema)
+    return {"rows": len(rows)}
+
+
 if __name__ == "__main__":
     import sys
 

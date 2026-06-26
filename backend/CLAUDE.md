@@ -26,6 +26,13 @@ Auth gating lives in `app/auth_deps.py`: `require_admin` (Admin group only) and
 `require_access_editor` (Admin OR `admin.access.edit`). Frontend forwards `X-User-Email`;
 admins may impersonate via `X-Preview-As`.
 
+The `@name-mappings` sync step (`sync_manifest._name_mappings_run`) publishes **two** BQ
+tables from the Editorial Name Mappings sheet: `editorial_name_map` (raw→canonical) and
+`editorial_roster_exclusions` (DaniQ's Exclusions tab) via `etl.build_mappings`. The latter
+feeds the `v_editorial_roster` view (`etl/warehouse/v_editorial_roster.sql`) — the single
+source of truth for the editor/writer roster, materialised to the sheet by
+`etl/apps_script/roster_refresh.gs`.
+
 ## API routes / endpoints — registered in `main.py`
 
 | Router | Prefix | Notes |

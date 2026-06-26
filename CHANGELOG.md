@@ -18,6 +18,16 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.46 — June 26
+
+**The editor/writer roster is now a single source of truth — auto-maintained, not hand-built.**
+
+- **One roster, generated automatically.** The editor / writer / 2nd-review dropdowns in the Monthly Article Count *and* Meta tracker sheets now draw from one warehouse-backed roster — current editors (from Rippling), current writers (from Slack), plus every historical writer who's been identified — refreshed daily. No more rebuilding the list by hand, and the same source feeds both sheets.
+- **"Not an editor" removals are permanent.** A new editable **Exclusions** list lets the team drop someone the systems mis-tag as an editor (e.g. a former "Editorial Lead" who never actually edited) — and the removal sticks through every refresh instead of quietly reappearing.
+- **Two senior editors recovered.** The 2nd-review picker now correctly includes the VP, Editor in Chief and the Director of Editorial, who the old hand-built list had missed.
+- **Departed writers no longer vanish.** Writers whose Slack account was deactivated (their name had been wiped) are recovered with their real names and shown as inactive, so historical articles still validate.
+- **Audit & normalization sheets refresh themselves daily.** The validation, normalization-misses, and reconciliation tabs now update automatically from the warehouse, surfacing any new unmapped name for review without anyone running a script.
+
 ## 0.3.45 — June 25
 
 **2nd Review is now tracked in the Hub.**

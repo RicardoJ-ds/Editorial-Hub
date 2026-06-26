@@ -1,3 +1,27 @@
+# Plan — Root-cause roster: `v_editorial_roster` (single source of truth)
+
+**Goal:** replace the hand-regenerated roster with a BigQuery **view** unioning all editorial
+headcount (Rippling editors + Slack writers + legacy/mapped canonicals), carrying source IDs
+(`worker_id`/`slack_id`), applying the same name normalization, filtered by a DaniQ-editable
+**Exclusions** list — so "not an editor" removals are permanent and survive every regen. A daily
+**Apps Script** materializes it into the master Roster tab → MAC dropdowns via IMPORTRANGE.
+Decisions locked: **View** (always live) · **Apps Script daily**.
+
+Facts: editors = `v_headcount` `title LIKE '%editor%'` (has worker_id+slack_id); writers = Slack
+`ext.writing` (27 active/42); legacy gap = 8 editors + 111 writers in the log but not in
+Rippling/Slack; exclusions needed because Jose Maria Sosa + Andres Rojas both carry title
+"Editorial Lead" (no filter can drop them).
+
+Steps:
+- [x] 1. Exclusions tab in the mappings sheet (NAME·ROLE·SOURCE_ID·REASON·DATE) + seed (Jose, Andres, Miles-as-editor).
+- [x] 2. `publish_roster_exclusions_from_sheet()` → BQ `editorial_roster_exclusions`; wired into `@name-mappings`.
+- [x] 3. View `v_editorial_roster` (committed SQL `etl/warehouse/v_editorial_roster.sql`): Rippling editors + Slack writers + legacy, name-map override, role-aware exclusions, junk filter.
+- [x] 4. Verified view: 33 editors / 9 sr / 101 writers / 41 active; exclusions applied; reproduces current roster exactly + correctly adds Bryan Clark + Chrissy Woods to SR.
+- [x] 5. `roster_refresh.gs` written + simulation-verified (membership identical; order normalized to active-first/alphabetical).
+- [~] 6. Docs DONE (root + backend CLAUDE.md, memory). **Commit HELD — Ricardo validating the Apps Script first.** Install instructions handed off.
+
+---
+
 # Plan — Retire Neon for ingested/analytical data → BigQuery-native Hub
 
 **Approved all-in (Phases 1–5), 2026-06-23.**

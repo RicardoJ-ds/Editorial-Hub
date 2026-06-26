@@ -177,7 +177,10 @@ def _name_mappings_run(session: Session) -> "list[ImportResult]":
     name/client normalization (Phase 1b). Runs BEFORE Monthly Article Count so
     the names it resolves are fresh. Fails loudly if the etl package is absent."""
     try:
-        from etl.build_mappings import publish_name_map_from_sheet
+        from etl.build_mappings import (
+            publish_name_map_from_sheet,
+            publish_roster_exclusions_from_sheet,
+        )
     except ImportError as exc:
         return [
             ImportResult(
@@ -189,10 +192,19 @@ def _name_mappings_run(session: Session) -> "list[ImportResult]":
             )
         ]
     info = publish_name_map_from_sheet()
+    # Also publish the roster Exclusions tab → editorial_roster_exclusions, which
+    # the v_editorial_roster view filters out. Same sheet, same safe publish path.
+    excl = publish_roster_exclusions_from_sheet()
     return [
         ImportResult(
             sheet=NAME_MAP_LABEL, rows_parsed=info["rows"], rows_imported=info["rows"], success=True
-        )
+        ),
+        ImportResult(
+            sheet="Roster Exclusions → BigQuery",
+            rows_parsed=excl["rows"],
+            rows_imported=excl["rows"],
+            success=True,
+        ),
     ]
 
 
