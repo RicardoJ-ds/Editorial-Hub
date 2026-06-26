@@ -18,6 +18,15 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.47 — June 26
+
+**Three fixes: pod labels, SOW links, and a new BigQuery handoff doc.**
+
+- **"Growth Pod 99" is gone.** Felt, Front, and Vimeo were showing a bogus *Growth Pod 99* chip (a Salesforce placeholder for accounts with no real pod). They now read **Growth Pod 7**. Visibility is unchanged — what each team/pod sees is driven by pod assignments, not this label.
+- **SOW Link shows every link.** When a client's SOW cell holds more than one link (e.g. an SOW plus an amendment), the Editorial Clients table now shows a **separate badge per link** instead of merging them into one.
+- **New client tabs sort alphabetically.** The Monthly Article Count auto-create script slots new client tabs into alphabetical order; a one-time `sortAllClientTabs()` tidies the existing ones.
+- **New BigQuery handoff doc** — `etl/platform_handoff_editorial_hub.md`: how anyone can pull, from BigQuery, every number the Hub shows.
+
 ## 0.3.46 — June 26
 
 **The editor/writer roster is now a single source of truth — auto-maintained, not hand-built.**

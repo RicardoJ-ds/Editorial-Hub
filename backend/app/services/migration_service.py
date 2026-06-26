@@ -352,32 +352,6 @@ def _cell(row: list, idx: int, default: str = "") -> str:
     return default
 
 
-def _extract_hyperlinks(service, spreadsheet_id: str, range_str: str) -> dict[int, str]:
-    """Extract hyperlinks from a column range. Returns {row_index: url}."""
-    try:
-        resp = (
-            service.spreadsheets()
-            .get(
-                spreadsheetId=spreadsheet_id,
-                ranges=[range_str],
-                fields="sheets.data.rowData.values(hyperlink,formattedValue)",
-            )
-            .execute()
-        )
-        links: dict[int, str] = {}
-        for sheet in resp.get("sheets", []):
-            for data_block in sheet.get("data", []):
-                for i, row_data in enumerate(data_block.get("rowData", [])):
-                    for val in row_data.get("values", []):
-                        link = val.get("hyperlink", "")
-                        if link:
-                            links[i] = link
-        return links
-    except Exception:
-        logger.warning("Could not extract hyperlinks from %s", range_str)
-        return {}
-
-
 def _cell_to_markdown(cell) -> str:
     """Convert a Sheets API CellData to markdown, preserving inline hyperlinks.
 
@@ -771,9 +745,11 @@ def import_sow_overview(session: Session) -> ImportResult:
         # 17: comments, 18: sow
         data_rows = all_rows[6:]
 
-        # Extract hyperlinks from SOW column (col S = col 19, 1-indexed)
+        # SOW column (col S = col 19, 1-indexed). Fetch as markdown so a cell with
+        # MULTIPLE links (e.g. "Front SOW" + "Front Amendment") keeps every link as
+        # its own [text](url) segment instead of collapsing to one merged badge.
         # Rows 7+ in sheet = data rows (sheet is 1-indexed, so row 7 = index 0 in data_rows)
-        sow_hyperlinks = _extract_hyperlinks(service, SPREADSHEET_ID, f"'{sheet_name}'!S7:S200")
+        sow_md = _extract_rich_text_column(service, SPREADSHEET_ID, f"'{sheet_name}'!S7:S200")
         # Comments live in col R (col 18, 1-indexed) and often contain inline
         # hyperlinks ("see here" linked to a doc). Fetch as markdown so URLs
         # survive; plain .values() drops them.
@@ -827,7 +803,7 @@ def import_sow_overview(session: Session) -> ImportResult:
                 first_feedback_date=parse_date(_cell(row, 15)),
                 first_article_published_date=parse_date(_cell(row, 16)),
                 comments=comments_md.get(result.rows_parsed - 1, _cell(row, 17)) or None,
-                sow_link=sow_hyperlinks.get(result.rows_parsed - 1, _cell(row, 18)) or None,
+                sow_link=sow_md.get(result.rows_parsed - 1, _cell(row, 18)) or None,
                 updated_by="sheets_migration",
             )
 
@@ -4344,6 +4320,13 @@ def _normalize_growth_pod(raw: str | None) -> str | None:
     return f"Pod {int(digits)}" if digits else t
 
 
+# Growth-pod business remaps applied after normalization (Salesforce-sourced).
+# DaniQ 2026-06-26: the "Pod 99" placeholder accounts are actually Growth Pod 7 —
+# fold 99 into 7. This is display-only; RBAC client visibility is driven by
+# pod_assignments (person→client), not by clients.growth_pod, so access is unchanged.
+_GROWTH_POD_REMAP: dict[str, str] = {"Pod 99": "Pod 7"}
+
+
 # Editorial pods follow the exact same shape — alias for clarity at call sites.
 _normalize_editorial_pod = _normalize_growth_pod
 
@@ -4588,6 +4571,7 @@ def import_growth_pods(session: Session) -> ImportResult:
         for r in bq_rows:
             cname = (r.get("client_name") or "").strip()
             pod = _normalize_growth_pod(r.get("growth_pod"))
+            pod = _GROWTH_POD_REMAP.get(pod, pod) if pod else pod
             if not cname or not pod:
                 continue
             client_pods.setdefault(cname, set()).add(pod)

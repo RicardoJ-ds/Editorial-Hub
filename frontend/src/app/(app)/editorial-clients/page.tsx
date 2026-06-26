@@ -1232,21 +1232,41 @@ function ContractTimelineTab({
                       {client.articles_sow ?? "\u2014"}
                     </TableCell>
                     <TableCell className="text-xs">
-                      {client.sow_link ? (
-                        client.sow_link.startsWith("http") ? (
-                          <a href={client.sow_link} target="_blank" rel="noopener noreferrer">
-                            <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[11px] cursor-pointer hover:bg-[#5B9BF5]/20 transition-colors">
-                              {client.name} SOW ↗
+                      {(() => {
+                        const raw = client.sow_link;
+                        if (!raw) return <span className="text-[#606060]">{"\u2014"}</span>;
+                        // A SOW cell may hold MULTIPLE links as markdown "[text](url)[text2](url2)"
+                        // (e.g. an SOW + an amendment). Render each link as its own badge.
+                        const md = [...raw.matchAll(/\[([^\]]*)\]\(([^)]+)\)/g)]
+                          .map((m) => ({ label: (m[1] || "").trim(), href: (m[2] || "").trim() }))
+                          .filter((l) => l.href.startsWith("http"));
+                        const links = md.length
+                          ? md.map((l) => ({
+                              label: l.label && !l.label.startsWith("http") ? l.label : `${client.name} SOW`,
+                              href: l.href,
+                            }))
+                          : raw.trim().startsWith("http")
+                            ? [{ label: `${client.name} SOW`, href: raw.trim() }]
+                            : [];
+                        if (!links.length) {
+                          return (
+                            <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[11px]">
+                              {raw}
                             </Badge>
-                          </a>
-                        ) : (
-                          <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[11px]">
-                            {client.sow_link}
-                          </Badge>
-                        )
-                      ) : (
-                        <span className="text-[#606060]">{"\u2014"}</span>
-                      )}
+                          );
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {links.map((l, i) => (
+                              <a key={i} href={l.href} target="_blank" rel="noopener noreferrer">
+                                <Badge variant="outline" className="bg-[#5B9BF5]/10 text-[#5B9BF5] border-[#5B9BF5]/30 text-[11px] cursor-pointer hover:bg-[#5B9BF5]/20 transition-colors">
+                                  {l.label} ↗
+                                </Badge>
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 );

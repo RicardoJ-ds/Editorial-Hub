@@ -158,6 +158,32 @@ function moveAlpha_(ss, tab) {
   ss.moveActiveSheet(pos);
 }
 
+// ONE-TIME cleanup: alphabetically sort ALL existing client tabs (utility/summary
+// tabs keep their exact positions). New tabs are slotted by moveAlpha_ as they're
+// created; run this once to fix tabs created before that existed. Reorders only —
+// never edits content. Run manually from the editor.
+function sortAllClientTabs() {
+  const ss = SpreadsheetApp.getActive();
+  const sheets = ss.getSheets();
+  const clientIdx = [], clientSheets = [];
+  sheets.forEach(function (s, i) {
+    if (isClientTab_(s.getName())) { clientIdx.push(i); clientSheets.push(s); }
+  });
+  const sorted = clientSheets.slice().sort(function (a, b) {
+    var an = a.getName().toLowerCase(), bn = b.getName().toLowerCase();
+    return an < bn ? -1 : an > bn ? 1 : 0;
+  });
+  // Desired full order: non-client tabs stay in place; client slots get the sorted clients.
+  const desired = sheets.slice();
+  clientIdx.forEach(function (idx, k) { desired[idx] = sorted[k]; });
+  for (var i = 0; i < desired.length; i++) {
+    ss.setActiveSheet(desired[i]);
+    ss.moveActiveSheet(i + 1);
+  }
+  log_(ss, '[SORT] reordered ' + clientSheets.length + ' client tabs alphabetically');
+  Logger.log('Sorted ' + clientSheets.length + ' client tabs alphabetically.');
+}
+
 function log_(ss, msg) {
   const sh = ss.getSheetByName(LOG_TAB) || ss.insertSheet(LOG_TAB);
   sh.appendRow([new Date(), msg]);
