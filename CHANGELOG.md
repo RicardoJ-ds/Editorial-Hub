@@ -18,6 +18,14 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.48 — June 30
+
+**The "As of" badge waits until the Editorial month is actually closed.**
+
+- **"As of «month»" now flips on the first Thursday after the month closes**, not the day the next month begins. Editorial months close on a Tuesday and the team finalizes the books on Wednesday, so the badge holds on the prior month through Wednesday and advances on Thursday — it never claims a month is final while it's still being wrapped up. Example: it showed *"As of June"* on Tuesday June 30 even though June wasn't closed; it now shows *"As of May"* until **Thursday July 2**, then **June**.
+- **Fixed an early-flip on the closing day itself.** The badge compared the current time-of-day against a midnight cutoff, so it rolled over a full day early (mid-morning on the close day). It now compares whole days, so it always turns over at the start of the rollover day.
+- The change applies everywhere the badge appears (Overview, Editorial Clients, per-client cards) since they all read from one place. The Monthly Goals gauges are unchanged — they intentionally track the in-progress month.
+
 ## 0.3.47 — June 26
 
 **Three fixes: pod labels, SOW links, and a new BigQuery handoff doc.**

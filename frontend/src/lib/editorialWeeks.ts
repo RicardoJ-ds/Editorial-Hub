@@ -52,10 +52,14 @@ function calendarFallback(now: Date): EditorialAsOf {
   };
 }
 
-function priorMonth(year: number, month: number): { year: number; month: number } {
-  if (month === 1) return { year: year - 1, month: 12 };
-  return { year, month: month - 1 };
-}
+/** Calendar days of grace after an Editorial month's last day before the
+ *  "As of" badge treats that month as fully closed. Editorial months end on a
+ *  Tuesday (the last week's `end`); the team finishes closing the books on the
+ *  Wednesday after, so the badge should only advance to that month on the
+ *  Thursday (Tuesday + 2 days). Keeps "As of <month>" honest — it never claims
+ *  a month is final while the team is still wrapping it up. */
+const CLOSE_GRACE_DAYS = 2;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** "Last completed Editorial month" relative to `now`, given the imported
  *  weeks. Returns calendar-month fallback (with `isFallback: true`) when
@@ -110,62 +114,52 @@ export function lastCompletedEditorialAsOf(
 ): EditorialAsOf {
   if (weeks.length === 0) return calendarFallback(now);
 
-  const todayMs = now.getTime();
-  // Latest Week 1 whose start is on or before today.
-  let current: { year: number; month: number; startMs: number } | null = null;
+  // Compare on whole-day granularity (drop the time of day) so the badge flips
+  // at the START of the rollover day, not at whatever hour the page is loaded.
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+
+  // Each Editorial month's last day (its last week's `end`, a Tuesday), plus
+  // the latest end across all imported weeks (our coverage horizon).
+  const lastDayByMonth = new Map<
+    string,
+    { year: number; month: number; endMs: number }
+  >();
+  let coverageEndMs = -Infinity;
   for (const w of weeks) {
-    if (w.weekNumber !== 1) continue;
-    const startMs = isoToLocalDate(w.start).getTime();
-    if (startMs > todayMs) continue;
-    if (!current || startMs > current.startMs) {
-      current = { year: w.year, month: w.month, startMs };
+    const endMs = isoToLocalDate(w.end).getTime();
+    if (endMs > coverageEndMs) coverageEndMs = endMs;
+    const key = `${w.year}-${w.month}`;
+    const prev = lastDayByMonth.get(key);
+    if (!prev || endMs > prev.endMs) {
+      lastDayByMonth.set(key, { year: w.year, month: w.month, endMs });
     }
   }
 
-  if (!current) {
-    // Today is before every Week 1 we know — early in a fresh year before
-    // the team has added the new "<YYYY> Week Distribution" tab.
-    return calendarFallback(now);
+  // Today has run past every imported week — the new year's "Week Distribution"
+  // tab isn't loaded yet, so we genuinely don't know the current month. Fall
+  // back to the calendar (with the `· cal.` chip) rather than name a stale one.
+  if (today > coverageEndMs) return calendarFallback(now);
+
+  // Last completed = the latest Editorial month whose close has passed, i.e.
+  // (last day + grace) is on or before today. The grace gives the team
+  // Wednesday to close the books; the badge advances on the Thursday.
+  let best: { year: number; month: number; endMs: number } | null = null;
+  for (const m of lastDayByMonth.values()) {
+    if (m.endMs + CLOSE_GRACE_DAYS * MS_PER_DAY <= today) {
+      if (!best || m.endMs > best.endMs) best = m;
+    }
   }
 
-  // Last week of the candidate Editorial month, used to decide whether
-  // today still sits inside it or has rolled past.
-  let lastWeekEnd: number | null = null;
-  for (const w of weeks) {
-    if (w.year !== current.year || w.month !== current.month) continue;
-    const endMs = isoToLocalDate(w.end).getTime();
-    if (lastWeekEnd === null || endMs > lastWeekEnd) lastWeekEnd = endMs;
-  }
+  // Today precedes the close of even the earliest known month — too early to
+  // name a completed Editorial month. Calendar fallback.
+  if (!best) return calendarFallback(now);
 
-  if (lastWeekEnd !== null && todayMs <= lastWeekEnd) {
-    // Today sits inside a known week of the current Editorial month — the
-    // common path. Last completed is the prior Editorial month.
-    const lc = priorMonth(current.year, current.month);
-    return {
-      label: `${MONTH_NAMES_LONG[lc.month - 1]} ${lc.year}`,
-      isFallback: false,
-    };
-  }
-
-  // Today is past every known week of the current Editorial month. If we
-  // know next month's Week 1, today must be inside it — so "last completed"
-  // is the current month. Otherwise we don't know where today landed; fall
-  // back to calendar with the indicator.
-  let nextYear = current.year;
-  let nextMonth = current.month + 1;
-  if (nextMonth > 12) {
-    nextMonth = 1;
-    nextYear += 1;
-  }
-  const hasNext = weeks.some(
-    (w) => w.year === nextYear && w.month === nextMonth && w.weekNumber === 1,
-  );
-  if (hasNext) {
-    return {
-      label: `${MONTH_NAMES_LONG[current.month - 1]} ${current.year}`,
-      isFallback: false,
-    };
-  }
-
-  return calendarFallback(now);
+  return {
+    label: `${MONTH_NAMES_LONG[best.month - 1]} ${best.year}`,
+    isFallback: false,
+  };
 }
