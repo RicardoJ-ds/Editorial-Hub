@@ -11,6 +11,7 @@ import { useSyncExternalStore } from "react";
 import { apiGet } from "@/lib/api";
 import {
   currentEditorialMonth,
+  lastClosedEditorialMonth,
   lastCompletedEditorialAsOf,
   type CurrentEditorialMonth,
   type EditorialAsOf,
@@ -93,4 +94,18 @@ export function useCurrentEditorialMonth(now: Date = new Date()): CurrentEditori
     loadOnce();
   }
   return currentEditorialMonth(now, snapshot ?? []);
+}
+
+/** Hook → the last fully-closed Editorial month `{ year, month }` (grace
+ *  applied), or `null` when weeks aren't loaded / today sits outside coverage.
+ *  Used by the Overview Goals column so its anchor + "Current month" option
+ *  flip on the same day as the "As of" badge. */
+export function useLastClosedEditorialMonth(
+  now: Date = new Date(),
+): { year: number; month: number } | null {
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  if (typeof window !== "undefined" && snapshot === null) {
+    loadOnce();
+  }
+  return lastClosedEditorialMonth(now, snapshot ?? []);
 }

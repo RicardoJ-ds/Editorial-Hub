@@ -18,6 +18,14 @@ We use **`0.PHASE.ITERATION`**. The middle digit names the project's current foc
 
 ---
 
+## 0.3.49 — July 1
+
+**The Goals numbers now wait for the month to close too — same 2-day grace as the "As of" badge.**
+
+- **Overview → Pod Snapshot → Goals column** now advances to a newly-closed Editorial month on the **first Thursday after the Tuesday close** (giving the team Wednesday to finalize), instead of jumping on the calendar-month boundary. Both the default view and the **"Current month"** option in the Goals period selector follow this. Example: through Wednesday it shows the prior month's goals; it rolls forward on **Thursday** — in lockstep with the "As of" badge.
+- **Monthly Goals gauges** (Editorial Clients) roll on the same boundary now too, so every "current month" surface agrees.
+- Under the hood: one shared rule decides the Editorial-month boundary for the badge, the goals gauges, and the Overview goals column — they can no longer drift apart.
+
 ## 0.3.48 — June 30
 
 **The "As of" badge waits until the Editorial month is actually closed.**

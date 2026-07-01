@@ -40,7 +40,10 @@ import {
 import { useCurrentPodAxis } from "@/lib/podAxisClient";
 import { TimeToTrendChart } from "@/components/dashboard/TimeToMetrics";
 import { trackEvent } from "@/lib/analyticsClient";
-import { useEditorialAsOf } from "@/lib/editorialWeeksClient";
+import {
+  useEditorialAsOf,
+  useLastClosedEditorialMonth,
+} from "@/lib/editorialWeeksClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Period Snapshot — top of /overview.
@@ -129,6 +132,15 @@ export function PeriodSnapshotSection({
 }: Props) {
   const { axis: podAxis } = useCurrentPodAxis();
 
+  // Last CLOSED Editorial month (grace-aware) → month-cell used to anchor the
+  // Goals column so it flips on the same day as the "As of" badge (2 days after
+  // the month's Tuesday close), not on the calendar-month boundary. null until
+  // the weeks load → resolveLocalPeriod falls back to the calendar month−1.
+  const lastClosedEditorial = useLastClosedEditorialMonth();
+  const lastCompletedEditorialCell = lastClosedEditorial
+    ? lastClosedEditorial.year * 12 + (lastClosedEditorial.month - 1)
+    : null;
+
   // Pod Snapshot is INTENTIONALLY independent of the global FilterBar
   // dateRange. Only the Goals column is period-scoped, and the user picks
   // that scope via the dropdown next to the column headers.
@@ -154,8 +166,15 @@ export function PeriodSnapshotSection({
   const effectiveGoalsPeriod: LocalPeriodKey =
     goalsPeriod === "current" && allInScopeInactive ? "1m" : goalsPeriod;
   const periodScope = useMemo<PeriodScope>(
-    () => resolveLocalPeriod(effectiveGoalsPeriod, goals, clientNamesInScope, anchorEndCell),
-    [effectiveGoalsPeriod, goals, clientNamesInScope, anchorEndCell],
+    () =>
+      resolveLocalPeriod(
+        effectiveGoalsPeriod,
+        goals,
+        clientNamesInScope,
+        anchorEndCell,
+        lastCompletedEditorialCell,
+      ),
+    [effectiveGoalsPeriod, goals, clientNamesInScope, anchorEndCell, lastCompletedEditorialCell],
   );
 
   return (
@@ -470,10 +489,20 @@ function resolveLocalPeriod(
    *  null/undefined (active or mixed scope) → end stays at the last completed
    *  month, exactly as before. */
   anchorEndCell?: number | null,
+  /** The last CLOSED Editorial month as an absolute month-cell
+   *  (`year*12 + (month-1)`), grace applied — from `useLastClosedEditorialMonth`.
+   *  When provided, the Goals column anchors here (and "Current month" = the
+   *  next Editorial month) so it flips on the SAME day as the "As of" badge.
+   *  null/undefined (weeks not loaded yet) → fall back to the calendar month−1. */
+  lastCompletedEditorialCell?: number | null,
 ): PeriodScope {
   const today = new Date();
-  const lastCompleted = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastCompletedCell = lastCompleted.getFullYear() * 12 + lastCompleted.getMonth();
+  // Anchor on the last CLOSED Editorial month (grace-aware) when we have it,
+  // else the calendar month−1 (legacy fallback so the column always renders).
+  const lastCompletedCell =
+    lastCompletedEditorialCell != null
+      ? lastCompletedEditorialCell
+      : today.getFullYear() * 12 + (today.getMonth() - 1);
   const endCell =
     anchorEndCell != null ? Math.min(lastCompletedCell, anchorEndCell) : lastCompletedCell;
   const endY = Math.floor(endCell / 12);
@@ -483,10 +512,15 @@ function resolveLocalPeriod(
   let caption = "Last completed month";
   switch (period) {
     case "current": {
-      // In-progress calendar month — partial data, includes today.
-      const today = new Date();
-      const curY = today.getFullYear();
-      const curM = today.getMonth() + 1;
+      // In-progress Editorial month = the one right after the last closed one
+      // (same grace boundary as the badge); falls back to the calendar month
+      // when weeks aren't loaded. Partial data — the month still being worked.
+      const curCell =
+        lastCompletedEditorialCell != null
+          ? lastCompletedEditorialCell + 1
+          : today.getFullYear() * 12 + today.getMonth();
+      const curY = Math.floor(curCell / 12);
+      const curM = (curCell % 12) + 1;
       return {
         months: [{ year: curY, month: curM }],
         label: `${MONTH_NAMES_LONG[curM - 1]} ${curY}`,
@@ -1092,6 +1126,12 @@ function GoalsPeriodSelector({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  // Same grace-aware anchor as the section, so each option's previewed month
+  // range matches the resolved column (flips with the "As of" badge).
+  const lastClosedEditorial = useLastClosedEditorialMonth();
+  const lastCompletedEditorialCell = lastClosedEditorial
+    ? lastClosedEditorial.year * 12 + (lastClosedEditorial.month - 1)
+    : null;
   const options = hideCurrent
     ? GOALS_PERIOD_OPTIONS.filter((o) => o.id !== "current")
     : GOALS_PERIOD_OPTIONS;
@@ -1137,7 +1177,13 @@ function GoalsPeriodSelector({
             // Resolve the concrete month range for this option so
             // users can preview the window before picking it. Cheap —
             // the helper just walks the goals list once per option.
-            const optionScope = resolveLocalPeriod(o.id, goals, clientNames, anchorEndCell);
+            const optionScope = resolveLocalPeriod(
+              o.id,
+              goals,
+              clientNames,
+              anchorEndCell,
+              lastCompletedEditorialCell,
+            );
             return (
               <button
                 key={o.id}

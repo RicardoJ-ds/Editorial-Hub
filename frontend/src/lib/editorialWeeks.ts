@@ -81,17 +81,14 @@ export function currentEditorialMonth(
   now: Date,
   weeks: EditorialWeek[],
 ): CurrentEditorialMonth {
-  const todayMs = now.getTime();
-  let current: { year: number; month: number; startMs: number } | null = null;
-  for (const w of weeks) {
-    if (w.weekNumber !== 1) continue;
-    const startMs = isoToLocalDate(w.start).getTime();
-    if (startMs > todayMs) continue;
-    if (!current || startMs > current.startMs) {
-      current = { year: w.year, month: w.month, startMs };
-    }
-  }
-  if (!current) {
+  // Current in-progress month = the month right after the last CLOSED one, so
+  // it rolls over on the SAME grace boundary as the "As of" badge: a new month
+  // isn't "current" until the prior one has finished closing (its last day + 2
+  // days). Keeps the Monthly Goals gauges + the Overview Goals column aligned
+  // with the badge instead of jumping on the raw Week-1 / calendar boundary.
+  const lastClosed = lastClosedEditorialMonth(now, weeks);
+  if (!lastClosed) {
+    // Weeks unavailable / today outside imported coverage → calendar month.
     return {
       month: now.getMonth() + 1,
       year: now.getFullYear(),
@@ -99,23 +96,32 @@ export function currentEditorialMonth(
       isFallback: true,
     };
   }
+  const month = lastClosed.month === 12 ? 1 : lastClosed.month + 1;
+  const year = lastClosed.month === 12 ? lastClosed.year + 1 : lastClosed.year;
   return {
-    month: current.month,
-    year: current.year,
-    label: `${MONTH_NAMES_LONG[current.month - 1]} ${current.year}`,
+    month,
+    year,
+    label: `${MONTH_NAMES_LONG[month - 1]} ${year}`,
     isFallback: false,
   };
 }
 
 
-export function lastCompletedEditorialAsOf(
+/** The last fully-closed Editorial month relative to `now`, with the close
+ *  grace applied (a month is "closed" only once `today ≥ its last day +
+ *  CLOSE_GRACE_DAYS`). Returns `{ year, month }` (month 1-12) or `null` when
+ *  weeks are empty, today precedes every month's close, or today has run past
+ *  the imported coverage. This is the single boundary primitive — the "As of"
+ *  badge, the current-month helper, and the Overview Goals anchor all derive
+ *  from it so every surface flips on the same day. */
+export function lastClosedEditorialMonth(
   now: Date,
   weeks: EditorialWeek[],
-): EditorialAsOf {
-  if (weeks.length === 0) return calendarFallback(now);
+): { year: number; month: number } | null {
+  if (weeks.length === 0) return null;
 
-  // Compare on whole-day granularity (drop the time of day) so the badge flips
-  // at the START of the rollover day, not at whatever hour the page is loaded.
+  // Compare on whole-day granularity (drop the time of day) so the boundary
+  // flips at the START of the rollover day, not at whatever hour we load.
   const today = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -140,26 +146,30 @@ export function lastCompletedEditorialAsOf(
   }
 
   // Today has run past every imported week — the new year's "Week Distribution"
-  // tab isn't loaded yet, so we genuinely don't know the current month. Fall
-  // back to the calendar (with the `· cal.` chip) rather than name a stale one.
-  if (today > coverageEndMs) return calendarFallback(now);
+  // tab isn't loaded yet, so we genuinely don't know where we are.
+  if (today > coverageEndMs) return null;
 
-  // Last completed = the latest Editorial month whose close has passed, i.e.
-  // (last day + grace) is on or before today. The grace gives the team
-  // Wednesday to close the books; the badge advances on the Thursday.
+  // Latest Editorial month whose close has passed, i.e. (last day + grace) is
+  // on or before today. The grace gives the team Wednesday to close the books;
+  // the boundary advances on the Thursday.
   let best: { year: number; month: number; endMs: number } | null = null;
   for (const m of lastDayByMonth.values()) {
     if (m.endMs + CLOSE_GRACE_DAYS * MS_PER_DAY <= today) {
       if (!best || m.endMs > best.endMs) best = m;
     }
   }
+  return best ? { year: best.year, month: best.month } : null;
+}
 
-  // Today precedes the close of even the earliest known month — too early to
-  // name a completed Editorial month. Calendar fallback.
-  if (!best) return calendarFallback(now);
-
+export function lastCompletedEditorialAsOf(
+  now: Date,
+  weeks: EditorialWeek[],
+): EditorialAsOf {
+  const m = lastClosedEditorialMonth(now, weeks);
+  // No closed month we can name (empty / too early / past coverage) → calendar.
+  if (!m) return calendarFallback(now);
   return {
-    label: `${MONTH_NAMES_LONG[best.month - 1]} ${best.year}`,
+    label: `${MONTH_NAMES_LONG[m.month - 1]} ${m.year}`,
     isFallback: false,
   };
 }
