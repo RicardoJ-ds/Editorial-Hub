@@ -1,0 +1,3667 @@
+{
+  "dataset": "graphite-data.graphite_bi_sandbox",
+  "generated_at": "2026-07-03 21:39:20 UTC",
+  "source": "live BigQuery INFORMATION_SCHEMA",
+  "counts": {
+    "tables": 28,
+    "views": 21,
+    "columns": 779
+  },
+  "objects": [
+    {
+      "name": "editorial_raw_ai_monitoring",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per monitored article",
+      "note": "AI compliance monitoring records",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_title",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_content",
+          "type": "STRING"
+        },
+        {
+          "name": "surfer_v1_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "surfer_v2_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "recommendation",
+          "type": "STRING"
+        },
+        {
+          "name": "manual_review_notes",
+          "type": "STRING"
+        },
+        {
+          "name": "action",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "article_link",
+          "type": "STRING"
+        },
+        {
+          "name": "date_processed",
+          "type": "DATE"
+        },
+        {
+          "name": "month",
+          "type": "STRING"
+        },
+        {
+          "name": "is_rewrite",
+          "type": "BOOL"
+        },
+        {
+          "name": "is_flagged",
+          "type": "BOOL"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 3372,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_article_revisions",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per revision",
+      "note": "revision events",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "article_uid",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "revision_date",
+          "type": "DATE"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 3893,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_articles",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "article \u00d7 editor",
+      "note": "article log; collaborations explode per editor",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "article_uid",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "collaboration",
+          "type": "BOOL"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "article_title",
+          "type": "STRING"
+        },
+        {
+          "name": "copy_name",
+          "type": "STRING"
+        },
+        {
+          "name": "link",
+          "type": "STRING"
+        },
+        {
+          "name": "word_count",
+          "type": "INT64"
+        },
+        {
+          "name": "date_submitted_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "submitted_date",
+          "type": "DATE"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "revised_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "revision_count",
+          "type": "INT64"
+        },
+        {
+          "name": "revision_dates",
+          "type": "STRING"
+        },
+        {
+          "name": "second_review",
+          "type": "STRING"
+        },
+        {
+          "name": "task_id",
+          "type": "STRING"
+        },
+        {
+          "name": "is_published",
+          "type": "BOOL"
+        },
+        {
+          "name": "published_url",
+          "type": "STRING"
+        },
+        {
+          "name": "notion_matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "source_row",
+          "type": "INT64"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "editor_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 16148,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_calendar",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "year \u00d7 month \u00d7 week",
+      "note": "editorial calendar weeks",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "week_number",
+          "type": "INT64"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_capacity",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "pod \u00d7 month \u00d7 version",
+      "note": "capacity projection inputs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "version",
+          "type": "STRING"
+        },
+        {
+          "name": "notes",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 305,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_capacity_members",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "member \u00d7 month",
+      "note": "per-member capacity inputs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "slot",
+          "type": "INT64"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "member_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "member_breakdown",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "source_version",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 417,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_client_pod_history",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month",
+      "note": "historical editorial-pod assignment per client",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 513,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_clients",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per client",
+      "note": "client master + SF identity + pods",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "name",
+          "type": "STRING"
+        },
+        {
+          "name": "domain",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence",
+          "type": "STRING"
+        },
+        {
+          "name": "cadence_q1",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q2",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q3",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q4",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_paid",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_min",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_max",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_link",
+          "type": "STRING"
+        },
+        {
+          "name": "project_type",
+          "type": "STRING"
+        },
+        {
+          "name": "consulting_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "editorial_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_cb_approved_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_delivered_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_feedback_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_published_date",
+          "type": "DATE"
+        },
+        {
+          "name": "managing_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_manager",
+          "type": "STRING"
+        },
+        {
+          "name": "jr_am",
+          "type": "STRING"
+        },
+        {
+          "name": "cs_team",
+          "type": "STRING"
+        },
+        {
+          "name": "comments",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_cumulative",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per client",
+      "note": "lifetime pipeline counters (topics/CBs/articles/published)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "account_team_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "client_type",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "topics_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_pct_approved",
+          "type": "STRING"
+        },
+        {
+          "name": "cbs_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_pct_approved",
+          "type": "STRING"
+        },
+        {
+          "name": "articles_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_difference",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_pct_approved",
+          "type": "STRING"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "published_pct_live",
+          "type": "STRING"
+        },
+        {
+          "name": "last_update",
+          "type": "DATE"
+        },
+        {
+          "name": "comments",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_deliverables",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month",
+      "note": "delivered / invoiced / sow_target per month",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow_target",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "variance",
+          "type": "INT64"
+        },
+        {
+          "name": "content_briefs_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "content_briefs_goal",
+          "type": "INT64"
+        },
+        {
+          "name": "notes",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 631,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_delivery_templates",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "delivery template rows",
+      "note": "pacing templates (fetched, currently unrendered)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_size",
+          "type": "INT64"
+        },
+        {
+          "name": "month_number",
+          "type": "INT64"
+        },
+        {
+          "name": "invoicing_target",
+          "type": "INT64"
+        },
+        {
+          "name": "invoicing_cumulative",
+          "type": "INT64"
+        },
+        {
+          "name": "delivery_target",
+          "type": "INT64"
+        },
+        {
+          "name": "delivery_cumulative",
+          "type": "INT64"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 60,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_goals",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month \u00d7 week \u00d7 content_type",
+      "note": "goals-vs-delivery weekly rows",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "week_number",
+          "type": "INT64"
+        },
+        {
+          "name": "week_date",
+          "type": "DATE"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_team_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_team_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_type",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "ratios",
+          "type": "STRING"
+        },
+        {
+          "name": "cb_delivered_today",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_projection",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_delivered_to_date",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_monthly_goal",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_pct_of_goal",
+          "type": "STRING"
+        },
+        {
+          "name": "cb_comments",
+          "type": "STRING"
+        },
+        {
+          "name": "ad_revisions",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_delivered_today",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_projection",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_cb_backlog",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_delivered_to_date",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_monthly_goal",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_pct_of_goal",
+          "type": "STRING"
+        },
+        {
+          "name": "ad_comments",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 2212,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_kpi_scores",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "member \u00d7 month \u00d7 kpi_type",
+      "note": "KPI scores vs target",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "team_member_id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "kpi_type",
+          "type": "STRING"
+        },
+        {
+          "name": "score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "target",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "notes",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1481,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_model_assumptions",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "model assumption rows",
+      "note": "always-on capacity model assumptions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "key",
+          "type": "STRING"
+        },
+        {
+          "name": "value",
+          "type": "STRING"
+        },
+        {
+          "name": "description",
+          "type": "STRING"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 14,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_name_mappings",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "kind \u00d7 raw_name",
+      "note": "editor/writer/client name \u2192 canonical dictionary",
+      "columns": [
+        {
+          "name": "kind",
+          "type": "STRING"
+        },
+        {
+          "name": "raw_name",
+          "type": "STRING"
+        },
+        {
+          "name": "canonical_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "note",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 471,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_pod_history",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "year \u00d7 month \u00d7 kind \u00d7 pod \u00d7 client \u00d7 role \u00d7 person",
+      "note": "raw per-month staffing history (editorial + growth)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_kind",
+          "type": "STRING"
+        },
+        {
+          "name": "pod_number",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "display_name",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 17184,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_production",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month",
+      "note": "actual vs projected article production",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4424,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_surfer_usage",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "Surfer API usage rows",
+      "note": "Surfer SEO API usage",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year_month",
+          "type": "STRING"
+        },
+        {
+          "name": "start_date",
+          "type": "STRING"
+        },
+        {
+          "name": "end_date",
+          "type": "STRING"
+        },
+        {
+          "name": "pod_1",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_2",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_3",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_4",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_5",
+          "type": "INT64"
+        },
+        {
+          "name": "auditioning_writers",
+          "type": "INT64"
+        },
+        {
+          "name": "rewrites",
+          "type": "INT64"
+        },
+        {
+          "name": "total_spent",
+          "type": "INT64"
+        },
+        {
+          "name": "remaining_calls",
+          "type": "INT64"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 25,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_raw_team_members",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per team member",
+      "note": "roster (name, role, pod, capacity, email)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOL"
+        },
+        {
+          "name": "monthly_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 12,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_articles_creation",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "editor \u00d7 client \u00d7 creation-month",
+      "note": "monthly articles mart (editor credit)",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "count",
+          "type": "INT64"
+        },
+        {
+          "name": "revised",
+          "type": "INT64"
+        },
+        {
+          "name": "second_reviews",
+          "type": "INT64"
+        },
+        {
+          "name": "published",
+          "type": "INT64"
+        },
+        {
+          "name": "published_revised",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1780,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_articles_revisions",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "revision \u00d7 month",
+      "note": "monthly revisions mart",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "revisions",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 823,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_capacity_pod_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "pod \u00d7 month \u00d7 version",
+      "note": "pod capacity mart (total / projected-used / actual-used)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "version",
+          "type": "STRING"
+        },
+        {
+          "name": "total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 105,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_client_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "client \u00d7 month",
+      "note": "the variance brain: delivered/invoiced/sow + Overview & D1 period assignment",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_target",
+          "type": "INT64"
+        },
+        {
+          "name": "is_future",
+          "type": "BOOL"
+        },
+        {
+          "name": "prod_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_is_post_contract",
+          "type": "BOOL"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_client_pod_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "client \u00d7 pod \u00d7 month",
+      "note": "client contribution mart",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "weight",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_client_q_snapshot",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "one row per client",
+      "note": "lifetime + current-Q + last-full-Q variance on both Overview & D1 paths",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "lifetime_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_complete",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_published",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_remaining",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_end",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_effective_start",
+          "type": "DATE"
+        },
+        {
+          "name": "d1_term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lifetime_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_delivered_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_actual_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_end_of_q_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_goals_month_ct",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "client \u00d7 month \u00d7 content_type",
+      "note": "weighted goals after max-of-week + contentTypeRatio",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "ratio",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 509,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_member_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "member \u00d7 month",
+      "note": "member utilization mart",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "member",
+          "type": "STRING"
+        },
+        {
+          "name": "member_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "member_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_allocation",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_distribution",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_real",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_total_articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 303,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "editorial_int_pod_assignments",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "year \u00d7 month \u00d7 kind \u00d7 pod \u00d7 client \u00d7 role \u00d7 person",
+      "note": "resolved per-month staffing (editorial + growth) \u2014 the backfill surface",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_kind",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "person_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "person",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "confidence",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 17184,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_dim_calendar",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "year \u00d7 month \u00d7 week",
+      "note": "calendar dim",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "week_number",
+          "type": "INT64"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_dim_client",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "client master + SF identity (public)",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence",
+          "type": "STRING"
+        },
+        {
+          "name": "cadence_q1",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q2",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q3",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q4",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_min",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_max",
+          "type": "INT64"
+        },
+        {
+          "name": "project_type",
+          "type": "STRING"
+        },
+        {
+          "name": "consulting_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "editorial_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_cb_approved_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_delivered_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_feedback_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_published_date",
+          "type": "DATE"
+        },
+        {
+          "name": "managing_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_manager",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_dim_member",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per member",
+      "note": "roster dim",
+      "columns": [
+        {
+          "name": "member_id",
+          "type": "INT64"
+        },
+        {
+          "name": "name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOL"
+        },
+        {
+          "name": "monthly_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 12,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_ai_flagged",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per flagged/rewrite article",
+      "note": "AI flagged / rewrite records",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_title",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_content",
+          "type": "STRING"
+        },
+        {
+          "name": "surfer_v1_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "surfer_v2_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "recommendation",
+          "type": "STRING"
+        },
+        {
+          "name": "manual_review_notes",
+          "type": "STRING"
+        },
+        {
+          "name": "action",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "article_link",
+          "type": "STRING"
+        },
+        {
+          "name": "date_processed",
+          "type": "DATE"
+        },
+        {
+          "name": "month",
+          "type": "STRING"
+        },
+        {
+          "name": "is_rewrite",
+          "type": "BOOL"
+        },
+        {
+          "name": "is_flagged",
+          "type": "BOOL"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 378,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_ai_recommendations",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "pod \u00d7 client \u00d7 writer \u00d7 editor \u00d7 month",
+      "note": "AI recommendation counts (rewrites excluded)",
+      "columns": [
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "month",
+          "type": "STRING"
+        },
+        {
+          "name": "month_date",
+          "type": "DATE"
+        },
+        {
+          "name": "total",
+          "type": "INT64"
+        },
+        {
+          "name": "full_pass",
+          "type": "INT64"
+        },
+        {
+          "name": "partial_pass",
+          "type": "INT64"
+        },
+        {
+          "name": "review_rewrite",
+          "type": "INT64"
+        }
+      ],
+      "row_count": 802,
+      "synced_at": null
+    },
+    {
+      "name": "v_editorial_fct_article_revisions",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "revision \u00d7 month",
+      "note": "monthly revisions (each revision's own month)",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "revisions",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 823,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_articles_monthly",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "editor \u00d7 client \u00d7 creation-month",
+      "note": "monthly articles (editorial-month basis)",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "count",
+          "type": "INT64"
+        },
+        {
+          "name": "revised",
+          "type": "INT64"
+        },
+        {
+          "name": "second_reviews",
+          "type": "INT64"
+        },
+        {
+          "name": "published",
+          "type": "INT64"
+        },
+        {
+          "name": "published_revised",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1780,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_capacity_pods",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "pod \u00d7 month \u00d7 version",
+      "note": "pod capacity (public)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "version",
+          "type": "STRING"
+        },
+        {
+          "name": "total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 105,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_client_contributions",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 pod \u00d7 month",
+      "note": "client contribution (public)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "weight",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_client_months",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 month",
+      "note": "per-month delivery/variance detail",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_target",
+          "type": "INT64"
+        },
+        {
+          "name": "is_future",
+          "type": "BOOL"
+        },
+        {
+          "name": "prod_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_is_post_contract",
+          "type": "BOOL"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_client_q_snapshot",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "delivery/variance snapshot (Overview + D1)",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "lifetime_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_complete",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_published",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_remaining",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_end",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_effective_start",
+          "type": "DATE"
+        },
+        {
+          "name": "d1_term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lifetime_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_delivered_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_actual_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_end_of_q_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_goals_client_totals",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "goal totals gated on weighted goal > 0",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_delivered",
+          "type": "FLOAT64"
+        }
+      ],
+      "row_count": 76,
+      "synced_at": null
+    },
+    {
+      "name": "v_editorial_fct_goals_monthly",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 month \u00d7 content_type",
+      "note": "weighted goals (raw + weighted measures)",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "ratio",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 509,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_kpi_scores",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "member \u00d7 month \u00d7 kpi_type",
+      "note": "KPI scores + member/role/pod",
+      "columns": [
+        {
+          "name": "team_member_id",
+          "type": "INT64"
+        },
+        {
+          "name": "member_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "kpi_type",
+          "type": "STRING"
+        },
+        {
+          "name": "score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "target",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1481,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_member_utilization",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "member \u00d7 month",
+      "note": "member utilization (public)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "member",
+          "type": "STRING"
+        },
+        {
+          "name": "member_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "member_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_allocation",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_distribution",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_real",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_total_articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 303,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_milestone_transitions",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 transition",
+      "note": "8 milestone transitions, calendar-day diffs",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "transition",
+          "type": "STRING"
+        },
+        {
+          "name": "days",
+          "type": "INT64"
+        }
+      ],
+      "row_count": 492,
+      "synced_at": null
+    },
+    {
+      "name": "v_editorial_fct_pipeline",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "pipeline counters (topics/CBs/articles/published)",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_difference",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "sheet_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_pod_assignments",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "year \u00d7 month \u00d7 pod \u00d7 client \u00d7 role \u00d7 person",
+      "note": "resolved editorial-only per-month staffing",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_kind",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "person_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "person",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "confidence",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 2407,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_fct_pod_snapshot",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "pod_axis \u00d7 pod",
+      "note": "Overview Pod Snapshot rollup, both pod axes",
+      "columns": [
+        {
+          "name": "pod_axis",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "client_count",
+          "type": "INT64"
+        },
+        {
+          "name": "new_count",
+          "type": "INT64"
+        },
+        {
+          "name": "q_actual_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "q_projected_end",
+          "type": "INT64"
+        },
+        {
+          "name": "q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "q_variance_excl_new",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        }
+      ],
+      "row_count": 15,
+      "synced_at": null
+    },
+    {
+      "name": "v_editorial_fct_production_monthly",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 month",
+      "note": "production actual vs projected + pods",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4424,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+    },
+    {
+      "name": "v_editorial_roster",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per person \u00d7 role",
+      "note": "single-source editorial roster (Rippling editors + Slack writers + legacy); carries canonical work_email \u2014 DISPLAY this, key on canonical_name/slack_id",
+      "columns": [
+        {
+          "name": "canonical_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "source_id",
+          "type": "STRING"
+        },
+        {
+          "name": "slack_id",
+          "type": "STRING"
+        },
+        {
+          "name": "work_email",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "hire_date",
+          "type": "DATE"
+        },
+        {
+          "name": "term_date",
+          "type": "DATE"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOL"
+        }
+      ],
+      "row_count": 140,
+      "synced_at": null
+    }
+  ]
+}

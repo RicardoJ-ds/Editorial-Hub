@@ -6,6 +6,15 @@
 --   2. Slack writers     (slack_raw_users, ext.writing email)  -> slack id
 --   3. Legacy bucket     (confirmed name-map canonicals not in 1/2) -> historical people
 --
+-- `work_email` is the CANONICAL identity email, projected from each row's own
+-- source: editors -> Rippling `v_headcount.work_email` (@graphitehq.com),
+-- writers -> the Slack `ext.writing` mailbox that is the writer filter criterion
+-- itself (so it is never null for an active writer). Legacy rows have none.
+-- This is the address downstream consumers (editorial-team-pods Planning Hub
+-- roster picker) should DISPLAY -- do NOT fall back to the pod-sheet email, which
+-- carries writers' personal gmail. Match/identity key stays `canonical_name`
+-- (or `slack_id`), so re-emailing a person can never re-key their assignments.
+--
 -- Names are canonicalised via editorial_name_map (so the roster matches the same
 -- normalization applied to the article log), and rows are filtered by the
 -- DaniQ-editable editorial_roster_exclusions table — that is how someone who
@@ -41,6 +50,7 @@ editors AS (
     'rippling' AS source,
     CAST(h.worker_id AS STRING) AS source_id,
     h.slack_id AS slack_id,
+    h.work_email AS work_email,
     CASE WHEN h.is_active THEN 'active' ELSE 'terminated' END AS status,
     h.start_date AS hire_date,
     h.termination_date AS term_date
@@ -60,6 +70,7 @@ writers AS (
     'slack' AS source,
     u.id AS source_id,
     u.id AS slack_id,
+    JSON_VALUE(u.profile, '$.email') AS work_email,
     CASE WHEN u.deleted THEN 'inactive' ELSE 'active' END AS status,
     CAST(NULL AS DATE) AS hire_date,
     CAST(NULL AS DATE) AS term_date
@@ -75,7 +86,7 @@ headcount AS (
 resolved AS (
   SELECT
     COALESCE(nm.canonical_value, h.raw_name) AS canonical_name,
-    h.role, h.source, h.source_id, h.slack_id, h.status, h.hire_date, h.term_date
+    h.role, h.source, h.source_id, h.slack_id, h.work_email, h.status, h.hire_date, h.term_date
   FROM headcount h
   LEFT JOIN nm
     ON nm.raw_value = h.raw_name
@@ -93,6 +104,7 @@ legacy AS (
   SELECT
     nc.canonical_name, nc.role, 'legacy' AS source,
     CAST(NULL AS STRING) AS source_id, CAST(NULL AS STRING) AS slack_id,
+    CAST(NULL AS STRING) AS work_email,
     'inactive' AS status, CAST(NULL AS DATE) AS hire_date, CAST(NULL AS DATE) AS term_date
   FROM nm_canon nc
   WHERE NOT EXISTS (
@@ -107,7 +119,7 @@ allrows AS (
   SELECT * FROM legacy
 )
 SELECT
-  canonical_name, role, source, source_id, slack_id, status, hire_date, term_date,
+  canonical_name, role, source, source_id, slack_id, work_email, status, hire_date, term_date,
   (status = 'active') AS is_active
 FROM allrows a
 WHERE canonical_name IS NOT NULL AND TRIM(canonical_name) != ''
