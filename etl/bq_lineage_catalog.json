@@ -1,0 +1,4011 @@
+{
+  "dataset": "graphite-data.graphite_bi_sandbox",
+  "generated_at": "2026-07-03 22:09:26 UTC",
+  "kind": "lineage",
+  "source": "live BigQuery INFORMATION_SCHEMA + curated LINEAGE map",
+  "counts": {
+    "tables": 28,
+    "views": 21,
+    "with_planning_hub_consumer": 12
+  },
+  "objects": [
+    {
+      "name": "editorial_raw_ai_monitoring",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per monitored article",
+      "note": "AI compliance monitoring records",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_title",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_content",
+          "type": "STRING"
+        },
+        {
+          "name": "surfer_v1_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "surfer_v2_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "recommendation",
+          "type": "STRING"
+        },
+        {
+          "name": "manual_review_notes",
+          "type": "STRING"
+        },
+        {
+          "name": "action",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "article_link",
+          "type": "STRING"
+        },
+        {
+          "name": "date_processed",
+          "type": "DATE"
+        },
+        {
+          "name": "month",
+          "type": "STRING"
+        },
+        {
+          "name": "is_rewrite",
+          "type": "BOOL"
+        },
+        {
+          "name": "is_flagged",
+          "type": "BOOL"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 3372,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Writer AI Monitoring sheet \u203a Data / Rewrites / Yellow-Red Flags_v2 tabs",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon ai_monitoring_records \u2190 import_ai_monitoring_{data,rewrites,flags}()",
+      "processing": "Faithful mirror; recommendation normalized + flag-merge applied at ingestion (record grain).",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 AI Compliance via GET /api/ai-monitoring/*; backs the two AI views",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_article_revisions",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per revision",
+      "note": "revision events",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "article_uid",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "revision_date",
+          "type": "DATE"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 3893,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Monthly Article Count sheet (per-client tabs) + Meta Editorial Tracker",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon article_revisions \u2190 import_monthly_article_count()",
+      "processing": "One row per article-editor-revision event, bucketed by each revision's OWN editorial month (year inferred from submitted date).",
+      "consumers": {
+        "editorial_hub": "internal (upstream of editorial_int_articles_revisions)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_articles",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "article \u00d7 editor",
+      "note": "article log; collaborations explode per editor",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "article_uid",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "collaboration",
+          "type": "BOOL"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "article_title",
+          "type": "STRING"
+        },
+        {
+          "name": "copy_name",
+          "type": "STRING"
+        },
+        {
+          "name": "link",
+          "type": "STRING"
+        },
+        {
+          "name": "word_count",
+          "type": "INT64"
+        },
+        {
+          "name": "date_submitted_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "submitted_date",
+          "type": "DATE"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "revised_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "revision_count",
+          "type": "INT64"
+        },
+        {
+          "name": "revision_dates",
+          "type": "STRING"
+        },
+        {
+          "name": "second_review",
+          "type": "STRING"
+        },
+        {
+          "name": "task_id",
+          "type": "STRING"
+        },
+        {
+          "name": "is_published",
+          "type": "BOOL"
+        },
+        {
+          "name": "published_url",
+          "type": "STRING"
+        },
+        {
+          "name": "notion_matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "source_row",
+          "type": "INT64"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "editor_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 16148,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Monthly Article Count sheet (per-client tabs) + Meta Editorial Tracker",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon article_records \u2190 import_monthly_article_count(); transform.add_article_canonicals()",
+      "processing": "One row per (article, editor); slash-pair editors exploded; editor/writer canonicalized via name-map; pod denormalized from client's current pod; Notion published match.",
+      "consumers": {
+        "editorial_hub": "GET /api/articles/editors (editor dropdown); upstream of editorial_int_articles_creation",
+        "planning_hub": "getWriterDelivered() \u2192 delivered per writer\u00d7month\u00d7client (24mo) \u2192 writer bandwidth + 12-month drawer"
+      }
+    },
+    {
+      "name": "editorial_raw_calendar",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "year \u00d7 month \u00d7 week",
+      "note": "editorial calendar weeks",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "week_number",
+          "type": "INT64"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Master Tracker sheet \u203a '<YYYY> Week Distribution' tabs",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon editorial_weeks \u2190 import_week_distribution()",
+      "processing": "Faithful mirror (year \u00d7 month \u00d7 week); defines when each editorial month begins.",
+      "consumers": {
+        "editorial_hub": "GET /api/migrate/editorial-weeks \u2192 'As of' badge + editorial-month bucketing; backs v_editorial_dim_calendar",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_capacity",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "pod \u00d7 month \u00d7 version",
+      "note": "capacity projection inputs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "version",
+          "type": "STRING"
+        },
+        {
+          "name": "notes",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 305,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'ET CP 2026 [V##]' sheet, EDITORIAL TEAM CAPACITY block (all versions)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon capacity_projections \u2190 import_capacity_plan()/_ingest_et_cp_year()",
+      "processing": "Faithful mirror; pod-level Total/Projected/Actual used at pod \u00d7 month \u00d7 version (all versions retained).",
+      "consumers": {
+        "editorial_hub": "internal (upstream of editorial_int_capacity_pod_months)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_capacity_members",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "member \u00d7 month",
+      "note": "per-member capacity inputs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "slot",
+          "type": "INT64"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "member_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "member_breakdown",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "source_version",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 417,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'ET CP 2026 [V##]' sheet, EDITORIAL TEAM CAPACITY block",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon editorial_member_capacity \u2190 _ingest_et_cp_year()",
+      "processing": "Per (year,month,pod,slot): role\u00b7member\u00b7capacity; member_breakdown JSON splits combined cells ('Lauren K (28) + Anabelle (15)').",
+      "consumers": {
+        "editorial_hub": "internal (upstream of editorial_int_member_months)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_client_pod_history",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month",
+      "note": "historical editorial-pod assignment per client",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 513,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a all 'ET CP 2026 [V##]' version tabs (each tab's own-month column)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon client_pod_history \u2190 import_et_cp_pod_history()",
+      "processing": "Per-month editorial pod + category (standard/specialized) from each version's own-month col; null-id stubs for unmatched clients.",
+      "consumers": {
+        "editorial_hub": "Data Quality \u2192 Pod History; upstream of editorial_int_client_pod_months",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_clients",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per client",
+      "note": "client master + SF identity + pods",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "name",
+          "type": "STRING"
+        },
+        {
+          "name": "domain",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence",
+          "type": "STRING"
+        },
+        {
+          "name": "cadence_q1",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q2",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q3",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q4",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_paid",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_min",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_max",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_link",
+          "type": "STRING"
+        },
+        {
+          "name": "project_type",
+          "type": "STRING"
+        },
+        {
+          "name": "consulting_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "editorial_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_cb_approved_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_delivered_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_feedback_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_published_date",
+          "type": "DATE"
+        },
+        {
+          "name": "managing_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_manager",
+          "type": "STRING"
+        },
+        {
+          "name": "jr_am",
+          "type": "STRING"
+        },
+        {
+          "name": "cs_team",
+          "type": "STRING"
+        },
+        {
+          "name": "comments",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'Editorial SOW overview' sheet",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon clients \u2190 import_sow_overview(); transform.add_client_canonicals()",
+      "processing": "Client master; adds Salesforce identity (sf_client_name/sf_account_id/sf_match_status) via the hub\u2192SF alias map (SF-identity join).",
+      "consumers": {
+        "editorial_hub": "GET /api/clients/; FilterBar + dims everywhere; backs v_editorial_dim_client + production/pipeline/milestone views",
+        "planning_hub": "getCapacityData() \u2192 JOIN on editorial_raw_production for future demand (client id/name + current editorial_pod)"
+      }
+    },
+    {
+      "name": "editorial_raw_cumulative",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per client",
+      "note": "lifetime pipeline counters (topics/CBs/articles/published)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "account_team_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "client_type",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "topics_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_pct_approved",
+          "type": "STRING"
+        },
+        {
+          "name": "cbs_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_pct_approved",
+          "type": "STRING"
+        },
+        {
+          "name": "articles_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_difference",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_pct_approved",
+          "type": "STRING"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "published_pct_live",
+          "type": "STRING"
+        },
+        {
+          "name": "last_update",
+          "type": "DATE"
+        },
+        {
+          "name": "comments",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Master Tracker sheet \u203a 'Cumulative' sheet",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon cumulative_metrics \u2190 import_cumulative()",
+      "processing": "Faithful mirror; pipeline-stage counts + pcts + published_live at client all-time grain.",
+      "consumers": {
+        "editorial_hub": "GET /api/goals-delivery/cumulative; Cumulative Pipeline cards via v_editorial_fct_pipeline",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_deliverables",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month",
+      "note": "delivered / invoiced / sow_target per month",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow_target",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "variance",
+          "type": "INT64"
+        },
+        {
+          "name": "content_briefs_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "content_briefs_goal",
+          "type": "INT64"
+        },
+        {
+          "name": "notes",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 631,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'Delivered vs Invoiced v2' (+ Meta Calendar Month Deliveries subset)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon deliverables_monthly \u2190 import_delivered_invoiced()/import_meta_deliveries()",
+      "processing": "Faithful mirror; client \u00d7 month delivered/invoiced/sow_target (self-heals blanked months at ingestion).",
+      "consumers": {
+        "editorial_hub": "GET /api/deliverables/; upstream of editorial_int_client_months; Editorial Clients \u2192 Deliverables vs SOW",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_delivery_templates",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "delivery template rows",
+      "note": "pacing templates (fetched, currently unrendered)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_size",
+          "type": "INT64"
+        },
+        {
+          "name": "month_number",
+          "type": "INT64"
+        },
+        {
+          "name": "invoicing_target",
+          "type": "INT64"
+        },
+        {
+          "name": "invoicing_cumulative",
+          "type": "INT64"
+        },
+        {
+          "name": "delivery_target",
+          "type": "INT64"
+        },
+        {
+          "name": "delivery_cumulative",
+          "type": "INT64"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 60,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'Delivery Schedules' sheet (5 SOW sizes \u00d7 M1\u2013M12)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon delivery_templates \u2190 import_delivery_schedules()",
+      "processing": "Faithful mirror (template \u00d7 month_index).",
+      "consumers": {
+        "editorial_hub": "GET /api/dashboard/pacing (Pacing badge; currently unrendered)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_goals",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month \u00d7 week \u00d7 content_type",
+      "note": "goals-vs-delivery weekly rows",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "week_number",
+          "type": "INT64"
+        },
+        {
+          "name": "week_date",
+          "type": "DATE"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_team_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_team_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_type",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "ratios",
+          "type": "STRING"
+        },
+        {
+          "name": "cb_delivered_today",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_projection",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_delivered_to_date",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_monthly_goal",
+          "type": "INT64"
+        },
+        {
+          "name": "cb_pct_of_goal",
+          "type": "STRING"
+        },
+        {
+          "name": "cb_comments",
+          "type": "STRING"
+        },
+        {
+          "name": "ad_revisions",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_delivered_today",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_projection",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_cb_backlog",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_delivered_to_date",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_monthly_goal",
+          "type": "INT64"
+        },
+        {
+          "name": "ad_pct_of_goal",
+          "type": "STRING"
+        },
+        {
+          "name": "ad_comments",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 2212,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Master Tracker sheet \u203a '[Month Year] Goals vs Delivery' tabs (x9)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon goals_vs_delivery \u2190 import_goals_vs_delivery()",
+      "processing": "Faithful mirror; ingestion forward-fills client/pod on continuation rows and pre-doubles LP \u00d72 from May 2026 (month \u00d7 week \u00d7 client \u00d7 content_type).",
+      "consumers": {
+        "editorial_hub": "GET /api/goals-delivery/all; GoalsMonthTable weekly deltas; upstream of editorial_int_goals_month_ct",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_kpi_scores",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "member \u00d7 month \u00d7 kpi_type",
+      "note": "KPI scores vs target",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "team_member_id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "kpi_type",
+          "type": "STRING"
+        },
+        {
+          "name": "score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "target",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "notes",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_by",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1481,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Master Tracker 'Monthly KPI Scores' sheet + computed KPIs (Notion-derived + capacity util)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon kpi_scores \u2190 import_monthly_kpi_scores() + refresh_computed_kpis()",
+      "processing": "Faithful mirror; raw grain is final (member \u00d7 month \u00d7 kpi_type); sync-time recompute is upstream.",
+      "consumers": {
+        "editorial_hub": "GET /api/kpis/; Team KPIs \u2192 KPI heatmap + KpiCards via v_editorial_fct_kpi_scores",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_model_assumptions",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "model assumption rows",
+      "note": "always-on capacity model assumptions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "key",
+          "type": "STRING"
+        },
+        {
+          "name": "value",
+          "type": "STRING"
+        },
+        {
+          "name": "description",
+          "type": "STRING"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 14,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'Model Assumptions' sheet (5 category blocks)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon model_assumptions \u2190 import_model_assumptions()",
+      "processing": "Faithful mirror (categorisation 70/30, ramp-up %, weekly/monthly capacity, ideal-capacity flags, new-clients-per-pod).",
+      "consumers": {
+        "editorial_hub": "internal (no Hub dashboard reads it directly)",
+        "planning_hub": "getModelAssumptions() \u2192 capacity flag bands (IDEAL_CAPACITY), ramp-up, client mix"
+      }
+    },
+    {
+      "name": "editorial_raw_name_mappings",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "kind \u00d7 raw_name",
+      "note": "editor/writer/client name \u2192 canonical dictionary",
+      "columns": [
+        {
+          "name": "kind",
+          "type": "STRING"
+        },
+        {
+          "name": "raw_name",
+          "type": "STRING"
+        },
+        {
+          "name": "canonical_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "note",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 471,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "The 3 alias dictionaries (editor/writer from BQ editorial_name_map; client hub\u2192Salesforce map)",
+      "pipeline_step": "build.py build_raw() \u2190 transform.mapping_table_rows() (3 dicts collapsed into one `kind` column)",
+      "processing": "Union of the editor/writer/client maps flattened to (kind, raw_name, canonical_name, status, note) \u2014 convenience mirror of the name canon.",
+      "consumers": {
+        "editorial_hub": "internal / Data Quality convenience mirror; not read by dashboards",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_pod_history",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "year \u00d7 month \u00d7 kind \u00d7 pod \u00d7 client \u00d7 role \u00d7 person",
+      "note": "raw per-month staffing history (editorial + growth)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_kind",
+          "type": "STRING"
+        },
+        {
+          "name": "pod_number",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "display_name",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 17184,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Team Pods sheet \u203a all monthly tabs (Editorial/Growth/legacy Account Team); editorial Hub-first from BQ team_pod_assignments_editorial_history",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon pod_assignment_history \u2190 import_pod_history()",
+      "processing": "Faithful mirror; per-month member\u2194pod\u2194client rows, emails from people-chips (text fallback pre-chip), writer rows kept raw.",
+      "consumers": {
+        "editorial_hub": "internal (upstream of editorial_int_pod_assignments)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_production",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "client \u00d7 month",
+      "note": "actual vs projected article production",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4424,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Editorial Capacity Planning \u203a 'Editorial Operating Model' sheet (+ projected_original from ET CP)",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon production_history \u2190 import_operating_model() (projected_original \u2190 _ingest_et_cp_year())",
+      "processing": "Faithful mirror; client \u00d7 month articles_actual/projected/projected_original/is_actual (row0 Actual/Projection labels resolved at ingestion).",
+      "consumers": {
+        "editorial_hub": "GET /api/dashboard/production-trend + client-production; upstream of int marts; v_editorial_fct_production_monthly",
+        "planning_hub": "getCapacityData() \u2192 future per-client demand (articles_projected \u00d7 category weight, Jul\u2013Dec)"
+      }
+    },
+    {
+      "name": "editorial_raw_surfer_usage",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "Surfer API usage rows",
+      "note": "Surfer SEO API usage",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "year_month",
+          "type": "STRING"
+        },
+        {
+          "name": "start_date",
+          "type": "STRING"
+        },
+        {
+          "name": "end_date",
+          "type": "STRING"
+        },
+        {
+          "name": "pod_1",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_2",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_3",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_4",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_5",
+          "type": "INT64"
+        },
+        {
+          "name": "auditioning_writers",
+          "type": "INT64"
+        },
+        {
+          "name": "rewrites",
+          "type": "INT64"
+        },
+        {
+          "name": "total_spent",
+          "type": "INT64"
+        },
+        {
+          "name": "remaining_calls",
+          "type": "INT64"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 25,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "Writer AI Monitoring sheet \u203a \"Surfer's API usage\" tab",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon surfer_api_usage \u2190 import_ai_monitoring_surfer()",
+      "processing": "Faithful mirror (year_month grain; surfer pct parsed at ingestion).",
+      "consumers": {
+        "editorial_hub": "GET /api/ai-monitoring/surfer-usage",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_raw_team_members",
+      "type": "TABLE",
+      "family": "raw",
+      "grain": "one row per team member",
+      "note": "roster (name, role, pod, capacity, email)",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOL"
+        },
+        {
+          "name": "monthly_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 12,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "ET CP 2026 roster; team_members list hardcoded in seed_data.py",
+      "pipeline_step": "build.py RAW_TABLES \u2190 Neon team_members \u2190 seed_data.py / import_capacity_plan()",
+      "processing": "Faithful mirror of the seeded roster (member grain: name/role/pod/monthly_capacity/email).",
+      "consumers": {
+        "editorial_hub": "GET /api/team-members/; backs v_editorial_dim_member; joined into v_editorial_fct_kpi_scores",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_int_articles_creation",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "editor \u00d7 client \u00d7 creation-month",
+      "note": "monthly articles mart (editor credit)",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "count",
+          "type": "INT64"
+        },
+        {
+          "name": "revised",
+          "type": "INT64"
+        },
+        {
+          "name": "second_reviews",
+          "type": "INT64"
+        },
+        {
+          "name": "published",
+          "type": "INT64"
+        },
+        {
+          "name": "published_revised",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1780,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_articles",
+      "pipeline_step": "build.py build_int_capacity_articles() \u2192 transform.build_articles_monthly_mart()",
+      "processing": "Aggregates to (creation editorial-month \u00d7 editorial_pod \u00d7 growth_pod \u00d7 client \u00d7 editor); editor-credit count + revised/second_reviews/published (num/den kept for pooled rates).",
+      "consumers": {
+        "editorial_hub": "GET /api/articles/monthly; Team KPIs \u2192 Monthly Articles chart+matrix via v_editorial_fct_articles_monthly",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_int_articles_revisions",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "revision \u00d7 month",
+      "note": "monthly revisions mart",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "revisions",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 823,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_article_revisions",
+      "pipeline_step": "build.py build_int_capacity_articles() \u2192 transform.build_revisions_monthly_mart()",
+      "processing": "Revision-event counts at the same dims but bucketed by each revision's OWN editorial month (vs creation-month for the articles mart).",
+      "consumers": {
+        "editorial_hub": "GET /api/articles/monthly (revisions array) via v_editorial_fct_article_revisions",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_int_capacity_pod_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "pod \u00d7 month \u00d7 version",
+      "note": "pod capacity mart (total / projected-used / actual-used)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "version",
+          "type": "STRING"
+        },
+        {
+          "name": "total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 105,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_capacity",
+      "pipeline_step": "build.py build_int_capacity_articles() \u2192 transform.build_capacity_pod_mart()",
+      "processing": "Latest-V## collapse per (pod,year,month) \u2014 ranks by the integer after 'V' (alphabetical is wrong); keeps total/projected/actual used capacity.",
+      "consumers": {
+        "editorial_hub": "GET /api/capacity/pod-summary; Team KPIs \u2192 Capacity At-a-glance/By Pod/Trend via v_editorial_fct_capacity_pods",
+        "planning_hub": "getCapacityData() \u2192 pod\u00d7month capacity rollup (supply + projected/actual demand) driving pod utilization"
+      }
+    },
+    {
+      "name": "editorial_int_client_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "client \u00d7 month",
+      "note": "the variance brain: delivered/invoiced/sow + Overview & D1 period assignment",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_target",
+          "type": "INT64"
+        },
+        {
+          "name": "is_future",
+          "type": "BOOL"
+        },
+        {
+          "name": "prod_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_is_post_contract",
+          "type": "BOOL"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_deliverables + editorial_raw_production (+ editorial_raw_clients)",
+      "pipeline_step": "build.py build_int_delivery()",
+      "processing": "Merges delivered/invoiced/sow_target + production actual/projected/original; computes is_future and assigns billing periods under BOTH detectors (Overview summary + D1 with post-contract truncation).",
+      "consumers": {
+        "editorial_hub": "Overview / Editorial Clients monthly breakdown popovers + lifetime bars via v_editorial_fct_client_months",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_int_client_pod_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "client \u00d7 pod \u00d7 month",
+      "note": "client contribution mart",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "weight",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_client_pod_history + editorial_raw_production",
+      "pipeline_step": "build.py build_int_capacity_articles() \u2192 transform.build_client_contributions_mart()",
+      "processing": "Per (year,month,pod,client) contributions; category weight \u00d71.0 standard / \u00d71.4 specialized; projected_raw/actual_raw + weighted versions.",
+      "consumers": {
+        "editorial_hub": "GET /api/capacity/client-contributions; Team KPIs \u2192 Capacity By Client via v_editorial_fct_client_contributions",
+        "planning_hub": "getCapacityData() \u2192 per-client demand drawer (closed months) + latest-category lookup"
+      }
+    },
+    {
+      "name": "editorial_int_client_q_snapshot",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "one row per client",
+      "note": "lifetime + current-Q + last-full-Q variance on both Overview & D1 paths",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "lifetime_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_complete",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_published",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_remaining",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_end",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_effective_start",
+          "type": "DATE"
+        },
+        {
+          "name": "d1_term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lifetime_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_delivered_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_actual_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_end_of_q_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_deliverables + editorial_raw_production + editorial_raw_cumulative + editorial_raw_clients",
+      "pipeline_step": "build.py build_int_delivery() (ports pyrules computeCurrentQ/LastFullQ/quarterMetaFromPeriods/varianceTier)",
+      "processing": "The variance brain: end-of-Q projected_variance = projected_end \u2212 cum_invoiced; tiers (new/on_track/within_limit/ahead/behind); lifetime delivered/invoiced/sow/%; published_live join; D1 twin columns.",
+      "consumers": {
+        "editorial_hub": "Overview \u2192 Pod Snapshot Current Q cells, D1 client cards, tiers via v_editorial_fct_client_q_snapshot + _pod_snapshot",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_int_goals_month_ct",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "client \u00d7 month \u00d7 content_type",
+      "note": "weighted goals after max-of-week + contentTypeRatio",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "ratio",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 509,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_goals",
+      "pipeline_step": "build.py build_int_goals() \u2192 pyrules.goals_month_ct_rows()",
+      "processing": "Client \u00d7 month \u00d7 content_type: cb/ad goal+delivered = MAX over weekly rows; ratio = contentTypeRatio (article\u00d71, jumbo\u00d72, LP\u00d70.5); weighted w_* = value\u00d7ratio.",
+      "consumers": {
+        "editorial_hub": "Overview Pod Snapshot Goals + Monthly Goals gauges/table via v_editorial_fct_goals_monthly / _goals_client_totals",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "editorial_int_member_months",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "member \u00d7 month",
+      "note": "member utilization mart",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "member",
+          "type": "STRING"
+        },
+        {
+          "name": "member_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "member_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_allocation",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_distribution",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_real",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_total_articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 303,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_capacity_members + editorial_raw_client_pod_history + editorial_raw_production + editorial_raw_articles",
+      "pipeline_step": "build.py build_int_capacity_articles() \u2192 transform.build_member_utilization_mart() (shared capacity_calc.py)",
+      "processing": "Per (year,month,pod,role,member): projected_used = capacity-share \u00d7 pod projected; actual_used = article-share \u00d7 pod actual (articles as distribution key); \u00d71.4 specialized; canonical name.",
+      "consumers": {
+        "editorial_hub": "GET /api/capacity/member-utilization(+matrix); Team KPIs \u2192 Capacity By Editor + Editors heat matrix",
+        "planning_hub": "getCapacityData() \u2192 member\u00d7pod\u00d7month capacity + utilization feeding the move/leave what-if math"
+      }
+    },
+    {
+      "name": "editorial_int_pod_assignments",
+      "type": "TABLE",
+      "family": "int",
+      "grain": "year \u00d7 month \u00d7 kind \u00d7 pod \u00d7 client \u00d7 role \u00d7 person",
+      "note": "resolved per-month staffing (editorial + growth) \u2014 the backfill surface",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_kind",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "person_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "person",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "confidence",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 17184,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_pod_history",
+      "pipeline_step": "build.py build_int_pod_assignments()",
+      "processing": "Resolves (year,month,kind,pod,client,role,person): client via fuzzy resolver + windowed identity (Tempo); person via date-windowed editor aliases (Sam/Lauren); writer blobs split greedy longest-first + curated writer\u2192email map.",
+      "consumers": {
+        "editorial_hub": "Backfill surface; v_editorial_fct_pod_assignments (editorial-only) feeds RBAC group auto-population",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_dim_calendar",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "year \u00d7 month \u00d7 week",
+      "note": "calendar dim",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "week_number",
+          "type": "INT64"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_calendar",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Column projection only (year/month/week_number/start_date/end_date).",
+      "consumers": {
+        "editorial_hub": "Editorial week/month mapping + 'As of' badge across dashboards",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_dim_client",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "client master + SF identity (public)",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "start_date",
+          "type": "DATE"
+        },
+        {
+          "name": "end_date",
+          "type": "DATE"
+        },
+        {
+          "name": "term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence",
+          "type": "STRING"
+        },
+        {
+          "name": "cadence_q1",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q2",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q3",
+          "type": "INT64"
+        },
+        {
+          "name": "cadence_q4",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_min",
+          "type": "INT64"
+        },
+        {
+          "name": "word_count_max",
+          "type": "INT64"
+        },
+        {
+          "name": "project_type",
+          "type": "STRING"
+        },
+        {
+          "name": "consulting_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "editorial_ko_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_cb_approved_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_delivered_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_feedback_date",
+          "type": "DATE"
+        },
+        {
+          "name": "first_article_published_date",
+          "type": "DATE"
+        },
+        {
+          "name": "managing_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_director",
+          "type": "STRING"
+        },
+        {
+          "name": "account_manager",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_clients",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Column projection/rename only (client_id, both pods, 6 milestone dates, SF identity).",
+      "consumers": {
+        "editorial_hub": "The client master read by every dashboard; FilterBar + dims; GET /api/clients/ path",
+        "planning_hub": "getActiveClients() \u2192 assignable-clients picker; getClientDirectory() \u2192 writer-capacity directory + sf_account_id bridge"
+      }
+    },
+    {
+      "name": "v_editorial_dim_member",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per member",
+      "note": "roster dim",
+      "columns": [
+        {
+          "name": "member_id",
+          "type": "INT64"
+        },
+        {
+          "name": "name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOL"
+        },
+        {
+          "name": "monthly_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 12,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_team_members",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Column projection/rename only (member_id, name, role, pod, monthly_capacity, email).",
+      "consumers": {
+        "editorial_hub": "Team KPIs roster; GET /api/team-members/ (legacy seeded roster \u2014 v_editorial_roster preferred for live)",
+        "planning_hub": "getRoster() LEFT JOIN \u2192 fallback display email when assignments lack one"
+      }
+    },
+    {
+      "name": "v_editorial_fct_ai_flagged",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per flagged/rewrite article",
+      "note": "AI flagged / rewrite records",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_title",
+          "type": "STRING"
+        },
+        {
+          "name": "topic_content",
+          "type": "STRING"
+        },
+        {
+          "name": "surfer_v1_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "surfer_v2_score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "recommendation",
+          "type": "STRING"
+        },
+        {
+          "name": "manual_review_notes",
+          "type": "STRING"
+        },
+        {
+          "name": "action",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "article_link",
+          "type": "STRING"
+        },
+        {
+          "name": "date_processed",
+          "type": "DATE"
+        },
+        {
+          "name": "month",
+          "type": "STRING"
+        },
+        {
+          "name": "is_rewrite",
+          "type": "BOOL"
+        },
+        {
+          "name": "is_flagged",
+          "type": "BOOL"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 378,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_ai_monitoring",
+      "pipeline_step": "views.py VIEWS entry",
+      "processing": "Filters detail rows to is_flagged = TRUE OR is_rewrite = TRUE; no aggregation.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 AI Compliance flags + rewrites detail (GET /api/ai-monitoring/flags,rewrites)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_ai_recommendations",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "pod \u00d7 client \u00d7 writer \u00d7 editor \u00d7 month",
+      "note": "AI recommendation counts (rewrites excluded)",
+      "columns": [
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client",
+          "type": "STRING"
+        },
+        {
+          "name": "writer_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "month",
+          "type": "STRING"
+        },
+        {
+          "name": "month_date",
+          "type": "DATE"
+        },
+        {
+          "name": "total",
+          "type": "INT64"
+        },
+        {
+          "name": "full_pass",
+          "type": "INT64"
+        },
+        {
+          "name": "partial_pass",
+          "type": "INT64"
+        },
+        {
+          "name": "review_rewrite",
+          "type": "INT64"
+        }
+      ],
+      "row_count": 802,
+      "synced_at": null,
+      "origin": "editorial_raw_ai_monitoring",
+      "pipeline_step": "views.py VIEWS entry",
+      "processing": "Counts recommendations (full/partial/review) at pod\u00d7client\u00d7writer\u00d7editor\u00d7month, rewrites EXCLUDED; adds parsed month_date for chronological order.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 AI Compliance rollups (every tab rollup is a SUM over this)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_article_revisions",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "revision \u00d7 month",
+      "note": "monthly revisions (each revision's own month)",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "revisions",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 823,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_articles_revisions",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; revision-own-month basis already applied upstream.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 Monthly Articles 'Revisions' metric; GET /api/articles/monthly",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_articles_monthly",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "editor \u00d7 client \u00d7 creation-month",
+      "note": "monthly articles (editorial-month basis)",
+      "columns": [
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editor_name",
+          "type": "STRING"
+        },
+        {
+          "name": "count",
+          "type": "INT64"
+        },
+        {
+          "name": "revised",
+          "type": "INT64"
+        },
+        {
+          "name": "second_reviews",
+          "type": "INT64"
+        },
+        {
+          "name": "published",
+          "type": "INT64"
+        },
+        {
+          "name": "published_revised",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1780,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_articles_creation",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; creation editorial-month basis, editor-credit grain, both pod axes applied upstream.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 Monthly Articles chart+matrix; GET /api/articles/monthly",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_capacity_pods",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "pod \u00d7 month \u00d7 version",
+      "note": "pod capacity (public)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "version",
+          "type": "STRING"
+        },
+        {
+          "name": "total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_used_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 105,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_capacity_pod_months",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; latest-V## collapse applied upstream.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 Capacity At-a-glance / By Pod / Trend(Pods); GET /api/capacity/pod-summary",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_client_contributions",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 pod \u00d7 month",
+      "note": "client contribution (public)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "category",
+          "type": "STRING"
+        },
+        {
+          "name": "weight",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_client_pod_months",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; \u00d71.4 specialized weighting applied upstream.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 Capacity By Client (per-pod Clients drawer); GET /api/capacity/client-contributions",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_client_months",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 month",
+      "note": "per-month delivery/variance detail",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "sow_target",
+          "type": "INT64"
+        },
+        {
+          "name": "is_future",
+          "type": "BOOL"
+        },
+        {
+          "name": "prod_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "prod_is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_period_idx",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_period_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_is_prelude",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_is_post_contract",
+          "type": "BOOL"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4425,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_client_months",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; is_future + dual billing-period assignment applied upstream.",
+      "consumers": {
+        "editorial_hub": "Overview / Editorial Clients monthly breakdown popovers + lifetime bars",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_client_q_snapshot",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "delivery/variance snapshot (Overview + D1)",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "lifetime_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_complete",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_published",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_remaining",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_end",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_q_projected_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "ovr_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "ovr_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "ovr_lq_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_effective_start",
+          "type": "DATE"
+        },
+        {
+          "name": "d1_term_months",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lifetime_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_q_month_in_q",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_length",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_delivered_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_actual_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_end_of_q_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_q_projected_end_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_is_first_q",
+          "type": "BOOL"
+        },
+        {
+          "name": "d1_tier",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_label",
+          "type": "STRING"
+        },
+        {
+          "name": "d1_lq_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "d1_lq_cum_variance",
+          "type": "INT64"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 84,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_client_q_snapshot",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; end-of-Q variance + tiers + lifetime computed upstream.",
+      "consumers": {
+        "editorial_hub": "Overview \u2192 Pod Snapshot Current Q cells, D1 client cards, End-of-Q chips + tiers",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_goals_client_totals",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "goal totals gated on weighted goal > 0",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_delivered",
+          "type": "FLOAT64"
+        }
+      ],
+      "row_count": 76,
+      "synced_at": null,
+      "origin": "editorial_int_goals_month_ct",
+      "pipeline_step": "views.py VIEWS entry",
+      "processing": "Step-3 goals aggregation in SQL: per client, month totals gated on that month's weighted goal > 0 (CB and AD independently), then summed \u2014 matches aggregateGoalsSummary.",
+      "consumers": {
+        "editorial_hub": "Overview \u2192 Pod Snapshot / GoalsVsDelivery goal-gated client %-complete totals",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_goals_monthly",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 month \u00d7 content_type",
+      "note": "weighted goals (raw + weighted measures)",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "month_year",
+          "type": "STRING"
+        },
+        {
+          "name": "content_type",
+          "type": "STRING"
+        },
+        {
+          "name": "ratio",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_cb_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_goal",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "w_ad_delivered",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 509,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_goals_month_ct",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; max-of-week + contentTypeRatio weighting applied \u2014 exposes both raw and weighted measures.",
+      "consumers": {
+        "editorial_hub": "Overview Pod Snapshot Goals; Monthly Goals gauges + GoalsMonthTable",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_kpi_scores",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "member \u00d7 month \u00d7 kpi_type",
+      "note": "KPI scores + member/role/pod",
+      "columns": [
+        {
+          "name": "team_member_id",
+          "type": "INT64"
+        },
+        {
+          "name": "member_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "kpi_type",
+          "type": "STRING"
+        },
+        {
+          "name": "score",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "target",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1481,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_kpi_scores + editorial_raw_team_members",
+      "pipeline_step": "views.py VIEWS entry (LEFT JOIN member name/role/pod)",
+      "processing": "Joins member name/role/pod onto the KPI rows; no recompute (raw grain is final).",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 KPI heatmap + KpiCards",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_member_utilization",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "member \u00d7 month",
+      "note": "member utilization (public)",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "member",
+          "type": "STRING"
+        },
+        {
+          "name": "member_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "member_match_status",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pct_allocation",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_distribution",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_used",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_real",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pct_util_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_total_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_total_articles",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_actual_raw",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "pod_util_actual_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 303,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_member_months",
+      "pipeline_step": "views.py VIEWS entry (thin passthrough)",
+      "processing": "Passthrough; allocation/distribution utilization model + \u00d71.4 weighting + canonical names applied upstream.",
+      "consumers": {
+        "editorial_hub": "Team KPIs \u2192 Capacity By Editor + Editors heat matrix; GET /api/capacity/member-utilization(+matrix)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_milestone_transitions",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 transition",
+      "note": "8 milestone transitions, calendar-day diffs",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "transition",
+          "type": "STRING"
+        },
+        {
+          "name": "days",
+          "type": "INT64"
+        }
+      ],
+      "row_count": 492,
+      "synced_at": null,
+      "origin": "editorial_raw_clients",
+      "pipeline_step": "views.py VIEWS entry",
+      "processing": "Computes the 8 audited milestone transitions as calendar-day DATE_DIFFs via UNNEST; negatives included (stats card filters days\u22650 at read time).",
+      "consumers": {
+        "editorial_hub": "Overview \u2192 Time to Milestones cards, Pod Timelines, Per-Client Days chart",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_pipeline",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per client",
+      "note": "pipeline counters (topics/CBs/articles/published)",
+      "columns": [
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "topics_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "cbs_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sent",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_approved",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_difference",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        },
+        {
+          "name": "sheet_status",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 52,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_cumulative + editorial_raw_clients",
+      "pipeline_step": "views.py VIEWS entry (LEFT JOIN on client name)",
+      "processing": "Joins client dims; audited stage fields (Topics/CBs = approved, Articles = sent, Published = published_live); keeps articles_approved for approval-rate.",
+      "consumers": {
+        "editorial_hub": "Editorial Clients / Overview \u2192 Cumulative Pipeline header + cards",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_pod_assignments",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "year \u00d7 month \u00d7 pod \u00d7 client \u00d7 role \u00d7 person",
+      "note": "resolved editorial-only per-month staffing",
+      "columns": [
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "pod_kind",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "person_raw",
+          "type": "STRING"
+        },
+        {
+          "name": "person",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "confidence",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 2407,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_int_pod_assignments",
+      "pipeline_step": "views.py VIEWS entry",
+      "processing": "Filters editorial_int_pod_assignments to pod_kind='editorial' (writer rows kept, distinguishable via role; filter confidence='unparsed' for fully-identified only).",
+      "consumers": {
+        "editorial_hub": "Editorial-only staffing / RBAC group feed",
+        "planning_hub": "getRoster() LEFT JOIN \u2192 resolves person\u2192email to set the stable assignment key (workerId)"
+      }
+    },
+    {
+      "name": "v_editorial_fct_pod_snapshot",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "pod_axis \u00d7 pod",
+      "note": "Overview Pod Snapshot rollup, both pod axes",
+      "columns": [
+        {
+          "name": "pod_axis",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "as_of_date",
+          "type": "DATE"
+        },
+        {
+          "name": "client_count",
+          "type": "INT64"
+        },
+        {
+          "name": "new_count",
+          "type": "INT64"
+        },
+        {
+          "name": "q_actual_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "q_projected_end",
+          "type": "INT64"
+        },
+        {
+          "name": "q_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "q_variance_excl_new",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "lifetime_invoiced",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_sow",
+          "type": "INT64"
+        },
+        {
+          "name": "published_live",
+          "type": "INT64"
+        }
+      ],
+      "row_count": 15,
+      "synced_at": null,
+      "origin": "editorial_int_client_q_snapshot (rolled up onto both pod axes)",
+      "pipeline_step": "views.py VIEWS entry (CROSS JOIN UNNEST both pod axes + GROUP BY)",
+      "processing": "Pod rollups on editorial+growth axes: delivered/invoiced/projected_end sums INCLUDE 1st-Q clients; variance sum EXCLUDES them (counted in new_count); no-current-Q or invoiced\u22640 dropped from Q sums.",
+      "consumers": {
+        "editorial_hub": "Overview \u2192 Pod Snapshot pod rows (Goals / Last Q / Current Q / %SOW / %Published)",
+        "planning_hub": ""
+      }
+    },
+    {
+      "name": "v_editorial_fct_production_monthly",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "client \u00d7 month",
+      "note": "production actual vs projected + pods",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "editorial_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_pod",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_actual",
+          "type": "INT64"
+        },
+        {
+          "name": "articles_projected",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_original",
+          "type": "INT64"
+        },
+        {
+          "name": "is_actual",
+          "type": "BOOL"
+        },
+        {
+          "name": "synced_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 4424,
+      "synced_at": "2026-07-03T09:09:22.472726+00:00",
+      "origin": "editorial_raw_production + editorial_raw_clients",
+      "pipeline_step": "views.py VIEWS entry (LEFT JOIN client name + both pods)",
+      "processing": "Joins client name + pods onto production rows (actual/projected/projected_original/is_actual); no math.",
+      "consumers": {
+        "editorial_hub": "Overview \u2192 Production History chart (All / Per pod / Per client); GET /api/dashboard/production-trend",
+        "planning_hub": "getClientGoals() \u2192 writer 'Goals per month' (articles_actual closed / articles_projected future)"
+      }
+    },
+    {
+      "name": "v_editorial_roster",
+      "type": "VIEW",
+      "family": "views",
+      "grain": "one row per person \u00d7 role",
+      "note": "single-source editorial roster (Rippling editors + Slack writers + legacy); carries canonical work_email \u2014 DISPLAY this, key on canonical_name/slack_id",
+      "columns": [
+        {
+          "name": "canonical_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "source_id",
+          "type": "STRING"
+        },
+        {
+          "name": "slack_id",
+          "type": "STRING"
+        },
+        {
+          "name": "work_email",
+          "type": "STRING"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "hire_date",
+          "type": "DATE"
+        },
+        {
+          "name": "term_date",
+          "type": "DATE"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOL"
+        }
+      ],
+      "row_count": 140,
+      "synced_at": null,
+      "origin": "Rippling v_headcount (title LIKE '%editor%') + Slack slack_raw_users (ext.writing email) + editorial_name_map, minus editorial_roster_exclusions",
+      "pipeline_step": "etl/warehouse/v_editorial_roster.sql (standalone CREATE VIEW; refreshed on the @name-mappings SYNC step)",
+      "processing": "Unions Rippling editors (Sr/Lead/Director/VP\u2192sr_editor) + Slack writers + legacy name-map canonicals; canonicalizes via editorial_name_map; subtracts role-aware exclusions; carries source IDs + work_email; always-live.",
+      "consumers": {
+        "editorial_hub": "Single source of truth \u2192 master Roster tab \u2192 MAC editor/writer dropdowns (Apps Script roster_refresh)",
+        "planning_hub": "getRoster() \u2192 roster picker (add SE/Editor/Writer) + writers-capacity rail; SoT for canonical_name/role/is_active/slack_id/work_email"
+      }
+    }
+  ]
+}
