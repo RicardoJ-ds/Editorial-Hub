@@ -48,8 +48,30 @@ BQ_PROJECT = os.environ.get("BQ_PROJECT", "graphite-data")
 BQ_DATASET = os.environ.get("BQ_DATASET", "graphite_bi_sandbox")
 DS = f"{BQ_PROJECT}.{BQ_DATASET}"
 
-# Only the editorial warehouse surface (matches the build source's naming).
-TABLE_FILTER = "table_name LIKE 'editorial_raw_%' OR table_name LIKE 'editorial_int_%' OR table_name LIKE 'v_editorial_%'"
+# Tables PUBLISHED BY the planning-hub app (editorial-team-pods → sync-to-bq.ts),
+# not by this repo's ETL. Covered in both catalogs so cross-Hub contracts are
+# visible (Q2 of handoff_planning_hub_client_table_sync_review.md). Contract doc:
+# editorial-team-pods/docs/capacity-plan-contract.md. `_dev` copies excluded.
+HUB_PUBLISHED = (
+    "editorial_capacity_plan",
+    "editorial_capacity_plan_demand",
+    "editorial_capacity_plan_members",
+    "editorial_writer_plan",
+    "editorial_writer_plan_allocations",
+    "editorial_writer_plan_client_verticals",
+    "editorial_writer_plan_verticals",
+    "team_pod_assignments",
+    "team_pod_assignments_editorial",
+    "team_pod_assignments_editorial_history",
+)
+
+# The editorial warehouse surface (matches the build source's naming) + the
+# planning-hub-published tables above.
+_HUB_IN = ", ".join(f"'{t}'" for t in HUB_PUBLISHED)
+TABLE_FILTER = (
+    "table_name LIKE 'editorial_raw_%' OR table_name LIKE 'editorial_int_%' "
+    f"OR table_name LIKE 'v_editorial_%' OR table_name IN ({_HUB_IN})"
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent  # editorial-hub/
 OUT_JSON = REPO_ROOT / "etl" / "bq_schema_catalog.json"
@@ -122,6 +144,17 @@ GRAIN: dict[str, dict[str, str]] = {
     "v_editorial_fct_article_revisions": {"grain": "revision × month", "note": "monthly revisions (each revision's own month)"},
     "v_editorial_fct_ai_recommendations": {"grain": "pod × client × writer × editor × month", "note": "AI recommendation counts (rewrites excluded)"},
     "v_editorial_fct_ai_flagged": {"grain": "one row per flagged/rewrite article", "note": "AI flagged / rewrite records"},
+    # ── HUB-PUBLISHED (written by editorial-team-pods, NOT this ETL) ──────────
+    "editorial_capacity_plan": {"grain": "ym × pod", "note": "published capacity plan: supply, projected/actual demand, utilization"},
+    "editorial_capacity_plan_demand": {"grain": "ym × pod × client_id (NEGATIVE ids = planned/unsigned clients)", "note": "published per-client demand incl. Hub edits (note/status_override); joins on client_id drop planned rows"},
+    "editorial_capacity_plan_members": {"grain": "ym × pod × member", "note": "published per-member capacity (base + effective)"},
+    "editorial_writer_plan": {"grain": "ym × writer", "note": "published writer bandwidth plan (computed/override/effective bw, allocated, delivered)"},
+    "editorial_writer_plan_allocations": {"grain": "ym × writer × client", "note": "published writer→client article allocations"},
+    "editorial_writer_plan_client_verticals": {"grain": "one row per client", "note": "client vertical tags for writer matching"},
+    "editorial_writer_plan_verticals": {"grain": "writer × vertical", "note": "writer vertical skills/difficulty"},
+    "team_pod_assignments": {"grain": "one row per assignment (growth, current)", "note": "growth Team-tab current assignments"},
+    "team_pod_assignments_editorial": {"grain": "one row per assignment (editorial, current)", "note": "editorial Team-tab current assignments"},
+    "team_pod_assignments_editorial_history": {"grain": "ym × pod × client × role × person (soft-delete via deleted_at)", "note": "canonical editorial assignment history — the Hub-first source this ETL reads (people-loop cutover 2026-06-12)"},
 }
 
 
@@ -132,14 +165,17 @@ def _family(name: str) -> str:
         return "int"
     if name.startswith("editorial_raw_"):
         return "raw"
+    if name in HUB_PUBLISHED:
+        return "hub"
     return "other"
 
 
-FAMILY_ORDER = {"raw": 0, "int": 1, "views": 2, "other": 3}
+FAMILY_ORDER = {"raw": 0, "int": 1, "views": 2, "hub": 3, "other": 4}
 FAMILY_TITLE = {
     "raw": "RAW — source-sheet mirrors (`editorial_raw_*`)",
     "int": "INT — computed intermediates (`editorial_int_*`)",
     "views": "VIEWS — public read contract (`v_editorial_*`)",
+    "hub": "HUB-PUBLISHED — written by the planning-hub app, not this ETL",
     "other": "OTHER",
 }
 

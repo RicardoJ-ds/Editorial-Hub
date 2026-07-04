@@ -1,11 +1,11 @@
 {
   "dataset": "graphite-data.graphite_bi_sandbox",
-  "generated_at": "2026-07-03 21:39:20 UTC",
+  "generated_at": "2026-07-04 21:22:06 UTC",
   "source": "live BigQuery INFORMATION_SCHEMA",
   "counts": {
-    "tables": 28,
+    "tables": 38,
     "views": 21,
-    "columns": 779
+    "columns": 884
   },
   "objects": [
     {
@@ -97,7 +97,7 @@
         }
       ],
       "row_count": 3372,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_article_revisions",
@@ -147,8 +147,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 3893,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "row_count": 3896,
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_articles",
@@ -307,7 +307,7 @@
         }
       ],
       "row_count": 16148,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_calendar",
@@ -354,7 +354,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_capacity",
@@ -417,7 +417,7 @@
         }
       ],
       "row_count": 305,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_capacity_members",
@@ -480,7 +480,7 @@
         }
       ],
       "row_count": 417,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_client_pod_history",
@@ -535,7 +535,7 @@
         }
       ],
       "row_count": 513,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_clients",
@@ -710,7 +710,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_cumulative",
@@ -813,7 +813,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_deliverables",
@@ -884,7 +884,7 @@
         }
       ],
       "row_count": 631,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_delivery_templates",
@@ -931,7 +931,7 @@
         }
       ],
       "row_count": 60,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_goals",
@@ -1050,7 +1050,7 @@
         }
       ],
       "row_count": 2212,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_kpi_scores",
@@ -1113,7 +1113,7 @@
         }
       ],
       "row_count": 1481,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_model_assumptions",
@@ -1152,7 +1152,7 @@
         }
       ],
       "row_count": 14,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_name_mappings",
@@ -1187,7 +1187,7 @@
         }
       ],
       "row_count": 471,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_pod_history",
@@ -1246,7 +1246,7 @@
         }
       ],
       "row_count": 17184,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_production",
@@ -1305,7 +1305,7 @@
         }
       ],
       "row_count": 4424,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_surfer_usage",
@@ -1380,7 +1380,7 @@
         }
       ],
       "row_count": 25,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_raw_team_members",
@@ -1431,7 +1431,7 @@
         }
       ],
       "row_count": 12,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_articles_creation",
@@ -1490,7 +1490,7 @@
         }
       ],
       "row_count": 1780,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_articles_revisions",
@@ -1528,8 +1528,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 823,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "row_count": 824,
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_capacity_pod_months",
@@ -1572,7 +1572,7 @@
         }
       ],
       "row_count": 105,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_client_months",
@@ -1667,7 +1667,7 @@
         }
       ],
       "row_count": 4425,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_client_pod_months",
@@ -1730,7 +1730,7 @@
         }
       ],
       "row_count": 425,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_client_q_snapshot",
@@ -1945,7 +1945,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_goals_month_ct",
@@ -2008,7 +2008,7 @@
         }
       ],
       "row_count": 509,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_member_months",
@@ -2119,7 +2119,7 @@
         }
       ],
       "row_count": 303,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "editorial_int_pod_assignments",
@@ -2186,7 +2186,7 @@
         }
       ],
       "row_count": 17184,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_dim_calendar",
@@ -2221,7 +2221,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_dim_client",
@@ -2360,7 +2360,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_dim_member",
@@ -2403,7 +2403,7 @@
         }
       ],
       "row_count": 12,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_ai_flagged",
@@ -2494,7 +2494,7 @@
         }
       ],
       "row_count": 378,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_ai_recommendations",
@@ -2583,8 +2583,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 823,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "row_count": 824,
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_articles_monthly",
@@ -2643,7 +2643,7 @@
         }
       ],
       "row_count": 1780,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_capacity_pods",
@@ -2686,7 +2686,7 @@
         }
       ],
       "row_count": 105,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_client_contributions",
@@ -2749,7 +2749,7 @@
         }
       ],
       "row_count": 425,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_client_months",
@@ -2844,7 +2844,7 @@
         }
       ],
       "row_count": 4425,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_client_q_snapshot",
@@ -3059,7 +3059,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_goals_client_totals",
@@ -3153,7 +3153,7 @@
         }
       ],
       "row_count": 509,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_kpi_scores",
@@ -3208,7 +3208,7 @@
         }
       ],
       "row_count": 1481,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_member_utilization",
@@ -3319,7 +3319,7 @@
         }
       ],
       "row_count": 303,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_milestone_transitions",
@@ -3425,7 +3425,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_pod_assignments",
@@ -3492,7 +3492,7 @@
         }
       ],
       "row_count": 2407,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_fct_pod_snapshot",
@@ -3610,7 +3610,7 @@
         }
       ],
       "row_count": 4424,
-      "synced_at": "2026-07-03T09:09:22.472726+00:00"
+      "synced_at": "2026-07-04T09:09:02.709512+00:00"
     },
     {
       "name": "v_editorial_roster",
@@ -3661,6 +3661,536 @@
         }
       ],
       "row_count": 140,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_capacity_plan",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "ym \u00d7 pod",
+      "note": "published capacity plan: supply, projected/actual demand, utilization",
+      "columns": [
+        {
+          "name": "ym",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "supply",
+          "type": "INT64"
+        },
+        {
+          "name": "projected_demand",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "actual_demand",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "util_projected",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "util_actual",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 92,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_capacity_plan_demand",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "ym \u00d7 pod \u00d7 client_id (NEGATIVE ids = planned/unsigned clients)",
+      "note": "published per-client demand incl. Hub edits (note/status_override); joins on client_id drop planned rows",
+      "columns": [
+        {
+          "name": "ym",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "articles",
+          "type": "INT64"
+        },
+        {
+          "name": "weight",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "projected_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "base_weighted",
+          "type": "FLOAT64"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1017,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_capacity_plan_members",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "ym \u00d7 pod \u00d7 member",
+      "note": "published per-member capacity (base + effective)",
+      "columns": [
+        {
+          "name": "ym",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "member",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "base_capacity",
+          "type": "INT64"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 259,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_writer_plan",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "ym \u00d7 writer",
+      "note": "published writer bandwidth plan (computed/override/effective bw, allocated, delivered)",
+      "columns": [
+        {
+          "name": "ym",
+          "type": "STRING"
+        },
+        {
+          "name": "writer",
+          "type": "STRING"
+        },
+        {
+          "name": "computed_bw",
+          "type": "INT64"
+        },
+        {
+          "name": "override_bw",
+          "type": "INT64"
+        },
+        {
+          "name": "effective_bw",
+          "type": "INT64"
+        },
+        {
+          "name": "allocated",
+          "type": "INT64"
+        },
+        {
+          "name": "delivered",
+          "type": "INT64"
+        },
+        {
+          "name": "status",
+          "type": "STRING"
+        },
+        {
+          "name": "bw_method",
+          "type": "STRING"
+        },
+        {
+          "name": "is_default_bw",
+          "type": "BOOL"
+        },
+        {
+          "name": "in_roster",
+          "type": "BOOL"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 1032,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_writer_plan_allocations",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "ym \u00d7 writer \u00d7 client",
+      "note": "published writer\u2192client article allocations",
+      "columns": [
+        {
+          "name": "ym",
+          "type": "STRING"
+        },
+        {
+          "name": "writer",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "articles",
+          "type": "INT64"
+        },
+        {
+          "name": "note",
+          "type": "STRING"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "reason",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 0,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_writer_plan_client_verticals",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "one row per client",
+      "note": "client vertical tags for writer matching",
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "sf_account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "vertical",
+          "type": "STRING"
+        },
+        {
+          "name": "vertical_name",
+          "type": "STRING"
+        },
+        {
+          "name": "note",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 32,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_writer_plan_verticals",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "writer \u00d7 vertical",
+      "note": "writer vertical skills/difficulty",
+      "columns": [
+        {
+          "name": "writer",
+          "type": "STRING"
+        },
+        {
+          "name": "vertical",
+          "type": "STRING"
+        },
+        {
+          "name": "vertical_name",
+          "type": "STRING"
+        },
+        {
+          "name": "vertical_group",
+          "type": "STRING"
+        },
+        {
+          "name": "difficulty",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 144,
+      "synced_at": null
+    },
+    {
+      "name": "team_pod_assignments",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "one row per assignment (growth, current)",
+      "note": "growth Team-tab current assignments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "STRING"
+        },
+        {
+          "name": "account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "worker_id",
+          "type": "STRING"
+        },
+        {
+          "name": "display_name",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "created_by",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "slack_id",
+          "type": "STRING"
+        },
+        {
+          "name": "sr_growth_director",
+          "type": "STRING"
+        },
+        {
+          "name": "sr_growth_director_slack_id",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_director",
+          "type": "STRING"
+        },
+        {
+          "name": "growth_director_slack_id",
+          "type": "STRING"
+        }
+      ],
+      "row_count": 377,
+      "synced_at": null
+    },
+    {
+      "name": "team_pod_assignments_editorial",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "one row per assignment (editorial, current)",
+      "note": "editorial Team-tab current assignments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "STRING"
+        },
+        {
+          "name": "account_id",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "worker_id",
+          "type": "STRING"
+        },
+        {
+          "name": "display_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "slack_id",
+          "type": "STRING"
+        },
+        {
+          "name": "title",
+          "type": "STRING"
+        },
+        {
+          "name": "senior_editor",
+          "type": "STRING"
+        },
+        {
+          "name": "senior_editor_slack_id",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "created_by",
+          "type": "STRING"
+        }
+      ],
+      "row_count": 117,
+      "synced_at": null
+    },
+    {
+      "name": "team_pod_assignments_editorial_history",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "ym \u00d7 pod \u00d7 client \u00d7 role \u00d7 person (soft-delete via deleted_at)",
+      "note": "canonical editorial assignment history \u2014 the Hub-first source this ETL reads (people-loop cutover 2026-06-12)",
+      "columns": [
+        {
+          "name": "ym",
+          "type": "STRING"
+        },
+        {
+          "name": "pod",
+          "type": "STRING"
+        },
+        {
+          "name": "client_id",
+          "type": "INT64"
+        },
+        {
+          "name": "client_name",
+          "type": "STRING"
+        },
+        {
+          "name": "role",
+          "type": "STRING"
+        },
+        {
+          "name": "display_name",
+          "type": "STRING"
+        },
+        {
+          "name": "email",
+          "type": "STRING"
+        },
+        {
+          "name": "source",
+          "type": "STRING"
+        },
+        {
+          "name": "confidence",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "created_by",
+          "type": "STRING"
+        },
+        {
+          "name": "edited_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "edited_by",
+          "type": "STRING"
+        },
+        {
+          "name": "deleted_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "deleted_by",
+          "type": "STRING"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 2551,
       "synced_at": null
     }
   ]

@@ -3,9 +3,9 @@
 **Auto-generated** by `etl/gen_bq_lineage_catalog.py` — do not hand-edit. Structural facts (grain / columns / rows / freshness) are live from BigQuery; lineage (origin / pipeline / processing / consumers) is the curated `LINEAGE` map in that script. Re-run after any ETL surface change; edit `LINEAGE` when origin/processing/consumers move.
 
 - **Dataset:** `graphite-data.graphite_bi_sandbox` (everything is `graphite-data.graphite_bi_sandbox.<name>`)
-- **Generated:** 2026-07-03 22:09:26 UTC
+- **Generated:** 2026-07-04 21:23:07 UTC
 - **Source:** live BigQuery `INFORMATION_SCHEMA` + curated lineage
-- **Inventory:** 28 tables · 21 views · 12 read by the Planning Hub
+- **Inventory:** 38 tables · 21 views · 10 read by the Planning Hub
 
 > Each entry answers: *this number came from **that** source, via **these** steps, with **this** math, and is read **here**.* `editorial_raw_*` = faithful sheet mirrors · `editorial_int_*` = where the business math is computed · `v_editorial_*` = the public read contract (mostly thin passthroughs of int).
 
@@ -14,7 +14,7 @@
 ## RAW — source-sheet mirrors (`editorial_raw_*`)
 
 ### `editorial_raw_ai_monitoring`
-*one row per monitored article · 3,372 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per monitored article · 3,372 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Writer AI Monitoring sheet › Data / Rewrites / Yellow-Red Flags_v2 tabs
 - **Pipeline:** build.py RAW_TABLES ← Neon ai_monitoring_records ← import_ai_monitoring_{data,rewrites,flags}()
@@ -24,7 +24,7 @@
 - **Columns:** `id`, `pod`, `writer_name`, `editor_name`, `date_processed`, `month`, `updated_at`, `client` …
 
 ### `editorial_raw_article_revisions`
-*one row per revision · 3,893 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per revision · 3,896 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Monthly Article Count sheet (per-client tabs) + Meta Editorial Tracker
 - **Pipeline:** build.py RAW_TABLES ← Neon article_revisions ← import_monthly_article_count()
@@ -34,7 +34,7 @@
 - **Columns:** `id`, `article_uid`, `client_name`, `editor_name`, `writer_name`, `editorial_pod`, `growth_pod`, `revision_date` …
 
 ### `editorial_raw_articles`
-*article × editor · 16,148 rows · fresh 2026-07-03 09:09:22 UTC*
+*article × editor · 16,148 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Monthly Article Count sheet (per-client tabs) + Meta Editorial Tracker
 - **Pipeline:** build.py RAW_TABLES ← Neon article_records ← import_monthly_article_count(); transform.add_article_canonicals()
@@ -44,7 +44,7 @@
 - **Columns:** `id`, `article_uid`, `client_name`, `client_id`, `editor_name`, `writer_name`, `editorial_pod`, `growth_pod` …
 
 ### `editorial_raw_calendar`
-*year × month × week · 52 rows · fresh 2026-07-03 09:09:22 UTC*
+*year × month × week · 52 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Master Tracker sheet › '<YYYY> Week Distribution' tabs
 - **Pipeline:** build.py RAW_TABLES ← Neon editorial_weeks ← import_week_distribution()
@@ -54,7 +54,7 @@
 - **Columns:** `id`, `year`, `month`, `start_date`, `end_date`, `updated_at`, `week_number`, `created_at`
 
 ### `editorial_raw_capacity`
-*pod × month × version · 305 rows · fresh 2026-07-03 09:09:22 UTC*
+*pod × month × version · 305 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'ET CP 2026 [V##]' sheet, EDITORIAL TEAM CAPACITY block (all versions)
 - **Pipeline:** build.py RAW_TABLES ← Neon capacity_projections ← import_capacity_plan()/_ingest_et_cp_year()
@@ -64,7 +64,7 @@
 - **Columns:** `id`, `pod`, `year`, `month`, `updated_at`, `updated_by`, `total_capacity`, `projected_used_capacity` …
 
 ### `editorial_raw_capacity_members`
-*member × month · 417 rows · fresh 2026-07-03 09:09:22 UTC*
+*member × month · 417 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'ET CP 2026 [V##]' sheet, EDITORIAL TEAM CAPACITY block
 - **Pipeline:** build.py RAW_TABLES ← Neon editorial_member_capacity ← _ingest_et_cp_year()
@@ -74,7 +74,7 @@
 - **Columns:** `id`, `year`, `month`, `pod`, `role`, `updated_at`, `slot`, `member_raw` …
 
 ### `editorial_raw_client_pod_history`
-*client × month · 513 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month · 513 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › all 'ET CP 2026 [V##]' version tabs (each tab's own-month column)
 - **Pipeline:** build.py RAW_TABLES ← Neon client_pod_history ← import_et_cp_pod_history()
@@ -84,7 +84,7 @@
 - **Columns:** `id`, `client_id`, `client_name_raw`, `year`, `month`, `editorial_pod`, `updated_at`, `category` …
 
 ### `editorial_raw_clients`
-*one row per client · 84 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per client · 84 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'Editorial SOW overview' sheet
 - **Pipeline:** build.py RAW_TABLES ← Neon clients ← import_sow_overview(); transform.add_client_canonicals()
@@ -94,7 +94,7 @@
 - **Columns:** `id`, `name`, `status`, `growth_pod`, `editorial_pod`, `start_date`, `end_date`, `term_months` …
 
 ### `editorial_raw_cumulative`
-*one row per client · 52 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per client · 52 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Master Tracker sheet › 'Cumulative' sheet
 - **Pipeline:** build.py RAW_TABLES ← Neon cumulative_metrics ← import_cumulative()
@@ -104,7 +104,7 @@
 - **Columns:** `id`, `status`, `account_team_pod`, `client_name`, `last_update`, `updated_at`, `client_type`, `content_type` …
 
 ### `editorial_raw_deliverables`
-*client × month · 631 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month · 631 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'Delivered vs Invoiced v2' (+ Meta Calendar Month Deliveries subset)
 - **Pipeline:** build.py RAW_TABLES ← Neon deliverables_monthly ← import_delivered_invoiced()/import_meta_deliveries()
@@ -114,7 +114,7 @@
 - **Columns:** `id`, `client_id`, `year`, `month`, `updated_at`, `updated_by`, `articles_sow_target`, `articles_delivered` …
 
 ### `editorial_raw_delivery_templates`
-*delivery template rows · 60 rows · fresh 2026-07-03 09:09:22 UTC*
+*delivery template rows · 60 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'Delivery Schedules' sheet (5 SOW sizes × M1–M12)
 - **Pipeline:** build.py RAW_TABLES ← Neon delivery_templates ← import_delivery_schedules()
@@ -124,7 +124,7 @@
 - **Columns:** `id`, `month_number`, `sow_size`, `invoicing_target`, `invoicing_cumulative`, `delivery_target`, `delivery_cumulative`, `created_at`
 
 ### `editorial_raw_goals`
-*client × month × week × content_type · 2,212 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month × week × content_type · 2,212 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Master Tracker sheet › '[Month Year] Goals vs Delivery' tabs (x9)
 - **Pipeline:** build.py RAW_TABLES ← Neon goals_vs_delivery ← import_goals_vs_delivery()
@@ -134,7 +134,7 @@
 - **Columns:** `id`, `month_year`, `week_date`, `client_name`, `growth_team_pod`, `editorial_team_pod`, `cb_delivered_to_date`, `cb_monthly_goal` …
 
 ### `editorial_raw_kpi_scores`
-*member × month × kpi_type · 1,481 rows · fresh 2026-07-03 09:09:22 UTC*
+*member × month × kpi_type · 1,481 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Master Tracker 'Monthly KPI Scores' sheet + computed KPIs (Notion-derived + capacity util)
 - **Pipeline:** build.py RAW_TABLES ← Neon kpi_scores ← import_monthly_kpi_scores() + refresh_computed_kpis()
@@ -144,7 +144,7 @@
 - **Columns:** `id`, `team_member_id`, `year`, `month`, `client_id`, `updated_at`, `updated_by`, `kpi_type` …
 
 ### `editorial_raw_model_assumptions`
-*model assumption rows · 14 rows · fresh 2026-07-03 09:09:22 UTC*
+*model assumption rows · 14 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'Model Assumptions' sheet (5 category blocks)
 - **Pipeline:** build.py RAW_TABLES ← Neon model_assumptions ← import_model_assumptions()
@@ -154,7 +154,7 @@
 - **Columns:** `id`, `updated_at`, `category`, `key`, `value`, `description`
 
 ### `editorial_raw_name_mappings`
-*kind × raw_name · 471 rows · fresh 2026-07-03 09:09:22 UTC*
+*kind × raw_name · 471 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** The 3 alias dictionaries (editor/writer from BQ editorial_name_map; client hub→Salesforce map)
 - **Pipeline:** build.py build_raw() ← transform.mapping_table_rows() (3 dicts collapsed into one `kind` column)
@@ -164,7 +164,7 @@
 - **Columns:** `kind`, `raw_name`, `canonical_name`, `status`, `note`
 
 ### `editorial_raw_pod_history`
-*year × month × kind × pod × client × role × person · 17,184 rows · fresh 2026-07-03 09:09:22 UTC*
+*year × month × kind × pod × client × role × person · 17,184 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Team Pods sheet › all monthly tabs (Editorial/Growth/legacy Account Team); editorial Hub-first from BQ team_pod_assignments_editorial_history
 - **Pipeline:** build.py RAW_TABLES ← Neon pod_assignment_history ← import_pod_history()
@@ -174,17 +174,17 @@
 - **Columns:** `id`, `year`, `month`, `pod_kind`, `pod_number`, `client_name`, `role`, `display_name` …
 
 ### `editorial_raw_production`
-*client × month · 4,424 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month · 4,424 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Editorial Capacity Planning › 'Editorial Operating Model' sheet (+ projected_original from ET CP)
 - **Pipeline:** build.py RAW_TABLES ← Neon production_history ← import_operating_model() (projected_original ← _ingest_et_cp_year())
 - **Processing:** Faithful mirror; client × month articles_actual/projected/projected_original/is_actual (row0 Actual/Projection labels resolved at ingestion).
 - **Editorial Hub:** GET /api/dashboard/production-trend + client-production; upstream of int marts; v_editorial_fct_production_monthly
-- **Planning Hub:** getCapacityData() → future per-client demand (articles_projected × category weight, Jul–Dec)
+- **Planning Hub:** getCapacityData() → future per-client demand (articles_projected × weight) + reads articles_actual (current-month delivered) and projected_original (Δ-vs-original on future months)
 - **Columns:** `id`, `client_id`, `year`, `month`, `updated_at`, `articles_actual`, `articles_projected`, `projected_original` …
 
 ### `editorial_raw_surfer_usage`
-*Surfer API usage rows · 25 rows · fresh 2026-07-03 09:09:22 UTC*
+*Surfer API usage rows · 25 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** Writer AI Monitoring sheet › "Surfer's API usage" tab
 - **Pipeline:** build.py RAW_TABLES ← Neon surfer_api_usage ← import_ai_monitoring_surfer()
@@ -194,7 +194,7 @@
 - **Columns:** `id`, `year_month`, `start_date`, `end_date`, `pod_1`, `pod_2`, `pod_3`, `pod_4` …
 
 ### `editorial_raw_team_members`
-*one row per team member · 12 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per team member · 12 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** ET CP 2026 roster; team_members list hardcoded in seed_data.py
 - **Pipeline:** build.py RAW_TABLES ← Neon team_members ← seed_data.py / import_capacity_plan()
@@ -206,7 +206,7 @@
 ## INT — computed intermediates (`editorial_int_*`)
 
 ### `editorial_int_articles_creation`
-*editor × client × creation-month · 1,780 rows · fresh 2026-07-03 09:09:22 UTC*
+*editor × client × creation-month · 1,780 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_articles
 - **Pipeline:** build.py build_int_capacity_articles() → transform.build_articles_monthly_mart()
@@ -216,7 +216,7 @@
 - **Columns:** `month_year`, `editorial_pod`, `growth_pod`, `client_name`, `editor_name`, `count`, `revised`, `second_reviews` …
 
 ### `editorial_int_articles_revisions`
-*revision × month · 823 rows · fresh 2026-07-03 09:09:22 UTC*
+*revision × month · 824 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_article_revisions
 - **Pipeline:** build.py build_int_capacity_articles() → transform.build_revisions_monthly_mart()
@@ -226,7 +226,7 @@
 - **Columns:** `month_year`, `editorial_pod`, `growth_pod`, `client_name`, `editor_name`, `revisions`
 
 ### `editorial_int_capacity_pod_months`
-*pod × month × version · 105 rows · fresh 2026-07-03 09:09:22 UTC*
+*pod × month × version · 105 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_capacity
 - **Pipeline:** build.py build_int_capacity_articles() → transform.build_capacity_pod_mart()
@@ -236,7 +236,7 @@
 - **Columns:** `year`, `month`, `pod`, `version`, `total_capacity`, `projected_used_capacity`, `actual_used_capacity`
 
 ### `editorial_int_client_months`
-*client × month · 4,425 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month · 4,425 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_deliverables + editorial_raw_production (+ editorial_raw_clients)
 - **Pipeline:** build.py build_int_delivery()
@@ -246,17 +246,17 @@
 - **Columns:** `client_id`, `client_name`, `year`, `month`, `ovr_period_idx`, `d1_period_idx`, `as_of_date`, `delivered` …
 
 ### `editorial_int_client_pod_months`
-*client × pod × month · 425 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × pod × month · 425 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_client_pod_history + editorial_raw_production
 - **Pipeline:** build.py build_int_capacity_articles() → transform.build_client_contributions_mart()
 - **Processing:** Per (year,month,pod,client) contributions; category weight ×1.0 standard / ×1.4 specialized; projected_raw/actual_raw + weighted versions.
 - **Editorial Hub:** GET /api/capacity/client-contributions; Team KPIs → Capacity By Client via v_editorial_fct_client_contributions
-- **Planning Hub:** getCapacityData() → per-client demand drawer (closed months) + latest-category lookup
+- **Planning Hub:** getCapacityData() → per-client demand drawer + latest-category; reads projected_raw/actual_raw (client-table delivered + variance)
 - **Columns:** `year`, `month`, `pod`, `client_id`, `client_name`, `sf_client_name`, `category`, `weight` …
 
 ### `editorial_int_client_q_snapshot`
-*one row per client · 84 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per client · 84 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_deliverables + editorial_raw_production + editorial_raw_cumulative + editorial_raw_clients
 - **Pipeline:** build.py build_int_delivery() (ports pyrules computeCurrentQ/LastFullQ/quarterMetaFromPeriods/varianceTier)
@@ -266,7 +266,7 @@
 - **Columns:** `client_id`, `client_name`, `status`, `editorial_pod`, `growth_pod`, `ovr_q_month_in_q`, `d1_term_months`, `d1_q_month_in_q` …
 
 ### `editorial_int_goals_month_ct`
-*client × month × content_type · 509 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month × content_type · 509 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_goals
 - **Pipeline:** build.py build_int_goals() → pyrules.goals_month_ct_rows()
@@ -276,7 +276,7 @@
 - **Columns:** `client_name`, `month_year`, `content_type`, `ratio`, `cb_goal`, `cb_delivered`, `ad_goal`, `ad_delivered` …
 
 ### `editorial_int_member_months`
-*member × month · 303 rows · fresh 2026-07-03 09:09:22 UTC*
+*member × month · 303 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_capacity_members + editorial_raw_client_pod_history + editorial_raw_production + editorial_raw_articles
 - **Pipeline:** build.py build_int_capacity_articles() → transform.build_member_utilization_mart() (shared capacity_calc.py)
@@ -286,7 +286,7 @@
 - **Columns:** `year`, `month`, `pod`, `role`, `member_match_status`, `pod_total_capacity`, `pod_total_articles`, `pod_projected_raw` …
 
 ### `editorial_int_pod_assignments`
-*year × month × kind × pod × client × role × person · 17,184 rows · fresh 2026-07-03 09:09:22 UTC*
+*year × month × kind × pod × client × role × person · 17,184 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_pod_history
 - **Pipeline:** build.py build_int_pod_assignments()
@@ -298,7 +298,7 @@
 ## VIEWS — public read contract (`v_editorial_*`)
 
 ### `v_editorial_dim_calendar`
-*year × month × week · 52 rows · fresh 2026-07-03 09:09:22 UTC*
+*year × month × week · 52 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_calendar
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -308,7 +308,7 @@
 - **Columns:** `year`, `month`, `start_date`, `end_date`, `week_number`
 
 ### `v_editorial_dim_client`
-*one row per client · 84 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per client · 84 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_clients
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -318,17 +318,17 @@
 - **Columns:** `client_id`, `client_name`, `status`, `editorial_pod`, `growth_pod`, `start_date`, `end_date`, `term_months` …
 
 ### `v_editorial_dim_member`
-*one row per member · 12 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per member · 12 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_team_members
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
 - **Processing:** Column projection/rename only (member_id, name, role, pod, monthly_capacity, email).
 - **Editorial Hub:** Team KPIs roster; GET /api/team-members/ (legacy seeded roster — v_editorial_roster preferred for live)
-- **Planning Hub:** getRoster() LEFT JOIN → fallback display email when assignments lack one
+- **Planning Hub:** —
 - **Columns:** `member_id`, `name`, `role`, `pod`, `monthly_capacity`, `is_active`, `email`
 
 ### `v_editorial_fct_ai_flagged`
-*one row per flagged/rewrite article · 378 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per flagged/rewrite article · 378 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_ai_monitoring
 - **Pipeline:** views.py VIEWS entry
@@ -348,7 +348,7 @@
 - **Columns:** `pod`, `writer_name`, `editor_name`, `month`, `month_date`, `client`, `total`, `full_pass` …
 
 ### `v_editorial_fct_article_revisions`
-*revision × month · 823 rows · fresh 2026-07-03 09:09:22 UTC*
+*revision × month · 824 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_articles_revisions
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -358,7 +358,7 @@
 - **Columns:** `month_year`, `editorial_pod`, `growth_pod`, `client_name`, `editor_name`, `revisions`
 
 ### `v_editorial_fct_articles_monthly`
-*editor × client × creation-month · 1,780 rows · fresh 2026-07-03 09:09:22 UTC*
+*editor × client × creation-month · 1,780 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_articles_creation
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -368,7 +368,7 @@
 - **Columns:** `month_year`, `editorial_pod`, `growth_pod`, `client_name`, `editor_name`, `count`, `revised`, `second_reviews` …
 
 ### `v_editorial_fct_capacity_pods`
-*pod × month × version · 105 rows · fresh 2026-07-03 09:09:22 UTC*
+*pod × month × version · 105 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_capacity_pod_months
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -378,7 +378,7 @@
 - **Columns:** `year`, `month`, `pod`, `version`, `total_capacity`, `projected_used_capacity`, `actual_used_capacity`
 
 ### `v_editorial_fct_client_contributions`
-*client × pod × month · 425 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × pod × month · 425 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_client_pod_months
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -388,7 +388,7 @@
 - **Columns:** `year`, `month`, `pod`, `client_id`, `client_name`, `sf_client_name`, `category`, `weight` …
 
 ### `v_editorial_fct_client_months`
-*client × month · 4,425 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month · 4,425 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_client_months
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -398,7 +398,7 @@
 - **Columns:** `client_id`, `client_name`, `year`, `month`, `ovr_period_idx`, `d1_period_idx`, `as_of_date`, `delivered` …
 
 ### `v_editorial_fct_client_q_snapshot`
-*one row per client · 84 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per client · 84 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_client_q_snapshot
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -418,7 +418,7 @@
 - **Columns:** `client_name`, `cb_goal`, `cb_delivered`, `ad_goal`, `ad_delivered`
 
 ### `v_editorial_fct_goals_monthly`
-*client × month × content_type · 509 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month × content_type · 509 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_goals_month_ct
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -428,7 +428,7 @@
 - **Columns:** `client_name`, `month_year`, `content_type`, `ratio`, `cb_goal`, `cb_delivered`, `ad_goal`, `ad_delivered` …
 
 ### `v_editorial_fct_kpi_scores`
-*member × month × kpi_type · 1,481 rows · fresh 2026-07-03 09:09:22 UTC*
+*member × month × kpi_type · 1,481 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_kpi_scores + editorial_raw_team_members
 - **Pipeline:** views.py VIEWS entry (LEFT JOIN member name/role/pod)
@@ -438,7 +438,7 @@
 - **Columns:** `team_member_id`, `member_name`, `role`, `pod`, `year`, `month`, `client_id`, `kpi_type` …
 
 ### `v_editorial_fct_member_utilization`
-*member × month · 303 rows · fresh 2026-07-03 09:09:22 UTC*
+*member × month · 303 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_member_months
 - **Pipeline:** views.py VIEWS entry (thin passthrough)
@@ -458,7 +458,7 @@
 - **Columns:** `client_id`, `client_name`, `editorial_pod`, `growth_pod`, `transition`, `days`
 
 ### `v_editorial_fct_pipeline`
-*one row per client · 52 rows · fresh 2026-07-03 09:09:22 UTC*
+*one row per client · 52 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_cumulative + editorial_raw_clients
 - **Pipeline:** views.py VIEWS entry (LEFT JOIN on client name)
@@ -468,13 +468,13 @@
 - **Columns:** `client_name`, `client_id`, `editorial_pod`, `growth_pod`, `sheet_status`, `articles_sow`, `topics_sent`, `topics_approved` …
 
 ### `v_editorial_fct_pod_assignments`
-*year × month × pod × client × role × person · 2,407 rows · fresh 2026-07-03 09:09:22 UTC*
+*year × month × pod × client × role × person · 2,407 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_int_pod_assignments
 - **Pipeline:** views.py VIEWS entry
 - **Processing:** Filters editorial_int_pod_assignments to pod_kind='editorial' (writer rows kept, distinguishable via role; filter confidence='unparsed' for fully-identified only).
 - **Editorial Hub:** Editorial-only staffing / RBAC group feed
-- **Planning Hub:** getRoster() LEFT JOIN → resolves person→email to set the stable assignment key (workerId)
+- **Planning Hub:** —
 - **Columns:** `year`, `month`, `pod_kind`, `pod`, `client_id`, `client_name`, `role`, `person_raw` …
 
 ### `v_editorial_fct_pod_snapshot`
@@ -488,13 +488,13 @@
 - **Columns:** `pod_axis`, `pod`, `as_of_date`, `client_count`, `new_count`, `q_actual_delivered`, `q_projected_end`, `q_invoiced` …
 
 ### `v_editorial_fct_production_monthly`
-*client × month · 4,424 rows · fresh 2026-07-03 09:09:22 UTC*
+*client × month · 4,424 rows · fresh 2026-07-04 09:09:02 UTC*
 
 - **Origin:** editorial_raw_production + editorial_raw_clients
 - **Pipeline:** views.py VIEWS entry (LEFT JOIN client name + both pods)
 - **Processing:** Joins client name + pods onto production rows (actual/projected/projected_original/is_actual); no math.
 - **Editorial Hub:** Overview → Production History chart (All / Per pod / Per client); GET /api/dashboard/production-trend
-- **Planning Hub:** getClientGoals() → writer 'Goals per month' (articles_actual closed / articles_projected future)
+- **Planning Hub:** getClientGoals() → writer 'Goals per month' (articles_actual closed / articles_projected future); getClientLastActiveMonth() → MIN+MAX (firstYm/lastYm) → Team-tab 'last month' badge + client-table status (starting/ending/inactive)
 - **Columns:** `client_id`, `client_name`, `editorial_pod`, `growth_pod`, `year`, `month`, `articles_actual`, `articles_projected` …
 
 ### `v_editorial_roster`
@@ -506,4 +506,106 @@
 - **Editorial Hub:** Single source of truth → master Roster tab → MAC editor/writer dropdowns (Apps Script roster_refresh)
 - **Planning Hub:** getRoster() → roster picker (add SE/Editor/Writer) + writers-capacity rail; SoT for canonical_name/role/is_active/slack_id/work_email
 - **Columns:** `canonical_name`, `role`, `source_id`, `slack_id`, `status`, `hire_date`, `term_date`, `source` …
+
+## HUB-PUBLISHED — written by the planning-hub app, not this ETL
+
+### `editorial_capacity_plan`
+*ym × pod · 92 rows*
+
+- **Origin:** editorial-team-pods app (capacity board) → src/lib/sync-to-bq.ts publish
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Pod-month rollup of the Hub's capacity model: supply, projected/actual demand, utilization — composed WITH the demand-edit overlay.
+- **Editorial Hub:** none today (reviewed 2026-07-04 — no Editorial-Hub reader; candidate INT input at the Q3/Q4 cutover)
+- **Planning Hub:** —
+- **Columns:** `pod`, `ym`, `supply`, `projected_demand`, `actual_demand`, `util_projected`, `util_actual`, `source` …
+
+### `editorial_capacity_plan_demand`
+*ym × pod × client_id (NEGATIVE ids = planned/unsigned clients) · 1,017 rows*
+
+- **Origin:** editorial-team-pods app (client table edits: articles, pod moves, ×1.4 category, note, status_override) → sync-to-bq.ts
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Per-client demand incl. Hub edits. NEGATIVE client_id = planned/unsigned clients (no dim_client match by construction) — joins drop them, SUMs include them (intended).
+- **Editorial Hub:** none today (reviewed 2026-07-04); designated Hub-first source for client→pod attribution + future projected articles at the Q3/Q4 cutover
+- **Planning Hub:** —
+- **Columns:** `pod`, `client_id`, `client_name`, `ym`, `articles`, `weight`, `projected_weighted`, `base_weighted` …
+
+### `editorial_capacity_plan_members`
+*ym × pod × member · 259 rows*
+
+- **Origin:** editorial-team-pods app (member capacity edits) → sync-to-bq.ts
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Per-member capacity (base + effective) behind the Hub's supply numbers.
+- **Editorial Hub:** none today (reviewed 2026-07-04)
+- **Planning Hub:** —
+- **Columns:** `pod`, `role`, `ym`, `member`, `email`, `capacity`, `base_capacity`, `source` …
+
+### `editorial_writer_plan`
+*ym × writer · 1,032 rows*
+
+- **Origin:** editorial-team-pods app (Writers tab) → sync-to-bq.ts
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Writer bandwidth plan: computed/override/effective bw, allocated vs delivered, roster membership.
+- **Editorial Hub:** none today (reviewed 2026-07-04)
+- **Planning Hub:** —
+- **Columns:** `override_bw`, `status`, `ym`, `writer`, `computed_bw`, `effective_bw`, `allocated`, `delivered` …
+
+### `editorial_writer_plan_allocations`
+*ym × writer × client · 0 rows*
+
+- **Origin:** editorial-team-pods app (Writers tab allocations) → sync-to-bq.ts
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Writer→client article allocations; goals composed WITH the demand overlay, so they intentionally diverge from editorial_raw_production.articles_projected where DaniQ edited in the Hub.
+- **Editorial Hub:** none today (reviewed 2026-07-04)
+- **Planning Hub:** —
+- **Columns:** `client_id`, `client_name`, `ym`, `writer`, `articles`, `note`, `source`, `reason` …
+
+### `editorial_writer_plan_client_verticals`
+*one row per client · 32 rows*
+
+- **Origin:** editorial-team-pods app (client vertical tags) → sync-to-bq.ts
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Client vertical tags for writer↔client matching.
+- **Editorial Hub:** none today (reviewed 2026-07-04)
+- **Planning Hub:** —
+- **Columns:** `client_id`, `client_name`, `sf_account_id`, `vertical_name`, `vertical`, `note`, `published_at`
+
+### `editorial_writer_plan_verticals`
+*writer × vertical · 144 rows*
+
+- **Origin:** editorial-team-pods app (writer skills) → sync-to-bq.ts
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Writer vertical skills + difficulty for allocation matching.
+- **Editorial Hub:** none today (reviewed 2026-07-04)
+- **Planning Hub:** —
+- **Columns:** `vertical_name`, `writer`, `vertical`, `vertical_group`, `difficulty`, `published_at`
+
+### `team_pod_assignments`
+*one row per assignment (growth, current) · 377 rows*
+
+- **Origin:** editorial-team-pods app (growth Team tab) → publish
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Growth Team-tab current assignments (growth pod import stays sheet/BQ-Salesforce-based on the EH side — not read from here).
+- **Editorial Hub:** none today (reviewed 2026-07-04)
+- **Planning Hub:** —
+- **Columns:** `id`, `account_id`, `worker_id`, `display_name`, `role`, `slack_id`, `sr_growth_director_slack_id`, `growth_director_slack_id` …
+
+### `team_pod_assignments_editorial`
+*one row per assignment (editorial, current) · 117 rows*
+
+- **Origin:** editorial-team-pods app (editorial Team tab; capacity-initiated current-month pod moves fan out here too) → publish
+- **Pipeline:** planning-hub publish (NOT this ETL)
+- **Processing:** Editorial Team-tab current assignments (the _history table is the canonical per-month record).
+- **Editorial Hub:** none directly (the ETL reads the _history table)
+- **Planning Hub:** —
+- **Columns:** `id`, `account_id`, `pod`, `client_name`, `worker_id`, `display_name`, `role`, `slack_id` …
+
+### `team_pod_assignments_editorial_history`
+*ym × pod × client × role × person (soft-delete via deleted_at) · 2,551 rows*
+
+- **Origin:** editorial-team-pods app (editorial pod_accounts upsert — Team tab AND capacity-initiated moves) → publish
+- **Pipeline:** planning-hub publish (NOT this ETL); soft-delete via deleted_at
+- **Processing:** Canonical per-month editorial member↔pod↔client history. PEOPLE-loop cutover 2026-06-12: this table is Hub-first source of truth; sheet is fallback. Gate: python -m etl.warehouse.hub_parity.
+- **Editorial Hub:** import_team_pods()/_import_editorial_pods_from_hub() → pod_assignments (RBAC); import_pod_history()/_import_editorial_history_from_hub() → pod_assignment_history → editorial_raw_pod_history
+- **Planning Hub:** —
+- **Columns:** `pod`, `client_id`, `client_name`, `role`, `display_name`, `confidence`, `ym`, `email` …
 

@@ -199,7 +199,7 @@ LINEAGE: dict[str, dict[str, str]] = {
         "pipeline_step": "build.py RAW_TABLES ← Neon production_history ← import_operating_model() (projected_original ← _ingest_et_cp_year())",
         "processing": "Faithful mirror; client × month articles_actual/projected/projected_original/is_actual (row0 Actual/Projection labels resolved at ingestion).",
         "eh": "GET /api/dashboard/production-trend + client-production; upstream of int marts; v_editorial_fct_production_monthly",
-        "ph": "getCapacityData() → future per-client demand (articles_projected × category weight, Jul–Dec)",
+        "ph": "getCapacityData() → future per-client demand (articles_projected × weight) + reads articles_actual (current-month delivered) and projected_original (Δ-vs-original on future months)",
     },
     "editorial_raw_surfer_usage": {
         "origin": 'Writer AI Monitoring sheet › "Surfer\'s API usage" tab',
@@ -249,7 +249,7 @@ LINEAGE: dict[str, dict[str, str]] = {
         "pipeline_step": "build.py build_int_capacity_articles() → transform.build_client_contributions_mart()",
         "processing": "Per (year,month,pod,client) contributions; category weight ×1.0 standard / ×1.4 specialized; projected_raw/actual_raw + weighted versions.",
         "eh": "GET /api/capacity/client-contributions; Team KPIs → Capacity By Client via v_editorial_fct_client_contributions",
-        "ph": "getCapacityData() → per-client demand drawer (closed months) + latest-category lookup",
+        "ph": "getCapacityData() → per-client demand drawer + latest-category; reads projected_raw/actual_raw (client-table delivered + variance)",
     },
     "editorial_int_client_q_snapshot": {
         "origin": "editorial_raw_deliverables + editorial_raw_production + editorial_raw_cumulative + editorial_raw_clients",
@@ -299,7 +299,7 @@ LINEAGE: dict[str, dict[str, str]] = {
         "pipeline_step": "views.py VIEWS entry (thin passthrough)",
         "processing": "Column projection/rename only (member_id, name, role, pod, monthly_capacity, email).",
         "eh": "Team KPIs roster; GET /api/team-members/ (legacy seeded roster — v_editorial_roster preferred for live)",
-        "ph": "getRoster() LEFT JOIN → fallback display email when assignments lack one",
+        "ph": "",  # 2026-07-04: getRoster no longer joins it (email now from roster.work_email)
     },
     "v_editorial_fct_ai_flagged": {
         "origin": "editorial_raw_ai_monitoring",
@@ -404,7 +404,7 @@ LINEAGE: dict[str, dict[str, str]] = {
         "pipeline_step": "views.py VIEWS entry",
         "processing": "Filters editorial_int_pod_assignments to pod_kind='editorial' (writer rows kept, distinguishable via role; filter confidence='unparsed' for fully-identified only).",
         "eh": "Editorial-only staffing / RBAC group feed",
-        "ph": "getRoster() LEFT JOIN → resolves person→email to set the stable assignment key (workerId)",
+        "ph": "",  # 2026-07-04: getRoster no longer joins it (workerId = canonical_name)
     },
     "v_editorial_fct_pod_snapshot": {
         "origin": "editorial_int_client_q_snapshot (rolled up onto both pod axes)",
@@ -418,7 +418,7 @@ LINEAGE: dict[str, dict[str, str]] = {
         "pipeline_step": "views.py VIEWS entry (LEFT JOIN client name + both pods)",
         "processing": "Joins client name + pods onto production rows (actual/projected/projected_original/is_actual); no math.",
         "eh": "Overview → Production History chart (All / Per pod / Per client); GET /api/dashboard/production-trend",
-        "ph": "getClientGoals() → writer 'Goals per month' (articles_actual closed / articles_projected future)",
+        "ph": "getClientGoals() → writer 'Goals per month' (articles_actual closed / articles_projected future); getClientLastActiveMonth() → MIN+MAX (firstYm/lastYm) → Team-tab 'last month' badge + client-table status (starting/ending/inactive)",
     },
     "v_editorial_roster": {
         "origin": "Rippling v_headcount (title LIKE '%editor%') + Slack slack_raw_users (ext.writing email) + editorial_name_map, minus editorial_roster_exclusions",
@@ -426,6 +426,80 @@ LINEAGE: dict[str, dict[str, str]] = {
         "processing": "Unions Rippling editors (Sr/Lead/Director/VP→sr_editor) + Slack writers + legacy name-map canonicals; canonicalizes via editorial_name_map; subtracts role-aware exclusions; carries source IDs + work_email; always-live.",
         "eh": "Single source of truth → master Roster tab → MAC editor/writer dropdowns (Apps Script roster_refresh)",
         "ph": "getRoster() → roster picker (add SE/Editor/Writer) + writers-capacity rail; SoT for canonical_name/role/is_active/slack_id/work_email",
+    },
+    # ── HUB-PUBLISHED (origin = planning-hub app; this ETL does NOT write these) ─
+    # Contract: editorial-team-pods/docs/capacity-plan-contract.md. `ph` is for
+    # READS of these tables (the planning-hub WRITES them — that's the origin);
+    # its read layer doesn't read them back, so ph stays "" (drift check clean).
+    "editorial_capacity_plan": {
+        "origin": "editorial-team-pods app (capacity board) → src/lib/sync-to-bq.ts publish",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Pod-month rollup of the Hub's capacity model: supply, projected/actual demand, utilization — composed WITH the demand-edit overlay.",
+        "eh": "none today (reviewed 2026-07-04 — no Editorial-Hub reader; candidate INT input at the Q3/Q4 cutover)",
+        "ph": "",
+    },
+    "editorial_capacity_plan_demand": {
+        "origin": "editorial-team-pods app (client table edits: articles, pod moves, ×1.4 category, note, status_override) → sync-to-bq.ts",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Per-client demand incl. Hub edits. NEGATIVE client_id = planned/unsigned clients (no dim_client match by construction) — joins drop them, SUMs include them (intended).",
+        "eh": "none today (reviewed 2026-07-04); designated Hub-first source for client→pod attribution + future projected articles at the Q3/Q4 cutover",
+        "ph": "",
+    },
+    "editorial_capacity_plan_members": {
+        "origin": "editorial-team-pods app (member capacity edits) → sync-to-bq.ts",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Per-member capacity (base + effective) behind the Hub's supply numbers.",
+        "eh": "none today (reviewed 2026-07-04)",
+        "ph": "",
+    },
+    "editorial_writer_plan": {
+        "origin": "editorial-team-pods app (Writers tab) → sync-to-bq.ts",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Writer bandwidth plan: computed/override/effective bw, allocated vs delivered, roster membership.",
+        "eh": "none today (reviewed 2026-07-04)",
+        "ph": "",
+    },
+    "editorial_writer_plan_allocations": {
+        "origin": "editorial-team-pods app (Writers tab allocations) → sync-to-bq.ts",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Writer→client article allocations; goals composed WITH the demand overlay, so they intentionally diverge from editorial_raw_production.articles_projected where DaniQ edited in the Hub.",
+        "eh": "none today (reviewed 2026-07-04)",
+        "ph": "",
+    },
+    "editorial_writer_plan_client_verticals": {
+        "origin": "editorial-team-pods app (client vertical tags) → sync-to-bq.ts",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Client vertical tags for writer↔client matching.",
+        "eh": "none today (reviewed 2026-07-04)",
+        "ph": "",
+    },
+    "editorial_writer_plan_verticals": {
+        "origin": "editorial-team-pods app (writer skills) → sync-to-bq.ts",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Writer vertical skills + difficulty for allocation matching.",
+        "eh": "none today (reviewed 2026-07-04)",
+        "ph": "",
+    },
+    "team_pod_assignments": {
+        "origin": "editorial-team-pods app (growth Team tab) → publish",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Growth Team-tab current assignments (growth pod import stays sheet/BQ-Salesforce-based on the EH side — not read from here).",
+        "eh": "none today (reviewed 2026-07-04)",
+        "ph": "",
+    },
+    "team_pod_assignments_editorial": {
+        "origin": "editorial-team-pods app (editorial Team tab; capacity-initiated current-month pod moves fan out here too) → publish",
+        "pipeline_step": "planning-hub publish (NOT this ETL)",
+        "processing": "Editorial Team-tab current assignments (the _history table is the canonical per-month record).",
+        "eh": "none directly (the ETL reads the _history table)",
+        "ph": "",
+    },
+    "team_pod_assignments_editorial_history": {
+        "origin": "editorial-team-pods app (editorial pod_accounts upsert — Team tab AND capacity-initiated moves) → publish",
+        "pipeline_step": "planning-hub publish (NOT this ETL); soft-delete via deleted_at",
+        "processing": "Canonical per-month editorial member↔pod↔client history. PEOPLE-loop cutover 2026-06-12: this table is Hub-first source of truth; sheet is fallback. Gate: python -m etl.warehouse.hub_parity.",
+        "eh": "import_team_pods()/_import_editorial_pods_from_hub() → pod_assignments (RBAC); import_pod_history()/_import_editorial_history_from_hub() → pod_assignment_history → editorial_raw_pod_history",
+        "ph": "",
     },
 }
 
