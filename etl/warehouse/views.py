@@ -126,7 +126,7 @@ GROUP BY client_name
 SELECT
   p.client_id, c.name AS client_name, c.editorial_pod, c.growth_pod,
   p.year, p.month, p.articles_actual, p.articles_projected,
-  p.projected_original, p.is_actual, p.synced_at
+  p.projected_original, p.projected_comment, p.is_actual, p.synced_at
 FROM {DS}.editorial_raw_production p
 LEFT JOIN {DS}.editorial_raw_clients c ON c.id = p.client_id
 """,

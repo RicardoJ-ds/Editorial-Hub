@@ -254,6 +254,10 @@ class ProductionHistory(Base):
     # future months it mirrors the live projection). Separate from
     # articles_actual / articles_projected, which keep their existing behavior.
     projected_original: Mapped[int | None] = mapped_column(Integer)
+    # Per-(client, month) free-text note from the ET-CP ARTICLE BREAKDOWN
+    # "Comments" column (e.g. "missed by 5", "move to Pod 5", "paused until July").
+    # Populated by _ingest_et_cp_year alongside projected_original.
+    projected_comment: Mapped[str | None] = mapped_column(Text)
     is_actual: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[str] = mapped_column(String(50), default="operating_model")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

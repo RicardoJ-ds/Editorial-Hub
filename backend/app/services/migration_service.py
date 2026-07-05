@@ -1348,6 +1348,9 @@ def _ingest_et_cp_year(
                 projected = safe_int(_cell(row, pc + 4))
                 if projected is None:
                     continue
+                # ARTICLE BREAKDOWN column order per month group:
+                # Pod(+0) Status(+1) Category(+2) %(+3) Projected(+4) Delivered(+5) Comments(+6)
+                comment = _cell(row, pc + 6).strip() or None
                 ph = (
                     session.execute(
                         select(ProductionHistory).where(
@@ -1361,6 +1364,7 @@ def _ingest_et_cp_year(
                 )
                 if ph:
                     ph.projected_original = projected
+                    ph.projected_comment = comment
                 else:
                     session.add(
                         ProductionHistory(
@@ -1368,6 +1372,7 @@ def _ingest_et_cp_year(
                             year=year,
                             month=month,
                             projected_original=projected,
+                            projected_comment=comment,
                             is_actual=False,
                             source="et_cp_projection",
                         )

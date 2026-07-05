@@ -338,6 +338,16 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("capacity_projections used-capacity float migration failed (continuing)")
 
+    # 15. production_history.projected_comment — the per-(client, month) note
+    #     from the ET-CP ARTICLE BREAKDOWN "Comments" column. Populated on the
+    #     next ET-CP capacity-plan sync alongside projected_original.
+    try:
+        await conn.execute(
+            text("ALTER TABLE production_history ADD COLUMN IF NOT EXISTS projected_comment TEXT")
+        )
+    except Exception:
+        logger.exception("production_history.projected_comment migration failed (continuing)")
+
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model
     #    itself is created by Base.metadata.create_all; this DELETE
