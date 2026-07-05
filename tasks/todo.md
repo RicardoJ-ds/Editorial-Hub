@@ -54,6 +54,14 @@ is 241 zero-projection rows + 1 Tempo-XYZ identity dup (flagged to planning-hub)
 - [ ] INT compose behind flag `CAPACITY_HUB_CUTOVER` (default OFF): `editorial_int_client_pod_months`
       (pod + weight + projected articles) + `v_editorial_fct_production_monthly` future months —
       `COALESCE(hub app-rows, sheet)`; staleness valve at compose time
+- [ ] **Pod-vs-client reconciliation (2026-07-05 finding)**: today `editorial_int_capacity_pod_months.
+      projected_used_capacity` COPIES the ET-CP capacity headline (counts non-client breakdown rows:
+      planned "[New client] KO"s, ad-hoc "WL/SG support" lines) while `editorial_int_client_pod_months`
+      drops any row without a real client_id → Hub pod-total ≠ DEMAND×1.4 (Jul +9, Feb +17; sheet
+      reconciles because its headline is the breakdown column-sum). FIX at cutover: source per-client
+      demand from `editorial_capacity_plan_demand` incl. negative-id planned rows, and REBUILD the pod
+      mart's projected/actual_used as Σ(client_pod_months) so pod ≡ Σ client ≡ sheet by construction
+      (stop copying the headline). See `etl/handoff_planning_hub_pod_vs_client_demand_answer.md`.
 - [ ] Aug 1 flip: enable flag + one-time snapshot-freeze `projected_original` per (client, month) +
       lineage catalog entries for the mirror (`/bq-schema-catalog`)
 

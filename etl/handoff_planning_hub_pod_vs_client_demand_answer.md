@@ -4,17 +4,31 @@ From: @Editorial-Hub session
 Project: ANSWER — pod projected_used_capacity vs Σ client projected_weighted (current-month gap)
 Status: ANSWER — replies to handoff_planning_hub_pod_vs_client_demand_reconcile.md
 
-## Verdict: EXPECTED — the gap is planned/unsigned "[New client]" demand, NOT a mart bug
-Confirmed against the LIVE `ET CP 2026 [V15 Jul 2026]` sheet (not just the raw mirror). The
-current-month gap is entirely **placeholder demand for expected-but-unsigned clients** that
-the pod headline sums in but the per-client mart can't itemize. (My first take — "pod headline
-advanced ahead of the client lines" — was superseded by reading the actual sheet cells.)
+## Verdict: EXPECTED — the gap is sheet breakdown rows that aren't real Hub clients, NOT a bug
+Confirmed against the LIVE `ET CP 2026 [V15 Jul 2026]` sheet. The sheet reconciles for EVERY
+month (capacity "Projected Used" total = article-breakdown "total + specialized", Jan–Jul,
+exact) because in the sheet the pod headline IS the column-sum of the breakdown. The Hub builds
+those two totals from two independently-ingested tables, and its per-client side silently drops
+any breakdown row that doesn't resolve to a real Hub `client_id` — so the Hub's POD side matches
+the sheet while its CLIENT side runs short. (Earlier "pod headline advanced ahead" take was
+wrong — superseded by reading the sheet.)
 
-## Root cause (sheet-verified, exact to the article)
-Pod "Projected Used Capacity" (CAPACITY block) sums ALL article-breakdown rows for the pod,
-INCLUDING `[New client]` placeholder rows. The warehouse client mart
-(`editorial_int_client_pod_months`) itemizes only rows that map to a real Hub `client_id`, so
-it DROPS the placeholders. The gap = Σ placeholder demand for the planning month:
+## The two Hub totals come from different tables that count different row universes
+| Hub number (Jul) | source table | counts |
+|---|---|---|
+| Pod grand total 527 | `editorial_int_capacity_pod_months` | verbatim copy of the ET-CP CAPACITY headline — EVERY breakdown row |
+| DEMAND ×1.4 = 518 | `editorial_int_client_pod_months` (+`editorial_raw_production` future months) | Σ over breakdown, ONLY rows resolving to a real Hub client_id |
+
+## Root cause (sheet-verified) — dropped NON-CLIENT breakdown rows
+Both gap months trace to the same thing: article-breakdown rows with no real Hub client_id,
+which the pod headline sums but the per-client mart drops.
+- **Jul −9:** `[New client] July KO #2` (7, Pod 1) + `[New client] July KO #1` (2, Pod 5) — planned/unsigned placeholders.
+- **Feb −17:** `WL/SG support (Feb)` (14, Pod 2) + a Pod-1 misc line (3) — ad-hoc support rows.
+- **Jan/Mar/Apr/May/Jun:** no such rows → reconcile ±1 (rounding).
+- **Aug–Dec:** `editorial_int_client_pod_months` has NO rows (itemization only runs Jan–Jul);
+  the Hub's future-month demand comes from `editorial_raw_production.projected_original × weight`.
+
+Per-pod current-month detail (Jul V15, sheet-verified):
 
 | Pod (Jul V15) | real-client Σ (×1.4) | placeholder row | pod headline (BF) |
 |---|---|---|---|
@@ -29,14 +43,27 @@ Closed months reconcile because placeholders either sign (become a real client) 
 (`build_capacity_pod_mart` does no math), and the client mart honestly sums real clients —
 both correct.
 
-## This is the SAME planned-client semantics as the Q3/Q4 cutover contract
-`[New client]` placeholders are exactly the NEGATIVE-`client_id` rows in
-`editorial_capacity_plan_demand`: "summed into the total, dropped by any client_id join
-(intended — future demand)." So this divergence is the pod-vs-client view of that same
-already-agreed behavior — and it will PERSIST (correctly) after cutover. The pod rollup SHOULD
-keep counting planned demand (it's real capacity pressure); the per-client footer SHOULD keep
-excluding unsigned clients. Don't try to force them equal by dropping planned demand from the
-pod side.
+## How to DELIVER THE MATCH (what the planning-hub asked for)
+These non-client rows are exactly the NEGATIVE-`client_id` rows in
+`editorial_capacity_plan_demand` (your "ADD PLANNED CLIENT" mechanism already models them).
+The match is delivered by making the itemization carry the same rows the headline sums, and
+deriving the pod total FROM the itemization instead of copying the headline — which is the
+Q3/Q4 cutover design:
+1. **Per-client demand → `editorial_capacity_plan_demand` INCLUDING the negative-id planned/
+   placeholder rows** (KOs + ad-hoc support lines like WL/SG). Then DEMAND ×1.4 → 527.
+2. **Pod rollup → `Σ(that per-client demand)`** — one number like the sheet — NOT the
+   separately-copied ET-CP capacity headline.
+→ pod total ≡ DEMAND ×1.4 ≡ sheet, by construction.
+
+ETL commitment (our side, at cutover): rebuild `editorial_int_capacity_pod_months.projected_
+used_capacity` (+ actual) as Σ over `editorial_int_client_pod_months` (which by then composes
+from `editorial_capacity_plan_demand` incl. planned negatives), so the two marts can't drift.
+Planning-hub side: ensure your planned/placeholder rows cover ALL the sheet's non-client lines
+(KOs AND support rows), and read the pod total from the derived Σ, not the headline copy.
+
+Do NOT reconcile by dropping planned demand from the pod side — that would under-count real
+capacity pressure and diverge from the sheet (which counts it). Pre-cutover the gap is
+unavoidable (our sheet-derived marts can't reconstruct free-text non-client rows) — label it.
 
 ## How to see it in the sheet (`ET CP 2026 [V15 Jul 2026]`)
 1. CAPACITY block: month labels row 81 → July = column group starting **AZ**; Pod 1
@@ -47,9 +74,8 @@ pod side.
    headline. The Hub footer omits that row → 157.6. Same for Pod 5 (`[New client] July KO #1` = 2).
 
 ## Labeling
-Label the current-month footer gap: *"pod projection includes planned/unsigned [New client]
-demand; the client footer itemizes signed clients only — reconciles as KOs sign or drop."*
-Both numbers are individually correct (matrix % uses the pod headline incl. planned demand; the
-client footer honestly sums the mappable rows).
+Label the footer gap: *"pod headline counts every breakdown row (incl. planned [New client]
+KOs + ad-hoc support lines); the client footer itemizes only rows that map to a real Hub
+client — the difference is those non-client rows."* Both numbers are individually correct.
 
 *Written 2026-07-05 by the Editorial-Hub session.*
