@@ -4,45 +4,52 @@ From: @Editorial-Hub session
 Project: ANSWER — pod projected_used_capacity vs Σ client projected_weighted (current-month gap)
 Status: ANSWER — replies to handoff_planning_hub_pod_vs_client_demand_reconcile.md
 
-## Verdict: EXPECTED — source-sheet current-month artifact, NOT a mart bug
-Your hypothesis is correct. The two numbers come from two DIFFERENT blocks of the same
-ET-CP V15 sheet, and the pod mart applies zero math — it copies the sheet cell verbatim.
-Reproduced live 2026-07-05 (matches your table exactly: Jul Pod 1 +7.4, Pod 5 +2.0; all
-closed months ±0.4).
+## Verdict: EXPECTED — the gap is planned/unsigned "[New client]" demand, NOT a mart bug
+Confirmed against the LIVE `ET CP 2026 [V15 Jul 2026]` sheet (not just the raw mirror). The
+current-month gap is entirely **placeholder demand for expected-but-unsigned clients** that
+the pod headline sums in but the per-client mart can't itemize. (My first take — "pod headline
+advanced ahead of the client lines" — was superseded by reading the actual sheet cells.)
 
-## Why (four pieces of evidence)
-1. **Rollup = verbatim passthrough.** `transform.build_capacity_pod_mart()` does a
-   latest-version collapse and copies `projected_used_capacity` straight from
-   `editorial_raw_capacity` — NO computation. So the `165` for Pod 1 Jul IS the sheet's
-   EDITORIAL TEAM CAPACITY "Projected Used" cell. Raw history confirms it was bumped in the
-   live version: V13=159 · V14=157 · **V15=165**.
-2. **Client Σ = ARTICLE BREAKDOWN block.** `compute_client_contributions()` sums
-   `production_history.projected_original × weight` (×1.4 specialized) per client. Pod 1 Jul =
-   7 client lines, all present, none zero → Σ 157.6. Not a dropped/missing client.
-3. **Pod-specific → not a systematic bug.** Same current month, **Pod 3 reconciles exactly
-   (142 = 142)**; only Pod 1 (+7.4) and Pod 5 (+2) diverge. An ingestion/transform bug (e.g.
-   current-month column misalignment) would hit every pod uniformly. This is DaniQ advancing
-   Pod 1's & Pod 5's pod headline ahead of their itemized client lines.
-4. **Closed months reconcile ±0.4** (pure ×1.4 rounding) — the transform is sound; the
-   per-client lines get completed as the month closes.
+## Root cause (sheet-verified, exact to the article)
+Pod "Projected Used Capacity" (CAPACITY block) sums ALL article-breakdown rows for the pod,
+INCLUDING `[New client]` placeholder rows. The warehouse client mart
+(`editorial_int_client_pod_months`) itemizes only rows that map to a real Hub `client_id`, so
+it DROPS the placeholders. The gap = Σ placeholder demand for the planning month:
 
-(Verified against `editorial_raw_capacity`, which is the importer's faithful parsed copy of
-that sheet block — i.e. this is the sheet's numbers. Can pull the live V15 cells if you want
-belt-and-suspenders, but the raw layer is definitive.)
+| Pod (Jul V15) | real-client Σ (×1.4) | placeholder row | pod headline (BF) |
+|---|---|---|---|
+| Pod 1 | 157.6 | `[New client] July KO #2` = 7.0 | 164.6 |
+| Pod 5 | 90.0 | `[New client] July KO #1` = 2.0 | 92.0 |
+| Pod 2 / Pod 3 | 128.2 / 142.0 | none | 128.2 / 142.0 (match) |
+| Jun (closed), all pods | — | none | reconciles ±0.4 |
 
-## Caveat: "fully converges after the Q3/Q4 cutover" is NOT automatic
-The Q3/Q4 cutover moves per-client PROJECTED ARTICLES Hub-first — but the pod-level
-`projected_used_capacity` comes from a SEPARATE ET-CP block (pod capacity/demand headline),
-which is NOT in the demand-table (`editorial_capacity_plan_demand`) scope. They converge only
-if, post-cutover, the pod projected-used is DERIVED as Σ(client demand) instead of staying an
-independent cell. Recommend that as the clean end-state — it removes the two-footer split
-structurally. If the pod headline stays a separate number, this current-month divergence
-persists (and stays legitimate: the two footers measure different things).
+So: pod headline INCLUDES planned demand; client itemization EXCLUDES it (no real client_id).
+Closed months reconcile because placeholders either sign (become a real client) or are removed.
+`projected_used_capacity` in the pod mart is a verbatim copy of the sheet headline
+(`build_capacity_pod_mart` does no math), and the client mart honestly sums real clients —
+both correct.
+
+## This is the SAME planned-client semantics as the Q3/Q4 cutover contract
+`[New client]` placeholders are exactly the NEGATIVE-`client_id` rows in
+`editorial_capacity_plan_demand`: "summed into the total, dropped by any client_id join
+(intended — future demand)." So this divergence is the pod-vs-client view of that same
+already-agreed behavior — and it will PERSIST (correctly) after cutover. The pod rollup SHOULD
+keep counting planned demand (it's real capacity pressure); the per-client footer SHOULD keep
+excluding unsigned clients. Don't try to force them equal by dropping planned demand from the
+pod side.
+
+## How to see it in the sheet (`ET CP 2026 [V15 Jul 2026]`)
+1. CAPACITY block: month labels row 81 → July = column group starting **AZ**; Pod 1
+   "Projected Used Capacity" = cell **BF84 = 164.6**.
+2. ARTICLE BREAKDOWN block (row 114+): month labels row 123, headers row 124 → July Projected =
+   column **BD**, client names col **C**, Pod col **AZ**. Scan Pod 1 July: 7 real clients + a row
+   literally named **`[New client] July KO #2` (Projected 7)** → ×1.4-weighted sum = 164.6 = the
+   headline. The Hub footer omits that row → 157.6. Same for Pod 5 (`[New client] July KO #1` = 2).
 
 ## Labeling
-Safe to label the current-month footer gap: *"pod projection set ahead of itemized client
-lines — reconciles at month close."* Both numbers are individually correct (matrix % uses the
-authoritative pod headline; the client footer honestly sums the visible rows) — the same
-two-footer split the sheet itself carries.
+Label the current-month footer gap: *"pod projection includes planned/unsigned [New client]
+demand; the client footer itemizes signed clients only — reconciles as KOs sign or drop."*
+Both numbers are individually correct (matrix % uses the pod headline incl. planned demand; the
+client footer honestly sums the mappable rows).
 
 *Written 2026-07-05 by the Editorial-Hub session.*
