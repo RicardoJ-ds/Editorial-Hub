@@ -1131,6 +1131,24 @@ def _ingest_et_cp_year(
             .execute()
             .get("values", [])
         )
+    # Second, UNFORMATTED grid — used ONLY for the numeric capacity cells
+    # (Total/Projected/Actual Used). Those carry ×1.4 specialized weighting so
+    # the real value is fractional (e.g. 124.4), but the cell's display format
+    # shows 0 decimals — a FORMATTED read returns "124" and silently drops the
+    # .4, which made the pod rollup drift ±1 from the per-client sum. Text and
+    # date parsing (headers, pod names, client block) stays on `all_rows` —
+    # reading THOSE unformatted would turn month headers/dates into serials.
+    all_rows_uf = (
+        service.spreadsheets()
+        .values()
+        .get(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{tab_title}'",
+            valueRenderOption="UNFORMATTED_VALUE",
+        )
+        .execute()
+        .get("values", [])
+    )
     version_match = re.search(r"\[(.*?)\]", tab_title)
     version = version_match.group(1) if version_match else tab_title
     counts = {"members": 0, "capacity_pods": 0, "projected": 0}
@@ -1193,6 +1211,7 @@ def _ingest_et_cp_year(
         slot: dict[int, int] = {}
         for row_idx in range(sub_idx + 1, client_hdr_for_bound):
             row = all_rows[row_idx]
+            uf_row = all_rows_uf[row_idx] if row_idx < len(all_rows_uf) else []
             c_label = _cell(row, 2).strip().lower()
             if c_label == "totals":
                 break  # capacity block grand-total row → end of block
@@ -1209,13 +1228,17 @@ def _ingest_et_cp_year(
                     pod = _normalize_editorial_pod(pod_cell)
                     current_pod[col] = pod
                     slot[col] = 0
-                    # Pod-level totals live on this (Senior Editor) row.
-                    # projected/actual are FLOAT — they carry ×1.4 specialized
-                    # weighting (e.g. 109.4); rounding here made the pod rollup
-                    # drift ±1 from the per-client itemization. total stays int.
-                    total_cap = safe_int(_cell(row, col + 5))
-                    projected = safe_float(_cell(row, col + 6))
-                    actual = safe_float(_cell(row, col + 7))
+                    # Pod-level totals live on this (Senior Editor) row. Read
+                    # from the UNFORMATTED grid: projected/actual carry ×1.4
+                    # specialized weighting (e.g. 109.4) that the cell's display
+                    # format hides — a formatted read returns "109" and drops the
+                    # fraction, making the pod rollup drift ±1 from the per-client
+                    # sum. Round to 0.1 (the sheet's precision). total stays int.
+                    total_cap = safe_int(_cell(uf_row, col + 5))
+                    projected = safe_float(_cell(uf_row, col + 6))
+                    actual = safe_float(_cell(uf_row, col + 7))
+                    projected = round(projected, 1) if projected is not None else None
+                    actual = round(actual, 1) if actual is not None else None
                     existing = (
                         session.execute(
                             select(CapacityProjection).where(
