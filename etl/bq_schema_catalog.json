@@ -1,11 +1,11 @@
 {
   "dataset": "graphite-data.graphite_bi_sandbox",
-  "generated_at": "2026-07-04 21:22:06 UTC",
+  "generated_at": "2026-07-05 19:47:45 UTC",
   "source": "live BigQuery INFORMATION_SCHEMA",
   "counts": {
     "tables": 38,
     "views": 21,
-    "columns": 884
+    "columns": 886
   },
   "objects": [
     {
@@ -97,7 +97,7 @@
         }
       ],
       "row_count": 3372,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_article_revisions",
@@ -148,7 +148,7 @@
         }
       ],
       "row_count": 3896,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_articles",
@@ -307,7 +307,7 @@
         }
       ],
       "row_count": 16148,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_calendar",
@@ -354,7 +354,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_capacity",
@@ -385,11 +385,11 @@
         },
         {
           "name": "projected_used_capacity",
-          "type": "INT64"
+          "type": "FLOAT64"
         },
         {
           "name": "actual_used_capacity",
-          "type": "INT64"
+          "type": "FLOAT64"
         },
         {
           "name": "version",
@@ -417,7 +417,7 @@
         }
       ],
       "row_count": 305,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_capacity_members",
@@ -480,7 +480,7 @@
         }
       ],
       "row_count": 417,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_client_pod_history",
@@ -535,7 +535,7 @@
         }
       ],
       "row_count": 513,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_clients",
@@ -710,7 +710,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_cumulative",
@@ -813,7 +813,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_deliverables",
@@ -884,7 +884,7 @@
         }
       ],
       "row_count": 631,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_delivery_templates",
@@ -931,7 +931,7 @@
         }
       ],
       "row_count": 60,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_goals",
@@ -1050,7 +1050,7 @@
         }
       ],
       "row_count": 2212,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_kpi_scores",
@@ -1113,7 +1113,7 @@
         }
       ],
       "row_count": 1481,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_model_assumptions",
@@ -1152,7 +1152,7 @@
         }
       ],
       "row_count": 14,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_name_mappings",
@@ -1187,7 +1187,7 @@
         }
       ],
       "row_count": 471,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_pod_history",
@@ -1246,7 +1246,7 @@
         }
       ],
       "row_count": 17184,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_production",
@@ -1284,6 +1284,10 @@
           "type": "INT64"
         },
         {
+          "name": "projected_comment",
+          "type": "STRING"
+        },
+        {
           "name": "is_actual",
           "type": "BOOL"
         },
@@ -1305,7 +1309,7 @@
         }
       ],
       "row_count": 4424,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_surfer_usage",
@@ -1380,7 +1384,7 @@
         }
       ],
       "row_count": 25,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_raw_team_members",
@@ -1431,7 +1435,7 @@
         }
       ],
       "row_count": 12,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_articles_creation",
@@ -1490,7 +1494,7 @@
         }
       ],
       "row_count": 1780,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_articles_revisions",
@@ -1529,7 +1533,7 @@
         }
       ],
       "row_count": 824,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_capacity_pod_months",
@@ -1560,11 +1564,11 @@
         },
         {
           "name": "projected_used_capacity",
-          "type": "INT64"
+          "type": "FLOAT64"
         },
         {
           "name": "actual_used_capacity",
-          "type": "INT64"
+          "type": "FLOAT64"
         },
         {
           "name": "synced_at",
@@ -1572,7 +1576,7 @@
         }
       ],
       "row_count": 105,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_client_months",
@@ -1667,7 +1671,7 @@
         }
       ],
       "row_count": 4425,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_client_pod_months",
@@ -1730,7 +1734,7 @@
         }
       ],
       "row_count": 425,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_client_q_snapshot",
@@ -1945,7 +1949,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_goals_month_ct",
@@ -2008,7 +2012,7 @@
         }
       ],
       "row_count": 509,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_member_months",
@@ -2119,7 +2123,7 @@
         }
       ],
       "row_count": 303,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "editorial_int_pod_assignments",
@@ -2186,7 +2190,7 @@
         }
       ],
       "row_count": 17184,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_dim_calendar",
@@ -2221,7 +2225,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_dim_client",
@@ -2360,7 +2364,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_dim_member",
@@ -2403,7 +2407,7 @@
         }
       ],
       "row_count": 12,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_ai_flagged",
@@ -2494,7 +2498,7 @@
         }
       ],
       "row_count": 378,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_ai_recommendations",
@@ -2584,7 +2588,7 @@
         }
       ],
       "row_count": 824,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_articles_monthly",
@@ -2643,7 +2647,7 @@
         }
       ],
       "row_count": 1780,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_capacity_pods",
@@ -2674,11 +2678,11 @@
         },
         {
           "name": "projected_used_capacity",
-          "type": "INT64"
+          "type": "FLOAT64"
         },
         {
           "name": "actual_used_capacity",
-          "type": "INT64"
+          "type": "FLOAT64"
         },
         {
           "name": "synced_at",
@@ -2686,7 +2690,7 @@
         }
       ],
       "row_count": 105,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_client_contributions",
@@ -2749,7 +2753,7 @@
         }
       ],
       "row_count": 425,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_client_months",
@@ -2844,7 +2848,7 @@
         }
       ],
       "row_count": 4425,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_client_q_snapshot",
@@ -3059,7 +3063,7 @@
         }
       ],
       "row_count": 84,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_goals_client_totals",
@@ -3153,7 +3157,7 @@
         }
       ],
       "row_count": 509,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_kpi_scores",
@@ -3208,7 +3212,7 @@
         }
       ],
       "row_count": 1481,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_member_utilization",
@@ -3319,7 +3323,7 @@
         }
       ],
       "row_count": 303,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_milestone_transitions",
@@ -3425,7 +3429,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_pod_assignments",
@@ -3492,7 +3496,7 @@
         }
       ],
       "row_count": 2407,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_fct_pod_snapshot",
@@ -3601,6 +3605,10 @@
           "type": "INT64"
         },
         {
+          "name": "projected_comment",
+          "type": "STRING"
+        },
+        {
           "name": "is_actual",
           "type": "BOOL"
         },
@@ -3610,7 +3618,7 @@
         }
       ],
       "row_count": 4424,
-      "synced_at": "2026-07-04T09:09:02.709512+00:00"
+      "synced_at": "2026-07-05T19:45:51.860119+00:00"
     },
     {
       "name": "v_editorial_roster",

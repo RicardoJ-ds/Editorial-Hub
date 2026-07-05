@@ -195,9 +195,9 @@ LINEAGE: dict[str, dict[str, str]] = {
         "ph": "",
     },
     "editorial_raw_production": {
-        "origin": "Editorial Capacity Planning › 'Editorial Operating Model' sheet (+ projected_original from ET CP)",
-        "pipeline_step": "build.py RAW_TABLES ← Neon production_history ← import_operating_model() (projected_original ← _ingest_et_cp_year())",
-        "processing": "Faithful mirror; client × month articles_actual/projected/projected_original/is_actual (row0 Actual/Projection labels resolved at ingestion).",
+        "origin": "Editorial Capacity Planning › 'Editorial Operating Model' sheet (+ projected_original & projected_comment from ET CP ARTICLE BREAKDOWN)",
+        "pipeline_step": "build.py RAW_TABLES ← Neon production_history ← import_operating_model() (projected_original + projected_comment ← _ingest_et_cp_year())",
+        "processing": "Faithful mirror; client × month articles_actual/projected/projected_original/is_actual; projected_comment = the ET-CP breakdown per-(client,month) Comments note ('missed by 5', 'move to Pod 5').",
         "eh": "GET /api/dashboard/production-trend + client-production; upstream of int marts; v_editorial_fct_production_monthly",
         "ph": "getCapacityData() → future per-client demand (articles_projected × weight) + reads articles_actual (current-month delivered) and projected_original (Δ-vs-original on future months)",
     },
@@ -416,9 +416,9 @@ LINEAGE: dict[str, dict[str, str]] = {
     "v_editorial_fct_production_monthly": {
         "origin": "editorial_raw_production + editorial_raw_clients",
         "pipeline_step": "views.py VIEWS entry (LEFT JOIN client name + both pods)",
-        "processing": "Joins client name + pods onto production rows (actual/projected/projected_original/is_actual); no math.",
+        "processing": "Joins client name + pods onto production rows (actual/projected/projected_original/projected_comment/is_actual); no math.",
         "eh": "Overview → Production History chart (All / Per pod / Per client); GET /api/dashboard/production-trend",
-        "ph": "getClientGoals() → writer 'Goals per month' (articles_actual closed / articles_projected future); getClientLastActiveMonth() → MIN+MAX (firstYm/lastYm) → Team-tab 'last month' badge + client-table status (starting/ending/inactive)",
+        "ph": "getClientGoals() → writer 'Goals per month'; getClientLastActiveMonth() → firstYm/lastYm; projected_comment → per-(client,month) planning note for the client table",
     },
     "v_editorial_roster": {
         "origin": "Rippling v_headcount (title LIKE '%editor%') + Slack slack_raw_users (ext.writing email) + editorial_name_map, minus editorial_roster_exclusions",
