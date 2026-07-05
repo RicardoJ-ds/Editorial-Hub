@@ -199,8 +199,8 @@ class CapacityBase(BaseModel):
     year: int
     month: int
     total_capacity: int | None = None
-    projected_used_capacity: int | None = None
-    actual_used_capacity: int | None = None
+    projected_used_capacity: float | None = None  # ×1.4-weighted, fractional
+    actual_used_capacity: float | None = None  # ×1.4-weighted, fractional
     version: str | None = None
     notes: str | None = None
 
@@ -211,8 +211,8 @@ class CapacityCreate(CapacityBase):
 
 class CapacityUpdate(BaseModel):
     total_capacity: int | None = None
-    projected_used_capacity: int | None = None
-    actual_used_capacity: int | None = None
+    projected_used_capacity: float | None = None
+    actual_used_capacity: float | None = None
     version: str | None = None
     notes: str | None = None
 

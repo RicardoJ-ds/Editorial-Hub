@@ -199,6 +199,18 @@ def safe_int(val, default=None) -> int | None:
         return default
 
 
+def safe_float(val, default=None) -> float | None:
+    """Convert a value to float, returning default if not possible. Used where
+    the sheet carries fractional values (e.g. ×1.4-weighted used-capacity) that
+    must NOT be rounded at ingestion."""
+    if _is_empty(val):
+        return default
+    try:
+        return float(str(val).replace(",", "").strip())
+    except (ValueError, TypeError):
+        return default
+
+
 def safe_pct(val, default=None) -> float | None:
     """Convert '99.29%' to 99.29 float."""
     if _is_empty(val):
@@ -1198,9 +1210,12 @@ def _ingest_et_cp_year(
                     current_pod[col] = pod
                     slot[col] = 0
                     # Pod-level totals live on this (Senior Editor) row.
+                    # projected/actual are FLOAT — they carry ×1.4 specialized
+                    # weighting (e.g. 109.4); rounding here made the pod rollup
+                    # drift ±1 from the per-client itemization. total stays int.
                     total_cap = safe_int(_cell(row, col + 5))
-                    projected = safe_int(_cell(row, col + 6))
-                    actual = safe_int(_cell(row, col + 7))
+                    projected = safe_float(_cell(row, col + 6))
+                    actual = safe_float(_cell(row, col + 7))
                     existing = (
                         session.execute(
                             select(CapacityProjection).where(

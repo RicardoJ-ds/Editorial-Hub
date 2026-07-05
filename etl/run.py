@@ -33,8 +33,11 @@ MART_SCHEMAS: dict[str, list[tuple[str, str]]] = {
         ("pod", "STRING"),
         ("version", "STRING"),
         ("total_capacity", "INTEGER"),
-        ("projected_used_capacity", "INTEGER"),
-        ("actual_used_capacity", "INTEGER"),
+        # FLOAT: per-pod used-capacity carries ×1.4 specialized weighting; keep
+        # the fraction so the pod rollup matches the (float) per-client sum + the
+        # sheet (was INTEGER → ±1 drift). See tasks/todo.md §4.
+        ("projected_used_capacity", "FLOAT"),
+        ("actual_used_capacity", "FLOAT"),
     ],
     "editorial_capacity_member_utilization": [
         ("year", "INTEGER"),

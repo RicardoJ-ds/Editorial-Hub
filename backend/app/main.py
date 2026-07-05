@@ -316,6 +316,28 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("article_name_aliases window migration failed (continuing)")
 
+    # 14. capacity_projections used-capacity → double precision. The sheet's
+    #     per-pod Projected/Actual Used carry ×1.4 specialized weighting (e.g.
+    #     109.4); an INTEGER column rounded each pod, so the pod rollup drifted
+    #     ±1 from the float per-client itemization + the sheet. Widen to float so
+    #     the fraction survives ingestion. Idempotent (re-ALTER to double is a
+    #     no-op). Values re-land unrounded on the next ET CP capacity-plan sync.
+    try:
+        await conn.execute(
+            text(
+                "ALTER TABLE capacity_projections "
+                "ALTER COLUMN projected_used_capacity TYPE double precision"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE capacity_projections "
+                "ALTER COLUMN actual_used_capacity TYPE double precision"
+            )
+        )
+    except Exception:
+        logger.exception("capacity_projections used-capacity float migration failed (continuing)")
+
     # 8. usage_events retention — trim rows older than 6 months on every
     #    boot. Cheap, bounded, and avoids needing a cron. The model
     #    itself is created by Base.metadata.create_all; this DELETE

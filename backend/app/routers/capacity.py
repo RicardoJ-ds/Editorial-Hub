@@ -37,8 +37,8 @@ class CapacityPodSummary(BaseModel):
     pod: str
     version: str | None
     total_capacity: int | None
-    projected_used_capacity: int | None
-    actual_used_capacity: int | None
+    projected_used_capacity: float | None  # ×1.4-weighted, fractional
+    actual_used_capacity: float | None  # ×1.4-weighted, fractional
 
 
 @router.get("/", response_model=list[CapacityResponse])

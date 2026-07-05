@@ -134,8 +134,12 @@ class CapacityProjection(Base):
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)
     total_capacity: Mapped[int | None] = mapped_column(Integer)
-    projected_used_capacity: Mapped[int | None] = mapped_column(Integer)
-    actual_used_capacity: Mapped[int | None] = mapped_column(Integer)
+    # Float, not Integer: the sheet's per-pod "Projected/Actual Used" carry ×1.4
+    # specialized weighting (e.g. Pod 3 = 109.4). Rounding each pod to int and
+    # summing lost the fractions, so the pod rollup drifted ±1 from the (float)
+    # per-client itemization that matches the sheet. See tasks/todo.md §4.
+    projected_used_capacity: Mapped[float | None] = mapped_column(Float)
+    actual_used_capacity: Mapped[float | None] = mapped_column(Float)
     version: Mapped[str | None] = mapped_column(String(50))
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
