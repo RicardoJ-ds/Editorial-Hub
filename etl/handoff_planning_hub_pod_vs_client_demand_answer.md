@@ -92,4 +92,30 @@ Label the footer gap: *"pod headline counts every breakdown row (incl. planned [
 KOs + ad-hoc support lines); the client footer itemizes only rows that map to a real Hub
 client — the difference is those non-client rows."* Both numbers are individually correct.
 
+## 2025 gaps — investigated: NOT a normalization/pre-normalization issue (2026-07-05)
+Q raised: are the large 2025 pod-vs-client gaps (±5 to ±97, mixed sign) caused by data that
+predates the client-name normalization? **Answer: no — disproven by direct evidence.**
+
+`incomplete_clients` records every ET-CP breakdown name that `_resolve_client()` fails to
+match at ingest. Live check: **36 rows, all still unresolved, and every 2025-origin one is a
+placeholder or support line** — 20× `[New client] <Month> KO #N`, plus `AI Articles (support)`
+and `Rox (support)`. **Zero real client names failed to resolve.** So the real clients all map
+fine (this actually validates the ≥2025 normalization scope); the only "unresolved" names are
+intentional non-clients.
+
+The 2025 gaps are therefore structural, two causes:
+- **Positive gaps** (rollup > client): the SAME non-client rows as 2026, just more of them —
+  2025 was heavy pipeline-building, so many `[New client] KO` + support placeholders are summed
+  in the pod headline but not itemized (e.g. Mar 2025 +97).
+- **Negative gaps** (client > rollup): a **2025-only pod-structure change** — Pod 5 has client
+  demand in late 2025 but NO capacity headline in the Nov-2025 block (`rollup = None`); it was
+  added later (e.g. Nov 2025 −45, Pod 5 clientΣ 54.6 vs no rollup).
+
+**Decision:** do NOT re-normalize or past-resync to "fix" 2025 — normalization has nothing to
+resolve, and a past-resync would only recover cosmetic rounding fractions, not close these
+structural gaps. 2025 is historical / outside the active planning window; its numbers are each
+individually correct. Focus stays on 2026 (fixed + verified). Minor hygiene: the 36
+`incomplete_clients` are all placeholders/support that will never resolve — worth a one-time
+dismissal so the DQ "Missing from Hub" tab isn't permanently showing non-actionable rows.
+
 *Written 2026-07-05 by the Editorial-Hub session.*
