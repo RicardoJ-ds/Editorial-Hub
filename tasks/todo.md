@@ -54,6 +54,10 @@ is 241 zero-projection rows + 1 Tempo-XYZ identity dup (flagged to planning-hub)
 - [ ] INT compose behind flag `CAPACITY_HUB_CUTOVER` (default OFF): `editorial_int_client_pod_months`
       (pod + weight + projected articles) + `v_editorial_fct_production_monthly` future months —
       `COALESCE(hub app-rows, sheet)`; staleness valve at compose time
+- [x] **Rounding half SHIPPED (2026-07-05, d958284 + a19201e)**: capacity used-capacity now FLOAT +
+      ET-CP numeric cells read UNFORMATTED (were truncated by display format). Deployed + re-synced +
+      published; Mar/May/Jun now reconcile exactly (386.8=386.8 etc.). Residual gaps are ONLY non-client
+      rows (Feb WL/SG support, Apr [test] Credit Karma, Jul [New client] KOs) → cutover / sheet hygiene.
 - [ ] **Pod-vs-client reconciliation (2026-07-05 finding)**: today `editorial_int_capacity_pod_months.
       projected_used_capacity` COPIES the ET-CP capacity headline (counts non-client breakdown rows:
       planned "[New client] KO"s, ad-hoc "WL/SG support" lines) while `editorial_int_client_pod_months`

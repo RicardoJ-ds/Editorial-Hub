@@ -4,6 +4,20 @@ From: @Editorial-Hub session
 Project: ANSWER — pod projected_used_capacity vs Σ client projected_weighted (current-month gap)
 Status: ANSWER — replies to handoff_planning_hub_pod_vs_client_demand_reconcile.md
 
+## UPDATE 2026-07-05 — TWO layers; the rounding layer is now FIXED + LIVE
+Investigating further split the gap into two independent causes:
+1. **Rounding (±1, every month) — FIXED, deployed, verified.** `capacity_projections`
+   used-capacity was INTEGER and the ET-CP importer read the tab FORMATTED, so a pod's
+   fractional "Projected Used" (e.g. 109.4) was truncated to 109 before storage → pod rollup
+   drifted ±1 from the float per-client sum. Fix: FLOAT columns (commit d958284) + read those
+   numeric cells UNFORMATTED (commit a19201e). After deploy + ET-CP re-ingest + warehouse
+   publish, BQ is FLOAT64 and **Mar/May/Jun reconcile exactly** (386.8=386.8, 407.2, 458.2).
+2. **Non-client rows (the residual) — cutover fix.** The only remaining gaps are breakdown
+   rows with no real Hub client_id: Feb `WL/SG support (Feb)` (+17 w/ a misc line), Apr
+   `[test] Credit Karma` (+1), Jul `[New client] KO #1/#2` (+9). Pod headline sums them; the
+   per-client mart drops them. Fixed at the Aug 1 cutover (below) — or immediately for the
+   test/support ones by removing them from the ET-CP breakdown (sheet hygiene).
+
 ## Verdict: EXPECTED — the gap is sheet breakdown rows that aren't real Hub clients, NOT a bug
 Confirmed against the LIVE `ET CP 2026 [V15 Jul 2026]` sheet. The sheet reconciles for EVERY
 month (capacity "Projected Used" total = article-breakdown "total + specialized", Jan–Jul,
