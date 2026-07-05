@@ -1,3 +1,70 @@
+# ▶ CURRENT STATUS — 2026-07-01
+
+**Three active threads. Detailed migration plan is further down (Phases 0–5 / Stages 0–7) + full
+design in `etl/NEON_RETIREMENT_PLAN.md`; Neon end-state ownership at "End-state ownership" below.**
+
+## 1. Neon → BigQuery-native ETL migration (the big one — NOT yet started building)
+**Shape confirmed with Ricardo 2026-07-01:** the ETL should *work exactly as today* — same
+sheet pulling, same cleaning, same processing/business math — **but land the tables in BigQuery
+instead of Neon.** Only two things move; nothing about behavior changes (dashboards already read BQ):
+- **Ingest stage:** importers (`migration_service.py`) parse+clean sheets → today write **Neon
+  `public`** → target write **BQ raw** (`WRITE_TRUNCATE` load, since BQ has no upsert/PK).
+- **Transform stage:** warehouse build reads **Neon `public`** (`fetch_model_rows`) → target read
+  **BQ raw**; int/view math is already pure fns of in-memory dicts → just "change where the raw
+  dicts come from." Then drop the Neon `warehouse` schema + `public` ingested tables.
+
+**Watch-items (the "don't break anything"):** (a) importers rely on Neon upsert+transactions → become
+full-rebuild loads; (b) DQ self-heal tables (bucket C) are read *during* import — keep them on Neon
+for now; (c) RBAC + comments + analytics stay on Neon. Full stage list below (Stages 0–7).
+
+### Neon `public` inventory — what moves vs stays (verified 2026-07-01, mirrors "End-state ownership")
+- **A · Ingested (→ BigQuery, ~19):** clients · deliverables_monthly · production_history ·
+  goals_vs_delivery · cumulative_metrics · capacity_projections · editorial_member_capacity ·
+  article_records · article_revisions · editorial_weeks · pod_assignments · pod_assignment_history ·
+  client_pod_history · kpi_scores · model_assumptions · team_members · delivery_templates ·
+  engagement_rules · ai_monitoring_records · surfer_api_usage. *(notion_articles already dropped.)*
+- **B · App-state (STAY on Neon, ~11):** access_* (5 RBAC) · overview_comments · usage_events ·
+  cache_version · audit_log · sheet_sync_history.
+- **C · DQ / self-heal hybrid (judgment):** incomplete_clients · pod_import_issues ·
+  article_unmapped_names STAY (Neon write). alias/override tables (article_name_aliases ·
+  client_name_aliases · pod_name_overrides) → DROP once resolution is in-memory/BQ (Phase 1b Step 5).
+
+## 2. Planning-hub handoff — ✅ DONE
+- Doc: `etl/handoff_planning_hub_capacity_data.md` (clients+SF, pods, members canonical/raw,
+  capacity, revisions — exact BQ schemas + recipes). Companion: `etl/platform_handoff_editorial_hub.md`.
+- Ricardo is notifying the other session directly. (Not committed yet — decide whether to commit.)
+
+## 3. "As of" close-grace = +2 days → advances on the first Thursday after the Tue close
+- [x] **As-of badge** — `lastClosedEditorialMonth()` grace primitive; shipped **v0.3.48**.
+- [x] **Goals numbers + Overview goals selector** (DaniQ's follow-up) — `currentEditorialMonth`
+      now = last-closed +1 (grace-aware, affects D1 Monthly Goals gauges too); Overview Pod-Snapshot
+      Goals column anchors on `useLastClosedEditorialMonth` (was calendar month−1). All surfaces flip
+      together (verified: hold May/June through Wed Jul 1 → June/July on Thu Jul 2). **Pending release → 0.3.49.**
+
+## 4. Q3/Q4 capacity cutover — planning-hub `editorial_capacity_plan_demand` → INT compose (contract v1.1, target Aug 1 2026)
+Contract confirmed 2026-07-05 (see `etl/handoff_planning_hub_cutover_proposal.md` + our answers
+doc). Authority rule: compose ONLY `source='app' AND ym >= current calendar month AND client_id > 0`;
+app-zero = deliberate zero (row-presence COALESCE, never NULLIF); full-table replace = tombstone-free
+reverts; **3-day `published_at` staleness valve** (fall back to sheet wholesale + log). Validated
+live 2026-07-05: baseline↔sheet parity perfect on intersection (627 rows, 0 diffs); sheet-only gap
+is 241 zero-projection rows + 1 Tempo-XYZ identity dup (flagged to planning-hub).
+- [x] Parity gate `etl/warehouse/plan_parity.py` (hub_parity pattern; soak Jul 20–31, green ≥1wk gates the flip)
+- [ ] Raw mirror **`editorial_raw_capacity_plan_demand`** — build.py job: BQ hub table → faithful
+      snapshot (all rows incl. baseline) → both sinks; tolerate future note/status_override columns
+- [ ] INT compose behind flag `CAPACITY_HUB_CUTOVER` (default OFF): `editorial_int_client_pod_months`
+      (pod + weight + projected articles) + `v_editorial_fct_production_monthly` future months —
+      `COALESCE(hub app-rows, sheet)`; staleness valve at compose time
+- [ ] Aug 1 flip: enable flag + one-time snapshot-freeze `projected_original` per (client, month) +
+      lineage catalog entries for the mirror (`/bq-schema-catalog`)
+
+## Next up
+- [ ] Release the goals-grace change (→ `0.3.49`).
+- [ ] Decide: commit the planning-hub handoff doc?
+- [ ] Migration Stage 0 (isolated `graphite_bi_migration` dataset + BQ-raw seam) — see Stages below.
+- [ ] Phase 1b Step 5: drop Neon alias/override tables (UNBLOCKED — confirm daily cron stays clean first).
+
+---
+
 # Plan — Root-cause roster: `v_editorial_roster` (single source of truth)
 
 **Goal:** replace the hand-regenerated roster with a BigQuery **view** unioning all editorial
