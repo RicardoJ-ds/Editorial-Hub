@@ -57,6 +57,12 @@ def add_article_canonicals(rows: list[dict], mappings: dict) -> list[dict]:
         for v in mappings["editor_aliases"]["aliases"].values()
         if v.get("canonical")
     }
+    # Authoritative editor roster (v_editorial_roster, injected by build_all).
+    # Clean editors need no alias entry, so they were falling through to
+    # 'unresolved' even though the article name IS already the roster canonical
+    # (100% of 2026 rows). Match the full editor_name against the roster so
+    # editor_canonical is populated for downstream canonical-keyed joins.
+    ed_roster = mappings.get("editor_roster_canon", {})
     wr_canon = {
         norm_key(r["canonical"]): r["canonical"]
         for r in mappings["writer_aliases"]["roster"].values()
@@ -69,6 +75,9 @@ def add_article_canonicals(rows: list[dict], mappings: dict) -> list[dict]:
             r["editor_match_status"] = e["status"]
         elif ek in ed_canon:
             r["editor_canonical"] = ed_canon[ek]
+            r["editor_match_status"] = "confirmed"
+        elif ek in ed_roster:
+            r["editor_canonical"] = ed_roster[ek]
             r["editor_match_status"] = "confirmed"
         else:
             r["editor_canonical"] = None

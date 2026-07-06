@@ -807,6 +807,24 @@ def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict
     as_of = as_of or date.today()
     bq = get_bq()
     mappings = transform.load_mappings()
+    # Inject the authoritative editor roster so add_article_canonicals can
+    # resolve clean editor names (no alias entry) → editor_canonical. Guarded:
+    # if the view is unreachable, fall back to alias-only (current behavior).
+    from app.config import settings
+    from etl.util import norm_key
+
+    try:
+        _ds = f"{settings.bq_project}.{settings.bq_dataset}"
+        mappings["editor_roster_canon"] = {
+            norm_key(r.canonical_name): r.canonical_name
+            for r in bq.query(
+                f"SELECT DISTINCT canonical_name FROM `{_ds}.v_editorial_roster` "
+                "WHERE role IN ('editor', 'sr_editor') AND canonical_name IS NOT NULL"
+            ).result()
+        }
+    except Exception as exc:  # noqa: BLE001 — degrade to alias-only resolution
+        mappings["editor_roster_canon"] = {}
+        print(f"  ! editor roster fetch failed ({type(exc).__name__}: {exc}) — editor_canonical alias-only")
     from etl.extract import get_engine
     from etl.warehouse import pg_sink
 
