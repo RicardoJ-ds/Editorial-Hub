@@ -57,12 +57,18 @@ def add_article_canonicals(rows: list[dict], mappings: dict) -> list[dict]:
         for v in mappings["editor_aliases"]["aliases"].values()
         if v.get("canonical")
     }
-    # Authoritative editor roster (v_editorial_roster, injected by build_all).
-    # Clean editors need no alias entry, so they were falling through to
-    # 'unresolved' even though the article name IS already the roster canonical
-    # (100% of 2026 rows). Match the full editor_name against the roster so
-    # editor_canonical is populated for downstream canonical-keyed joins.
-    ed_roster = mappings.get("editor_roster_canon", {})
+    # Authoritative editor roster: v_editorial_roster (injected by build_all if
+    # the BQ fetch succeeded) PLUS the capacity-block members already in
+    # `mappings` — the SAME source int_member_months resolves editors from, so
+    # it needs no BQ query and can't silently come back empty. Clean editors
+    # need no alias entry, so they were falling through to 'unresolved' even
+    # though the article name IS already the roster canonical (100% of 2026
+    # rows). Match the full editor_name against this set → editor_canonical.
+    ed_roster = dict(mappings.get("editor_roster_canon", {}))
+    for _m in mappings.get("editor_aliases", {}).get("capacity_members", {}).values():
+        _c = _m.get("canonical")
+        if _c:
+            ed_roster.setdefault(norm_key(_c), _c)
     wr_canon = {
         norm_key(r["canonical"]): r["canonical"]
         for r in mappings["writer_aliases"]["roster"].values()

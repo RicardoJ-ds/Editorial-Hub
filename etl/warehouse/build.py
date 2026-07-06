@@ -8,6 +8,7 @@ every business rule via the verbatim ports in `pyrules.py` plus the SHARED
 
 from __future__ import annotations
 
+import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
@@ -19,6 +20,8 @@ from etl import transform
 from etl.extract import fetch_model_rows, get_session
 from etl.load import get_bq, load_rows, schema_for_model, schema_from_spec
 from etl.warehouse import pyrules as R
+
+logger = logging.getLogger("etl.warehouse.build")
 
 _BUILD_TS: datetime | None = None
 
@@ -815,16 +818,19 @@ def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict
 
     try:
         _ds = f"{settings.bq_project}.{settings.bq_dataset}"
+        _loc = bq.get_dataset(f"{settings.bq_project}.{settings.bq_dataset}").location
         mappings["editor_roster_canon"] = {
             norm_key(r.canonical_name): r.canonical_name
             for r in bq.query(
                 f"SELECT DISTINCT canonical_name FROM `{_ds}.v_editorial_roster` "
-                "WHERE role IN ('editor', 'sr_editor') AND canonical_name IS NOT NULL"
+                "WHERE role IN ('editor', 'sr_editor') AND canonical_name IS NOT NULL",
+                location=_loc,
             ).result()
         }
-    except Exception as exc:  # noqa: BLE001 — degrade to alias-only resolution
+        logger.info("editor roster fetched: %d editors", len(mappings["editor_roster_canon"]))
+    except Exception:  # degrade to capacity-members-only resolution (still resolves active editors)
         mappings["editor_roster_canon"] = {}
-        print(f"  ! editor roster fetch failed ({type(exc).__name__}: {exc}) — editor_canonical alias-only")
+        logger.exception("editor roster fetch failed — editor_canonical via capacity_members only")
     from etl.extract import get_engine
     from etl.warehouse import pg_sink
 
