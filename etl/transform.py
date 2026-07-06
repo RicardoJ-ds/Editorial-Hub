@@ -76,8 +76,12 @@ def add_article_canonicals(rows: list[dict], mappings: dict) -> list[dict]:
     for r in rows:
         ek = norm_key(r.get("editor_name"))
         e = ed.get(ek)
-        if e:
-            r["editor_canonical"] = e.get("canonical")
+        # Require an actual canonical: an alias entry that exists but is itself
+        # 'unresolved' (canonical=None) must NOT short-circuit the roster
+        # fallback below — otherwise every editor present in the alias dict as
+        # unresolved stays unresolved even though it's a known roster editor.
+        if e and e.get("canonical"):
+            r["editor_canonical"] = e["canonical"]
             r["editor_match_status"] = e["status"]
         elif ek in ed_canon:
             r["editor_canonical"] = ed_canon[ek]
