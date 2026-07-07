@@ -760,6 +760,20 @@ function MonthlyBreakdownTable({
   const totalVariance = totalDelivered - totalInvoiced;
   const totalVarColor = varianceTierColor(totalVariance);
 
+  // M-index: 1-based counter across the client's CONTRACT months so M1 = the
+  // first engagement month (DaniQ's Editorial Alignment screenshot). Prelude
+  // months (before contract start) are skipped — they carry no M-label. Dedup
+  // on period boundaries so a month shared across periods keeps one index.
+  const mIndexByKey = new Map<string, number>();
+  let mCounter = 0;
+  for (const p of display) {
+    if (p.isPrelude) continue;
+    for (const mm of p.rows) {
+      const k = `${mm.year}-${mm.month}`;
+      if (!mIndexByKey.has(k)) mIndexByKey.set(k, ++mCounter);
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-md border border-[#1a1a1a]">
       <div className="border-b border-[#1a1a1a] bg-[#111] px-2.5 py-1.5">
@@ -813,6 +827,11 @@ function MonthlyBreakdownTable({
                       }
                     >
                       <span className="inline-flex items-center gap-1.5">
+                        {mIndexByKey.has(`${m.year}-${m.month}`) && (
+                          <span className="rounded-sm bg-[#1a1a1a] px-1 py-px text-[8px] font-semibold uppercase not-italic tracking-wider text-[#606060]">
+                            M{mIndexByKey.get(`${m.year}-${m.month}`)}
+                          </span>
+                        )}
                         {MONTH_NAMES_SHORT[m.month - 1]} {String(m.year).slice(-2)}
                         {m.isCurrent && (
                           <span className="rounded-sm bg-[#42CA80]/20 px-1 py-px text-[8px] font-semibold uppercase not-italic tracking-wider text-[#42CA80]">
