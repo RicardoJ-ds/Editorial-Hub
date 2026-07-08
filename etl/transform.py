@@ -73,6 +73,11 @@ def add_article_canonicals(rows: list[dict], mappings: dict) -> list[dict]:
         norm_key(r["canonical"]): r["canonical"]
         for r in mappings["writer_aliases"]["roster"].values()
     }
+    # Authoritative writer roster (v_editorial_roster writers, injected by
+    # build_all) — same purpose as ed_roster: a writer whose article name is
+    # already the roster canonical ("Richard Dezso") but isn't in the JSON
+    # writer roster/aliases would otherwise stay 'unresolved'.
+    wr_roster = mappings.get("writer_roster_canon", {})
     for r in rows:
         ek = norm_key(r.get("editor_name"))
         e = ed.get(ek)
@@ -98,11 +103,16 @@ def add_article_canonicals(rows: list[dict], mappings: dict) -> list[dict]:
             continue
         wk = norm_key(r.get("writer_name"))
         w = wr.get(wk)
-        if w:
-            r["writer_canonical"] = w.get("canonical")
+        # Same short-circuit guard as editors: an alias entry with no canonical
+        # must fall through to the roster fallback, not lock in 'unresolved'.
+        if w and w.get("canonical"):
+            r["writer_canonical"] = w["canonical"]
             r["writer_match_status"] = w["status"]
         elif wk in wr_canon:
             r["writer_canonical"] = wr_canon[wk]
+            r["writer_match_status"] = "confirmed"
+        elif wk in wr_roster:
+            r["writer_canonical"] = wr_roster[wk]
             r["writer_match_status"] = "confirmed"
         else:
             r["writer_canonical"] = None

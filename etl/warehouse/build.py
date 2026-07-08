@@ -819,18 +819,29 @@ def build_all(layers: set[str] | None = None, as_of: date | None = None) -> dict
     try:
         _ds = f"{settings.bq_project}.{settings.bq_dataset}"
         _loc = bq.get_dataset(f"{settings.bq_project}.{settings.bq_dataset}").location
-        mappings["editor_roster_canon"] = {
-            norm_key(r.canonical_name): r.canonical_name
-            for r in bq.query(
-                f"SELECT DISTINCT canonical_name FROM `{_ds}.v_editorial_roster` "
-                "WHERE role IN ('editor', 'sr_editor') AND canonical_name IS NOT NULL",
-                location=_loc,
-            ).result()
-        }
-        logger.info("editor roster fetched: %d editors", len(mappings["editor_roster_canon"]))
-    except Exception:  # degrade to capacity-members-only resolution (still resolves active editors)
+
+        def _roster(*roles: str) -> dict:
+            role_list = ", ".join(f"'{x}'" for x in roles)
+            return {
+                norm_key(r.canonical_name): r.canonical_name
+                for r in bq.query(
+                    f"SELECT DISTINCT canonical_name FROM `{_ds}.v_editorial_roster` "
+                    f"WHERE role IN ({role_list}) AND canonical_name IS NOT NULL",
+                    location=_loc,
+                ).result()
+            }
+
+        mappings["editor_roster_canon"] = _roster("editor", "sr_editor")
+        mappings["writer_roster_canon"] = _roster("writer")
+        logger.info(
+            "roster fetched: %d editors, %d writers",
+            len(mappings["editor_roster_canon"]),
+            len(mappings["writer_roster_canon"]),
+        )
+    except Exception:  # degrade to alias/roster-JSON resolution (still resolves most names)
         mappings["editor_roster_canon"] = {}
-        logger.exception("editor roster fetch failed — editor_canonical via capacity_members only")
+        mappings["writer_roster_canon"] = {}
+        logger.exception("roster fetch failed — editor/writer_canonical via mappings only")
     from etl.extract import get_engine
     from etl.warehouse import pg_sink
 
