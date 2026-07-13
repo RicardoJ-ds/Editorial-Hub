@@ -1332,6 +1332,12 @@ def _ingest_et_cp_year(
             2,
         )
         lookup = _build_client_name_lookup(session.execute(select(Client)).scalars().all())
+        # Current calendar month — the only month this (current-scope) importer
+        # writes into client_pod_history. Past months stay owned by
+        # import_et_cp_pod_history (each version tab's OWN month = confirmed
+        # history); we must never clobber those with the current tab's values.
+        _today = date.today()
+        cur_ym = (_today.year, _today.month)
         for row_idx in range(client_hdr_idx + 1, len(all_rows)):
             row = all_rows[row_idx]
             if not row:
@@ -1345,6 +1351,46 @@ def _ingest_et_cp_year(
             if c is None:
                 continue
             for pc, (year, month) in col_month.items():
+                # Current-month editorial pod → client_pod_history on EVERY sync,
+                # so a mid-month new client (or current-month pod move) lands in
+                # the per-month editorial capacity model immediately instead of
+                # waiting for the past-scope resync / month rollover. Only the
+                # current month; earlier months stay owned by
+                # import_et_cp_pod_history. Written before the projected check so
+                # a pod with no projection still records. (pod at pc, category at
+                # pc+2 — same layout import_et_cp_pod_history reads.)
+                if (year, month) == cur_ym:
+                    norm_pod = _normalize_editorial_pod(_cell(row, pc).strip())
+                    if norm_pod:
+                        cph = (
+                            session.execute(
+                                select(ClientPodHistory).where(
+                                    ClientPodHistory.client_name_raw == name,
+                                    ClientPodHistory.year == year,
+                                    ClientPodHistory.month == month,
+                                )
+                            )
+                            .scalars()
+                            .first()
+                        )
+                        cat = _normalize_category(_cell(row, pc + 2))
+                        if cph:
+                            cph.client_id = c.id
+                            cph.editorial_pod = norm_pod
+                            cph.category = cat
+                            cph.source_tab = tab_title
+                        else:
+                            session.add(
+                                ClientPodHistory(
+                                    client_id=c.id,
+                                    client_name_raw=name,
+                                    year=year,
+                                    month=month,
+                                    editorial_pod=norm_pod,
+                                    category=cat,
+                                    source_tab=tab_title,
+                                )
+                            )
                 projected = safe_int(_cell(row, pc + 4))
                 if projected is None:
                     continue
