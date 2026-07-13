@@ -38,6 +38,7 @@ from app.services.migration_service import (
     ImportResult,
     backfill_editorial_pod_from_history,
     import_all,
+    import_delivery_schedules,
     import_et_cp_pod_history,
     import_goals_vs_delivery,
     import_model_assumptions,
@@ -170,6 +171,40 @@ def _refresh_kpis_run(session: Session) -> list[ImportResult]:
 NAME_MAP_KEY = "@name-mappings"
 NAME_MAP_LABEL = "Editorial Name Mappings → BigQuery"
 
+WRITER_DESIRED_KEY = "@writer-desired"
+WRITER_DESIRED_LABEL = "Writer Desired (form) → BigQuery"
+
+
+def _writer_desired_run(session: Session) -> "list[ImportResult]":
+    """Publish writers' self-reported 'desired article total' (per writer ×
+    month) from the Google Form responses sheet to BigQuery
+    `editorial_writer_desired` — the capacity basis in the editorial-planning
+    Hub's Writers model. Adopted from that Hub's manual seed script so it stays
+    fresh on the daily trigger. Runs AFTER @name-mappings so the roster +
+    name-map it reconciles against are already fresh. Fails loudly if the etl
+    package is absent (never silently)."""
+    try:
+        from etl.build_writer_desired import publish_writer_desired_from_sheet
+    except ImportError as exc:
+        return [
+            ImportResult(
+                sheet=WRITER_DESIRED_LABEL,
+                rows_parsed=0,
+                rows_imported=0,
+                success=False,
+                errors=[f"etl package unavailable: {exc}"],
+            )
+        ]
+    info = publish_writer_desired_from_sheet(session)
+    return [
+        ImportResult(
+            sheet=WRITER_DESIRED_LABEL,
+            rows_parsed=info["rows"],
+            rows_imported=info["rows"],
+            success=True,
+        )
+    ]
+
 
 def _name_mappings_run(session: Session) -> "list[ImportResult]":
     """Publish the DaniQ-editable 'Editorial Name Mappings' sheet to BigQuery
@@ -231,6 +266,13 @@ CURRENT_STEPS: list[ManifestStep] = [
         "current",
         run=_name_mappings_run,
         description="Publish the Name Mappings sheet to BigQuery editorial_name_map",
+    ),
+    ManifestStep(
+        WRITER_DESIRED_KEY,
+        WRITER_DESIRED_LABEL,
+        "current",
+        run=_writer_desired_run,
+        description="Publish writers' desired-article form responses to BigQuery editorial_writer_desired",
     ),
     _sheet("Monthly Article Count"),
     ManifestStep("@et-cp", "ET CP 2026 (current version)", "current", dynamic_prefix="ET CP 2026"),
@@ -296,6 +338,13 @@ PAST_STEPS: list[ManifestStep] = [
         "past",
         run=lambda s: [import_model_assumptions(s)],
         description="Capacity model parameters (categorisation, ramp-up, capacity targets) — changes a few times a year, so past-scope only",
+    ),
+    ManifestStep(
+        "delivery-schedules",
+        "Delivery Schedules",
+        "past",
+        run=lambda s: [import_delivery_schedules(s)],
+        description="Per-SOW-size article distribution templates (240/220/180/120/125) — changes rarely, so past-scope only",
     ),
     ManifestStep(
         "backfill-editorial-pod",

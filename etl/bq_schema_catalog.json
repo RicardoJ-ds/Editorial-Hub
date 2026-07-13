@@ -1,11 +1,11 @@
 {
   "dataset": "graphite-data.graphite_bi_sandbox",
-  "generated_at": "2026-07-05 19:47:45 UTC",
+  "generated_at": "2026-07-13 21:34:01 UTC",
   "source": "live BigQuery INFORMATION_SCHEMA",
   "counts": {
-    "tables": 38,
+    "tables": 39,
     "views": 21,
-    "columns": 886
+    "columns": 903
   },
   "objects": [
     {
@@ -97,7 +97,7 @@
         }
       ],
       "row_count": 3372,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_article_revisions",
@@ -147,8 +147,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 3896,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 3924,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_articles",
@@ -306,8 +306,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 16148,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 16222,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_calendar",
@@ -354,7 +354,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_capacity",
@@ -417,7 +417,7 @@
         }
       ],
       "row_count": 305,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_capacity_members",
@@ -480,7 +480,7 @@
         }
       ],
       "row_count": 417,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_client_pod_history",
@@ -534,8 +534,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 513,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 514,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_clients",
@@ -709,8 +709,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 84,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 86,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_cumulative",
@@ -813,7 +813,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_deliverables",
@@ -883,8 +883,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 631,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 655,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_delivery_templates",
@@ -931,7 +931,7 @@
         }
       ],
       "row_count": 60,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_goals",
@@ -1050,7 +1050,7 @@
         }
       ],
       "row_count": 2212,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_kpi_scores",
@@ -1113,7 +1113,7 @@
         }
       ],
       "row_count": 1481,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_model_assumptions",
@@ -1152,7 +1152,7 @@
         }
       ],
       "row_count": 14,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_name_mappings",
@@ -1187,7 +1187,7 @@
         }
       ],
       "row_count": 471,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_pod_history",
@@ -1245,8 +1245,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 17184,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 17328,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_production",
@@ -1308,8 +1308,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 4424,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 4616,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_surfer_usage",
@@ -1384,7 +1384,7 @@
         }
       ],
       "row_count": 25,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_raw_team_members",
@@ -1435,7 +1435,7 @@
         }
       ],
       "row_count": 12,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_articles_creation",
@@ -1493,8 +1493,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 1780,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 1822,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_articles_revisions",
@@ -1532,8 +1532,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 824,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 829,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_capacity_pod_months",
@@ -1576,7 +1576,7 @@
         }
       ],
       "row_count": 105,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_client_months",
@@ -1670,8 +1670,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 4425,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 4617,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_client_pod_months",
@@ -1733,8 +1733,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 425,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 426,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_client_q_snapshot",
@@ -1948,8 +1948,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 84,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 86,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_goals_month_ct",
@@ -2012,7 +2012,7 @@
         }
       ],
       "row_count": 509,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_member_months",
@@ -2122,8 +2122,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 303,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 305,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "editorial_int_pod_assignments",
@@ -2189,8 +2189,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 17184,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 17328,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_dim_calendar",
@@ -2225,7 +2225,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_dim_client",
@@ -2363,8 +2363,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 84,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 86,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_dim_member",
@@ -2407,7 +2407,7 @@
         }
       ],
       "row_count": 12,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_ai_flagged",
@@ -2498,7 +2498,7 @@
         }
       ],
       "row_count": 378,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_ai_recommendations",
@@ -2587,8 +2587,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 824,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 829,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_articles_monthly",
@@ -2646,8 +2646,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 1780,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 1822,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_capacity_pods",
@@ -2690,7 +2690,7 @@
         }
       ],
       "row_count": 105,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_client_contributions",
@@ -2752,8 +2752,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 425,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 426,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_client_months",
@@ -2847,8 +2847,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 4425,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 4617,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_client_q_snapshot",
@@ -3062,8 +3062,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 84,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 86,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_goals_client_totals",
@@ -3157,7 +3157,7 @@
         }
       ],
       "row_count": 509,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_kpi_scores",
@@ -3212,7 +3212,7 @@
         }
       ],
       "row_count": 1481,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_member_utilization",
@@ -3322,8 +3322,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 303,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 305,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_milestone_transitions",
@@ -3429,7 +3429,7 @@
         }
       ],
       "row_count": 52,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_pod_assignments",
@@ -3495,8 +3495,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 2407,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 2551,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_fct_pod_snapshot",
@@ -3617,8 +3617,8 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 4424,
-      "synced_at": "2026-07-05T19:45:51.860119+00:00"
+      "row_count": 4616,
+      "synced_at": "2026-07-13T20:05:01.377776+00:00"
     },
     {
       "name": "v_editorial_roster",
@@ -3668,7 +3668,7 @@
           "type": "BOOL"
         }
       ],
-      "row_count": 140,
+      "row_count": 141,
       "synced_at": null
     },
     {
@@ -3758,6 +3758,14 @@
           "type": "FLOAT64"
         },
         {
+          "name": "note",
+          "type": "STRING"
+        },
+        {
+          "name": "status_override",
+          "type": "STRING"
+        },
+        {
           "name": "source",
           "type": "STRING"
         },
@@ -3766,7 +3774,7 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 1017,
+      "row_count": 1099,
       "synced_at": null
     },
     {
@@ -3813,7 +3821,78 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 259,
+      "row_count": 260,
+      "synced_at": null
+    },
+    {
+      "name": "editorial_writer_desired",
+      "type": "TABLE",
+      "family": "hub",
+      "grain": "writer \u00d7 ym (latest submission wins)",
+      "note": "writers' self-reported desired article total (Google Form) \u2014 published by EH's daily @writer-desired step, read by PH getWriterDesired() as the Writers-model capacity basis",
+      "columns": [
+        {
+          "name": "writer_canonical",
+          "type": "STRING"
+        },
+        {
+          "name": "raw_name",
+          "type": "STRING"
+        },
+        {
+          "name": "year",
+          "type": "INT64"
+        },
+        {
+          "name": "month",
+          "type": "INT64"
+        },
+        {
+          "name": "ym",
+          "type": "INT64"
+        },
+        {
+          "name": "desired",
+          "type": "INT64"
+        },
+        {
+          "name": "clients",
+          "type": "STRING"
+        },
+        {
+          "name": "days",
+          "type": "STRING"
+        },
+        {
+          "name": "ooo",
+          "type": "STRING"
+        },
+        {
+          "name": "weekly_breakdown",
+          "type": "STRING"
+        },
+        {
+          "name": "current_assignments",
+          "type": "STRING"
+        },
+        {
+          "name": "source_tab",
+          "type": "STRING"
+        },
+        {
+          "name": "submitted_at",
+          "type": "STRING"
+        },
+        {
+          "name": "matched",
+          "type": "BOOL"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "row_count": 280,
       "synced_at": null
     },
     {
@@ -3876,7 +3955,7 @@
           "type": "TIMESTAMP"
         }
       ],
-      "row_count": 1032,
+      "row_count": 1325,
       "synced_at": null
     },
     {
@@ -4056,7 +4135,7 @@
           "type": "STRING"
         }
       ],
-      "row_count": 377,
+      "row_count": 379,
       "synced_at": null
     },
     {

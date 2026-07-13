@@ -1,7 +1,7 @@
 from datetime import date
 
 
-def capacity_utilization_pct(used: int, total: int) -> float:
+def capacity_utilization_pct(used: float, total: float) -> float:
     if total <= 0:
         return 0.0
     return round((used / total) * 100, 1)

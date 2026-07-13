@@ -301,9 +301,9 @@ class CapacitySummary(BaseModel):
     pod: str
     month: int
     year: int
-    total_capacity: int
-    projected_used: int
-    actual_used: int | None = None
+    total_capacity: float
+    projected_used: float
+    actual_used: float | None = None
     utilization_pct: float
     status: str  # UNDER, OPTIMAL, WARNING, OVER
 

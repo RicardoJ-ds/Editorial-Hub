@@ -1,3 +1,31 @@
+# ▶ TASK — 2026-07-13: two ETL integrations (Delivery Schedules + writer_desired)
+
+## A · Delivery Schedules → recurring ETL (past scope)
+Importer, model, RAW→BQ table ALL already exist; it was only ever a one-time seed +
+manual Import-Wizard import. Just wire it into the manifest so it refreshes on the
+recurring passes.
+- [ ] Add `import_delivery_schedules` to `sync_manifest.PAST_STEPS` (scope=past — "changes rarely")
+- [ ] Verify: `resolve_plan("past"/"full")` lists it; `run_step("delivery-schedules")` dispatches
+- [ ] Verify BQ `editorial_raw_delivery_templates` still 60 rows after a publish
+- Scope note: only the 5 canonical templates (240/220/180/120/125) are ingested (existing
+  importer). The per-client special blocks (ADP, Rivian note, "180 w/ prev cadence") are NOT
+  parsed — flag as optional follow-up.
+
+## B · writer_desired mini-ETL (adopt planning-hub's seed) → daily/current scope
+Port `editorial-team-pods/scripts/seed_writer_desired.mjs` to Python; run on the daily trigger.
+- [ ] New `etl/build_writer_desired.py` → `publish_writer_desired_from_sheet()` (sheet read +
+      transforms + reconcile + CREATE-OR-REPLACE BQ `editorial_writer_desired`, exact 15-col contract)
+- [ ] Reconcile via central `editorial_name_map`(writer) + `v_editorial_roster`; fallback alias
+      `{dan pelberg → Daniel Pelberg}` (map covers linda/rich/tessina already, verified)
+- [ ] Manifest step `@writer-desired` in CURRENT_STEPS, right after `@name-mappings` (daily)
+- [ ] Catalog: add `editorial_writer_desired` to schema HUB_PUBLISHED+GRAIN and lineage LINEAGE
+      (consumers.planning_hub = getWriterDesired); regenerate both catalogs
+- [ ] Dry-run vs the live table (should match ~279 rows, ym 202509..202607, 0 unmatched)
+- Decisions confirmed (their #1–4): single CREATE-OR-REPLACE table · keep SE free-text cols ·
+      daily cadence · centralize name reconciliation via my map (they drop local aliases)
+
+---
+
 # ▶ CURRENT STATUS — 2026-07-01
 
 **Three active threads. Detailed migration plan is further down (Phases 0–5 / Stages 0–7) + full

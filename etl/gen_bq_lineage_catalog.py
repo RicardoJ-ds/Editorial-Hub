@@ -154,7 +154,7 @@ LINEAGE: dict[str, dict[str, str]] = {
     },
     "editorial_raw_delivery_templates": {
         "origin": "Editorial Capacity Planning › 'Delivery Schedules' sheet (5 SOW sizes × M1–M12)",
-        "pipeline_step": "build.py RAW_TABLES ← Neon delivery_templates ← import_delivery_schedules()",
+        "pipeline_step": "build.py RAW_TABLES ← Neon delivery_templates ← import_delivery_schedules() (manifest 'delivery-schedules', past scope — refreshes on Re-sync Past Months / rollover)",
         "processing": "Faithful mirror (template × month_index).",
         "eh": "GET /api/dashboard/pacing (Pacing badge; currently unrendered)",
         "ph": "",
@@ -501,6 +501,13 @@ LINEAGE: dict[str, dict[str, str]] = {
         "eh": "import_team_pods()/_import_editorial_pods_from_hub() → pod_assignments (RBAC); import_pod_history()/_import_editorial_history_from_hub() → pod_assignment_history → editorial_raw_pod_history",
         "ph": "",
     },
+    "editorial_writer_desired": {
+        "origin": "Writers' 'desired article total' Google Form (sheet 1SprAkq…) — current 'Form Responses' + legacy 'Responses up to April 2026' tabs",
+        "pipeline_step": "THIS ETL: build_writer_desired.publish_writer_desired_from_sheet() (manifest '@writer-desired', current scope → daily) → CREATE-OR-REPLACE (WRITE_TRUNCATE)",
+        "processing": "ym resolution (explicit year on current tab, timestamp-inferred + wrap on legacy), desired=first int, name reconciliation via editorial_name_map(writer)+v_editorial_roster (+Dan Pelberg fallback), dedup latest-per-(writer_canonical, ym).",
+        "eh": "internal (EH publishes it; no EH dashboard reads it)",
+        "ph": "getWriterDesired(fromYm) → the capacity BASIS in the Writers model (self-reported desired bw; fallback to computed-from-history when absent)",
+    },
 }
 
 # Object-name pattern for the sibling drift scan.
@@ -537,9 +544,15 @@ def _drift_warnings(catalog: list[dict]) -> list[str]:
             f"DRIFT: planning-hub reads `{name}` but LINEAGE has no consumers.planning_hub — add it"
         )
     for name in sorted(credited - detected):
-        warns.append(
-            f"DRIFT: LINEAGE credits planning-hub for `{name}` but its read layer no longer references it"
-        )
+        # Only the governed EH surface (editorial_raw/int + v_editorial) is
+        # detectable by _OBJ_RE. Cross-hub tables EH publishes FOR the planning
+        # hub (editorial_writer_desired, editorial_writer_plan*, team_pod_*) are
+        # outside that regex, so a curated consumers.planning_hub on them can't
+        # be verified and must not false-positive here.
+        if _OBJ_RE.fullmatch(name):
+            warns.append(
+                f"DRIFT: LINEAGE credits planning-hub for `{name}` but its read layer no longer references it"
+            )
     for name in sorted(detected - catalogued):
         warns.append(
             f"DRIFT: planning-hub reads `{name}` which is not in the catalog surface"
