@@ -145,7 +145,7 @@ to put them back on the automatic SYNC.
 | Surfer's API usage | `surfer_api_usage` | ⏸ **Import Wizard only** — not in auto-SYNC |
 
 ### Spreadsheet 4 — Team Pods
-ID env-driven via `TEAM_PODS_ID` = `10ydCI1mQ5_T6nnMJt9eNHZ32_8NJBkOceiAW6FprjxA` ("Copy of [Int] Team Pods", swapped 2026-06-12 from the older temp copy — shared with the BI SA).
+ID env-driven via `TEAM_PODS_ID` = `1YPjKKwfZrZqXXYxEli8p69b8Iq397ctkRSMwElzNUKQ` ("Copy of [Int] Team Pods", swapped 2026-07-13 to the current maintained copy with the July 2026 tabs; SA-shared. Note: editorial member/pod assignments are read **Hub-first** from BQ `team_pod_assignments_editorial_history`, so this sheet drives **growth** + is the editorial **fallback** only).
 
 | Sheet | Destination | Ingested? |
 |---|---|---|
