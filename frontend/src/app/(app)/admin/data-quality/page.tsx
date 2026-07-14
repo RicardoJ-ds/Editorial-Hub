@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, CalendarClock, Check, Database, ExternalLink, Info, Link2, RefreshCcw, Unlink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArticleMappingsTab } from "@/components/admin/ArticleMappingsTab";
+import { UnmappedNamesTab } from "@/components/admin/UnmappedNamesTab";
 import { NormalizationMapTab } from "@/components/admin/NormalizationMapTab";
 import { apiGet } from "@/lib/api";
 import {
@@ -1299,6 +1300,7 @@ const TAB_LENSES: Record<string, LensKey[]> = {
   pod_issues: ["team_kpis", "platform"],
   pod_history: ["team_kpis"],
   article_mappings: ["team_kpis"],
+  unmapped_names: ["team_kpis", "platform"],
   pod_coverage: ["team_kpis"],
   normalization: ["team_kpis", "platform"],
   modeling: ["platform"],
@@ -1312,6 +1314,7 @@ const TAB_ORDER = [
   "pod_issues",
   "pod_history",
   "article_mappings",
+  "unmapped_names",
   "pod_coverage",
   "normalization",
   "modeling",
@@ -1485,7 +1488,10 @@ export default function DataQualityPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 min-h-0 flex-col">
-            <TabsList variant="line" className="shrink-0">
+            {/* Horizontal scroll: the tab row overflows the viewport once enough
+                tabs are present; pb/-mb keep the active-tab underline unclipped. */}
+            <div className="shrink-0 overflow-x-auto pb-2 -mb-2">
+            <TabsList variant="line" className="w-max">
               {tabInLens("end_date", lens) && (
                 <TabsTrigger
                   value="end_date"
@@ -1540,6 +1546,15 @@ export default function DataQualityPage() {
                   Article mappings
                 </TabsTrigger>
               )}
+              {tabInLens("unmapped_names", lens) && (
+                <TabsTrigger
+                  value="unmapped_names"
+                  className="data-active:border-b-2 data-active:border-[#42CA80] data-active:text-white text-[#606060]"
+                >
+                  <Unlink className="mr-2 inline-block h-3.5 w-3.5" />
+                  Unmapped names
+                </TabsTrigger>
+              )}
               {tabInLens("pod_coverage", lens) && (
                 <TabsTrigger
                   value="pod_coverage"
@@ -1568,6 +1583,7 @@ export default function DataQualityPage() {
                 </TabsTrigger>
               )}
             </TabsList>
+            </div>
 
             <TabsContent value="end_date" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <EndDateDiscrepancyTab rows={data.end_date_mismatches} />
@@ -1586,6 +1602,9 @@ export default function DataQualityPage() {
             </TabsContent>
             <TabsContent value="article_mappings" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <ArticleMappingsTab />
+            </TabsContent>
+            <TabsContent value="unmapped_names" className="mt-3 flex-1 min-h-0 overflow-hidden">
+              <UnmappedNamesTab />
             </TabsContent>
             <TabsContent value="pod_coverage" className="mt-3 flex-1 min-h-0 overflow-hidden">
               <UnassignedPodsTab rows={data.unassigned_article_pods} />

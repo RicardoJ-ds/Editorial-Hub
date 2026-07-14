@@ -12,6 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.models import (
     ArticleRecord,
@@ -705,3 +706,182 @@ async def normalization_summary(db: AsyncSession = Depends(get_db)):
         mappings_client=mc["client"],
         generated_at=datetime.utcnow(),
     )
+
+
+# ── Unmapped Names — one place to see names that didn't reconcile ────────────
+# Every source that canonicalizes a name against the editorial roster/name-map
+# emits its "misses" here so they get manual attention (add a row to the
+# DaniQ-editable Editorial Name Mappings sheet → next SYNC re-resolves them).
+# Signals are BQ-native: editorial_writer_desired.matched + editorial_raw_articles
+# .editor/writer_match_status. Junk cells ("Writer", "Both", numbers) are filtered
+# so the list is real, actionable gaps only.
+
+
+class UnmappedNameItem(BaseModel):
+    source: str  # writer_form | article_writer | article_editor
+    source_label: str
+    raw_name: str
+    occurrences: int
+    context: str | None = None  # ym / ym-range for the form source
+    suggestion: str | None = None  # fuzzy roster match ("did you mean?")
+    fix_hint: str  # where to fix it at the source
+
+
+class UnmappedSourceCount(BaseModel):
+    key: str
+    label: str
+    count: int
+
+
+class UnmappedNamesResponse(BaseModel):
+    items: list[UnmappedNameItem]
+    sources: list[UnmappedSourceCount]
+    generated_at: datetime
+
+
+# Cells that are NOT names — markers/garbage seen in editor/writer columns.
+_NAME_JUNK = {
+    "", "-", "—", "n/a", "na", "no edits", "^", "^^", "tbd", "tbc", "?", "and",
+    "both", "writer", "writers", "editor", "editors", "new writer", "unknown",
+    "uknown", "none", "same", "self",
+}
+# Substrings that mark a cell as a note, not a clean name.
+_JUNK_MARKERS = (
+    "rewritten by", "trial", "aud writer", "auditioning", "onboarding",
+    "backlog", "hasn't started", "hasnt started", "actively recruiting",
+    "not hired", "not started",
+)
+
+_SRC_ORDER = {"writer_form": 0, "article_writer": 1, "article_editor": 2}
+_SRC_LABEL = {
+    "writer_form": "Writer form",
+    "article_writer": "Article log (writer)",
+    "article_editor": "Article log (editor)",
+}
+_SRC_FIX = {
+    "writer_form": "Editorial Name Mappings ▸ Writers",
+    "article_writer": "Editorial Name Mappings ▸ Writers",
+    "article_editor": "Editorial Name Mappings ▸ Editors",
+}
+
+
+def _norm_name(raw: str) -> str:
+    import re
+    import unicodedata
+
+    t = unicodedata.normalize("NFKD", str(raw or "").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", " ", t).strip()
+
+
+def _looks_like_name(raw: str) -> bool:
+    n = _norm_name(raw)
+    if not n or n in _NAME_JUNK:
+        return False
+    if not any(c.isalpha() for c in n) or len(n.replace(" ", "")) < 3:
+        return False
+    low = str(raw or "").lower()
+    return not any(m in low for m in _JUNK_MARKERS)
+
+
+def _fmt_ym(ym: int | None) -> str | None:
+    if ym is None:
+        return None
+    return f"{ym // 100:04d}-{ym % 100:02d}"
+
+
+@router.get("/unmapped-names", response_model=UnmappedNamesResponse)
+async def list_unmapped_names():
+    """Unresolved names across every reconciled source, junk-filtered, with a
+    fuzzy roster suggestion + where to fix each at the source. Read-only — the
+    fix is a row in the Editorial Name Mappings sheet; the next SYNC clears it.
+    Degrades to an empty list if BigQuery is unreachable (never 500s the page)."""
+    ds = f"{settings.bq_project}.{settings.bq_dataset}"
+
+    def _fetch() -> dict:
+        from app.services.bq_dashboard import q
+
+        return {
+            "wf": q(
+                f"SELECT raw_name, COUNT(*) AS occ, MIN(ym) AS min_ym, MAX(ym) AS max_ym "
+                f"FROM `{ds}.editorial_writer_desired` "
+                "WHERE NOT matched AND raw_name IS NOT NULL GROUP BY raw_name"
+            ),
+            # 'unresolved' only — 'first_name_only' (pre-2025 writers kept under a
+            # bare first name) is an accepted state, not an actionable mapping gap.
+            "aw": q(
+                f"SELECT writer_name AS raw_name, COUNT(*) AS occ "
+                f"FROM `{ds}.editorial_raw_articles` "
+                "WHERE writer_match_status = 'unresolved' "
+                "AND writer_name IS NOT NULL GROUP BY writer_name"
+            ),
+            "ae": q(
+                f"SELECT editor_name AS raw_name, COUNT(*) AS occ "
+                f"FROM `{ds}.editorial_raw_articles` "
+                "WHERE editor_match_status = 'unresolved' AND editor_name IS NOT NULL "
+                "GROUP BY editor_name"
+            ),
+            "roster": q(
+                f"SELECT DISTINCT canonical_name FROM `{ds}.v_editorial_roster` "
+                "WHERE canonical_name IS NOT NULL"
+            ),
+        }
+
+    try:
+        data = await asyncio.to_thread(_fetch)
+    except Exception:
+        return UnmappedNamesResponse(items=[], sources=[], generated_at=datetime.utcnow())
+
+    # Fuzzy "did you mean?" — exact norm, then first-name / prefix overlap.
+    roster_norm: dict[str, str] = {}
+    first_idx: dict[str, list[str]] = {}
+    for r in data["roster"]:
+        nm = r["canonical_name"]
+        k = _norm_name(nm)
+        if not k:
+            continue
+        roster_norm.setdefault(k, nm)
+        first_idx.setdefault(k.split(" ")[0], []).append(nm)
+
+    def _suggest(raw: str) -> str | None:
+        k = _norm_name(raw)
+        if k in roster_norm:
+            return roster_norm[k]
+        # Exact first-name only — loose prefix overlap mis-suggests
+        # (e.g. "Daniela" → "Daniel …"), so require the first token to match.
+        ft = k.split(" ")[0]
+        hits = sorted(set(first_idx.get(ft, [])))
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            return f"{len(hits)} candidates: " + ", ".join(hits[:3]) + ("…" if len(hits) > 3 else "")
+        return None
+
+    items: list[UnmappedNameItem] = []
+    for src, rows in (("writer_form", data["wf"]), ("article_writer", data["aw"]), ("article_editor", data["ae"])):
+        for r in rows:
+            raw = str(r["raw_name"]).strip()
+            if not _looks_like_name(raw):
+                continue
+            ctx = None
+            if src == "writer_form":
+                lo, hi = _fmt_ym(r.get("min_ym")), _fmt_ym(r.get("max_ym"))
+                ctx = lo if lo == hi else f"{lo}..{hi}"
+            items.append(
+                UnmappedNameItem(
+                    source=src,
+                    source_label=_SRC_LABEL[src],
+                    raw_name=raw,
+                    occurrences=int(r["occ"]),
+                    context=ctx,
+                    suggestion=_suggest(raw),
+                    fix_hint=_SRC_FIX[src],
+                )
+            )
+
+    items.sort(key=lambda it: (_SRC_ORDER.get(it.source, 9), -it.occurrences, it.raw_name.lower()))
+    sources = [
+        UnmappedSourceCount(key=k, label=_SRC_LABEL[k], count=sum(1 for it in items if it.source == k))
+        for k in ("writer_form", "article_writer", "article_editor")
+    ]
+    return UnmappedNamesResponse(items=items, sources=sources, generated_at=datetime.utcnow())
