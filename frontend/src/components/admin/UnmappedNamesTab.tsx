@@ -23,6 +23,8 @@ type Item = {
   occurrences: number;
   context: string | null;
   suggestion: string | null;
+  origin_label: string;
+  origin_url: string | null;
   fix_hint: string;
 };
 type Resp = {
@@ -178,6 +180,9 @@ export function UnmappedNamesTab() {
                   setFilters={setColFilters}
                 />
               </th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">
+                Where to find it
+              </th>
               <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">
                 Seen
               </th>
@@ -198,7 +203,7 @@ export function UnmappedNamesTab() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-[#42CA80]">
+                <td colSpan={6} className="px-3 py-8 text-center text-[#42CA80]">
                   No unmapped names — every reconciled name resolves.
                 </td>
               </tr>
@@ -213,6 +218,20 @@ export function UnmappedNamesTab() {
                     {it.raw_name}
                     {it.context && (
                       <span className="ml-2 text-[10px] text-[#606060]">{it.context}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-[#606060]">
+                    {it.origin_url ? (
+                      <a
+                        href={it.origin_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#606060] hover:text-[#42CA80]"
+                      >
+                        {it.origin_label}
+                      </a>
+                    ) : (
+                      it.origin_label
                     )}
                   </td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-[#C4BCAA]">

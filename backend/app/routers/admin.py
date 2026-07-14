@@ -724,6 +724,8 @@ class UnmappedNameItem(BaseModel):
     occurrences: int
     context: str | None = None  # ym / ym-range for the form source
     suggestion: str | None = None  # fuzzy roster match ("did you mean?")
+    origin_label: str  # where the raw name lives: spreadsheet · tab(s) · column
+    origin_url: str | None = None  # link to that source spreadsheet
     fix_hint: str  # where to fix it at the source
 
 
@@ -763,6 +765,10 @@ _SRC_FIX = {
     "article_writer": "Editorial Name Mappings ▸ Writers",
     "article_editor": "Editorial Name Mappings ▸ Editors",
 }
+
+# Where each raw name actually lives, so a reviewer can go read it in context.
+_ARTICLE_SHEET_URL = f"https://docs.google.com/spreadsheets/d/{settings.article_count_id}"
+_FORM_SHEET_URL = "https://docs.google.com/spreadsheets/d/1SprAkqDwKryDzwbxu2u3EWifQv4LNdSnW6zV10plaSo"
 
 
 def _norm_name(raw: str) -> str:
@@ -809,14 +815,17 @@ async def list_unmapped_names():
             ),
             # 'unresolved' only — 'first_name_only' (pre-2025 writers kept under a
             # bare first name) is an accepted state, not an actionable mapping gap.
+            # source_tab = which client tab(s) the name appears in (the locator).
             "aw": q(
-                f"SELECT writer_name AS raw_name, COUNT(*) AS occ "
+                f"SELECT writer_name AS raw_name, COUNT(*) AS occ, "
+                f"ARRAY_AGG(DISTINCT source_tab IGNORE NULLS ORDER BY source_tab LIMIT 6) AS tabs "
                 f"FROM `{ds}.editorial_raw_articles` "
                 "WHERE writer_match_status = 'unresolved' "
                 "AND writer_name IS NOT NULL GROUP BY writer_name"
             ),
             "ae": q(
-                f"SELECT editor_name AS raw_name, COUNT(*) AS occ "
+                f"SELECT editor_name AS raw_name, COUNT(*) AS occ, "
+                f"ARRAY_AGG(DISTINCT source_tab IGNORE NULLS ORDER BY source_tab LIMIT 6) AS tabs "
                 f"FROM `{ds}.editorial_raw_articles` "
                 "WHERE editor_match_status = 'unresolved' AND editor_name IS NOT NULL "
                 "GROUP BY editor_name"
@@ -867,6 +876,18 @@ async def list_unmapped_names():
             if src == "writer_form":
                 lo, hi = _fmt_ym(r.get("min_ym")), _fmt_ym(r.get("max_ym"))
                 ctx = lo if lo == hi else f"{lo}..{hi}"
+                origin_label = "Desired-Article form · ‘Form Responses’ tab · Name column"
+                origin_url: str | None = _FORM_SHEET_URL
+            else:
+                tabs = [t for t in (r.get("tabs") or []) if t]
+                tabs_str = (
+                    ", ".join(tabs[:3]) + (f" +{len(tabs) - 3}" if len(tabs) > 3 else "")
+                    if tabs
+                    else "—"
+                )
+                col = "WRITER" if src == "article_writer" else "EDITOR"
+                origin_label = f"Monthly Article Count · tab: {tabs_str} · {col} column"
+                origin_url = _ARTICLE_SHEET_URL
             items.append(
                 UnmappedNameItem(
                     source=src,
@@ -875,6 +896,8 @@ async def list_unmapped_names():
                     occurrences=int(r["occ"]),
                     context=ctx,
                     suggestion=_suggest(raw),
+                    origin_label=origin_label,
+                    origin_url=origin_url,
                     fix_hint=_SRC_FIX[src],
                 )
             )
