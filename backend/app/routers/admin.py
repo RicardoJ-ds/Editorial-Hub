@@ -818,14 +818,16 @@ async def list_unmapped_names():
             # source_tab = which client tab(s) the name appears in (the locator).
             "aw": q(
                 f"SELECT writer_name AS raw_name, COUNT(*) AS occ, "
-                f"ARRAY_AGG(DISTINCT source_tab IGNORE NULLS ORDER BY source_tab LIMIT 6) AS tabs "
+                f"ARRAY_AGG(DISTINCT source_tab IGNORE NULLS ORDER BY source_tab LIMIT 6) AS tabs, "
+                f"MIN(month_year) AS min_my, MAX(month_year) AS max_my "
                 f"FROM `{ds}.editorial_raw_articles` "
                 "WHERE writer_match_status = 'unresolved' "
                 "AND writer_name IS NOT NULL GROUP BY writer_name"
             ),
             "ae": q(
                 f"SELECT editor_name AS raw_name, COUNT(*) AS occ, "
-                f"ARRAY_AGG(DISTINCT source_tab IGNORE NULLS ORDER BY source_tab LIMIT 6) AS tabs "
+                f"ARRAY_AGG(DISTINCT source_tab IGNORE NULLS ORDER BY source_tab LIMIT 6) AS tabs, "
+                f"MIN(month_year) AS min_my, MAX(month_year) AS max_my "
                 f"FROM `{ds}.editorial_raw_articles` "
                 "WHERE editor_match_status = 'unresolved' AND editor_name IS NOT NULL "
                 "GROUP BY editor_name"
@@ -888,6 +890,9 @@ async def list_unmapped_names():
                 col = "WRITER" if src == "article_writer" else "EDITOR"
                 origin_label = f"Monthly Article Count · tab: {tabs_str} · {col} column"
                 origin_url = _ARTICLE_SHEET_URL
+                lo, hi = r.get("min_my"), r.get("max_my")
+                if lo:
+                    ctx = lo if lo == hi else f"{lo} .. {hi}"
             items.append(
                 UnmappedNameItem(
                     source=src,
