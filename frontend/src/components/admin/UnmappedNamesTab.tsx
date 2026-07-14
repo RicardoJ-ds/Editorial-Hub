@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ExternalLink, RefreshCcw } from "lucide-react";
+import { ExternalLink, Info, RefreshCcw } from "lucide-react";
 
 import {
   ClearFiltersButton,
@@ -9,6 +9,12 @@ import {
   FilterableHeader,
   matchesFilter,
 } from "@/components/admin/ColumnFilter";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { apiGet } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -139,6 +145,40 @@ export function UnmappedNamesTab() {
           <span className="text-[#909090]">SYNC</span> re-resolves it and the row disappears here.
           Read-only — no edits in the app.
         </p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger className="mt-0.5 inline-flex items-center gap-1 text-[#606060] hover:text-[#909090]">
+              <Info className="h-3 w-3" /> How this is calculated
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="start" className="max-w-sm">
+              <div className="space-y-1 text-left font-mono text-[11px] leading-relaxed">
+                <p className="font-semibold uppercase tracking-wider text-[#C4BCAA]">
+                  How this is calculated
+                </p>
+                <ul className="list-disc space-y-0.5 pl-4 text-[#B8B8B8]">
+                  <li>
+                    Each raw name is matched to a canonical identity — the editorial{" "}
+                    <span className="text-[#C4BCAA]">Roster</span> (Rippling editors + Slack
+                    writers) plus the <span className="text-[#C4BCAA]">Name Mappings</span> aliases.
+                  </li>
+                  <li>
+                    Flagged when the normalized name (lowercase, accents stripped) matches neither —
+                    the form response stays unmatched, or the article name stays “unresolved”.
+                  </li>
+                  <li>
+                    Junk cells (“Writer”, numbers, notes) and pre-2025 first-name-only writers are
+                    excluded, so the list is only actionable gaps.
+                  </li>
+                  <li>“Did you mean?” = an exact name, else an exact first-name match in the roster.</li>
+                  <li>
+                    It reads SYNC’s own flags — adding the alias + re-running SYNC clears the row
+                    automatically.
+                  </li>
+                </ul>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
