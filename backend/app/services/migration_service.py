@@ -3522,16 +3522,20 @@ def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -
     # planning hub populates `email` at publish — see the handoff.)
     email_by_name: dict[str, str] = {}
     try:
+        # v_headcount FIRST — the Rippling @graphitehq work_email is the login
+        # identity for editors. Only THEN the roster: a person who is BOTH an
+        # editor and a Slack writer would otherwise resolve to their
+        # @ext.writing address (which can't log into the app).
         for rr in bq.query(
-            f"SELECT canonical_name AS n, work_email AS e FROM {ds}.v_editorial_roster "
-            "WHERE work_email IS NOT NULL AND TRIM(work_email) != ''"
+            f"SELECT employee_name AS n, work_email AS e FROM {ds}.v_headcount "
+            "WHERE work_email IS NOT NULL AND is_present_dated"
         ).result():
             k = (rr["n"] or "").strip().lower()
             if k:
                 email_by_name.setdefault(k, rr["e"])
         for rr in bq.query(
-            f"SELECT employee_name AS n, work_email AS e FROM {ds}.v_headcount "
-            "WHERE work_email IS NOT NULL AND is_present_dated"
+            f"SELECT canonical_name AS n, work_email AS e FROM {ds}.v_editorial_roster "
+            "WHERE work_email IS NOT NULL AND TRIM(work_email) != ''"
         ).result():
             k = (rr["n"] or "").strip().lower()
             if k:
@@ -3546,7 +3550,9 @@ def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -
         detail.rows_parsed += 1
         email = (r["email"] or "").strip().lower()
         if not email:  # Hub has no email for editors → resolve from the roster by name
-            email = (email_by_name.get((r["display_name"] or "").strip().lower()) or "").strip().lower()
+            email = (
+                (email_by_name.get((r["display_name"] or "").strip().lower()) or "").strip().lower()
+            )
         client = (r["client_name"] or "").strip()
         role = (r["role"] or "").strip()
         if not email or not client or not role:
