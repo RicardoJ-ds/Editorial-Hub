@@ -66,6 +66,9 @@ HUB_PUBLISHED = (
     # Cross-hub table the EDITORIAL hub now PUBLISHES (daily @writer-desired
     # step) and the planning hub READS — direction is EH → PH, unlike the rest.
     "editorial_writer_desired",
+    # All-company member roster (superset of v_editorial_roster) — read by the
+    # planning hub's member picker. Standalone always-live view.
+    "v_company_roster",
 )
 
 # The editorial warehouse surface (matches the build source's naming) + the
@@ -335,6 +338,10 @@ GRAIN: dict[str, dict[str, str]] = {
     "editorial_writer_desired": {
         "grain": "writer × ym (latest submission wins)",
         "note": "writers' self-reported desired article total (Google Form) — published by EH's daily @writer-desired step, read by PH getWriterDesired() as the Writers-model capacity basis",
+    },
+    "v_company_roster": {
+        "grain": "person × role",
+        "note": "ALL-company member roster (all Rippling employees + Slack writers + legacy), canonicalised — superset of v_editorial_roster (no editor filter, no exclusions) + is_editorial/role/title/department flags; the member-picker source",
     },
 }
 

@@ -508,6 +508,13 @@ LINEAGE: dict[str, dict[str, str]] = {
         "eh": "internal (EH publishes it; no EH dashboard reads it)",
         "ph": "getWriterDesired(fromYm) → the capacity BASIS in the Writers model (self-reported desired bw; fallback to computed-from-history when absent)",
     },
+    "v_company_roster": {
+        "origin": "v_headcount (ALL Rippling employees, every dept) + slack_raw_users (ext.writing writers) + editorial_name_map (legacy canonicals + canonicalization)",
+        "pipeline_step": "etl/warehouse/v_company_roster.sql (standalone always-live CREATE VIEW; applied manually like v_editorial_roster — recomputes on read, no populate job)",
+        "processing": "Same union + canonicalization as v_editorial_roster but WITHOUT the editor-title filter and WITHOUT editorial exclusions; adds role (editor/sr_editor/writer/employee), is_editorial, title, department. Grain person × role.",
+        "eh": "internal (superset of v_editorial_roster; EH keeps reading v_editorial_roster)",
+        "ph": "all-company member picker / dropdown (select employees + writer contractors); filter is_active / is_editorial as needed",
+    },
 }
 
 # Object-name pattern for the sibling drift scan.
