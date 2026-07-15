@@ -3501,7 +3501,7 @@ def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -
             bq.query(
                 f"""SELECT ym, pod, client_name, role, display_name, email
                 FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
-                WHERE deleted_at IS NULL AND email IS NOT NULL
+                WHERE deleted_at IS NULL
                   AND ym = (SELECT MAX(ym) FROM {ds}.{HUB_ASSIGNMENTS_TABLE}
                             WHERE ym <= '{cur}' AND deleted_at IS NULL)"""
             ).result()
@@ -3514,6 +3514,30 @@ def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -
         return False
 
     ym = rows[0]["ym"]
+    # DEFENSIVE: the Hub identifies editors by NAME — its `email` column is null
+    # for editorial rows since the identity cutover — but RBAC + the pod-derived
+    # Editorial Team group key on email, so a null email silently drops the whole
+    # editorial roster from access. Backfill work_email from OUR roster by name so
+    # a null-email upstream can never lock the team out. (Permanent fix: the
+    # planning hub populates `email` at publish — see the handoff.)
+    email_by_name: dict[str, str] = {}
+    try:
+        for rr in bq.query(
+            f"SELECT canonical_name AS n, work_email AS e FROM {ds}.v_editorial_roster "
+            "WHERE work_email IS NOT NULL AND TRIM(work_email) != ''"
+        ).result():
+            k = (rr["n"] or "").strip().lower()
+            if k:
+                email_by_name.setdefault(k, rr["e"])
+        for rr in bq.query(
+            f"SELECT employee_name AS n, work_email AS e FROM {ds}.v_headcount "
+            "WHERE work_email IS NOT NULL AND is_present_dated"
+        ).result():
+            k = (rr["n"] or "").strip().lower()
+            if k:
+                email_by_name.setdefault(k, rr["e"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("editorial email backfill lookup failed: %s", exc)
     detail.tab_name = f"Hub: {HUB_ASSIGNMENTS_TABLE}"
     detail.month_year = ym
     session.query(PodAssignment).filter(PodAssignment.pod_kind == "editorial").delete()
@@ -3521,6 +3545,8 @@ def _import_editorial_pods_from_hub(session: Session, detail: TabImportDetail) -
     for r in rows:
         detail.rows_parsed += 1
         email = (r["email"] or "").strip().lower()
+        if not email:  # Hub has no email for editors → resolve from the roster by name
+            email = (email_by_name.get((r["display_name"] or "").strip().lower()) or "").strip().lower()
         client = (r["client_name"] or "").strip()
         role = (r["role"] or "").strip()
         if not email or not client or not role:
