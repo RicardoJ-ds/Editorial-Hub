@@ -268,6 +268,38 @@ interface PreviewPerson {
   role: string | null;
 }
 
+// All-company member roster (BQ v_company_roster) for the member-add picker.
+interface RosterPerson {
+  name: string;
+  emails: string[];
+  role: string | null;
+  title: string | null;
+  department: string | null;
+}
+
+// Module-cached so the many expandable group rows share ONE fetch.
+let _rosterCache: RosterPerson[] | null = null;
+let _rosterPromise: Promise<RosterPerson[]> | null = null;
+function useRosterPeople(): RosterPerson[] {
+  const [people, setPeople] = useState<RosterPerson[]>(_rosterCache ?? []);
+  useEffect(() => {
+    if (_rosterCache) {
+      setPeople(_rosterCache);
+      return;
+    }
+    _rosterPromise ??= apiGet<RosterPerson[]>("/api/access/roster")
+      .then((r) => {
+        _rosterCache = r;
+        return r;
+      })
+      .catch(() => []);
+    void _rosterPromise.then(setPeople);
+  }, []);
+  return people;
+}
+
+const looksLikeEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+
 function PreviewAsControl() {
   const [open, setOpen] = useState(false);
   const [comboOpen, setComboOpen] = useState(false);
@@ -1539,25 +1571,33 @@ function MembersBlock({
   onChanged: () => Promise<void>;
 }) {
   const [adding, setAdding] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
+  const [comboOpen, setComboOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const roster = useRosterPeople();
+  const existing = new Set(members.map((m) => m.email.toLowerCase()));
 
-  const submit = useCallback(async () => {
-    if (!newEmail.trim()) return;
-    setSubmitting(true);
-    setErr(null);
-    try {
-      await apiPost(`/api/access/groups/${slug}/members`, { email: newEmail.trim() });
-      setNewEmail("");
-      setAdding(false);
-      await onChanged();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to add member");
-    } finally {
-      setSubmitting(false);
-    }
-  }, [newEmail, slug, onChanged]);
+  const add = useCallback(
+    async (email: string) => {
+      const em = email.trim().toLowerCase();
+      if (!em) return;
+      setSubmitting(true);
+      setErr(null);
+      try {
+        await apiPost(`/api/access/groups/${slug}/members`, { email: em });
+        setSearch("");
+        setComboOpen(false);
+        setAdding(false);
+        await onChanged();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Failed to add member");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [slug, onChanged],
+  );
 
   const removeMember = useCallback(
     async (email: string) => {
@@ -1574,43 +1614,104 @@ function MembersBlock({
 
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <p className="font-mono text-[10px] uppercase tracking-wider text-[#606060]">
           Members ({members.length})
         </p>
         {isAdmin && !adding && (
-          <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
-            <Plus className="mr-1 h-3 w-3" /> Add member
+          <Button
+            size="sm"
+            onClick={() => setAdding(true)}
+            className="h-7 border border-[#42CA80]/40 bg-[#42CA80]/10 px-3 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#42CA80] hover:border-[#42CA80] hover:bg-[#42CA80]/20 hover:text-[#65FFAA]"
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add member
           </Button>
         )}
-      </div>
-
-      {adding && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="email@graphitehq.com"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            className="h-8 max-w-[280px] text-xs"
-            disabled={submitting}
-          />
-          <Button size="sm" onClick={submit} disabled={!newEmail.trim() || submitting}>
-            {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-          </Button>
+        {isAdmin && adding && (
+          <>
+          <Popover open={comboOpen} onOpenChange={setComboOpen}>
+            <PopoverTrigger
+              aria-expanded={comboOpen}
+              className="inline-flex h-8 w-[320px] items-center justify-between rounded-md border border-[#2a2a2a] bg-[#0d0d0d] px-3 text-xs font-normal text-[#C4BCAA] hover:bg-[#161616]"
+            >
+              Search a person by name or email…
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[380px] overflow-hidden rounded-lg border border-[#3a3a3a] bg-[#161616] p-0 shadow-2xl ring-1 ring-black/50"
+              align="start"
+            >
+              <Command>
+                <CommandInput
+                  placeholder="Name, email, title…"
+                  className="text-xs"
+                  value={search}
+                  onValueChange={setSearch}
+                />
+                <CommandList>
+                  <CommandEmpty className="px-3 py-3 text-center text-xs text-[#606060]">
+                    {looksLikeEmail(search) ? (
+                      <button
+                        type="button"
+                        onClick={() => void add(search)}
+                        className="text-[#42CA80] hover:text-[#65FFAA]"
+                      >
+                        Add &ldquo;{search.trim()}&rdquo;
+                      </button>
+                    ) : (
+                      "No match — type a full email to add it directly."
+                    )}
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {roster.map((p) => {
+                      const already = p.emails.some((e) => existing.has(e.toLowerCase()));
+                      return (
+                        <CommandItem
+                          key={p.name + (p.emails[0] ?? "")}
+                          value={`${p.name} ${p.emails.join(" ")} ${p.title ?? ""} ${p.department ?? ""} ${p.role ?? ""}`}
+                          disabled={already}
+                          onSelect={() => void add(p.emails[0])}
+                          className="flex flex-col items-start gap-0.5"
+                        >
+                          <span className="text-xs">
+                            <span className="font-medium text-white">{p.name}</span>
+                            {(p.title || p.department) && (
+                              <span className="text-[#707070]">
+                                {" · "}
+                                {[p.title, p.department].filter(Boolean).join(" · ")}
+                              </span>
+                            )}
+                            {already && (
+                              <span className="ml-1 text-[10px] text-[#606060]">(member)</span>
+                            )}
+                          </span>
+                          <span className="font-mono text-[10px] text-[#707070]">
+                            {p.emails.join(", ")}
+                          </span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#606060]" />}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setAdding(false);
               setErr(null);
-              setNewEmail("");
+              setSearch("");
             }}
           >
             Cancel
           </Button>
           {err && <span className="text-xs text-[#ED6958]">{err}</span>}
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
       {members.length === 0 ? (
         <p className="mt-3 text-xs text-[#606060]">No members yet.</p>

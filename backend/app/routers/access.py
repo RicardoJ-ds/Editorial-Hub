@@ -258,6 +258,61 @@ def group_detail(slug: str, _: AccessProfile = Depends(require_authenticated)):
         )
 
 
+class RosterPersonRow(BaseModel):
+    """One selectable person for the member-add picker."""
+
+    name: str
+    emails: list[str]
+    role: str | None = None
+    title: str | None = None
+    department: str | None = None
+
+
+@router.get("/roster", response_model=list[RosterPersonRow])
+async def list_roster(_: AccessProfile = Depends(require_authenticated)):
+    """People roster for the member-add dropdown — from BQ `v_company_roster`
+    (all-company: Rippling employees + Slack writers + legacy), one row per
+    person with their email(s) + title/department for the search results.
+    Degrades to [] if BigQuery is unreachable (the picker just shows nothing)."""
+    import asyncio
+
+    from app.config import settings
+
+    ds = f"{settings.bq_project}.{settings.bq_dataset}"
+
+    def _fetch() -> list[dict]:
+        from app.services.bq_dashboard import q
+
+        return q(
+            "SELECT canonical_name AS name, "
+            "ARRAY_AGG(DISTINCT work_email IGNORE NULLS ORDER BY work_email) AS emails, "
+            "ANY_VALUE(title) AS title, ANY_VALUE(department) AS department, MIN(role) AS role "
+            f"FROM `{ds}.v_company_roster` "
+            "WHERE is_active AND canonical_name IS NOT NULL "
+            "GROUP BY canonical_name ORDER BY canonical_name"
+        )
+
+    try:
+        rows = await asyncio.to_thread(_fetch)
+    except Exception:
+        return []
+    out: list[RosterPersonRow] = []
+    for r in rows:
+        emails = [e for e in (r.get("emails") or []) if e]
+        if not emails:  # can't add someone with no email
+            continue
+        out.append(
+            RosterPersonRow(
+                name=r["name"],
+                emails=emails,
+                role=r.get("role"),
+                title=r.get("title"),
+                department=r.get("department"),
+            )
+        )
+    return out
+
+
 @router.get("/users", response_model=list[UserMatrixRow])
 def list_users(_: AccessProfile = Depends(require_authenticated)):
     """Returns one row per known email — the union of every email that
