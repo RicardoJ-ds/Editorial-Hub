@@ -193,8 +193,8 @@ GRAIN: dict[str, dict[str, str]] = {
         "note": "pod capacity mart (total / projected-used / actual-used)",
     },
     "editorial_int_member_months": {
-        "grain": "member × month",
-        "note": "member utilization mart",
+        "grain": "member × pod × month",
+        "note": "member utilization mart; a shared editor (home + support pods) has one row per pod — key by (year, month, pod, member), not (year, month, member)",
     },
     "editorial_int_client_pod_months": {
         "grain": "client × pod × month",

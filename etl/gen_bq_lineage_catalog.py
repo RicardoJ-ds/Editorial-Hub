@@ -268,7 +268,7 @@ LINEAGE: dict[str, dict[str, str]] = {
     "editorial_int_member_months": {
         "origin": "editorial_raw_capacity_members + editorial_raw_client_pod_history + editorial_raw_production + editorial_raw_articles",
         "pipeline_step": "build.py build_int_capacity_articles() → transform.build_member_utilization_mart() (shared capacity_calc.py)",
-        "processing": "Per (year,month,pod,role,member): projected_used = capacity-share × pod projected; actual_used = article-share × pod actual (articles as distribution key); ×1.4 specialized; canonical name.",
+        "processing": "Per (year,month,pod,role,member): projected_used = capacity-share × pod projected; actual_used = article-share × pod actual (articles as distribution key); ×1.4 specialized; canonical name. A shared editor (staffed in >1 pod) has their article count SPLIT across pods by capacity share (not credited in full to each), so pod totals aren't inflated.",
         "eh": "GET /api/capacity/member-utilization(+matrix); Team KPIs → Capacity By Editor + Editors heat matrix",
         "ph": "getCapacityData() → member×pod×month capacity + utilization feeding the move/leave what-if math",
     },

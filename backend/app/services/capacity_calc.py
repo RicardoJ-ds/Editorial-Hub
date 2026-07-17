@@ -119,7 +119,6 @@ def compute_member_utilization(
 
     # Pass 1 — expand members into people + match their article count.
     people_rows: list[dict] = []
-    pod_total_articles: dict[str, int] = defaultdict(int)
     for m in emc_rows:
         # Expand combined cells ("Lauren K (28) + Anabelle (15)") into one row
         # per person; fall back to the slot's single name + capacity.
@@ -133,7 +132,6 @@ def compute_member_utilization(
             if not nm:
                 continue
             ek = _resolve_editor(nm)
-            articles = ed_raw.get(ek, 0) if ek else 0
             people_rows.append(
                 {
                     "pod": m["pod"],
@@ -141,10 +139,35 @@ def compute_member_utilization(
                     "member": nm,
                     "capacity": person.get("capacity") or m["capacity"],
                     "matched": ek is not None,
-                    "articles": articles,
+                    "editor_key": ek,
+                    "articles": 0,  # filled below (capacity-weighted split)
                 }
             )
-            pod_total_articles[m["pod"]] += articles
+
+    # Capacity sharing: one editor can be staffed in >1 pod in a month (a home
+    # slice + a support slice). Their delivered-article count must NOT be
+    # credited in full to every pod — that double-counts their work and inflates
+    # each pod's article total (the distribution denominator). Split the count
+    # across their pod appearances by capacity share, conserving the total
+    # (rounded to whole articles); a single-pod editor keeps their full count,
+    # so non-shared editors and single-editor pods are unchanged.
+    appearances: dict[str, list[dict]] = defaultdict(list)
+    for p in people_rows:
+        if p["editor_key"]:
+            appearances[p["editor_key"]].append(p)
+    for ek, apps in appearances.items():
+        total = ed_raw.get(ek, 0)
+        if len(apps) == 1:
+            apps[0]["articles"] = total
+            continue
+        cap_sum = sum((a["capacity"] or 0) for a in apps)
+        for a in apps:
+            share = ((a["capacity"] or 0) / cap_sum) if cap_sum else (1 / len(apps))
+            a["articles"] = round(total * share)
+
+    pod_total_articles: dict[str, int] = defaultdict(int)
+    for p in people_rows:
+        pod_total_articles[p["pod"]] += p["articles"]
 
     # Pass 2 — derive the model per member from pod totals.
     rows: list[dict] = []
