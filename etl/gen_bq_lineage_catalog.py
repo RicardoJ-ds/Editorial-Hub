@@ -420,6 +420,13 @@ LINEAGE: dict[str, dict[str, str]] = {
         "eh": "Overview → Production History chart (All / Per pod / Per client); GET /api/dashboard/production-trend",
         "ph": "getClientGoals() → writer 'Goals per month'; getClientLastActiveMonth() → firstYm/lastYm; projected_comment → per-(client,month) planning note for the client table",
     },
+    "v_editorial_production_committed": {
+        "origin": "editorial_raw_production + editorial_capacity_plan_demand (hub is_forecast flag)",
+        "pipeline_step": "etl/warehouse/v_editorial_production_committed.sql (standalone always-live CREATE VIEW; applied manually like v_editorial_roster — reads a hub-published table outside this ETL's publish)",
+        "processing": "LEFT JOIN production→demand on (client_id, ym); drops client-months flagged is_forecast=TRUE (LOGICAL_OR per client-month so multi-pod rows can't fan out; null-safe COALESCE keeps unflagged rows). PRODUCTION/OM scope only — the Current-Q variance is Delivered-vs-Invoiced-sourced and intentionally not filtered.",
+        "eh": "bq_dashboard production_trend / client_production / list_clients end-date → Production History chart, client-production timeline, client end-date",
+        "ph": "",
+    },
     "v_editorial_roster": {
         "origin": "Rippling v_headcount (title LIKE '%editor%') + Slack slack_raw_users (ext.writing email) + editorial_name_map, minus editorial_roster_exclusions",
         "pipeline_step": "etl/warehouse/v_editorial_roster.sql (standalone CREATE VIEW; refreshed on the @name-mappings SYNC step)",

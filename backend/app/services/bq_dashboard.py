@@ -116,7 +116,7 @@ def list_clients(
     if ids:
         for r in q(
             f"""SELECT client_id, MAX(year * 100 + month) AS ym
-                FROM {DS}.editorial_raw_production
+                FROM {DS}.v_editorial_production_committed
                 WHERE client_id IN UNNEST(@ids)
                   AND (articles_actual > 0 OR articles_projected > 0)
                 GROUP BY client_id""",
@@ -270,7 +270,7 @@ def production_trend() -> list[dict]:
                    COALESCE(SUM(articles_actual), 0) AS total_actual,
                    COALESCE(SUM(articles_projected), 0) AS total_projected,
                    is_actual
-            FROM {DS}.editorial_raw_production
+            FROM {DS}.v_editorial_production_committed
             GROUP BY year, month, is_actual
             ORDER BY year, month"""
     )
@@ -283,7 +283,7 @@ def client_production() -> list[dict]:
     )
     ph = q(
         f"SELECT client_id, year, month, articles_actual, articles_projected "
-        f"FROM {DS}.editorial_raw_production"
+        f"FROM {DS}.v_editorial_production_committed"
     )
     ph_by: dict[int, list[dict]] = {}
     actual_tot: dict[int, int] = {}

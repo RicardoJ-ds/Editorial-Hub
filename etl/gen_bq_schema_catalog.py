@@ -250,6 +250,10 @@ GRAIN: dict[str, dict[str, str]] = {
         "grain": "client × month",
         "note": "production actual vs projected + pods",
     },
+    "v_editorial_production_committed": {
+        "grain": "client × month",
+        "note": "editorial_raw_production minus hub-flagged forecast client-months (editorial_capacity_plan_demand.is_forecast); serving filter for the Production/OM surfaces",
+    },
     "v_editorial_fct_pipeline": {
         "grain": "one row per client",
         "note": "pipeline counters (topics/CBs/articles/published)",
