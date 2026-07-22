@@ -27,7 +27,7 @@
 CREATE OR REPLACE VIEW `graphite-data.graphite_bi_sandbox.v_editorial_roster` AS
 WITH
 nm AS (
-  SELECT kind, raw_value, canonical_value
+  SELECT kind, raw_value, canonical_value, LOWER(TRIM(status)) AS status
   FROM `graphite-data.graphite_bi_sandbox.editorial_name_map`
   WHERE canonical_value IS NOT NULL AND TRIM(canonical_value) != ''
 ),
@@ -94,18 +94,25 @@ resolved AS (
      OR (h.role IN ('editor', 'sr_editor') AND nm.kind = 'editor'))
 ),
 nm_canon AS (
-  SELECT DISTINCT
+  -- one row per (role, canonical). A canonical is an ACTIVE synthetic bucket when
+  -- ANY of its name-map rows is flagged STATUS='active' (e.g. "Backlog",
+  -- "Auditioning Writer") -- that is how a not-a-real-person entry still shows in
+  -- the ACTIVE writer/editor dropdowns. Everything else stays inactive (legacy).
+  SELECT
     CASE WHEN kind = 'writer' THEN 'writer' ELSE 'editor' END AS role,
-    canonical_value AS canonical_name
+    canonical_value AS canonical_name,
+    LOGICAL_OR(status = 'active') AS is_active_bucket
   FROM nm
   WHERE kind IN ('writer', 'editor')
+  GROUP BY 1, 2
 ),
 legacy AS (
   SELECT
     nc.canonical_name, nc.role, 'legacy' AS source,
     CAST(NULL AS STRING) AS source_id, CAST(NULL AS STRING) AS slack_id,
     CAST(NULL AS STRING) AS work_email,
-    'inactive' AS status, CAST(NULL AS DATE) AS hire_date, CAST(NULL AS DATE) AS term_date
+    CASE WHEN nc.is_active_bucket THEN 'active' ELSE 'inactive' END AS status,
+    CAST(NULL AS DATE) AS hire_date, CAST(NULL AS DATE) AS term_date
   FROM nm_canon nc
   WHERE NOT EXISTS (
     SELECT 1 FROM resolved r
