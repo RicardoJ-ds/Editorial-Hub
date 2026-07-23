@@ -17,7 +17,8 @@ backend/app/services/__pycache__/
 postgres_data/
 tasks/
 .vercel
-data/           # local meeting transcripts / working notes — internal, keep out of git
+# local meeting transcripts / working notes — internal, keep out of git
+data/
 
 # Relocated raw sources — consolidated under memory/ for navigation, kept OUT of git
 # (sensitive client/revenue CSVs, PRD binaries, point-in-time reports). See memory/50-sources/README.md
