@@ -186,19 +186,27 @@ async def _run_data_migrations(conn) -> None:
         logger.exception("goals_vs_delivery dedupe/constraint migration failed (continuing)")
 
     # 11. cumulative_metrics: allow multiple content_type rows per client.
-    #     client_name was UNIQUE, so the importer only ever kept the first
-    #     (article) row per client — a multi-content-type client (Webflow:
-    #     article/jumbo/glossary, Front: article/glossary) lost its non-article
-    #     rows. Drop the single-column unique, dedupe on (client_name,
-    #     content_type) keeping the earliest row, then add the composite
-    #     constraint. Postgres auto-named the old constraint
-    #     `cumulative_metrics_client_name_key`; the non-unique index
-    #     `ix_cumulative_metrics_client_name` (index=True) is left in place.
+    #     client_name was `unique=True, index=True` — which in SQLAlchemy is a
+    #     UNIQUE INDEX (`ix_cumulative_metrics_client_name`), NOT a table
+    #     constraint — so the importer only ever kept the first (article) row per
+    #     client; a multi-content-type client (Webflow: article/jumbo/glossary,
+    #     Front: article/glossary) lost its non-article rows. Drop the unique
+    #     index (+ any `_key` constraint on other envs), recreate the index as
+    #     NON-unique, dedupe on (client_name, content_type) keeping the earliest
+    #     row, then add the composite constraint.
     try:
         await conn.execute(
             text(
                 "ALTER TABLE cumulative_metrics "
                 "DROP CONSTRAINT IF EXISTS cumulative_metrics_client_name_key"
+            )
+        )
+        # the actual uniqueness enforcer: a UNIQUE index from `unique=True,index=True`
+        await conn.execute(text("DROP INDEX IF EXISTS ix_cumulative_metrics_client_name"))
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_cumulative_metrics_client_name "
+                "ON cumulative_metrics (client_name)"
             )
         )
         await conn.execute(
