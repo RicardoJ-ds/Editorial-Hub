@@ -172,14 +172,33 @@ SELECT p.client_id, c.name AS client_name, c.editorial_pod, c.growth_pod,
 FROM public.production_history p
 LEFT JOIN public.clients c ON c.id = p.client_id"""),
     ("v_editorial_fct_pipeline", """
-SELECT cm.client_name, c.id AS client_id, c.editorial_pod, c.growth_pod,
-       c.articles_sow,
-       cm.topics_sent, cm.topics_approved,
-       cm.cbs_sent, cm.cbs_approved,
-       cm.articles_sent, cm.articles_approved, cm.articles_difference,
-       cm.published_live, cm.status AS sheet_status
-FROM public.cumulative_metrics cm
-LEFT JOIN public.clients c ON c.name = cm.client_name"""),
+-- One row per client, content-type weighted (article x1, jumbo x2, glossary/LP
+-- x0.5 -- same as Goals vs Delivery). EXCEPTION: Webflow summed raw (already
+-- article-equivalent at source). Mirrors the BQ view in views.py.
+SELECT cm.client_name, MAX(c.id) AS client_id,
+       MAX(c.editorial_pod) AS editorial_pod, MAX(c.growth_pod) AS growth_pod,
+       MAX(c.articles_sow) AS articles_sow,
+       CAST(ROUND(SUM(cm.topics_sent     * cm.w)::numeric) AS INTEGER) AS topics_sent,
+       CAST(ROUND(SUM(cm.topics_approved * cm.w)::numeric) AS INTEGER) AS topics_approved,
+       CAST(ROUND(SUM(cm.cbs_sent        * cm.w)::numeric) AS INTEGER) AS cbs_sent,
+       CAST(ROUND(SUM(cm.cbs_approved    * cm.w)::numeric) AS INTEGER) AS cbs_approved,
+       CAST(ROUND(SUM(cm.articles_sent   * cm.w)::numeric) AS INTEGER) AS articles_sent,
+       CAST(ROUND(SUM(cm.articles_approved * cm.w)::numeric) AS INTEGER) AS articles_approved,
+       CAST(ROUND((SUM(cm.articles_sent * cm.w) - SUM(cm.articles_approved * cm.w))::numeric) AS INTEGER) AS articles_difference,
+       CAST(ROUND(SUM(cm.published_live  * cm.w)::numeric) AS INTEGER) AS published_live,
+       MAX(cm.status) AS sheet_status
+FROM (
+  SELECT *,
+    CASE
+      WHEN client_name = 'Webflow' THEN 1.0
+      WHEN LOWER(content_type) = 'jumbo' THEN 2.0
+      WHEN LOWER(content_type) IN ('lp', 'landing page', 'landing pages', 'glossary') THEN 0.5
+      ELSE 1.0
+    END AS w
+  FROM public.cumulative_metrics
+) cm
+LEFT JOIN public.clients c ON c.name = cm.client_name
+GROUP BY cm.client_name"""),
     ("v_editorial_fct_milestone_transitions", """
 SELECT client_id, client_name, editorial_pod, growth_pod, transition, days FROM (
   SELECT id AS client_id, name AS client_name, editorial_pod, growth_pod,

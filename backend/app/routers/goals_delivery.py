@@ -3,11 +3,11 @@
 import asyncio
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import CumulativeMetric, GoalsVsDelivery
+from app.models import GoalsVsDelivery
 from app.schemas import CumulativeMetricResponse, GoalsVsDeliveryResponse
 from app.services import bq_dashboard
 from app.services.bq_dashboard import get_data_source
@@ -114,10 +114,42 @@ async def cumulative_metrics(
     """Get all-time cumulative pipeline metrics per client."""
     if source == "bq":
         return await asyncio.to_thread(bq_dashboard.goals_cumulative, pod, status)
-    stmt = select(CumulativeMetric).order_by(CumulativeMetric.client_name, CumulativeMetric.id)
-    if pod:
-        stmt = stmt.where(CumulativeMetric.account_team_pod == pod)
-    if status:
-        stmt = stmt.where(CumulativeMetric.status == status)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    # Postgres serving path (local / rollback): mirror the BQ weighted rollup —
+    # one row per client, content-type weighted (article x1, jumbo x2, glossary/LP
+    # x0.5; Webflow raw x1). cumulative_metrics has one row per (client, content_type).
+    sql = text(
+        """
+        SELECT MIN(id) AS id, MAX(status) AS status,
+               MAX(account_team_pod) AS account_team_pod, client_name,
+               MAX(client_type) AS client_type, NULL::text AS content_type,
+               CAST(ROUND(SUM(topics_sent * w)::numeric) AS INTEGER) AS topics_sent,
+               CAST(ROUND(SUM(topics_approved * w)::numeric) AS INTEGER) AS topics_approved,
+               CASE WHEN SUM(topics_sent * w) > 0 THEN ROUND(SUM(topics_approved * w)::numeric / SUM(topics_sent * w)::numeric * 100)::int::text || '%' END AS topics_pct_approved,
+               CAST(ROUND(SUM(cbs_sent * w)::numeric) AS INTEGER) AS cbs_sent,
+               CAST(ROUND(SUM(cbs_approved * w)::numeric) AS INTEGER) AS cbs_approved,
+               CASE WHEN SUM(cbs_sent * w) > 0 THEN ROUND(SUM(cbs_approved * w)::numeric / SUM(cbs_sent * w)::numeric * 100)::int::text || '%' END AS cbs_pct_approved,
+               CAST(ROUND(SUM(articles_sent * w)::numeric) AS INTEGER) AS articles_sent,
+               CAST(ROUND(SUM(articles_approved * w)::numeric) AS INTEGER) AS articles_approved,
+               CAST(ROUND((SUM(articles_sent * w) - SUM(articles_approved * w))::numeric) AS INTEGER) AS articles_difference,
+               CASE WHEN SUM(articles_sent * w) > 0 THEN ROUND(SUM(articles_approved * w)::numeric / SUM(articles_sent * w)::numeric * 100)::int::text || '%' END AS articles_pct_approved,
+               CAST(ROUND(SUM(published_live * w)::numeric) AS INTEGER) AS published_live,
+               CASE WHEN SUM(articles_sent * w) > 0 THEN ROUND(SUM(published_live * w)::numeric / SUM(articles_sent * w)::numeric * 100)::int::text || '%' END AS published_pct_live,
+               MAX(last_update) AS last_update, MAX(comments) AS comments
+        FROM (
+            SELECT *,
+              CASE
+                WHEN client_name = 'Webflow' THEN 1.0
+                WHEN LOWER(content_type) = 'jumbo' THEN 2.0
+                WHEN LOWER(content_type) IN ('lp', 'landing page', 'landing pages', 'glossary') THEN 0.5
+                ELSE 1.0
+              END AS w
+            FROM cumulative_metrics
+            WHERE (:pod IS NULL OR account_team_pod = :pod)
+              AND (:status IS NULL OR status = :status)
+        ) sub
+        GROUP BY client_name
+        ORDER BY client_name
+        """
+    )
+    result = await db.execute(sql, {"pod": pod, "status": status})
+    return [dict(r._mapping) for r in result]

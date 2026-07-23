@@ -587,11 +587,18 @@ class SurferAPIUsage(Base):
 
 class CumulativeMetric(Base):
     __tablename__ = "cumulative_metrics"
+    __table_args__ = (
+        # One row per (client, content_type) so a client's article / jumbo /
+        # glossary / LP cumulative rows all persist (was unique on client_name
+        # alone, which dropped every non-article row). The composite key + the
+        # importer forward-fill are the two halves of that fix.
+        UniqueConstraint("client_name", "content_type", name="uq_cumulative_client_ctype"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     status: Mapped[str | None] = mapped_column(String(50))
     account_team_pod: Mapped[str | None] = mapped_column(String(50))
-    client_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     client_type: Mapped[str | None] = mapped_column(String(100))
     content_type: Mapped[str | None] = mapped_column(String(50))
     topics_sent: Mapped[int | None] = mapped_column(Integer)

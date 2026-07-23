@@ -2673,26 +2673,46 @@ def import_cumulative(session: Session) -> ImportResult:
         all_rows = resp.get("values", [])
         data_rows = all_rows[4:]  # headers at row 3, data from row 4
 
+        # The Cumulative tab MERGES the client-level cells (Status / Pod / Client
+        # Name / Client Type) across a client's per-content-type rows, so only the
+        # first (article) row carries them; jumbo / glossary / LP continuation rows
+        # leave those cells blank. Forward-fill them so EVERY content-type row is
+        # captured — the old `if not client_name: continue` silently dropped the
+        # continuation rows, keeping only the article row per client (e.g. Webflow's
+        # jumbo + glossary never landed). Upsert key is (client_name, content_type).
+        last_client = last_pod = last_type = last_status = None
         for row in data_rows:
             result.rows_parsed += 1
-            client_name = _cell(row, 2)
-            if not client_name:
+            raw_client = _cell(row, 2)
+            content_type = _cell(row, 4) or None
+            if raw_client:
+                last_client = raw_client
+                last_pod = _cell(row, 1) or None
+                last_type = _cell(row, 3) or None
+                last_status = _cell(row, 0) or None
+            client_name = raw_client or last_client
+            # skip truly-empty rows: no client at all, or a blank continuation row
+            # that carries no content type (a separator, not a real data row)
+            if not client_name or (not raw_client and not content_type):
                 continue
 
             existing = (
                 session.execute(
-                    select(CumulativeMetric).where(CumulativeMetric.client_name == client_name)
+                    select(CumulativeMetric).where(
+                        CumulativeMetric.client_name == client_name,
+                        CumulativeMetric.content_type == content_type,
+                    )
                 )
                 .scalars()
                 .first()
             )
 
             data = dict(
-                status=_cell(row, 0) or None,
-                account_team_pod=_cell(row, 1) or None,
+                status=(_cell(row, 0) or None) if raw_client else last_status,
+                account_team_pod=(_cell(row, 1) or None) if raw_client else last_pod,
                 client_name=client_name,
-                client_type=_cell(row, 3) or None,
-                content_type=_cell(row, 4) or None,
+                client_type=(_cell(row, 3) or None) if raw_client else last_type,
+                content_type=content_type,
                 topics_sent=safe_int(_cell(row, 5)),
                 topics_approved=safe_int(_cell(row, 6)),
                 topics_pct_approved=_cell(row, 7) or None,

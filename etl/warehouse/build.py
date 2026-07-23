@@ -269,7 +269,25 @@ def build_int_delivery(session, as_of: date) -> list[Job]:
     deliverables = fetch_model_rows(session, m.DeliverableMonthly)
     production = fetch_model_rows(session, m.ProductionHistory)
     cumulative = fetch_model_rows(session, m.CumulativeMetric)
-    published_by_name = {c["client_name"]: (c.get("published_live") or 0) for c in cumulative}
+    # cumulative now has one row per (client, content_type); sum published_live
+    # per client with content-type weighting (article x1, jumbo x2, glossary/LP
+    # x0.5; Webflow raw x1 -- same factors as v_editorial_fct_pipeline). Was a
+    # dict comprehension that silently kept only the LAST content-type row.
+    published_by_name: dict[str, int] = {}
+    for _c in cumulative:
+        _name = _c["client_name"]
+        _ct = (_c.get("content_type") or "").strip().lower()
+        if _name == "Webflow":
+            _w = 1.0
+        elif _ct == "jumbo":
+            _w = 2.0
+        elif _ct in ("lp", "landing page", "landing pages", "glossary"):
+            _w = 0.5
+        else:
+            _w = 1.0
+        published_by_name[_name] = published_by_name.get(_name, 0) + round(
+            (_c.get("published_live") or 0) * _w
+        )
 
     by_client_deliv: dict[int, list[dict]] = {}
     for d in deliverables:

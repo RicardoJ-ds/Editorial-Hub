@@ -138,15 +138,37 @@ LEFT JOIN {DS}.editorial_raw_clients c ON c.id = p.client_id
 -- Stage field choices (audited): Topics/CBs = approved; Articles = SENT
 -- (billable on delivery); Published = published_live. articles_approved kept
 -- for the approval-rate matrix.
+-- editorial_raw_cumulative now carries one row per (client, content_type); we
+-- roll up to one row per client applying content-type weighting (article x1,
+-- jumbo x2, glossary/LP x0.5 -- same factors as Goals vs Delivery). EXCEPTION:
+-- Webflow is summed RAW (x1 for every type) because its per-type figures are
+-- already converted to article-equivalents at the source (see the sheet notes:
+-- "116 ADs = 462 glossary terms", jumbo already in AD units).
 SELECT
-  cm.client_name, c.id AS client_id, c.editorial_pod, c.growth_pod,
-  c.articles_sow,
-  cm.topics_sent, cm.topics_approved,
-  cm.cbs_sent, cm.cbs_approved,
-  cm.articles_sent, cm.articles_approved, cm.articles_difference,
-  cm.published_live, cm.status AS sheet_status, cm.synced_at
-FROM {DS}.editorial_raw_cumulative cm
+  cm.client_name, ANY_VALUE(c.id) AS client_id,
+  ANY_VALUE(c.editorial_pod) AS editorial_pod, ANY_VALUE(c.growth_pod) AS growth_pod,
+  ANY_VALUE(c.articles_sow) AS articles_sow,
+  CAST(ROUND(SUM(cm.topics_sent     * cm.w)) AS INT64) AS topics_sent,
+  CAST(ROUND(SUM(cm.topics_approved * cm.w)) AS INT64) AS topics_approved,
+  CAST(ROUND(SUM(cm.cbs_sent        * cm.w)) AS INT64) AS cbs_sent,
+  CAST(ROUND(SUM(cm.cbs_approved    * cm.w)) AS INT64) AS cbs_approved,
+  CAST(ROUND(SUM(cm.articles_sent   * cm.w)) AS INT64) AS articles_sent,
+  CAST(ROUND(SUM(cm.articles_approved * cm.w)) AS INT64) AS articles_approved,
+  CAST(ROUND(SUM(cm.articles_sent * cm.w) - SUM(cm.articles_approved * cm.w)) AS INT64) AS articles_difference,
+  CAST(ROUND(SUM(cm.published_live  * cm.w)) AS INT64) AS published_live,
+  ANY_VALUE(cm.status) AS sheet_status, MAX(cm.synced_at) AS synced_at
+FROM (
+  SELECT *,
+    CASE
+      WHEN client_name = 'Webflow' THEN 1.0
+      WHEN LOWER(content_type) = 'jumbo' THEN 2.0
+      WHEN LOWER(content_type) IN ('lp', 'landing page', 'landing pages', 'glossary') THEN 0.5
+      ELSE 1.0
+    END AS w
+  FROM {DS}.editorial_raw_cumulative
+) cm
 LEFT JOIN {DS}.editorial_raw_clients c ON c.name = cm.client_name
+GROUP BY cm.client_name
 """,
     ),
     # ── milestones / TTM ────────────────────────────────────────────────────

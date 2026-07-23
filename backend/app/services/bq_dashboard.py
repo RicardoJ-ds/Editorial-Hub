@@ -245,6 +245,12 @@ def goals_all(pod: str | None) -> list[dict]:
 
 
 def goals_cumulative(pod: str | None, status: str | None) -> list[dict]:
+    # editorial_raw_cumulative carries one row per (client, content_type). Roll up
+    # to ONE row per client applying content-type weighting (article x1, jumbo x2,
+    # glossary/LP x0.5 -- same factors as Goals vs Delivery). EXCEPTION: Webflow is
+    # summed RAW (x1 for every type) because its per-type figures are already
+    # article-equivalents at the source. The weight CASE below MUST match
+    # v_editorial_fct_pipeline (views.py / pg_sink.py) + build.py published_by_name.
     where, params = ["TRUE"], []
     if pod:
         where.append("account_team_pod = @pod")
@@ -253,8 +259,42 @@ def goals_cumulative(pod: str | None, status: str | None) -> list[dict]:
         where.append("status = @status")
         params.append(_p("status", "STRING", status))
     return q(
-        f"SELECT * FROM {DS}.editorial_raw_cumulative WHERE {' AND '.join(where)} "
-        f"ORDER BY client_name, id",
+        f"""
+        SELECT
+          MIN(id) AS id,
+          ANY_VALUE(status) AS status,
+          ANY_VALUE(account_team_pod) AS account_team_pod,
+          client_name,
+          ANY_VALUE(client_type) AS client_type,
+          CAST(NULL AS STRING) AS content_type,
+          CAST(ROUND(SUM(topics_sent * w)) AS INT64) AS topics_sent,
+          CAST(ROUND(SUM(topics_approved * w)) AS INT64) AS topics_approved,
+          FORMAT('%d%%', CAST(ROUND(SAFE_DIVIDE(SUM(topics_approved * w), SUM(topics_sent * w)) * 100) AS INT64)) AS topics_pct_approved,
+          CAST(ROUND(SUM(cbs_sent * w)) AS INT64) AS cbs_sent,
+          CAST(ROUND(SUM(cbs_approved * w)) AS INT64) AS cbs_approved,
+          FORMAT('%d%%', CAST(ROUND(SAFE_DIVIDE(SUM(cbs_approved * w), SUM(cbs_sent * w)) * 100) AS INT64)) AS cbs_pct_approved,
+          CAST(ROUND(SUM(articles_sent * w)) AS INT64) AS articles_sent,
+          CAST(ROUND(SUM(articles_approved * w)) AS INT64) AS articles_approved,
+          CAST(ROUND(SUM(articles_sent * w) - SUM(articles_approved * w)) AS INT64) AS articles_difference,
+          FORMAT('%d%%', CAST(ROUND(SAFE_DIVIDE(SUM(articles_approved * w), SUM(articles_sent * w)) * 100) AS INT64)) AS articles_pct_approved,
+          CAST(ROUND(SUM(published_live * w)) AS INT64) AS published_live,
+          FORMAT('%d%%', CAST(ROUND(SAFE_DIVIDE(SUM(published_live * w), SUM(articles_sent * w)) * 100) AS INT64)) AS published_pct_live,
+          ANY_VALUE(last_update) AS last_update,
+          ANY_VALUE(comments) AS comments
+        FROM (
+          SELECT *,
+            CASE
+              WHEN client_name = 'Webflow' THEN 1.0
+              WHEN LOWER(content_type) = 'jumbo' THEN 2.0
+              WHEN LOWER(content_type) IN ('lp', 'landing page', 'landing pages', 'glossary') THEN 0.5
+              ELSE 1.0
+            END AS w
+          FROM {DS}.editorial_raw_cumulative
+          WHERE {" AND ".join(where)}
+        )
+        GROUP BY client_name
+        ORDER BY client_name
+        """,
         params,
     )
 

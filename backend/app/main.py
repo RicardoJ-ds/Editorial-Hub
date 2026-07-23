@@ -185,6 +185,54 @@ async def _run_data_migrations(conn) -> None:
     except Exception:
         logger.exception("goals_vs_delivery dedupe/constraint migration failed (continuing)")
 
+    # 11. cumulative_metrics: allow multiple content_type rows per client.
+    #     client_name was UNIQUE, so the importer only ever kept the first
+    #     (article) row per client — a multi-content-type client (Webflow:
+    #     article/jumbo/glossary, Front: article/glossary) lost its non-article
+    #     rows. Drop the single-column unique, dedupe on (client_name,
+    #     content_type) keeping the earliest row, then add the composite
+    #     constraint. Postgres auto-named the old constraint
+    #     `cumulative_metrics_client_name_key`; the non-unique index
+    #     `ix_cumulative_metrics_client_name` (index=True) is left in place.
+    try:
+        await conn.execute(
+            text(
+                "ALTER TABLE cumulative_metrics "
+                "DROP CONSTRAINT IF EXISTS cumulative_metrics_client_name_key"
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DELETE FROM cumulative_metrics c1
+                USING cumulative_metrics c2
+                WHERE c1.client_name = c2.client_name
+                  AND c1.content_type IS NOT DISTINCT FROM c2.content_type
+                  AND c1.id < c2.id
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'uq_cumulative_client_ctype'
+                    ) THEN
+                        ALTER TABLE cumulative_metrics
+                            ADD CONSTRAINT uq_cumulative_client_ctype
+                            UNIQUE (client_name, content_type);
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
+    except Exception:
+        logger.exception("cumulative_metrics dedupe/constraint migration failed (continuing)")
+
     # 4. access_groups: collapse the old pod-derived `leadership` group into
     #    the renamed `vps_managers` (now also called `leadership`). Old
     #    leadership members were Senior Editors / Growth Leads / Directors
